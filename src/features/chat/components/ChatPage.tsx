@@ -54,8 +54,10 @@ export function ChatPage(): React.ReactElement {
         </Space>
       </header>
 
+      {/* 浮动任务清单：置于 page 层，不随消息区滚动 */}
+      <TaskChecklist tasks={session?.tasks ?? []} visible={Boolean(session?.tasks?.length)} />
+
       <div className={styles.body}>
-        <TaskChecklist tasks={session?.tasks ?? []} visible={Boolean(session?.tasks?.length)} />
         {isEmpty ? (
           <WelcomeHero
             onPick={(prompt) => {
