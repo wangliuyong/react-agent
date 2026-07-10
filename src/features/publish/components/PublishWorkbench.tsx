@@ -1,0 +1,309 @@
+import { useMemo, useState } from 'react'
+import {
+  Button,
+  Empty,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Space,
+  Switch,
+  Tag,
+  Typography,
+  message
+} from 'antd'
+import { PlusOutlined, PlayCircleOutlined, DeleteOutlined } from '@ant-design/icons'
+import { usePublishStore } from '../hooks/usePublishStore'
+import { buildSubTaskPrompt, createEmptySubTask } from '../types'
+import type { PublishPlan, PublishSubTask } from '@shared/types'
+import { useSessionStore } from '@/features/chat'
+import { useAppStore } from '@/stores/app-store'
+import styles from './PublishWorkbench.module.css'
+
+const { Title, Text, Paragraph } = Typography
+
+/** 发布工作台：计划编辑；执行进度在主聊天窗口查看 */
+export function PublishWorkbench(): React.ReactElement {
+  const plans = usePublishStore((s) => s.plans)
+  const activePlanId = usePublishStore((s) => s.activePlanId)
+  const setActive = usePublishStore((s) => s.setActive)
+  const createPlan = usePublishStore((s) => s.createPlan)
+  const savePlan = usePublishStore((s) => s.savePlan)
+  const removePlan = usePublishStore((s) => s.removePlan)
+  const addDemoPlan = usePublishStore((s) => s.addDemoPlan)
+
+  const createSession = useSessionStore((s) => s.createSession)
+  const sendMessage = useSessionStore((s) => s.sendMessage)
+  const setView = useAppStore((s) => s.setView)
+
+  const [editing, setEditing] = useState<PublishPlan | null>(null)
+  const [subEditing, setSubEditing] = useState<PublishSubTask | null>(null)
+
+  const active = useMemo(
+    () => plans.find((p) => p.id === activePlanId) ?? null,
+    [plans, activePlanId]
+  )
+
+  /** 从当前计划中移除指定子任务 */
+  const removeSubTask = async (subId: string): Promise<void> => {
+    if (!active) return
+    const next = {
+      ...active,
+      subTasks: active.subTasks.filter((s) => s.id !== subId),
+      updatedAt: Date.now()
+    }
+    await savePlan(next)
+    // 若正在编辑被删子任务，关闭弹窗
+    if (subEditing?.id === subId) setSubEditing(null)
+    message.success('已删除子任务')
+  }
+
+  const runPlan = async (plan: PublishPlan): Promise<void> => {
+    if (!plan.subTasks.length) {
+      message.warning('请先添加子任务')
+      return
+    }
+    await createSession()
+    setView('chat')
+    // 串行：把所有子任务合成一条指令，由 Agent 按清单执行
+    const prompt = [
+      `请按顺序串行执行以下 ${plan.subTasks.length} 个小红书发布子任务（计划：${plan.title}）：`,
+      ...plan.subTasks.map((s, i) => `\n### 子任务 ${i + 1}\n${buildSubTaskPrompt(s)}`),
+      '\n每完成一个子任务更新任务清单。若需要配图请提示我上传。'
+    ].join('\n')
+    await sendMessage(prompt)
+    message.success('已在主聊天窗口开始执行')
+  }
+
+  return (
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            发布工作台
+          </Title>
+          <Text type="secondary">多账号 / 多渠道 / 串行执行</Text>
+          <Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 0 }}>
+            发布计划只负责编辑，执行进度在主聊天窗口查看
+          </Paragraph>
+        </div>
+        <Space>
+          <Button
+            onClick={async () => {
+              await addDemoPlan()
+              message.success('已添加示例计划')
+            }}
+          >
+            导入示例
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={async () => {
+              const plan = await createPlan()
+              setEditing(plan)
+            }}
+          >
+            新建发布计划
+          </Button>
+        </Space>
+      </header>
+
+      <div className={styles.body}>
+        <aside className={styles.sidebar}>
+          {plans.length === 0 ? (
+            <Empty description="暂无计划" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          ) : (
+            plans.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={styles.planItem}
+                data-active={p.id === activePlanId}
+                onClick={() => setActive(p.id)}
+              >
+                <div className={styles.planTitle}>{p.title}</div>
+                <div className={styles.planMeta}>{p.subTasks.length} 个子任务</div>
+              </button>
+            ))
+          )}
+        </aside>
+
+        <main className={styles.main}>
+          {!active ? (
+            <Empty description="选择或新建一个发布计划" />
+          ) : (
+            <>
+              <div className={styles.planHeader}>
+                <div>
+                  <Title level={4} style={{ margin: 0 }}>
+                    {active.title}
+                  </Title>
+                  <Text type="secondary">
+                    {active.description || '未填写说明'} · {active.subTasks.length} 个子任务
+                  </Text>
+                </div>
+                <Space>
+                  <Button onClick={() => setEditing(active)}>编辑</Button>
+                  <Button
+                    type="primary"
+                    icon={<PlayCircleOutlined />}
+                    onClick={() => void runPlan(active)}
+                  >
+                    运行
+                  </Button>
+                  <Button
+                    danger
+                    type="link"
+                    onClick={async () => {
+                      await removePlan(active.id)
+                      message.success('已删除')
+                    }}
+                  >
+                    删除
+                  </Button>
+                </Space>
+              </div>
+
+              <div className={styles.subList}>
+                {active.subTasks.map((sub, index) => (
+                  <div key={sub.id} className={styles.subCard}>
+                    <div className={styles.subIndex}>{index + 1}</div>
+                    <div className={styles.subBody}>
+                      <div className={styles.subTitleRow}>
+                        <span className={styles.subTitle}>{sub.title}</span>
+                        <Space size={0}>
+                          <Button type="link" size="small" onClick={() => setSubEditing(sub)}>
+                            编辑
+                          </Button>
+                          <Popconfirm
+                            title="确定删除该子任务？"
+                            onConfirm={() => void removeSubTask(sub.id)}
+                          >
+                            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                              删除
+                            </Button>
+                          </Popconfirm>
+                        </Space>
+                      </div>
+                      <Space size={6} wrap>
+                        <Tag>{sub.channel}</Tag>
+                        {sub.topic ? <Tag>{sub.topic}</Tag> : null}
+                        {sub.autoPublish ? <Tag>自动发布</Tag> : <Tag>待确认发布</Tag>}
+                      </Space>
+                      <Paragraph type="secondary" className={styles.subPrompt}>
+                        {sub.contentPrompt || '未填写内容说明'}
+                      </Paragraph>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  block
+                  icon={<PlusOutlined />}
+                  onClick={async () => {
+                    const next = {
+                      ...active,
+                      subTasks: [...active.subTasks, createEmptySubTask()],
+                      updatedAt: Date.now()
+                    }
+                    await savePlan(next)
+                    setSubEditing(next.subTasks[next.subTasks.length - 1])
+                  }}
+                >
+                  添加子任务
+                </Button>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+
+      <Modal
+        title="编辑发布计划"
+        open={Boolean(editing)}
+        onCancel={() => setEditing(null)}
+        onOk={async () => {
+          if (!editing) return
+          await savePlan(editing)
+          setEditing(null)
+          message.success('已保存')
+        }}
+        destroyOnClose
+      >
+        {editing ? (
+          <Form layout="vertical">
+            <Form.Item label="标题">
+              <Input
+                value={editing.title}
+                onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+              />
+            </Form.Item>
+            <Form.Item label="说明">
+              <Input.TextArea
+                rows={3}
+                value={editing.description}
+                onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+              />
+            </Form.Item>
+          </Form>
+        ) : null}
+      </Modal>
+
+      <Modal
+        title="编辑子任务"
+        open={Boolean(subEditing) && Boolean(active)}
+        onCancel={() => setSubEditing(null)}
+        onOk={async () => {
+          if (!active || !subEditing) return
+          const next = {
+            ...active,
+            subTasks: active.subTasks.map((s) => (s.id === subEditing.id ? subEditing : s)),
+            updatedAt: Date.now()
+          }
+          await savePlan(next)
+          setSubEditing(null)
+          message.success('已保存')
+        }}
+        destroyOnClose
+      >
+        {subEditing ? (
+          <Form layout="vertical">
+            <Form.Item label="标题">
+              <Input
+                value={subEditing.title}
+                onChange={(e) => setSubEditing({ ...subEditing, title: e.target.value })}
+              />
+            </Form.Item>
+            <Form.Item label="渠道">
+              <Input
+                value={subEditing.channel}
+                onChange={(e) => setSubEditing({ ...subEditing, channel: e.target.value })}
+              />
+            </Form.Item>
+            <Form.Item label="主题">
+              <Input
+                value={subEditing.topic}
+                onChange={(e) => setSubEditing({ ...subEditing, topic: e.target.value })}
+              />
+            </Form.Item>
+            <Form.Item label="内容说明">
+              <Input.TextArea
+                rows={4}
+                value={subEditing.contentPrompt}
+                onChange={(e) =>
+                  setSubEditing({ ...subEditing, contentPrompt: e.target.value })
+                }
+              />
+            </Form.Item>
+            <Form.Item label="自动发布">
+              <Switch
+                checked={subEditing.autoPublish}
+                onChange={(v) => setSubEditing({ ...subEditing, autoPublish: v })}
+              />
+            </Form.Item>
+          </Form>
+        ) : null}
+      </Modal>
+    </div>
+  )
+}

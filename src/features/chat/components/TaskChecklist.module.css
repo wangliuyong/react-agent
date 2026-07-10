@@ -1,0 +1,27 @@
+.card {
+  position: absolute;
+  right: 16px;
+  top: 64px;
+  width: 280px;
+  z-index: 5;
+  box-shadow: var(--shadow);
+  border-radius: 12px !important;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #faad14;
+  margin-right: 8px;
+}
+
+.pending {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid #bfbfbf;
+  margin-right: 8px;
+}

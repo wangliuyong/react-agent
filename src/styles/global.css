@@ -1,0 +1,41 @@
+:root {
+  --bg-app: #f3f4f6;
+  --bg-panel: #ffffff;
+  --bg-sidebar: rgba(255, 255, 255, 0.72);
+  --border: #e8e8ec;
+  --text: #1f1f23;
+  --text-secondary: #8b8b95;
+  --accent: #1677ff;
+  --danger: #ff4d4f;
+  --shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--bg-app);
+  color: var(--text);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, sans-serif;
+}
+
+/* macOS 标题栏拖拽区域 */
+.app-drag {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+button,
+input,
+textarea,
+a {
+  -webkit-app-region: no-drag;
+}

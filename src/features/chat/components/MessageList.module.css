@@ -1,0 +1,35 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 28px 120px;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.userBubble {
+  align-self: flex-end;
+  max-width: 85%;
+  background: #eef3ff;
+  border-radius: 14px 14px 4px 14px;
+  padding: 12px 14px;
+  border: 1px solid #d6e4ff;
+}
+
+.assistantBlock {
+  align-self: stretch;
+  background: transparent;
+}
+
+.toolBlock {
+  background: #fafafa;
+  border-radius: 10px;
+}
+
+.taskInline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
