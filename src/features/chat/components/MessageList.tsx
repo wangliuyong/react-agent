@@ -1,5 +1,6 @@
-import { Alert, Collapse, Table, Tag, Typography } from 'antd'
+import { Alert, Collapse, Tag, Typography } from 'antd'
 import type { ChatMessage, TaskItem } from '@shared/types'
+import { ChatMarkdown } from './ChatMarkdown'
 import { MessageImageGallery } from './MessageImageGallery'
 import {
   extractMessageImages,
@@ -7,7 +8,7 @@ import {
 } from '../utils/message-images'
 import styles from './MessageList.module.css'
 
-const { Text, Paragraph } = Typography
+const { Text } = Typography
 
 interface MessageListProps {
   messages: ChatMessage[]
@@ -15,7 +16,7 @@ interface MessageListProps {
   tasks: TaskItem[]
 }
 
-/** 展示组件：消息列表 + 工具结果折叠 + 图片预览 */
+/** 展示组件：消息列表 + 工具结果折叠 + Markdown 预览 + 图片预览 */
 export function MessageList({
   messages,
   streamingText,
@@ -55,9 +56,7 @@ export function MessageList({
             <div key={m.id} className={`${styles.row} ${styles.rowUser}`}>
               <span className={styles.label}>你</span>
               <div className={styles.userBubble}>
-                {text ? (
-                  <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{text}</Paragraph>
-                ) : null}
+                {text ? <ChatMarkdown source={text} className={styles.userMarkdown} /> : null}
                 <MessageImageGallery images={images} />
               </div>
             </div>
@@ -77,9 +76,7 @@ export function MessageList({
                     children: (
                       <>
                         <MessageImageGallery images={images} />
-                        <Text code style={{ whiteSpace: 'pre-wrap', display: 'block' }}>
-                          {m.content}
-                        </Text>
+                        <ChatMarkdown source={m.content} className={styles.toolMarkdown} />
                       </>
                     )
                   }
@@ -129,47 +126,10 @@ function AssistantBody({
   const images = extractMessageImages(content)
   const displayText = stripImagePathsFromDisplayText(content, images)
 
-  const lines = displayText.split('\n')
-  const tableStart = lines.findIndex((l) => l.trim().startsWith('|') && l.includes('|', 1))
-  if (tableStart >= 0) {
-    const tableLines = []
-    let i = tableStart
-    while (i < lines.length && lines[i].includes('|')) {
-      tableLines.push(lines[i])
-      i += 1
-    }
-    const parsed = parseMdTable(tableLines)
-    const before = lines.slice(0, tableStart).join('\n').trim()
-    const after = lines.slice(i).join('\n').trim()
-    return (
-      <>
-        {before ? <Paragraph style={{ whiteSpace: 'pre-wrap' }}>{before}</Paragraph> : null}
-        <MessageImageGallery images={images} />
-        {parsed ? (
-          <Table
-            size="small"
-            pagination={false}
-            columns={parsed.columns}
-            dataSource={parsed.data}
-            style={{ marginBottom: 12 }}
-          />
-        ) : null}
-        {after ? <Paragraph style={{ whiteSpace: 'pre-wrap' }}>{after}</Paragraph> : null}
-        {streaming ? <span className={styles.cursor} /> : null}
-        {/执行完毕/.test(content) ? (
-          <Alert type="success" showIcon message="执行完毕" className={styles.doneAlert} />
-        ) : null}
-      </>
-    )
-  }
-
   return (
     <>
       {displayText ? (
-        <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-          {displayText}
-          {streaming ? <span className={styles.cursor} /> : null}
-        </Paragraph>
+        <ChatMarkdown source={displayText} streaming={streaming} />
       ) : streaming ? (
         <span className={styles.cursor} />
       ) : null}
@@ -179,32 +139,4 @@ function AssistantBody({
       ) : null}
     </>
   )
-}
-
-function parseMdTable(lines: string[]): {
-  columns: Array<{ title: string; dataIndex: string }>
-  data: Array<Record<string, string>>
-} | null {
-  if (lines.length < 2) return null
-  const headers = splitRow(lines[0])
-  const body = lines.slice(1).filter((l) => !/^\|\s*-+/.test(l))
-  const columns = headers.map((h, idx) => ({ title: h, dataIndex: `c${idx}` }))
-  const data = body.map((row, ri) => {
-    const cells = splitRow(row)
-    const obj: Record<string, string> = { key: String(ri) }
-    headers.forEach((_, idx) => {
-      obj[`c${idx}`] = cells[idx] ?? ''
-    })
-    return obj
-  })
-  return { columns, data }
-}
-
-function splitRow(line: string): string[] {
-  return line
-    .trim()
-    .replace(/^\|/, '')
-    .replace(/\|$/, '')
-    .split('|')
-    .map((c) => c.trim())
 }
