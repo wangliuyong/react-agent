@@ -35,6 +35,7 @@ export const IpcChannels = {
   postInstallSkillTemplate: 'post:skill-template:install',
   querySkillImportPreview: 'query:skill-import-preview',
   postImportSkillFromUrl: 'post:skill-import-from-url',
+  queryLocalImageDataUrl: 'query:local-image-data-url',
   // 事件推送（main → renderer）
   onAgentEvent: 'event:agent',
   onBrowserFrame: 'event:browser-frame'
@@ -75,6 +76,8 @@ export interface ChatMessage {
   toolName?: string
   /** 关联 tool_call_id */
   toolCallId?: string
+  /** 用户消息附带的本地图片路径 */
+  attachmentPaths?: string[]
   createdAt: number
 }
 
@@ -231,6 +234,7 @@ export interface ElectronApi {
   postInstallSkillTemplate: (templateId: string, targetId?: string) => Promise<ProjectSkillDetail>
   querySkillImportPreview: (url: string) => Promise<SkillImportPreview>
   postImportSkillFromUrl: (url: string, targetId?: string) => Promise<ProjectSkillDetail>
+  queryLocalImageDataUrl: (filePath: string) => Promise<string | null>
   onAgentEvent: (cb: (event: AgentEvent) => void) => () => void
   onBrowserFrame: (cb: (frame: BrowserFramePayload) => void) => () => void
   /** 选择本地图片文件 */

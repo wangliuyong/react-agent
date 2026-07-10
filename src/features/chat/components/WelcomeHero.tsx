@@ -1,9 +1,10 @@
-import { Button, Space, Tag, Typography } from 'antd'
+import { Button, Typography } from 'antd'
 import {
   FileWordOutlined,
   PictureOutlined,
   ScheduleOutlined,
-  SendOutlined
+  SendOutlined,
+  ThunderboltOutlined
 } from '@ant-design/icons'
 import styles from './WelcomeHero.module.css'
 
@@ -53,10 +54,13 @@ interface WelcomeHeroProps {
 export function WelcomeHero({ onPick }: WelcomeHeroProps): React.ReactElement {
   return (
     <div className={styles.wrap}>
+      <span className={styles.badge}>
+        <ThunderboltOutlined /> React Agent
+      </span>
       <Title level={2} className={styles.title}>
         今天要处理哪块业务？
       </Title>
-      <Paragraph type="secondary" className={styles.sub}>
+      <Paragraph className={styles.sub}>
         Agent 可联动浏览器、发布工作台，自动完成小红书等内容发布。
       </Paragraph>
       <div className={styles.grid}>
@@ -67,12 +71,10 @@ export function WelcomeHero({ onPick }: WelcomeHeroProps): React.ReactElement {
             className={styles.card}
             onClick={() => onPick(card.prompt)}
           >
-            <Space>
-              <Tag color="blue" style={{ margin: 0 }}>
-                {card.icon}
-              </Tag>
+            <div className={styles.cardTop}>
+              <span className={styles.iconBox}>{card.icon}</span>
               <span className={styles.cardTitle}>{card.title}</span>
-            </Space>
+            </div>
             <p className={styles.cardDesc}>{card.desc}</p>
           </button>
         ))}

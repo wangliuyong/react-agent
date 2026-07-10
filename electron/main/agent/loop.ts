@@ -193,7 +193,8 @@ export async function runAgentChat(params: {
     content:
       attachmentPaths.length > 0
         ? `${content}\n\n[附件]\n${attachmentPaths.join('\n')}`
-        : content
+        : content,
+    attachmentPaths: attachmentPaths.length > 0 ? attachmentPaths : undefined
   })
   if (session.title === '新对话' || session.title === '新会话') {
     session.title = content.slice(0, 24) || '新对话'

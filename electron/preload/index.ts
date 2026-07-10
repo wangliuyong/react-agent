@@ -58,6 +58,8 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.querySkillImportPreview, url),
   postImportSkillFromUrl: (url: string, targetId?: string) =>
     ipcRenderer.invoke(IpcChannels.postImportSkillFromUrl, url, targetId),
+  queryLocalImageDataUrl: (filePath: string) =>
+    ipcRenderer.invoke(IpcChannels.queryLocalImageDataUrl, filePath),
 
   onAgentEvent: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, data: AgentEvent): void => {

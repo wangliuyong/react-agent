@@ -29,6 +29,7 @@ import {
   postInstallSkillTemplate
 } from './store/skills'
 import { querySkillImportPreview, postImportSkillFromUrl } from './store/skill-import'
+import { queryLocalImageDataUrl } from './store/local-image'
 
 /** 注册全部 IPC；读 query* / 写 post* */
 export function registerIpcHandlers(): void {
@@ -92,5 +93,8 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IpcChannels.postImportSkillFromUrl, (_e, url: string, targetId?: string) =>
     postImportSkillFromUrl(url, targetId)
+  )
+  ipcMain.handle(IpcChannels.queryLocalImageDataUrl, (_e, filePath: string) =>
+    queryLocalImageDataUrl(filePath)
   )
 }

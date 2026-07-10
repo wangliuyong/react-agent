@@ -1,0 +1,42 @@
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.thumbWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: 112px;
+}
+
+.thumbRoot {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.thumbRoot:hover {
+  transform: scale(1.03);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+}
+
+.thumb {
+  object-fit: cover;
+  cursor: zoom-in;
+  display: block;
+}
+
+.thumbLabel {
+  font-size: 10px;
+  color: var(--text-secondary);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

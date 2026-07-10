@@ -43,3 +43,8 @@ export async function postAgentContinue(sessionId: string): Promise<void> {
 export async function postSelectImages(): Promise<string[]> {
   return window.api.postSelectImages()
 }
+
+/** 读取本地图片为 data URL，供聊天预览 */
+export async function queryLocalImageDataUrl(filePath: string): Promise<string | null> {
+  return window.api.queryLocalImageDataUrl(filePath)
+}
