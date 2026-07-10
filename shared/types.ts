@@ -261,6 +261,8 @@ export interface ElectronApi {
   onBrowserFrame: (cb: (frame: BrowserFramePayload) => void) => () => void
   /** 选择本地图片文件 */
   postSelectImages: () => Promise<string[]>
+  /** 在系统默认浏览器中打开链接 */
+  postOpenExternal: (url: string) => Promise<void>
 }
 
 declare global {

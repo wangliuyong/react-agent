@@ -77,7 +77,8 @@ const api: ElectronApi = {
     return () => ipcRenderer.removeListener(IpcChannels.onBrowserFrame, listener)
   },
 
-  postSelectImages: () => ipcRenderer.invoke('dialog:select-images')
+  postSelectImages: () => ipcRenderer.invoke('dialog:select-images'),
+  postOpenExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url)
 }
 
 contextBridge.exposeInMainWorld('api', api)
