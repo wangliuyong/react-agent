@@ -132,3 +132,8 @@
   gap: 12px;
   margin-bottom: 4px;
 }
+
+.importPreview {
+  border-radius: 8px;
+  background: #f6f8fa;
+}

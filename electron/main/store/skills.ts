@@ -39,7 +39,7 @@ export function getProjectRoot(): string {
   return process.cwd()
 }
 
-function getSkillsDir(): string {
+export function getSkillsDir(): string {
   return join(getProjectRoot(), '.cursor/skills')
 }
 
@@ -72,7 +72,7 @@ export function validateSkillId(id: string): void {
 }
 
 /** 解析 SKILL.md 的 YAML frontmatter（轻量，不引入 yaml 依赖） */
-function parseSkillMarkdown(raw: string): { name: string; description: string; body: string } {
+export function parseSkillMarkdown(raw: string): { name: string; description: string; body: string } {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/)
   if (!match) {
     return { name: '', description: '', body: raw }

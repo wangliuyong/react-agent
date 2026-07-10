@@ -12,7 +12,8 @@ import type {
   Session,
   SkillStates,
   SkillTemplate,
-  SkillUpsertInput
+  SkillUpsertInput,
+  SkillImportPreview
 } from '../../shared/types'
 
 /** Preload：向渲染进程暴露安全 API 面 */
@@ -53,6 +54,10 @@ const api: ElectronApi = {
   querySkillTemplates: () => ipcRenderer.invoke(IpcChannels.querySkillTemplates),
   postInstallSkillTemplate: (templateId: string, targetId?: string) =>
     ipcRenderer.invoke(IpcChannels.postInstallSkillTemplate, templateId, targetId),
+  querySkillImportPreview: (url: string) =>
+    ipcRenderer.invoke(IpcChannels.querySkillImportPreview, url),
+  postImportSkillFromUrl: (url: string, targetId?: string) =>
+    ipcRenderer.invoke(IpcChannels.postImportSkillFromUrl, url, targetId),
 
   onAgentEvent: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, data: AgentEvent): void => {
