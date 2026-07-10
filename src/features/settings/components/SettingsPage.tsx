@@ -1,4 +1,17 @@
-import { Alert, Button, Form, Input, InputNumber, Switch, Typography, Space, message } from 'antd'
+import { useMemo } from 'react'
+import {
+  Alert,
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Switch,
+  Typography,
+  Space,
+  message
+} from 'antd'
+import { MODEL_OPTIONS } from '@shared/types'
 import { useSettingsStore } from '../hooks/useSettingsStore'
 import styles from './SettingsPage.module.css'
 
@@ -7,6 +20,18 @@ const { Title, Paragraph, Text } = Typography
 export function SettingsPage(): React.ReactElement {
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
+
+  /** 若用户曾保存自定义 model id，合并进选项避免 Select 显示异常 */
+  const modelSelectOptions = useMemo(() => {
+    const options = MODEL_OPTIONS.map((m) => ({
+      value: m.value,
+      label: m.description ? `${m.label} — ${m.description}` : m.label
+    }))
+    if (!MODEL_OPTIONS.some((m) => m.value === settings.model)) {
+      options.unshift({ value: settings.model, label: settings.model })
+    }
+    return options
+  }, [settings.model])
 
   return (
     <div className={styles.page}>
@@ -36,7 +61,12 @@ export function SettingsPage(): React.ReactElement {
           <Input placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
         </Form.Item>
         <Form.Item label="模型" name="model">
-          <Input placeholder="qwen-plus" />
+          <Select
+            showSearch
+            optionFilterProp="label"
+            options={modelSelectOptions}
+            placeholder="选择模型"
+          />
         </Form.Item>
         <Form.Item label="最大工具轮次" name="maxTurns">
           <InputNumber min={5} max={100} style={{ width: '100%' }} />
