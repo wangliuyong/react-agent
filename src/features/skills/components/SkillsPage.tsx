@@ -18,11 +18,12 @@ import {
   AppstoreOutlined,
   DeleteOutlined,
   EditOutlined,
+  LinkOutlined,
   PlusOutlined,
   ReloadOutlined,
   ThunderboltOutlined
 } from '@ant-design/icons'
-import type { SkillTemplate, SkillUpsertInput } from '@shared/types'
+import type { SkillImportPreview, SkillTemplate, SkillUpsertInput } from '@shared/types'
 import { useSkillsStore } from '../hooks/useSkillsStore'
 import { SkillMarkdown } from './SkillMarkdown'
 import { isValidSkillId, skillDetailToInput, slugifySkillId } from '../types'
@@ -46,6 +47,8 @@ export function SkillsPage(): React.ReactElement {
   const removeSkill = useSkillsStore((s) => s.removeSkill)
   const loadTemplates = useSkillsStore((s) => s.loadTemplates)
   const installTemplate = useSkillsStore((s) => s.installTemplate)
+  const previewImport = useSkillsStore((s) => s.previewImport)
+  const importFromUrl = useSkillsStore((s) => s.importFromUrl)
 
   const [editOpen, setEditOpen] = useState(false)
   const [editMode, setEditMode] = useState<'create' | 'update'>('create')
@@ -57,6 +60,13 @@ export function SkillsPage(): React.ReactElement {
   const [installingId, setInstallingId] = useState<string | null>(null)
   /** 安装模板时用户可修改目标 id */
   const [installTargetIds, setInstallTargetIds] = useState<Record<string, string>>({})
+
+  const [importOpen, setImportOpen] = useState(false)
+  const [importUrl, setImportUrl] = useState('')
+  const [importTargetId, setImportTargetId] = useState('')
+  const [importPreview, setImportPreview] = useState<SkillImportPreview | null>(null)
+  const [importPreviewing, setImportPreviewing] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const [form] = Form.useForm<SkillUpsertInput>()
 
@@ -89,22 +99,25 @@ export function SkillsPage(): React.ReactElement {
   const handleSave = async (): Promise<void> => {
     try {
       const values = await form.validateFields()
-      if (!isValidSkillId(values.id)) {
+      const normalizedId = slugifySkillId(values.id)
+      if (!isValidSkillId(normalizedId)) {
         message.error('技能 id 仅允许小写字母、数字和连字符')
-        return
+        return Promise.reject(new Error('validation'))
       }
       setSaving(true)
       await saveSkill({
         ...values,
+        id: normalizedId,
         examplesContent: values.examplesContent?.trim() || undefined
       })
       message.success(editMode === 'create' ? '技能已创建' : '技能已更新')
       setEditOpen(false)
       setEditDraft(null)
     } catch (err) {
-      if (err instanceof Error && err.message) {
+      if (err instanceof Error && err.message && err.message !== 'validation') {
         message.error(err.message)
       }
+      return Promise.reject(err instanceof Error ? err : new Error('save failed'))
     } finally {
       setSaving(false)
     }
@@ -155,6 +168,61 @@ export function SkillsPage(): React.ReactElement {
     }
   }
 
+  /** 打开从链接导入弹窗 */
+  const openImportModal = (): void => {
+    setImportUrl('')
+    setImportTargetId('')
+    setImportPreview(null)
+    setImportOpen(true)
+  }
+
+  /** 预览远程技能 */
+  const handleImportPreview = async (): Promise<void> => {
+    const url = importUrl.trim()
+    if (!url) {
+      message.warning('请输入技能链接')
+      return
+    }
+    setImportPreviewing(true)
+    setImportPreview(null)
+    try {
+      const preview = await previewImport(url)
+      setImportPreview(preview)
+      setImportTargetId(preview.suggestedId)
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '预览失败')
+    } finally {
+      setImportPreviewing(false)
+    }
+  }
+
+  /** 确认从链接导入技能 */
+  const handleImportConfirm = async (): Promise<void> => {
+    const url = importUrl.trim()
+    const normalizedId = slugifySkillId(
+      importTargetId.trim() || importPreview?.suggestedId || ''
+    )
+    if (!url) {
+      message.warning('请输入技能链接')
+      return Promise.reject(new Error('validation'))
+    }
+    if (!normalizedId || !isValidSkillId(normalizedId)) {
+      message.error('目标 id 格式无效，请使用小写字母、数字和连字符')
+      return Promise.reject(new Error('validation'))
+    }
+    setImporting(true)
+    try {
+      await importFromUrl(url, normalizedId)
+      message.success(`已导入技能「${importPreview?.name ?? normalizedId}」`)
+      setImportOpen(false)
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '导入失败')
+      return Promise.reject(err instanceof Error ? err : new Error('import failed'))
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -173,6 +241,9 @@ export function SkillsPage(): React.ReactElement {
           </Button>
           <Button icon={<AppstoreOutlined />} onClick={() => void openTemplateModal()}>
             从模板安装
+          </Button>
+          <Button icon={<LinkOutlined />} onClick={openImportModal}>
+            从链接导入
           </Button>
           <Button
             icon={<ReloadOutlined />}
@@ -195,7 +266,7 @@ export function SkillsPage(): React.ReactElement {
           ) : skills.length === 0 ? (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="暂无技能，可新建或从模板安装"
+              description="暂无技能，可新建、从模板或链接导入"
             />
           ) : (
             skills.map((skill) => (
@@ -287,7 +358,7 @@ export function SkillsPage(): React.ReactElement {
           setEditOpen(false)
           setEditDraft(null)
         }}
-        onOk={() => void handleSave()}
+        onOk={handleSave}
         confirmLoading={saving}
         width={720}
         destroyOnClose
@@ -400,6 +471,66 @@ export function SkillsPage(): React.ReactElement {
             ))}
           </div>
         )}
+      </Modal>
+
+      {/* 从 GitHub / 链接导入 */}
+      <Modal
+        title="从链接导入"
+        open={importOpen}
+        onCancel={() => setImportOpen(false)}
+        onOk={handleImportConfirm}
+        okText="导入"
+        confirmLoading={importing}
+        width={640}
+        destroyOnClose
+      >
+        <Paragraph type="secondary" style={{ marginTop: 0 }}>
+          支持 GitHub 仓库链接、目录/tree 链接、blob 链接，以及 raw.githubusercontent.com 直链。
+          仓库链接会在 main/master 分支自动查找 <Text code>SKILL.md</Text>。
+        </Paragraph>
+        <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
+          <Input
+            placeholder="https://github.com/white0dew/XiaohongshuSkills"
+            value={importUrl}
+            onChange={(e) => {
+              setImportUrl(e.target.value)
+              setImportPreview(null)
+            }}
+            onPressEnter={() => void handleImportPreview()}
+          />
+          <Button loading={importPreviewing} onClick={() => void handleImportPreview()}>
+            预览
+          </Button>
+        </Space.Compact>
+
+        {importPreview ? (
+          <Card size="small" className={styles.importPreview}>
+            <Text strong>{importPreview.name}</Text>
+            {importPreview.description ? (
+              <Paragraph type="secondary" style={{ margin: '8px 0' }}>
+                {importPreview.description}
+              </Paragraph>
+            ) : null}
+            <Space wrap size={4}>
+              {importPreview.hasExamples ? <Tag>含示例</Tag> : null}
+              <Tag color="blue">远程可用</Tag>
+            </Space>
+          </Card>
+        ) : null}
+
+        <Form layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            label="目标 ID（安装目录名）"
+            extra="仅小写字母、数字、连字符；与 .cursor/skills/<id> 对应"
+            required
+          >
+            <Input
+              value={importTargetId}
+              onChange={(e) => setImportTargetId(slugifySkillId(e.target.value))}
+              placeholder="my-skill"
+            />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   )

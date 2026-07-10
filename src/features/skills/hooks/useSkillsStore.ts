@@ -1,12 +1,14 @@
 import { create } from 'zustand'
-import type { ProjectSkill, ProjectSkillDetail, SkillTemplate, SkillUpsertInput } from '@shared/types'
+import type { ProjectSkill, ProjectSkillDetail, SkillImportPreview, SkillTemplate, SkillUpsertInput } from '@shared/types'
 import {
   postDeleteProjectSkill,
+  postImportSkillFromUrl,
   postInstallSkillTemplate,
   postProjectSkill,
   postSkillStates,
   queryProjectSkillDetail,
   queryProjectSkills,
+  querySkillImportPreview,
   querySkillTemplates
 } from '../api'
 import { createEmptySkill } from '../types'
@@ -27,6 +29,8 @@ interface SkillsState {
   removeSkill: (id: string) => Promise<void>
   loadTemplates: () => Promise<SkillTemplate[]>
   installTemplate: (templateId: string, targetId?: string) => Promise<ProjectSkillDetail>
+  previewImport: (url: string) => Promise<SkillImportPreview>
+  importFromUrl: (url: string, targetId?: string) => Promise<ProjectSkillDetail>
 }
 
 export const useSkillsStore = create<SkillsState>((set, get) => ({
@@ -114,6 +118,15 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
 
   installTemplate: async (templateId, targetId) => {
     const detail = await postInstallSkillTemplate(templateId, targetId)
+    const skills = await queryProjectSkills()
+    set({ skills, activeSkillId: detail.id, detail })
+    return detail
+  },
+
+  previewImport: async (url) => querySkillImportPreview(url),
+
+  importFromUrl: async (url, targetId) => {
+    const detail = await postImportSkillFromUrl(url, targetId)
     const skills = await queryProjectSkills()
     set({ skills, activeSkillId: detail.id, detail })
     return detail

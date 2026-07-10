@@ -33,6 +33,8 @@ export const IpcChannels = {
   postDeleteProjectSkill: 'post:project-skill:delete',
   querySkillTemplates: 'query:skill-templates',
   postInstallSkillTemplate: 'post:skill-template:install',
+  querySkillImportPreview: 'query:skill-import-preview',
+  postImportSkillFromUrl: 'post:skill-import-from-url',
   // 事件推送（main → renderer）
   onAgentEvent: 'event:agent',
   onBrowserFrame: 'event:browser-frame'
@@ -181,6 +183,19 @@ export interface SkillTemplate {
   description: string
 }
 
+/** 从 URL 导入技能前的预览信息 */
+export interface SkillImportPreview {
+  /** 用户输入的原始链接 */
+  url: string
+  /** 解析后的 SKILL.md raw 地址（便于调试） */
+  skillMdUrl: string
+  /** 建议安装目录名 */
+  suggestedId: string
+  name: string
+  description: string
+  hasExamples: boolean
+}
+
 /** 技能详情（含 Markdown 正文） */
 export interface ProjectSkillDetail extends ProjectSkill {
   content: string
@@ -214,6 +229,8 @@ export interface ElectronApi {
   postDeleteProjectSkill: (id: string) => Promise<void>
   querySkillTemplates: () => Promise<SkillTemplate[]>
   postInstallSkillTemplate: (templateId: string, targetId?: string) => Promise<ProjectSkillDetail>
+  querySkillImportPreview: (url: string) => Promise<SkillImportPreview>
+  postImportSkillFromUrl: (url: string, targetId?: string) => Promise<ProjectSkillDetail>
   onAgentEvent: (cb: (event: AgentEvent) => void) => () => void
   onBrowserFrame: (cb: (frame: BrowserFramePayload) => void) => () => void
   /** 选择本地图片文件 */

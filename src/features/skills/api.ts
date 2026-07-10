@@ -3,7 +3,8 @@ import type {
   ProjectSkillDetail,
   SkillStates,
   SkillTemplate,
-  SkillUpsertInput
+  SkillUpsertInput,
+  SkillImportPreview
 } from '@shared/types'
 
 /** 读取项目技能列表 */
@@ -42,4 +43,17 @@ export async function postInstallSkillTemplate(
   targetId?: string
 ): Promise<ProjectSkillDetail> {
   return window.api.postInstallSkillTemplate(templateId, targetId)
+}
+
+/** 预览远程技能链接（GitHub / 直链） */
+export async function querySkillImportPreview(url: string): Promise<SkillImportPreview> {
+  return window.api.querySkillImportPreview(url)
+}
+
+/** 从链接导入技能到 .cursor/skills */
+export async function postImportSkillFromUrl(
+  url: string,
+  targetId?: string
+): Promise<ProjectSkillDetail> {
+  return window.api.postImportSkillFromUrl(url, targetId)
 }

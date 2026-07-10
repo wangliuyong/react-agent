@@ -28,6 +28,7 @@ import {
   querySkillTemplates,
   postInstallSkillTemplate
 } from './store/skills'
+import { querySkillImportPreview, postImportSkillFromUrl } from './store/skill-import'
 
 /** 注册全部 IPC；读 query* / 写 post* */
 export function registerIpcHandlers(): void {
@@ -85,5 +86,11 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.querySkillTemplates, () => querySkillTemplates())
   ipcMain.handle(IpcChannels.postInstallSkillTemplate, (_e, templateId: string, targetId?: string) =>
     postInstallSkillTemplate(templateId, targetId)
+  )
+  ipcMain.handle(IpcChannels.querySkillImportPreview, (_e, url: string) =>
+    querySkillImportPreview(url)
+  )
+  ipcMain.handle(IpcChannels.postImportSkillFromUrl, (_e, url: string, targetId?: string) =>
+    postImportSkillFromUrl(url, targetId)
   )
 }
