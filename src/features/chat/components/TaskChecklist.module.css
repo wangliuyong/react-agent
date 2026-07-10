@@ -1,15 +1,15 @@
 .card {
+  /* 相对 ChatPage.page 绝对定位，不随 .body 滚动 */
   position: absolute;
-  right: 20px;
-  top: 72px;
   width: 272px;
-  z-index: 5;
+  z-index: 10;
   border-radius: 14px !important;
   border: 1px solid rgba(0, 0, 0, 0.06) !important;
   background: rgba(255, 255, 255, 0.88) !important;
   backdrop-filter: blur(14px);
   box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08) !important;
   animation: slideIn 0.35s ease;
+  touch-action: none;
 }
 
 @keyframes slideIn {
@@ -25,10 +25,30 @@
 
 .card :global(.ant-card-head) {
   min-height: 40px !important;
-  padding: 0 14px !important;
+  padding: 0 !important;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
   font-size: 13px !important;
   font-weight: 650 !important;
+}
+
+/* 标题栏作为拖动手柄 */
+.dragHandle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  height: 40px;
+  cursor: grab;
+  user-select: none;
+}
+
+.dragHandle.dragging {
+  cursor: grabbing;
+}
+
+.dragIcon {
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 12px;
 }
 
 .dot {
