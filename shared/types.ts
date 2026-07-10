@@ -65,6 +65,28 @@ export const DEFAULT_SETTINGS: AppSettings = {
   maxTurns: 40
 }
 
+/** 百炼常用模型选项（聊天与设置页共用） */
+export interface ModelOption {
+  /** OpenAI 兼容接口中的 model 字段 */
+  value: string
+  /** 展示名称 */
+  label: string
+  /** 简短说明，用于下拉提示 */
+  description?: string
+}
+
+export const MODEL_OPTIONS: ModelOption[] = [
+  { value: 'qwen-plus', label: 'Qwen Plus', description: '均衡，推荐默认' },
+  { value: 'qwen-max', label: 'Qwen Max', description: '能力最强' },
+  { value: 'qwen-turbo', label: 'Qwen Turbo', description: '速度快、成本低' },
+  { value: 'qwen-long', label: 'Qwen Long', description: '超长上下文' }
+]
+
+/** 根据 model id 取展示名；未知模型回退为原始 id */
+export function queryModelLabel(model: string): string {
+  return MODEL_OPTIONS.find((m) => m.value === model)?.label ?? model
+}
+
 /** 聊天消息角色 */
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool'
 

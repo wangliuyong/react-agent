@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button, Dropdown, Progress, Space, Tooltip, Typography } from 'antd'
 import {
+  DownOutlined,
   PaperClipOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
   SendOutlined
 } from '@ant-design/icons'
+import { MODEL_OPTIONS, queryModelLabel } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
 import { postSelectImages } from '../api'
 import styles from './ChatInput.module.css'
@@ -39,6 +41,39 @@ export function ChatInput({
 
   const tokenMax = 1_000_000
   const percent = Math.min(100, Math.round((tokenUsed / tokenMax) * 100))
+
+  /** 下拉项：若当前模型不在预设列表（历史自定义），追加一项以便展示 */
+  const modelMenuItems = useMemo(() => {
+    const items = MODEL_OPTIONS.map((m) => ({
+      key: m.value,
+      label: (
+        <div className={styles.modelMenuItem}>
+          <Text>{m.label}</Text>
+          {m.description ? (
+            <Text type="secondary" className={styles.modelMenuDesc}>
+              {m.description}
+            </Text>
+          ) : null}
+        </div>
+      ),
+      onClick: () => void postSettings({ model: m.value })
+    }))
+    if (!MODEL_OPTIONS.some((m) => m.value === settings.model)) {
+      items.unshift({
+        key: settings.model,
+        label: (
+          <div className={styles.modelMenuItem}>
+            <Text>{settings.model}</Text>
+            <Text type="secondary" className={styles.modelMenuDesc}>
+              当前自定义模型
+            </Text>
+          </div>
+        ),
+        onClick: () => {}
+      })
+    }
+    return items
+  }, [postSettings, settings.model])
 
   const handleSend = (): void => {
     const value = text.trim()
@@ -116,7 +151,18 @@ export function ChatInput({
                   {settings.fullAccess ? '完全访问' : '需确认'}
                 </Button>
               </Dropdown>
-              <Text className={styles.modelTag}>{settings.model}</Text>
+              <Tooltip title={running ? '任务运行中，请结束后再切换模型' : '选择大模型'}>
+                <Dropdown
+                  disabled={disabled || running}
+                  menu={{ selectedKeys: [settings.model], items: modelMenuItems }}
+                  trigger={['click']}
+                >
+                  <Button type="text" size="small" className={styles.modelBtn}>
+                    {queryModelLabel(settings.model)}
+                    <DownOutlined className={styles.modelChevron} />
+                  </Button>
+                </Dropdown>
+              </Tooltip>
             </Space>
             <Space size={10}>
               <div className={styles.token}>
