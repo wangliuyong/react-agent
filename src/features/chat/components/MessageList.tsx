@@ -1,5 +1,10 @@
 import { Alert, Collapse, Table, Tag, Typography } from 'antd'
 import type { ChatMessage, TaskItem } from '@shared/types'
+import { MessageImageGallery } from './MessageImageGallery'
+import {
+  extractMessageImages,
+  stripImagePathsFromDisplayText
+} from '../utils/message-images'
 import styles from './MessageList.module.css'
 
 const { Text, Paragraph } = Typography
@@ -10,7 +15,7 @@ interface MessageListProps {
   tasks: TaskItem[]
 }
 
-/** 展示组件：消息列表 + 工具结果折叠；不含请求副作用 */
+/** 展示组件：消息列表 + 工具结果折叠 + 图片预览 */
 export function MessageList({
   messages,
   streamingText,
@@ -44,54 +49,87 @@ export function MessageList({
 
       {visible.map((m) => {
         if (m.role === 'user') {
+          const images = extractMessageImages(m.content, m.attachmentPaths)
+          const text = stripImagePathsFromDisplayText(m.content, images)
           return (
-            <div key={m.id} className={styles.userBubble}>
-              <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{m.content}</Paragraph>
+            <div key={m.id} className={`${styles.row} ${styles.rowUser}`}>
+              <span className={styles.label}>你</span>
+              <div className={styles.userBubble}>
+                {text ? (
+                  <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{text}</Paragraph>
+                ) : null}
+                <MessageImageGallery images={images} />
+              </div>
             </div>
           )
         }
         if (m.role === 'tool') {
+          const images = extractMessageImages(m.content)
           return (
-            <Collapse
-              key={m.id}
-              size="small"
-              className={styles.toolBlock}
-              items={[
-                {
-                  key: '1',
-                  label: `工具结果 · ${m.toolName ?? 'tool'}`,
-                  children: (
-                    <Text code style={{ whiteSpace: 'pre-wrap', display: 'block' }}>
-                      {m.content}
-                    </Text>
-                  )
-                }
-              ]}
-            />
+            <div key={m.id} className={styles.row}>
+              <Collapse
+                size="small"
+                className={styles.toolBlock}
+                items={[
+                  {
+                    key: '1',
+                    label: `工具结果 · ${m.toolName ?? 'tool'}${images.length ? ` · ${images.length} 张图` : ''}`,
+                    children: (
+                      <>
+                        <MessageImageGallery images={images} />
+                        <Text code style={{ whiteSpace: 'pre-wrap', display: 'block' }}>
+                          {m.content}
+                        </Text>
+                      </>
+                    )
+                  }
+                ]}
+              />
+            </div>
           )
         }
-        // assistant：尝试解析简单 markdown 表格（| 分隔）
         return (
-          <div key={m.id} className={styles.assistantBlock}>
-            <AssistantBody content={m.content} />
+          <div key={m.id} className={`${styles.row} ${styles.rowAssistant}`}>
+            <span className={styles.label}>Agent</span>
+            <div className={styles.assistantCard}>
+              <AssistantBody content={m.content} />
+            </div>
           </div>
         )
       })}
 
       {streamingText ? (
-        <div className={styles.assistantBlock}>
-          <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{streamingText}</Paragraph>
+        <div className={`${styles.row} ${styles.rowAssistant}`}>
+          <span className={styles.label}>Agent</span>
+          <div className={`${styles.assistantCard} ${styles.assistantCardStreaming}`}>
+            <AssistantBody content={streamingText} streaming />
+          </div>
         </div>
       ) : null}
     </div>
   )
 }
 
-function AssistantBody({ content }: { content: string }): React.ReactElement {
+function AssistantBody({
+  content,
+  streaming = false
+}: {
+  content: string
+  streaming?: boolean
+}): React.ReactElement {
+  if (!content && streaming) {
+    return (
+      <Text type="secondary">
+        思考中<span className={styles.cursor} />
+      </Text>
+    )
+  }
   if (!content) return <Text type="secondary">…</Text>
 
-  // 极简表格检测：连续含 | 的行
-  const lines = content.split('\n')
+  const images = extractMessageImages(content)
+  const displayText = stripImagePathsFromDisplayText(content, images)
+
+  const lines = displayText.split('\n')
   const tableStart = lines.findIndex((l) => l.trim().startsWith('|') && l.includes('|', 1))
   if (tableStart >= 0) {
     const tableLines = []
@@ -106,6 +144,7 @@ function AssistantBody({ content }: { content: string }): React.ReactElement {
     return (
       <>
         {before ? <Paragraph style={{ whiteSpace: 'pre-wrap' }}>{before}</Paragraph> : null}
+        <MessageImageGallery images={images} />
         {parsed ? (
           <Table
             size="small"
@@ -116,16 +155,27 @@ function AssistantBody({ content }: { content: string }): React.ReactElement {
           />
         ) : null}
         {after ? <Paragraph style={{ whiteSpace: 'pre-wrap' }}>{after}</Paragraph> : null}
-        {/执行完毕/.test(content) ? <Alert type="success" showIcon message="执行完毕" /> : null}
+        {streaming ? <span className={styles.cursor} /> : null}
+        {/执行完毕/.test(content) ? (
+          <Alert type="success" showIcon message="执行完毕" className={styles.doneAlert} />
+        ) : null}
       </>
     )
   }
 
   return (
     <>
-      <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{content}</Paragraph>
+      {displayText ? (
+        <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+          {displayText}
+          {streaming ? <span className={styles.cursor} /> : null}
+        </Paragraph>
+      ) : streaming ? (
+        <span className={styles.cursor} />
+      ) : null}
+      <MessageImageGallery images={images} />
       {/执行完毕/.test(content) ? (
-        <Alert type="success" showIcon message="执行完毕" style={{ marginTop: 8 }} />
+        <Alert type="success" showIcon message="执行完毕" className={styles.doneAlert} />
       ) : null}
     </>
   )

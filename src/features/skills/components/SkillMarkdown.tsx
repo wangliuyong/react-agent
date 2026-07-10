@@ -1,45 +1,33 @@
 import type { ReactElement } from 'react'
-import { Typography } from 'antd'
+import styles from './SkillMarkdown.module.css'
 
-const { Title, Paragraph } = Typography
-
-/** 简易 Markdown 渲染：标题、代码块、段落 */
+/** 简易 Markdown 渲染：标题、代码块、段落（技能详情专用排版） */
 export function SkillMarkdown({ source }: { source: string }): ReactElement {
   const blocks = parseMarkdownBlocks(source)
 
   return (
-    <div>
+    <div className={styles.prose}>
       {blocks.map((block, i) => {
         if (block.type === 'heading') {
-          const level = Math.min(block.level + 2, 5) as 2 | 3 | 4 | 5
+          const Tag = (`h${Math.min(block.level + 1, 4)}` as 'h2' | 'h3' | 'h4')
           return (
-            <Title key={i} level={level} style={{ marginTop: i === 0 ? 0 : 20 }}>
+            <Tag key={i} className={styles.heading}>
               {block.text}
-            </Title>
+            </Tag>
           )
         }
         if (block.type === 'code') {
           return (
-            <pre
-              key={i}
-              style={{
-                background: '#f5f5f5',
-                padding: 12,
-                borderRadius: 8,
-                overflow: 'auto',
-                fontSize: 13,
-                lineHeight: 1.5
-              }}
-            >
+            <pre key={i} className={styles.codeBlock}>
               <code>{block.text}</code>
             </pre>
           )
         }
         if (block.type === 'list') {
           return (
-            <ul key={i} style={{ paddingLeft: 20, margin: '8px 0' }}>
+            <ul key={i} className={styles.list}>
               {block.items?.map((item, j) => (
-                <li key={j} style={{ marginBottom: 4 }}>
+                <li key={j} className={styles.listItem}>
                   {item}
                 </li>
               ))}
@@ -47,9 +35,9 @@ export function SkillMarkdown({ source }: { source: string }): ReactElement {
           )
         }
         return (
-          <Paragraph key={i} style={{ margin: '8px 0' }}>
+          <p key={i} className={styles.paragraph}>
             {block.text}
-          </Paragraph>
+          </p>
         )
       })}
     </div>
@@ -70,7 +58,6 @@ function parseMarkdownBlocks(source: string): Block[] {
   while (i < lines.length) {
     const line = lines[i]
 
-    // 代码块
     if (line.startsWith('```')) {
       const codeLines: string[] = []
       i += 1
@@ -83,7 +70,6 @@ function parseMarkdownBlocks(source: string): Block[] {
       continue
     }
 
-    // 标题
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/)
     if (headingMatch) {
       blocks.push({
@@ -95,7 +81,6 @@ function parseMarkdownBlocks(source: string): Block[] {
       continue
     }
 
-    // 无序列表
     if (line.match(/^[-*]\s+/)) {
       const items: string[] = []
       while (i < lines.length && lines[i].match(/^[-*]\s+/)) {
@@ -106,16 +91,20 @@ function parseMarkdownBlocks(source: string): Block[] {
       continue
     }
 
-    // 空行跳过
     if (!line.trim()) {
       i += 1
       continue
     }
 
-    // 段落（合并连续非空行）
     const paraLines: string[] = [line]
     i += 1
-    while (i < lines.length && lines[i].trim() && !lines[i].startsWith('#') && !lines[i].startsWith('```') && !lines[i].match(/^[-*]\s+/)) {
+    while (
+      i < lines.length &&
+      lines[i].trim() &&
+      !lines[i].startsWith('#') &&
+      !lines[i].startsWith('```') &&
+      !lines[i].match(/^[-*]\s+/)
+    ) {
       paraLines.push(lines[i])
       i += 1
     }
