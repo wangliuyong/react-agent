@@ -1,11 +1,11 @@
 import { Segmented, Space, Typography, Button, Tooltip } from 'antd'
 import { GlobalOutlined, FormOutlined } from '@ant-design/icons'
 import { useAppStore } from '@/stores/app-store'
-import { useSessionStore } from '../hooks/useSessionStore'
-import { WelcomeHero } from './WelcomeHero'
-import { MessageList } from './MessageList'
-import { ChatInput } from './ChatInput'
-import { TaskChecklist } from './TaskChecklist'
+import { useSessionStore } from '../../hooks/useSessionStore'
+import { WelcomeHero } from '../WelcomeHero'
+import { MessageList } from '../MessageList'
+import { ChatInput } from '../ChatInput'
+import { TaskChecklist } from '../TaskChecklist'
 import styles from './ChatPage.module.css'
 
 const { Title } = Typography

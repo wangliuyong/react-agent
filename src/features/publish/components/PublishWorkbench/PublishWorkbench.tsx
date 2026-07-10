@@ -13,8 +13,8 @@ import {
   message
 } from 'antd'
 import { PlusOutlined, PlayCircleOutlined, DeleteOutlined } from '@ant-design/icons'
-import { usePublishStore } from '../hooks/usePublishStore'
-import { buildSubTaskPrompt, createEmptySubTask } from '../types'
+import { usePublishStore } from '../../hooks/usePublishStore'
+import { buildSubTaskPrompt, createEmptySubTask } from '../../types'
 import type { PublishPlan, PublishSubTask } from '@shared/types'
 import { useSessionStore } from '@/features/chat'
 import { useAppStore } from '@/stores/app-store'
