@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons'
 import { MODEL_OPTIONS, queryModelLabel } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
-import { postSelectImages } from '../api'
+import { postSelectImages } from '../../api'
 import styles from './ChatInput.module.css'
 
 const { Text } = Typography

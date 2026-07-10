@@ -12,7 +12,7 @@ import {
   message
 } from 'antd'
 import { MODEL_OPTIONS } from '@shared/types'
-import { useSettingsStore } from '../hooks/useSettingsStore'
+import { useSettingsStore } from '../../hooks/useSettingsStore'
 import styles from './SettingsPage.module.css'
 
 const { Title, Paragraph, Text } = Typography

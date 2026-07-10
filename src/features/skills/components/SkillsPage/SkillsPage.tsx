@@ -24,9 +24,9 @@ import {
   ThunderboltOutlined
 } from '@ant-design/icons'
 import type { SkillImportPreview, SkillTemplate, SkillUpsertInput } from '@shared/types'
-import { useSkillsStore } from '../hooks/useSkillsStore'
-import { SkillMarkdown } from './SkillMarkdown'
-import { isValidSkillId, skillDetailToInput, slugifySkillId } from '../types'
+import { useSkillsStore } from '../../hooks/useSkillsStore'
+import { SkillMarkdown } from '../SkillMarkdown'
+import { isValidSkillId, skillDetailToInput, slugifySkillId } from '../../types'
 import styles from './SkillsPage.module.css'
 
 /** 技能市场：浏览、新建、编辑、删除 .cursor/skills 项目技能，支持模板与链接导入 */

@@ -1,11 +1,11 @@
 import { Alert, Collapse, Tag, Typography } from 'antd'
 import type { ChatMessage, TaskItem } from '@shared/types'
-import { ChatMarkdown } from './ChatMarkdown'
-import { MessageImageGallery } from './MessageImageGallery'
+import { ChatMarkdown } from '../ChatMarkdown'
+import { MessageImageGallery } from '../MessageImageGallery'
 import {
   extractMessageImages,
   stripImagePathsFromDisplayText
-} from '../utils/message-images'
+} from '../../utils/message-images'
 import styles from './MessageList.module.css'
 
 const { Text } = Typography
