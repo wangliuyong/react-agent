@@ -1,7 +1,7 @@
 {
-  "name": "react-agent",
+  "name": "我的私人秘书",
   "version": "0.1.0",
-  "description": "跨平台 AI Agent 桌面应用 — 小红书发布助手",
+  "description": "我的私人秘书",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
