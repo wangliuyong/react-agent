@@ -54,7 +54,7 @@
 
 .headerTitle {
   margin: 0 !important;
-  font-size: 20px !important;
+  font-size: 18px !important;
   font-weight: 650 !important;
   color: var(--db-text) !important;
   letter-spacing: -0.02em;
@@ -119,13 +119,14 @@
 
 .taskList {
   display: flex;
-  flex-direction: column;
+  /* flex-direction: column; */
   gap: 14px;
-  max-width: 960px;
+  /* max-width: 960px; */
 }
 
 /* ── 任务卡片 ── */
 .taskCard {
+  width: 50%;
   background: var(--db-bg-content);
   border: 1px solid var(--db-border-light);
   border-radius: var(--db-radius-lg);
