@@ -10,6 +10,8 @@ interface SidebarHistoryProps {
   items: SessionHistoryItem[]
   activeSessionId: string | null
   activeView: AppView
+  /** 新对话空会话高亮时，历史项不再显示选中态 */
+  isFreshChatSession?: boolean
   onSelect: (sessionId: string) => void
   onDelete: (sessionId: string) => void
 }
@@ -19,6 +21,7 @@ export function SidebarHistory({
   items,
   activeSessionId,
   activeView,
+  isFreshChatSession = false,
   onSelect,
   onDelete
 }: SidebarHistoryProps): React.ReactElement {
@@ -35,7 +38,9 @@ export function SidebarHistory({
           <div
             key={item.id}
             className={styles.historyItem}
-            data-active={item.id === activeSessionId && activeView === 'chat'}
+            data-active={
+              item.id === activeSessionId && activeView === 'chat' && !isFreshChatSession
+            }
           >
             <button
               type="button"

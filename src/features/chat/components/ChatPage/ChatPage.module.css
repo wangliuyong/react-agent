@@ -18,6 +18,26 @@
   z-index: 2;
 }
 
+/* 左侧：侧边栏切换 + 新对话 + 标题 */
+.headerLeft {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.headerIconBtn {
+  width: 32px !important;
+  height: 32px !important;
+  color: var(--db-text-secondary) !important;
+}
+
+.headerIconBtn:hover {
+  color: var(--db-text) !important;
+  background: var(--db-hover) !important;
+}
+
 .title {
   margin: 0 !important;
   font-weight: 600 !important;
@@ -31,11 +51,17 @@
 }
 
 .titleWrap {
-  justify-self: start;
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+}
+
+/* 顶栏免责声明 — 豆包新对话页副标题 */
+.disclaimer {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--db-text-tertiary);
 }
 
 .headerStatus {
@@ -90,4 +116,10 @@
   position: relative;
   scroll-behavior: smooth;
   background: var(--db-bg-content);
+}
+
+/* 新对话空态：内容区垂直居中 */
+.body[data-empty='true'] {
+  display: flex;
+  flex-direction: column;
 }
