@@ -109,10 +109,6 @@
   font-size: 14px;
 }
 
-.taskRunning {
-  animation: tagPulse 1.5s ease-in-out infinite;
-}
-
 @keyframes tagPulse {
   0%,
   100% {
@@ -166,6 +162,43 @@
   border-radius: var(--db-radius-md);
   background: var(--db-bg);
   border: 1px solid var(--db-border-light);
+}
+
+/* 任务标签 — 完成/进行中使用主题色 */
+.taskTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--db-radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.taskTagDone {
+  background: var(--db-primary-soft);
+  color: var(--db-primary);
+  border-color: rgba(0, 87, 255, 0.18);
+}
+
+.taskTagRunning {
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  border-color: rgba(0, 87, 255, 0.25);
+  animation: tagPulse 1.5s ease-in-out infinite;
+}
+
+.taskTagFailed {
+  background: rgba(245, 63, 63, 0.08);
+  color: var(--db-danger);
+  border-color: rgba(245, 63, 63, 0.2);
+}
+
+.taskTagPending {
+  background: var(--db-hover);
+  color: var(--db-text-secondary);
+  border-color: var(--db-border-light);
 }
 
 .doneAlert {

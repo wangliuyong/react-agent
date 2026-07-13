@@ -1,10 +1,8 @@
-import { CheckCircleOutlined, HolderOutlined } from '@ant-design/icons'
-import { Card, List, Typography } from 'antd'
+import { CheckCircleOutlined } from '@ant-design/icons'
+import { Card, List } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { TaskItem } from '@shared/types'
 import styles from './TaskChecklist.module.css'
-
-const { Text } = Typography
 
 /** 默认距顶部偏移（位于 header 下方） */
 const DEFAULT_TOP = 68
@@ -190,19 +188,27 @@ export function TaskChecklist({ tasks, visible }: TaskChecklistProps): React.Rea
         dataSource={tasks}
         renderItem={(item) => (
           <List.Item style={{ padding: '6px 0', border: 'none' }}>
-            <Text
-              type={item.status === 'done' ? 'success' : item.status === 'failed' ? 'danger' : undefined}
-              delete={item.status === 'done'}
+            <span
+              className={[
+                styles.taskItem,
+                item.status === 'done' && styles.taskItemDone,
+                item.status === 'running' && styles.taskItemRunning,
+                item.status === 'failed' && styles.taskItemFailed
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
               {item.status === 'done' ? (
-                <CheckCircleOutlined style={{ marginRight: 6 }} />
+                <CheckCircleOutlined className={styles.doneIcon} />
               ) : item.status === 'running' ? (
                 <span className={styles.dot} />
               ) : (
                 <span className={styles.pending} />
               )}
-              {item.title}
-            </Text>
+              <span className={item.status === 'done' ? styles.doneText : undefined}>
+                {item.title}
+              </span>
+            </span>
           </List.Item>
         )}
       />

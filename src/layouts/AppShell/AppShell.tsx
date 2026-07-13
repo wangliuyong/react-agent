@@ -42,20 +42,81 @@ export function AppShell({ view }: AppShellProps): React.ReactElement {
   const setActive = useSessionStore((s) => s.setActive)
   const createSession = useSessionStore((s) => s.createSession)
 
+  /** 侧边栏折叠/展开切换按钮，统一放在底部 */
+  const collapseToggle = (
+    <Tooltip
+      title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+      placement={sidebarCollapsed ? 'right' : 'top'}
+    >
+      <Button
+        className={`app-no-drag ${sidebarCollapsed ? styles.collapsedIconBtn : ''}`}
+        type="text"
+        icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+        onClick={toggleSidebar}
+      />
+    </Tooltip>
+  )
+
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar} data-collapsed={sidebarCollapsed}>
         <div className={`${styles.sidebarTop} app-drag`}>
           <div className={`${styles.trafficSpacer} app-no-drag`} />
-          <Button
-            className="app-no-drag"
-            type="text"
-            icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={toggleSidebar}
-          />
         </div>
 
-        {!sidebarCollapsed && (
+        {sidebarCollapsed ? (
+          /* 折叠态：仅展示图标快捷操作，悬停显示 Tooltip */
+          <div className={styles.collapsedBody}>
+            <Tooltip title="React Agent" placement="right">
+              <div className={styles.brandIcon}>R</div>
+            </Tooltip>
+
+            <Tooltip title="新对话" placement="right">
+              <Button
+                type="primary"
+                className={styles.collapsedPrimaryBtn}
+                icon={<PlusOutlined />}
+                onClick={() => void createSession()}
+              />
+            </Tooltip>
+
+            <nav className={styles.collapsedNav} aria-label="主导航">
+              {NAV.map((item) => (
+                <Tooltip key={item.key} title={item.label} placement="right">
+                  <button
+                    type="button"
+                    className={styles.collapsedNavItem}
+                    data-active={view === item.key}
+                    onClick={() => setView(item.key)}
+                  >
+                    {item.icon}
+                  </button>
+                </Tooltip>
+              ))}
+            </nav>
+
+            <div className={styles.collapsedFooter}>
+              <Tooltip title="设置" placement="right">
+                <Button
+                  type="text"
+                  className={styles.collapsedIconBtn}
+                  icon={<SettingOutlined />}
+                  data-active={view === 'settings'}
+                  onClick={() => setView('settings')}
+                />
+              </Tooltip>
+              <Tooltip title="退出" placement="right">
+                <Button
+                  type="text"
+                  className={styles.collapsedIconBtn}
+                  icon={<LogoutOutlined />}
+                  disabled
+                />
+              </Tooltip>
+              {collapseToggle}
+            </div>
+          </div>
+        ) : (
           <>
             <div className={styles.brand}>
               <div className={styles.brandIcon}>R</div>
@@ -121,6 +182,7 @@ export function AppShell({ view }: AppShellProps): React.ReactElement {
               <Tooltip title="退出">
                 <Button type="text" icon={<LogoutOutlined />} disabled />
               </Tooltip>
+              <div className={styles.collapseToggleWrap}>{collapseToggle}</div>
             </div>
           </>
         )}
