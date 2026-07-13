@@ -47,6 +47,16 @@ export async function humanClickLocator(
   await sleep(rand(80, 200))
 }
 
+/** 在页面绝对坐标处拟人点击（用于 closed shadow 宿主坐标兜底） */
+export async function humanClickAt(page: Page, x: number, y: number): Promise<void> {
+  await humanMoveTo(page, { x, y }, rand(14, 28))
+  await sleep(rand(50, 150))
+  await page.mouse.down()
+  await sleep(rand(40, 100))
+  await page.mouse.up()
+  await sleep(rand(80, 200))
+}
+
 export async function humanClickText(
   page: Page,
   texts: string[],

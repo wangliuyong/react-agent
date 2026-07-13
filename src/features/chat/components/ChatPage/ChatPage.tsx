@@ -70,7 +70,14 @@ export function ChatPage(): React.ReactElement {
         </Space>
       </header>
 
-      <TaskChecklist tasks={session?.tasks ?? []} visible={Boolean(session?.tasks?.length)} />
+      <TaskChecklist
+        tasks={session?.tasks ?? []}
+        visible={Boolean(session?.tasks?.length)}
+        running={running}
+        awaitUserReason={awaitUserReason}
+        onAbort={() => void abort()}
+        onContinue={() => void continueRun()}
+      />
 
       <div className={styles.body}>
         {isEmpty ? (
