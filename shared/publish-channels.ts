@@ -10,12 +10,16 @@ export interface PublishChannelMeta {
   id: PublishChannelId
   /** 用户可见名称 */
   label: string
+  /** 渠道页简介 */
+  description: string
   /** 是否可在工作台选择 */
   enabled: boolean
   /** Agent 发布工具名（snake_case） */
   publishTool: string
   /** 标题建议最大字数；无单独标题的渠道可省略 */
   titleMaxLength?: number
+  /** 登录检测 / 打开登录页时导航的创作者中心地址 */
+  loginCheckUrl?: string
   /** 发给 Agent 的补充说明 */
   agentHint: string
 }
@@ -25,9 +29,11 @@ export const PUBLISH_CHANNELS: PublishChannelMeta[] = [
   {
     id: 'xhs',
     label: '小红书',
+    description: '图文笔记发布，支持网页配图抓取与拟人化操作节奏控制。',
     enabled: true,
     publishTool: 'xhs_publish_note',
     titleMaxLength: 20,
+    loginCheckUrl: 'https://creator.xiaohongshu.com/publish/publish?source=official',
     agentHint:
       '优先使用 xhs_publish_note（可传 imageSourceUrl 或先 fetch 再传 imagePaths）。' +
       '内容须去同质化：每篇标题结构、正文段落、话题标签需差异化，禁止模板批量替换关键词。' +
@@ -36,9 +42,11 @@ export const PUBLISH_CHANNELS: PublishChannelMeta[] = [
   {
     id: 'douyin',
     label: '抖音',
+    description: '创作者中心图文笔记发布，当前仅支持图文，视频后续接入。',
     enabled: true,
     publishTool: 'douyin_publish_note',
     titleMaxLength: 30,
+    loginCheckUrl: 'https://creator.douyin.com/creator-micro/content/upload',
     agentHint:
       '优先使用 douyin_publish_note 发布图文笔记（可传 imageSourceUrl 或先 fetch 再传 imagePaths）。' +
       '当前仅支持图文，视频发布后续支持。'
@@ -46,6 +54,7 @@ export const PUBLISH_CHANNELS: PublishChannelMeta[] = [
   {
     id: 'wechat_channels',
     label: '视频号',
+    description: '微信视频号发布能力预留中，接入后将支持图文与短视频。',
     enabled: false,
     publishTool: 'wechat_channels_publish_note',
     agentHint: '视频号发布能力尚未接入，请勿调用发布工具。'

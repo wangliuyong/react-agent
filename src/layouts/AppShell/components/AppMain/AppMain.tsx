@@ -1,5 +1,6 @@
 import type { AppView } from '@/stores/app-store'
 import { ChatPage } from '@/features/chat'
+import { ChannelsPage } from '@/features/channels'
 import { PublishWorkbench } from '@/features/publish'
 import { SchedulePage } from '@/features/schedule'
 import { SettingsPage } from '@/features/settings'
@@ -24,6 +25,7 @@ export function AppMain({ view }: AppMainProps): React.ReactElement {
         {view === 'schedule' && <SchedulePage />}
         {view === 'settings' && <SettingsPage />}
         {view === 'skills' && <SkillsPage />}
+        {view === 'channels' && <ChannelsPage />}
         {placeholderNav?.placeholder && (
           <PlaceholderView icon={placeholderNav.icon} label={placeholderNav.label} />
         )}

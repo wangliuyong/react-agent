@@ -33,6 +33,9 @@ export const IpcChannels = {
   postBrowserStart: 'post:browser:start',
   postBrowserClose: 'post:browser:close',
   postBrowserClearProfile: 'post:browser:clear-profile',
+  // 发布渠道登录态
+  queryChannelLoginStatuses: 'query:channel-login-statuses',
+  postChannelOpenLogin: 'post:channel:open-login',
   // 项目技能（.cursor/skills）
   queryProjectSkills: 'query:project-skills',
   queryProjectSkillDetail: 'query:project-skill-detail',
@@ -249,6 +252,18 @@ export interface BrowserFramePayload {
   title: string
 }
 
+/** 渠道登录检测结果 */
+export type ChannelLoginState = 'logged_in' | 'logged_out' | 'unsupported' | 'error'
+
+export interface ChannelLoginStatus {
+  channelId: PublishChannelId
+  state: ChannelLoginState
+  /** 检测完成时间戳 */
+  checkedAt: number
+  /** 补充说明，如错误信息 */
+  message?: string
+}
+
 export interface AgentChatRequest {
   sessionId: string
   content: string
@@ -339,6 +354,8 @@ export interface ElectronApi {
   postBrowserStart: () => Promise<BrowserStatus>
   postBrowserClose: () => Promise<BrowserStatus>
   postBrowserClearProfile: () => Promise<void>
+  queryChannelLoginStatuses: () => Promise<ChannelLoginStatus[]>
+  postChannelOpenLogin: (channelId: string) => Promise<BrowserStatus>
   queryProjectSkills: () => Promise<ProjectSkill[]>
   queryProjectSkillDetail: (id: string) => Promise<ProjectSkillDetail | null>
   postSkillStates: (states: SkillStates) => Promise<SkillStates>

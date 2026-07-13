@@ -5,6 +5,7 @@ import type {
   AgentEvent,
   AppSettings,
   BrowserFramePayload,
+  ChannelLoginStatus,
   ElectronApi,
   ProjectSkill,
   ProjectSkillDetail,
@@ -53,6 +54,9 @@ const api: ElectronApi = {
   postBrowserStart: () => ipcRenderer.invoke(IpcChannels.postBrowserStart),
   postBrowserClose: () => ipcRenderer.invoke(IpcChannels.postBrowserClose),
   postBrowserClearProfile: () => ipcRenderer.invoke(IpcChannels.postBrowserClearProfile),
+  queryChannelLoginStatuses: () => ipcRenderer.invoke(IpcChannels.queryChannelLoginStatuses),
+  postChannelOpenLogin: (channelId: string) =>
+    ipcRenderer.invoke(IpcChannels.postChannelOpenLogin, channelId),
 
   queryProjectSkills: () => ipcRenderer.invoke(IpcChannels.queryProjectSkills),
   queryProjectSkillDetail: (id: string) =>
