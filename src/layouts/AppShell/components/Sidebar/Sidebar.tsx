@@ -1,5 +1,5 @@
 import type { AppView } from '@/stores/app-store'
-import { useSidebar, useSidebarNavigation } from '../../hooks'
+import { useNewChatShortcut, useSidebar, useSidebarNavigation } from '../../hooks'
 import { SidebarCollapsed } from './SidebarCollapsed'
 import { SidebarExpanded } from './SidebarExpanded'
 import styles from './Sidebar.module.css'
@@ -11,8 +11,17 @@ interface SidebarProps {
 /** 侧边栏容器：组合 hooks 与展开/折叠展示组件 */
 export function Sidebar({ view }: SidebarProps): React.ReactElement {
   const { sidebarCollapsed, toggleSidebar } = useSidebar()
-  const { historyItems, activeSessionId, navigateTo, selectSession, createNewSession, deleteSession } =
-    useSidebarNavigation({ view })
+  const {
+    historyItems,
+    activeSessionId,
+    isFreshChatSession,
+    navigateTo,
+    selectSession,
+    createNewSession,
+    deleteSession
+  } = useSidebarNavigation({ view })
+
+  useNewChatShortcut({ onCreate: createNewSession })
 
   return (
     <aside className={styles.sidebar} data-collapsed={sidebarCollapsed}>
@@ -23,6 +32,7 @@ export function Sidebar({ view }: SidebarProps): React.ReactElement {
       {sidebarCollapsed ? (
         <SidebarCollapsed
           view={view}
+          isFreshChatSession={isFreshChatSession}
           onNavigate={navigateTo}
           onCreateSession={createNewSession}
           onToggleCollapse={toggleSidebar}
@@ -32,6 +42,7 @@ export function Sidebar({ view }: SidebarProps): React.ReactElement {
           view={view}
           historyItems={historyItems}
           activeSessionId={activeSessionId}
+          isFreshChatSession={isFreshChatSession}
           onNavigate={navigateTo}
           onSelectSession={selectSession}
           onDeleteSession={(id) => void deleteSession(id)}

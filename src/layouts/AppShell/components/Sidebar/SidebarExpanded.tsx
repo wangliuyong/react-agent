@@ -11,6 +11,7 @@ interface SidebarExpandedProps {
   view: AppView
   historyItems: SessionHistoryItem[]
   activeSessionId: string | null
+  isFreshChatSession: boolean
   onNavigate: (view: AppView) => void
   onSelectSession: (sessionId: string) => void
   onDeleteSession: (sessionId: string) => void
@@ -23,6 +24,7 @@ export function SidebarExpanded({
   view,
   historyItems,
   activeSessionId,
+  isFreshChatSession,
   onNavigate,
   onSelectSession,
   onDeleteSession,
@@ -32,12 +34,13 @@ export function SidebarExpanded({
   return (
     <>
       <SidebarBrand />
-      <SidebarNewChatButton onCreate={onCreateSession} />
+      <SidebarNewChatButton active={isFreshChatSession} onCreate={onCreateSession} />
       <SidebarNav items={NAV_ITEMS} activeView={view} onNavigate={onNavigate} />
       <SidebarHistory
         items={historyItems}
         activeSessionId={activeSessionId}
         activeView={view}
+        isFreshChatSession={isFreshChatSession}
         onSelect={onSelectSession}
         onDelete={onDeleteSession}
       />

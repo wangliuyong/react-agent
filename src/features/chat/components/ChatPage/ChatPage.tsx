@@ -1,6 +1,8 @@
 import { Segmented, Space, Typography, Button, Tooltip } from 'antd'
-import { FormOutlined, GlobalOutlined } from '@ant-design/icons'
+import { FormOutlined, GlobalOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons'
 import { useBrowserControl } from '@/features/browser'
+import { queryNewChatShortcutLabel } from '@/layouts/AppShell/hooks'
+import { useAppStore } from '@/stores/app-store'
 import { useSessionStore } from '../../hooks/useSessionStore'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
 import { WelcomeHero } from '../WelcomeHero'
@@ -23,7 +25,12 @@ export function ChatPage(): React.ReactElement {
   const continueRun = useSessionStore((s) => s.continueRun)
   const resumeRun = useSessionStore((s) => s.resumeRun)
   const canResume = useSessionStore((s) => s.canResume)
+  const createSession = useSessionStore((s) => s.createSession)
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const { browserRunning, loading, toggleBrowser } = useBrowserControl()
+
+  const newChatShortcut = queryNewChatShortcutLabel()
 
   const messages = session?.messages ?? []
   const isEmpty = messages.length === 0 && !streamingText && !running
@@ -38,16 +45,38 @@ export function ChatPage(): React.ReactElement {
   return (
     <div className={styles.page}>
       <header className={`${styles.header} app-drag`}>
-        <div className={styles.titleWrap}>
-          <Title level={5} className={`${styles.title} app-no-drag`}>
-            {session?.title ?? '新对话'}
-          </Title>
-          {headerStatus ? (
-            <span className={`${styles.headerStatus} app-no-drag`}>
-              <span className={styles.statusDot} />
-              {headerStatus}
-            </span>
-          ) : null}
+        <div className={styles.headerLeft}>
+          <Space size={4} className="app-no-drag">
+            <Tooltip title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}>
+              <Button
+                type="text"
+                className={styles.headerIconBtn}
+                icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={toggleSidebar}
+              />
+            </Tooltip>
+            <Tooltip title={`新对话 ${newChatShortcut}`}>
+              <Button
+                type="text"
+                className={styles.headerIconBtn}
+                icon={<FormOutlined />}
+                onClick={() => void createSession()}
+              />
+            </Tooltip>
+          </Space>
+          <div className={styles.titleWrap}>
+            <Title level={5} className={`${styles.title} app-no-drag`}>
+              {session?.title ?? '新对话'}
+            </Title>
+            {isEmpty ? (
+              <span className={`${styles.disclaimer} app-no-drag`}>AI 生成可能出错 注意核实</span>
+            ) : headerStatus ? (
+              <span className={`${styles.headerStatus} app-no-drag`}>
+                <span className={styles.statusDot} />
+                {headerStatus}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="app-no-drag">
           <Segmented
@@ -83,7 +112,7 @@ export function ChatPage(): React.ReactElement {
         onResume={() => void resumeRun()}
       />
 
-      <div className={styles.body}>
+      <div className={styles.body} data-empty={isEmpty}>
         {isEmpty ? (
           <WelcomeHero
             onPick={(prompt) => {

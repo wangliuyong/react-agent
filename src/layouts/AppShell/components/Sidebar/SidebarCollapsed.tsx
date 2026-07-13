@@ -8,6 +8,7 @@ import styles from './Sidebar.module.css'
 
 interface SidebarCollapsedProps {
   view: AppView
+  isFreshChatSession: boolean
   onNavigate: (view: AppView) => void
   onCreateSession: () => void
   onToggleCollapse: () => void
@@ -16,6 +17,7 @@ interface SidebarCollapsedProps {
 /** 折叠态侧边栏：图标快捷操作 + Tooltip */
 export function SidebarCollapsed({
   view,
+  isFreshChatSession,
   onNavigate,
   onCreateSession,
   onToggleCollapse
@@ -23,7 +25,11 @@ export function SidebarCollapsed({
   return (
     <div className={styles.collapsedBody}>
       <SidebarBrand collapsed />
-      <SidebarNewChatButton collapsed onCreate={onCreateSession} />
+      <SidebarNewChatButton
+        collapsed
+        active={isFreshChatSession}
+        onCreate={onCreateSession}
+      />
       <SidebarNav
         items={NAV_ITEMS}
         activeView={view}
