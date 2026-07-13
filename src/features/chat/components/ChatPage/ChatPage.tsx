@@ -2,6 +2,7 @@ import { Segmented, Space, Typography, Button, Tooltip } from 'antd'
 import { FormOutlined, GlobalOutlined } from '@ant-design/icons'
 import { useBrowserControl } from '@/features/browser'
 import { useSessionStore } from '../../hooks/useSessionStore'
+import { queryAgentStatusLabel } from '../../utils/agent-status'
 import { WelcomeHero } from '../WelcomeHero'
 import { MessageList } from '../MessageList'
 import { ChatInput } from '../ChatInput'
@@ -16,25 +17,40 @@ export function ChatPage(): React.ReactElement {
   const running = useSessionStore((s) => s.running)
   const awaitUserReason = useSessionStore((s) => s.awaitUserReason)
   const streamingText = useSessionStore((s) => s.streamingText)
+  const activeToolName = useSessionStore((s) => s.activeToolName)
   const sendMessage = useSessionStore((s) => s.sendMessage)
   const abort = useSessionStore((s) => s.abort)
   const continueRun = useSessionStore((s) => s.continueRun)
   const { browserRunning, loading, toggleBrowser } = useBrowserControl()
 
   const messages = session?.messages ?? []
-  const isEmpty = messages.length === 0 && !streamingText
+  const isEmpty = messages.length === 0 && !streamingText && !running
+
+  const headerStatus = queryAgentStatusLabel({
+    running,
+    streamingText,
+    activeToolName,
+    awaitUserReason
+  })
 
   return (
     <div className={styles.page}>
       <header className={`${styles.header} app-drag`}>
-        <Title level={5} className={`${styles.title} app-no-drag`}>
-          {session?.title ?? '新对话'}
-        </Title>
+        <div className={styles.titleWrap}>
+          <Title level={5} className={`${styles.title} app-no-drag`}>
+            {session?.title ?? '新对话'}
+          </Title>
+          {headerStatus ? (
+            <span className={`${styles.headerStatus} app-no-drag`}>
+              <span className={styles.statusDot} />
+              {headerStatus}
+            </span>
+          ) : null}
+        </div>
         <div className="app-no-drag">
           <Segmented
             options={[
-              { label: '智能助手', value: 'assistant' },
-              // { label: '业务系统', value: 'biz' }
+              { label: '智能助手', value: 'assistant' }
             ]}
             value="assistant"
           />
@@ -54,7 +70,6 @@ export function ChatPage(): React.ReactElement {
         </Space>
       </header>
 
-      {/* 浮动任务清单：置于 page 层，不随消息区滚动 */}
       <TaskChecklist tasks={session?.tasks ?? []} visible={Boolean(session?.tasks?.length)} />
 
       <div className={styles.body}>
@@ -69,12 +84,16 @@ export function ChatPage(): React.ReactElement {
             messages={messages}
             streamingText={streamingText}
             tasks={session?.tasks ?? []}
+            running={running}
+            activeToolName={activeToolName}
           />
         )}
       </div>
 
       <ChatInput
         running={running}
+        streamingText={streamingText}
+        activeToolName={activeToolName}
         awaitUserReason={awaitUserReason}
         tokenUsed={session?.tokenUsed ?? 0}
         onSend={(text, paths) => void sendMessage(text, paths)}

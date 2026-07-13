@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Button, Dropdown, Progress, Space, Tooltip, Typography } from 'antd'
+import { Button, Dropdown, Progress, Space, Tooltip, Typography, message } from 'antd'
 import {
   DownOutlined,
+  LoadingOutlined,
   PaperClipOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
@@ -9,6 +10,8 @@ import {
 } from '@ant-design/icons'
 import { MODEL_OPTIONS, queryModelLabel } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
+import { queryAgentStatusLabel } from '../../utils/agent-status'
+import { TypingIndicator } from '../TypingIndicator'
 import { postSelectImages } from '../../api'
 import styles from './ChatInput.module.css'
 
@@ -17,6 +20,8 @@ const { Text } = Typography
 interface ChatInputProps {
   disabled?: boolean
   running?: boolean
+  streamingText?: string
+  activeToolName?: string | null
   awaitUserReason?: string | null
   tokenUsed?: number
   onSend: (text: string, paths: string[]) => void
@@ -28,6 +33,8 @@ interface ChatInputProps {
 export function ChatInput({
   disabled,
   running,
+  streamingText = '',
+  activeToolName = null,
   awaitUserReason,
   tokenUsed = 0,
   onSend,
@@ -36,11 +43,35 @@ export function ChatInput({
 }: ChatInputProps): React.ReactElement {
   const [text, setText] = useState('')
   const [paths, setPaths] = useState<string[]>([])
+  const [modelSwitching, setModelSwitching] = useState(false)
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
 
   const tokenMax = 1_000_000
   const percent = Math.min(100, Math.round((tokenUsed / tokenMax) * 100))
+
+  const statusLabel = useMemo(
+    () =>
+      queryAgentStatusLabel({
+        running: Boolean(running),
+        streamingText,
+        activeToolName,
+        awaitUserReason: awaitUserReason ?? null
+      }),
+    [running, streamingText, activeToolName, awaitUserReason]
+  )
+
+  /** 切换模型并给出 Toast 反馈 */
+  const handleModelChange = async (model: string): Promise<void> => {
+    if (model === settings.model) return
+    setModelSwitching(true)
+    try {
+      await postSettings({ model })
+      message.success(`已切换至 ${queryModelLabel(model)}`)
+    } finally {
+      setModelSwitching(false)
+    }
+  }
 
   /** 下拉项：若当前模型不在预设列表（历史自定义），追加一项以便展示 */
   const modelMenuItems = useMemo(() => {
@@ -56,7 +87,7 @@ export function ChatInput({
           ) : null}
         </div>
       ),
-      onClick: () => void postSettings({ model: m.value })
+      onClick: () => void handleModelChange(m.value)
     }))
     if (!MODEL_OPTIONS.some((m) => m.value === settings.model)) {
       items.unshift({
@@ -73,15 +104,18 @@ export function ChatInput({
       })
     }
     return items
-  }, [postSettings, settings.model])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleModelChange 依赖 settings.model
+  }, [settings.model])
 
   const handleSend = (): void => {
     const value = text.trim()
-    if (!value || disabled) return
+    if (!value || disabled || running) return
     onSend(value, paths)
     setText('')
     setPaths([])
   }
+
+  const inputDisabled = disabled || running
 
   return (
     <div className={styles.wrap}>
@@ -92,6 +126,12 @@ export function ChatInput({
             <Button type="primary" icon={<PlayCircleOutlined />} onClick={onContinue}>
               继续
             </Button>
+          </div>
+        ) : null}
+
+        {running && statusLabel && !awaitUserReason ? (
+          <div className={styles.statusBar}>
+            <TypingIndicator label={statusLabel} compact />
           </div>
         ) : null}
 
@@ -108,13 +148,15 @@ export function ChatInput({
           </div>
         ) : null}
 
-        <div className={styles.box}>
+        <div className={styles.box} data-running={running}>
           <textarea
             className={styles.textarea}
-            placeholder="描述你的任务，Enter 发送，Shift+Enter 换行…"
+            placeholder={
+              running ? 'Agent 正在处理，请稍候…' : '描述你的任务，Enter 发送，Shift+Enter 换行…'
+            }
             value={text}
             rows={2}
-            disabled={disabled}
+            disabled={inputDisabled}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -129,6 +171,7 @@ export function ChatInput({
                 <Button
                   type="text"
                   icon={<PaperClipOutlined />}
+                  disabled={running}
                   onClick={async () => {
                     const selected = await postSelectImages()
                     if (selected.length) setPaths((prev) => [...prev, ...selected])
@@ -146,18 +189,23 @@ export function ChatInput({
                   ]
                 }}
               >
-                <Button type="text" size="small">
+                <Button type="text" size="small" disabled={running}>
                   <span className={styles.dot} data-on={settings.fullAccess} />
                   {settings.fullAccess ? '完全访问' : '需确认'}
                 </Button>
               </Dropdown>
               <Tooltip title={running ? '任务运行中，请结束后再切换模型' : '选择大模型'}>
                 <Dropdown
-                  disabled={disabled || running}
+                  disabled={inputDisabled || running}
                   menu={{ selectedKeys: [settings.model], items: modelMenuItems }}
                   trigger={['click']}
                 >
-                  <Button type="text" size="small" className={styles.modelBtn}>
+                  <Button
+                    type="text"
+                    size="small"
+                    className={styles.modelBtn}
+                    loading={modelSwitching}
+                  >
                     {queryModelLabel(settings.model)}
                     <DownOutlined className={styles.modelChevron} />
                   </Button>
@@ -165,17 +213,21 @@ export function ChatInput({
               </Tooltip>
             </Space>
             <Space size={10}>
-              <div className={styles.token}>
-                <Progress
-                  type="circle"
-                  percent={percent}
-                  size={22}
-                  strokeWidth={10}
-                  strokeColor="#0057ff"
-                  format={() => ''}
-                />
+              <div className={styles.token} data-running={running}>
+                {running ? (
+                  <LoadingOutlined className={styles.tokenSpin} spin />
+                ) : (
+                  <Progress
+                    type="circle"
+                    percent={percent}
+                    size={22}
+                    strokeWidth={10}
+                    strokeColor="#0057ff"
+                    format={() => ''}
+                  />
+                )}
                 <Text type="secondary" style={{ fontSize: 11 }}>
-                  {Math.round(tokenUsed / 1000)}k
+                  {running ? '处理中' : `${Math.round(tokenUsed / 1000)}k`}
                 </Text>
               </div>
               {running ? (

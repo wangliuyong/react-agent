@@ -10,16 +10,16 @@ export interface MessageImageRef {
 
 const IMAGE_EXT_PATTERN = '(?:jpg|jpeg|png|webp|gif|bmp|svg)'
 
-/** Unix / macOS 绝对路径 */
+/** Unix / macOS 绝对路径（支持空格、中文等非 ASCII 路径段） */
 const UNIX_PATH_RE = new RegExp(
-  `(^|[\\s\\n])((?:/[\\w\\-.@]+)+\\.(?:${IMAGE_EXT_PATTERN}))(?:\\?[^\\s\\n]*)?`,
-  'gi'
+  `(^|[\\s\\n])((?:/[^\\n"'<>|]+?)\\.(?:${IMAGE_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|]*)?)`,
+  'gim'
 )
 
-/** Windows 绝对路径 */
+/** Windows 绝对路径（支持空格） */
 const WIN_PATH_RE = new RegExp(
-  `(^|[\\s\\n])((?:[A-Za-z]:\\\\[^\\s\\n]+\\.(?:${IMAGE_EXT_PATTERN}))(?:\\?[^\\s\\n]*)?)`,
-  'gi'
+  `(^|[\\s\\n])((?:[A-Za-z]:\\\\[^\\n"'<>|]+?)\\.(?:${IMAGE_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|]*)?)`,
+  'gim'
 )
 
 /** Markdown 图片 */
@@ -101,7 +101,16 @@ export function extractMessageImages(
     addRef(refs, seen, m[2])
   }
 
-  return refs
+  return preferLocalImageRefs(refs)
+}
+
+/**
+ * 若消息中已有本地下载路径，则不再展示远程来源 URL（CDN 常防盗链导致预览失败）。
+ */
+function preferLocalImageRefs(refs: MessageImageRef[]): MessageImageRef[] {
+  const hasLocal = refs.some((r) => r.kind === 'local')
+  if (!hasLocal) return refs
+  return refs.filter((r) => r.kind === 'local')
 }
 
 /** 展示用：去掉 [附件] 块与已识别本地路径行，保留可读文本 */
