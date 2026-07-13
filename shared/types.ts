@@ -81,7 +81,29 @@ export const MODEL_OPTIONS: ModelOption[] = [
   { value: 'qwen-plus', label: 'Qwen Plus', description: '均衡，推荐默认' },
   { value: 'qwen-max', label: 'Qwen Max', description: '能力最强' },
   { value: 'qwen-turbo', label: 'Qwen Turbo', description: '速度快、成本低' },
-  { value: 'qwen-long', label: 'Qwen Long', description: '超长上下文' }
+  { value: 'qwen-long', label: 'Qwen Long', description: '超长上下文' },
+  // DeepSeek
+  { value: 'deepseek-v4-flash', label: 'deepseek-v4-flash' },
+  { value: 'deepseek-v4-pro', label: 'deepseek-v4-pro' },
+  // Qwen 3.x
+  { value: 'qwen3.6-flash-2026-04-16', label: 'qwen3.6-flash-2026-04-16' },
+  { value: 'qwen3.5-ocr', label: 'qwen3.5-ocr' },
+  { value: 'qwen3.6-35b-a3b', label: 'qwen3.6-35b-a3b' },
+  { value: 'qwen3.7-max-2026-05-17', label: 'qwen3.7-max-2026-05-17' },
+  { value: 'qwen3.7-max-2026-06-08', label: 'qwen3.7-max-2026-06-08' },
+  { value: 'qwen3.7-max-preview', label: 'qwen3.7-max-preview' },
+  { value: 'qwen3.5-plus-2026-04-20', label: 'qwen3.5-plus-2026-04-20' },
+  { value: 'qwen3.6-max-preview', label: 'qwen3.6-max-preview' },
+  { value: 'qwen3.7-max', label: 'qwen3.7-max' },
+  { value: 'qwen3.7-max-2026-05-20', label: 'qwen3.7-max-2026-05-20' },
+  { value: 'qwen3.7-plus-2026-05-26', label: 'qwen3.7-plus-2026-05-26' },
+  { value: 'qwen3.6-flash', label: 'qwen3.6-flash' },
+  // GLM
+  { value: 'glm-5.1', label: 'glm-5.1' },
+  { value: 'glm-5.2', label: 'glm-5.2' },
+  // Kimi
+  { value: 'kimi-k2.7-code', label: 'kimi-k2.7-code', description: '代码能力强' },
+  { value: 'kimi-k2.6', label: 'kimi-k2.6' }
 ]
 
 /** 根据 model id 取展示名；未知模型回退为原始 id */

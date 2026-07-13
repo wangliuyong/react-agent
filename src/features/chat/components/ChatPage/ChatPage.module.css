@@ -20,7 +20,6 @@
 
 .title {
   margin: 0 !important;
-  justify-self: start;
   font-weight: 600 !important;
   letter-spacing: -0.01em;
   color: var(--db-text) !important;
@@ -29,6 +28,52 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 15px !important;
+}
+
+.titleWrap {
+  justify-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.headerStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--db-primary);
+  animation: fadeStatus 0.25s ease;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--db-primary);
+  animation: pulseDot 1.2s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes fadeStatus {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .header > :nth-child(2) {

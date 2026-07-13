@@ -22,6 +22,30 @@
   border-radius: var(--db-radius-md);
   padding: 12px 16px;
   margin-bottom: 12px;
+  animation: slideUp 0.3s ease;
+}
+
+/* Agent 运行状态条 */
+.statusBar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid rgba(0, 87, 255, 0.12);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .attachments {
@@ -76,8 +100,19 @@
   min-height: 44px;
 }
 
-.textarea::placeholder {
-  color: var(--db-text-tertiary);
+.box[data-running='true'] {
+  border-color: rgba(0, 87, 255, 0.25);
+  box-shadow:
+    var(--db-shadow-input),
+    0 0 0 3px var(--db-primary-muted);
+}
+
+.box[data-running='true'] .textarea {
+  opacity: 0.65;
+}
+
+.textarea:disabled {
+  cursor: not-allowed;
 }
 
 .toolbar {
@@ -140,6 +175,20 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
+  color: var(--db-text-tertiary);
+  transition: color 0.2s ease;
+}
+
+.token[data-running='true'] {
+  color: var(--db-primary);
+}
+
+.tokenSpin {
+  font-size: 14px;
+  color: var(--db-primary);
+}
+
+.textarea::placeholder {
   color: var(--db-text-tertiary);
 }
 

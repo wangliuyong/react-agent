@@ -20,17 +20,19 @@ export function MessageImageGallery({ images }: MessageImageGalleryProps): React
 
     let cancelled = false
     setLoading(true)
+    setPreviewMap({})
 
     void (async () => {
       const next: Record<string, string> = {}
       await Promise.all(
         images.map(async (img) => {
-          if (img.kind === 'remote') {
-            next[img.key] = img.src
+          if (img.kind === 'local') {
+            const dataUrl = await queryLocalImageDataUrl(img.src)
+            if (dataUrl) next[img.key] = dataUrl
             return
           }
-          const dataUrl = await queryLocalImageDataUrl(img.src)
-          if (dataUrl) next[img.key] = dataUrl
+          // 远程图在 Electron 内可能因防盗链失败，仍尝试加载
+          next[img.key] = img.src
         })
       )
       if (!cancelled) {
@@ -43,6 +45,14 @@ export function MessageImageGallery({ images }: MessageImageGalleryProps): React
       cancelled = true
     }
   }, [images])
+
+  const handleImageError = (key: string): void => {
+    setPreviewMap((prev) => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
 
   const ready = images.filter((img) => previewMap[img.key])
   if (!ready.length && !loading) return null
@@ -62,6 +72,7 @@ export function MessageImageGallery({ images }: MessageImageGalleryProps): React
                 height={112}
                 className={styles.thumb}
                 rootClassName={styles.thumbRoot}
+                onError={() => handleImageError(img.key)}
               />
               <span className={styles.thumbLabel}>{img.label}</span>
             </div>

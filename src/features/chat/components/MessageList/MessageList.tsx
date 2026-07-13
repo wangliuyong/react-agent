@@ -1,7 +1,11 @@
+import { useEffect, useRef } from 'react'
 import { Alert, Collapse, Tag, Typography } from 'antd'
+import { ToolOutlined } from '@ant-design/icons'
 import type { ChatMessage, TaskItem } from '@shared/types'
+import { queryAgentPhase, queryAgentStatusLabel } from '../../utils/agent-status'
 import { ChatMarkdown } from '../ChatMarkdown'
 import { MessageImageGallery } from '../MessageImageGallery'
+import { TypingIndicator } from '../TypingIndicator'
 import {
   extractMessageImages,
   stripImagePathsFromDisplayText
@@ -14,15 +18,34 @@ interface MessageListProps {
   messages: ChatMessage[]
   streamingText: string
   tasks: TaskItem[]
+  running?: boolean
+  activeToolName?: string | null
 }
 
 /** 展示组件：消息列表 + 工具结果折叠 + Markdown 预览 + 图片预览 */
 export function MessageList({
   messages,
   streamingText,
-  tasks
+  tasks,
+  running = false,
+  activeToolName = null
 }: MessageListProps): React.ReactElement {
+  const bottomRef = useRef<HTMLDivElement>(null)
   const visible = messages.filter((m) => m.role !== 'system')
+
+  const phase = queryAgentPhase({ running, streamingText, activeToolName, awaitUserReason: null })
+  const statusLabel = queryAgentStatusLabel({
+    running,
+    streamingText,
+    activeToolName,
+    awaitUserReason: null
+  })
+  const showPending = running && !streamingText && phase !== 'idle'
+
+  /** 新消息 / 流式输出时自动滚到底部 */
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages.length, streamingText, running, activeToolName])
 
   return (
     <div className={styles.list}>
@@ -31,6 +54,7 @@ export function MessageList({
           {tasks.map((t) => (
             <Tag
               key={t.id}
+              className={t.status === 'running' ? styles.taskRunning : undefined}
               color={
                 t.status === 'done'
                   ? 'success'
@@ -103,6 +127,24 @@ export function MessageList({
           </div>
         </div>
       ) : null}
+
+      {showPending ? (
+        <div className={`${styles.row} ${styles.rowAssistant}`}>
+          <span className={styles.label}>Agent</span>
+          <div className={styles.pendingWrap}>
+            {phase === 'tool' && activeToolName ? (
+              <div className={styles.toolRunning}>
+                <ToolOutlined className={styles.toolIcon} spin />
+                <span>{statusLabel}</span>
+              </div>
+            ) : (
+              <TypingIndicator label={statusLabel ?? '正在思考…'} />
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      <div ref={bottomRef} className={styles.scrollAnchor} />
     </div>
   )
 }
@@ -115,11 +157,7 @@ function AssistantBody({
   streaming?: boolean
 }): React.ReactElement {
   if (!content && streaming) {
-    return (
-      <Text type="secondary">
-        思考中<span className={styles.cursor} />
-      </Text>
-    )
+    return <TypingIndicator label="正在思考…" />
   }
   if (!content) return <Text type="secondary">…</Text>
 

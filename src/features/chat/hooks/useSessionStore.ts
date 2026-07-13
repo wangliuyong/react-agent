@@ -17,6 +17,8 @@ interface SessionState {
   running: boolean
   awaitUserReason: string | null
   streamingText: string
+  /** 当前正在执行的工具名（tool_start ~ tool_result 之间） */
+  activeToolName: string | null
   hydrate: () => Promise<void>
   setActive: (id: string | null) => void
   createSession: () => Promise<Session>
@@ -42,6 +44,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   running: false,
   awaitUserReason: null,
   streamingText: '',
+  activeToolName: null,
 
   getActiveSession: () => {
     const { sessions, activeSessionId } = get()
@@ -88,7 +91,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const session = await get().createSession()
       activeSessionId = session.id
     }
-    set({ running: true, awaitUserReason: null, streamingText: '' })
+    set({ running: true, awaitUserReason: null, streamingText: '', activeToolName: null })
     await postAgentChat(activeSessionId, content, attachmentPaths)
   },
 
@@ -112,7 +115,23 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
       if (event.type === 'text_delta') {
         if (event.sessionId !== activeId) return
-        set((s) => ({ streamingText: s.streamingText + event.delta }))
+        set((s) => ({
+          streamingText: s.streamingText + event.delta,
+          activeToolName: null
+        }))
+        return
+      }
+
+      if (event.type === 'tool_start') {
+        if (event.sessionId !== activeId) return
+        set({ activeToolName: event.toolName, streamingText: '' })
+        return
+      }
+
+      if (event.type === 'tool_result') {
+        if (event.sessionId === activeId) {
+          set({ activeToolName: null })
+        }
         return
       }
 
@@ -161,7 +180,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
       if (event.type === 'done') {
         if (event.sessionId === activeId) {
-          set({ running: false, awaitUserReason: null, streamingText: '' })
+          set({ running: false, awaitUserReason: null, streamingText: '', activeToolName: null })
         }
         void get().hydrate()
         return
@@ -169,7 +188,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
       if (event.type === 'error') {
         if (event.sessionId === activeId) {
-          set({ running: false })
+          set({ running: false, activeToolName: null })
         }
         return
       }

@@ -61,7 +61,82 @@
 }
 
 .assistantCardStreaming {
-  /* 流式输出时无额外装饰 */
+  position: relative;
+}
+
+.assistantCardStreaming::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 48px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--db-primary), transparent);
+  animation: streamBar 1.4s ease-in-out infinite;
+}
+
+@keyframes streamBar {
+  0%,
+  100% {
+    opacity: 0.3;
+    width: 32px;
+  }
+  50% {
+    opacity: 1;
+    width: 64px;
+  }
+}
+
+.pendingWrap {
+  width: 100%;
+}
+
+.toolRunning {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid rgba(0, 87, 255, 0.15);
+  font-size: 13px;
+  color: var(--db-primary);
+  animation: fadeIn 0.25s ease;
+}
+
+.toolIcon {
+  font-size: 14px;
+}
+
+.taskRunning {
+  animation: tagPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes tagPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scrollAnchor {
+  height: 1px;
+  flex-shrink: 0;
 }
 
 .toolBlock {
