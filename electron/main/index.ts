@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc'
 import { getDataRoot } from './store/paths'
+import { initPublishChannelRegistry } from './store/channels'
 import { setMainWindow } from './window'
 import { getBrowserService } from './browser/service'
 import { releaseBrowserProfileLock } from './browser/profile-lock'
@@ -47,6 +48,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   getDataRoot()
+  initPublishChannelRegistry()
   registerIpcHandlers()
   startScheduleService()
   createWindow()

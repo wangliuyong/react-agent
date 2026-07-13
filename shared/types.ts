@@ -33,6 +33,11 @@ export const IpcChannels = {
   postBrowserStart: 'post:browser:start',
   postBrowserClose: 'post:browser:close',
   postBrowserClearProfile: 'post:browser:clear-profile',
+  // 发布渠道
+  queryPublishChannels: 'query:publish-channels',
+  postPublishChannel: 'post:publish-channel',
+  postDeletePublishChannel: 'post:publish-channel:delete',
+  postInitPublishChannels: 'post:publish-channels:init',
   // 发布渠道登录态
   queryChannelLoginStatuses: 'query:channel-login-statuses',
   postChannelOpenLogin: 'post:channel:open-login',
@@ -162,7 +167,9 @@ export interface Session {
   updatedAt: number
 }
 
-import type { PublishChannelId } from './publish-channels'
+import type { PublishChannelId, PublishChannelMeta, PublishChannelUpsertInput } from './publish-channels'
+
+export type { PublishChannelId, PublishChannelMeta, PublishChannelUpsertInput } from './publish-channels'
 
 /** 发布计划子任务 */
 export interface PublishSubTask {
@@ -354,6 +361,10 @@ export interface ElectronApi {
   postBrowserStart: () => Promise<BrowserStatus>
   postBrowserClose: () => Promise<BrowserStatus>
   postBrowserClearProfile: () => Promise<void>
+  queryPublishChannels: () => Promise<PublishChannelMeta[]>
+  postPublishChannel: (input: PublishChannelUpsertInput) => Promise<PublishChannelMeta>
+  postDeletePublishChannel: (id: string) => Promise<void>
+  postInitPublishChannels: () => Promise<PublishChannelMeta[]>
   queryChannelLoginStatuses: () => Promise<ChannelLoginStatus[]>
   postChannelOpenLogin: (channelId: string) => Promise<BrowserStatus>
   queryProjectSkills: () => Promise<ProjectSkill[]>

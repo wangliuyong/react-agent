@@ -21,9 +21,9 @@ import {
   createEmptySubTask,
   normalizePublishSubTask,
   normalizePublishPlan,
-  queryEnabledPublishChannels,
   queryPublishChannelLabel
 } from '../../types'
+import { useChannelsStore, queryEnabledChannelsFromStore } from '@/features/channels'
 import type { PublishPlan, PublishSubTask } from '@shared/types'
 import type { PublishChannelId } from '@shared/publish-channels'
 import { useSessionStore } from '@/features/chat'
@@ -122,6 +122,11 @@ export function PublishWorkbench(): React.ReactElement {
   const createSession = useSessionStore((s) => s.createSession)
   const sendMessage = useSessionStore((s) => s.sendMessage)
   const setView = useAppStore((s) => s.setView)
+  const channels = useChannelsStore((s) => s.channels)
+  const enabledChannels = useMemo(
+    () => queryEnabledChannelsFromStore(channels),
+    [channels]
+  )
 
   const [planModal, setPlanModal] = useState<{
     mode: 'create' | 'edit'
@@ -362,7 +367,7 @@ export function PublishWorkbench(): React.ReactElement {
                   setSubEditing({ ...subEditing, channels })
                 }
                 placeholder="选择发布渠道，可多选"
-                options={queryEnabledPublishChannels().map((c) => ({
+                options={enabledChannels.map((c) => ({
                   value: c.id,
                   label: c.label
                 }))}

@@ -15,7 +15,9 @@ import type {
   SkillStates,
   SkillTemplate,
   SkillUpsertInput,
-  SkillImportPreview
+  SkillImportPreview,
+  PublishChannelMeta,
+  PublishChannelUpsertInput
 } from '../../shared/types'
 
 /** Preload：向渲染进程暴露安全 API 面 */
@@ -54,6 +56,12 @@ const api: ElectronApi = {
   postBrowserStart: () => ipcRenderer.invoke(IpcChannels.postBrowserStart),
   postBrowserClose: () => ipcRenderer.invoke(IpcChannels.postBrowserClose),
   postBrowserClearProfile: () => ipcRenderer.invoke(IpcChannels.postBrowserClearProfile),
+  queryPublishChannels: () => ipcRenderer.invoke(IpcChannels.queryPublishChannels),
+  postPublishChannel: (input) => ipcRenderer.invoke(IpcChannels.postPublishChannel, input),
+  postDeletePublishChannel: (id: string) =>
+    ipcRenderer.invoke(IpcChannels.postDeletePublishChannel, id),
+  postInitPublishChannels: () => ipcRenderer.invoke(IpcChannels.postInitPublishChannels),
+
   queryChannelLoginStatuses: () => ipcRenderer.invoke(IpcChannels.queryChannelLoginStatuses),
   postChannelOpenLogin: (channelId: string) =>
     ipcRenderer.invoke(IpcChannels.postChannelOpenLogin, channelId),

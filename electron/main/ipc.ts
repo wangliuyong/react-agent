@@ -41,7 +41,13 @@ import {
   queryAllChannelLoginStatuses,
   postOpenChannelLogin
 } from './browser/channel-login'
-import type { PublishChannelId } from '../../shared/publish-channels'
+import {
+  queryPublishChannels,
+  postPublishChannel,
+  postDeletePublishChannel,
+  postInitPublishChannels
+} from './store/channels'
+import type { PublishChannelUpsertInput } from '../../shared/publish-channels'
 
 /** 注册全部 IPC；读 query* / 写 post* */
 export function registerIpcHandlers(): void {
@@ -103,8 +109,17 @@ export function registerIpcHandlers(): void {
     }
   })
 
+  ipcMain.handle(IpcChannels.queryPublishChannels, () => queryPublishChannels())
+  ipcMain.handle(IpcChannels.postPublishChannel, (_e, input: PublishChannelUpsertInput) =>
+    postPublishChannel(input)
+  )
+  ipcMain.handle(IpcChannels.postDeletePublishChannel, (_e, id: string) =>
+    postDeletePublishChannel(id)
+  )
+  ipcMain.handle(IpcChannels.postInitPublishChannels, () => postInitPublishChannels())
+
   ipcMain.handle(IpcChannels.queryChannelLoginStatuses, () => queryAllChannelLoginStatuses())
-  ipcMain.handle(IpcChannels.postChannelOpenLogin, async (_e, channelId: PublishChannelId) =>
+  ipcMain.handle(IpcChannels.postChannelOpenLogin, async (_e, channelId: string) =>
     postOpenChannelLogin(channelId)
   )
 
