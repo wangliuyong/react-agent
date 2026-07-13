@@ -97,19 +97,31 @@
 
 .cardHead {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 标题 + 渠道状态 + 登录状态同一行 */
+.cardHeadRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .channelName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 16px;
   font-weight: 650;
   color: var(--db-text);
 }
 
 .channelDesc {
-  margin-top: 6px;
   font-size: 13px;
   line-height: 1.55;
   color: var(--db-text-secondary);
@@ -136,6 +148,17 @@
 .metaValue {
   color: var(--db-text-secondary);
   word-break: break-all;
+}
+
+/* 状态说明：单行省略，完整内容通过 Tooltip 展示 */
+.metaValueEllipsis {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
+  cursor: default;
 }
 
 .actions {

@@ -7,6 +7,7 @@ import {
   Space,
   Spin,
   Tag,
+  Tooltip,
   Typography,
   message
 } from 'antd'
@@ -181,18 +182,16 @@ export function ChannelsPage(): React.ReactElement {
                   bordered={false}
                 >
                   <div className={styles.cardHead}>
-                    <div>
-                      <div className={styles.channelName}>{channel.label}</div>
-                      <div className={styles.channelDesc}>{channel.description}</div>
-                    </div>
-                    <Space size={4} wrap>
+                    <div className={styles.cardHeadRow}>
+                      <span className={styles.channelName}>{channel.label}</span>
                       {channel.enabled ? (
                         <Tag color="processing">已接入</Tag>
                       ) : (
                         <Tag>预留</Tag>
                       )}
                       {renderLoginTag(status?.state)}
-                    </Space>
+                    </div>
+                    <div className={styles.channelDesc}>{channel.description}</div>
                   </div>
 
                   <div className={styles.metaList}>
@@ -209,7 +208,11 @@ export function ChannelsPage(): React.ReactElement {
                     {status?.message && (
                       <div className={styles.metaRow}>
                         <span className={styles.metaLabel}>状态说明</span>
-                        <span className={styles.metaValue}>{status.message}</span>
+                        <Tooltip title={status.message}>
+                          <span className={`${styles.metaValue} ${styles.metaValueEllipsis}`}>
+                            {status.message}
+                          </span>
+                        </Tooltip>
                       </div>
                     )}
                   </div>
