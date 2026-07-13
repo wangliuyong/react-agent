@@ -40,7 +40,26 @@ export function MessageList({
     activeToolName,
     awaitUserReason: null
   })
-  const showPending = running && !streamingText && phase !== 'idle'
+
+  /**
+   * 后端每轮会先 push 一条空的 assistant 占位消息，再由 streaming / pending 区承接实时状态。
+   * 若同时渲染占位行与 pending 行，会出现两个 Agent loading。
+   */
+  const lastAssistant = [...visible].reverse().find((m) => m.role === 'assistant')
+  const trailingPlaceholderId =
+    running &&
+    phase !== 'idle' &&
+    lastAssistant?.role === 'assistant' &&
+    !lastAssistant.content.trim()
+      ? lastAssistant.id
+      : null
+
+  const displayMessages = trailingPlaceholderId
+    ? visible.filter((m) => m.id !== trailingPlaceholderId)
+    : visible
+
+  const showPending =
+    Boolean(trailingPlaceholderId) && running && !streamingText && phase !== 'idle'
 
   /** 新消息 / 流式输出时自动滚到底部 */
   useEffect(() => {
@@ -71,7 +90,7 @@ export function MessageList({
         </div>
       )}
 
-      {visible.map((m) => {
+      {displayMessages.map((m) => {
         if (m.role === 'user') {
           const images = extractMessageImages(m.content, m.attachmentPaths)
           const text = stripImagePathsFromDisplayText(m.content, images)
