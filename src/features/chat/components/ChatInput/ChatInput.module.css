@@ -3,7 +3,7 @@
   bottom: 0;
   z-index: 10;
   padding: 0 32px 28px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, var(--db-bg-content) 28%);
+  background: linear-gradient(180deg, transparent 0%, var(--db-bg) 28%);
 }
 
 .inner {
@@ -90,10 +90,10 @@
 }
 
 .box:focus-within {
-  border-color: rgba(28, 31, 35, 0.18);
+  border-color: var(--db-primary-border-hover);
   box-shadow:
     var(--db-shadow-input),
-    0 0 0 3px rgba(28, 31, 35, 0.04);
+    0 0 0 3px var(--db-primary-muted);
 }
 
 .textarea {
@@ -171,8 +171,8 @@
 }
 
 .modelBtn:hover:not(:disabled) {
-  background: rgba(28, 31, 35, 0.06) !important;
-  color: var(--db-text) !important;
+  background: var(--db-primary-muted) !important;
+  color: var(--db-primary) !important;
 }
 
 .modelChevron {
@@ -229,13 +229,19 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background: var(--db-text) !important;
-  border-color: var(--db-text) !important;
+  background: var(--db-primary) !important;
+  border-color: var(--db-primary) !important;
+  color: var(--db-on-primary) !important;
+}
+
+.sendBtn :global(.anticon) {
+  color: var(--db-on-primary) !important;
 }
 
 .sendBtn:not(:disabled):hover {
-  background: #333 !important;
-  border-color: #333 !important;
+  background: var(--db-primary-hover) !important;
+  border-color: var(--db-primary-hover) !important;
+  color: var(--db-on-primary) !important;
 }
 
 .stopBtn {

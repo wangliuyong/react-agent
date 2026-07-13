@@ -74,9 +74,15 @@
 }
 
 .card:hover {
-  border-color: rgba(28, 31, 35, 0.15);
-  background: var(--db-bg-subtle);
-  box-shadow: var(--db-shadow-sm);
+  border-color: var(--db-primary-border-hover);
+  background: var(--db-primary-muted);
+  box-shadow:
+    var(--db-shadow-sm),
+    0 0 0 1px var(--db-primary-faint);
+}
+
+.card:hover .cardTitle {
+  color: var(--db-primary);
 }
 
 .cardTitle {
@@ -85,6 +91,7 @@
   font-size: 14px;
   color: var(--db-text);
   line-height: 1.4;
+  transition: color 0.18s ease;
 }
 
 .cardDesc {
