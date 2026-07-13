@@ -1,7 +1,7 @@
 .prose {
-  color: #141418;
+  color: var(--db-text);
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.7;
   word-break: break-word;
 }
 
@@ -20,22 +20,14 @@
   margin: 1.1em 0 0.5em;
   font-weight: 650;
   letter-spacing: -0.02em;
-  color: #141418;
+  color: var(--db-text);
   line-height: 1.35;
 }
 
-.prose :global(h1) {
-  font-size: 1.25rem;
-}
-
-.prose :global(h2) {
-  font-size: 1.12rem;
-}
-
+.prose :global(h1) { font-size: 1.25rem; }
+.prose :global(h2) { font-size: 1.12rem; }
 .prose :global(h3),
-.prose :global(h4) {
-  font-size: 1rem;
-}
+.prose :global(h4) { font-size: 1rem; }
 
 .prose :global(p) {
   margin: 0.55em 0;
@@ -52,56 +44,55 @@
 }
 
 .prose :global(li)::marker {
-  color: #2563eb;
+  color: var(--db-primary);
 }
 
 .prose :global(blockquote) {
   margin: 0.75em 0;
   padding: 0.35em 0 0.35em 0.85em;
-  border-left: 3px solid rgba(37, 99, 235, 0.35);
-  color: #4b5563;
-  background: rgba(37, 99, 235, 0.04);
-  border-radius: 0 8px 8px 0;
+  border-left: 3px solid rgba(0, 87, 255, 0.3);
+  color: var(--db-text-secondary);
+  background: var(--db-primary-muted);
+  border-radius: 0 var(--db-radius-sm) var(--db-radius-sm) 0;
 }
 
 .prose :global(hr) {
   margin: 1em 0;
   border: none;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid var(--db-border);
 }
 
 .link {
-  color: #2563eb;
+  color: var(--db-primary);
   text-decoration: none;
-  border-bottom: 1px solid rgba(37, 99, 235, 0.25);
+  border-bottom: 1px solid rgba(0, 87, 255, 0.2);
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .link:hover {
-  color: #1d4ed8;
-  border-bottom-color: rgba(29, 78, 216, 0.45);
+  color: var(--db-primary-hover);
+  border-bottom-color: rgba(0, 70, 204, 0.4);
 }
 
 .inlineCode {
   padding: 0.12em 0.38em;
   border-radius: 5px;
-  background: rgba(15, 23, 42, 0.06);
-  font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+  background: var(--db-hover);
+  font-family: 'SF Mono', ui-monospace, monospace;
   font-size: 0.9em;
-  color: #c2410c;
+  color: #d4380d;
 }
 
 .codeBlock {
   margin: 0.85em 0;
   padding: 12px 14px;
-  border-radius: 10px;
-  background: linear-gradient(145deg, #1a1b26 0%, #24283b 100%);
-  color: #c0caf5;
-  font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+  border-radius: var(--db-radius-md);
+  background: #1c1f23;
+  color: #e5e6eb;
+  font-family: 'SF Mono', ui-monospace, monospace;
   font-size: 12.5px;
   line-height: 1.55;
   overflow: auto;
-  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .codeBlock :global(code) {
@@ -115,8 +106,8 @@
 .tableWrap {
   margin: 0.85em 0;
   overflow-x: auto;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--db-radius-md);
+  border: 1px solid var(--db-border);
 }
 
 .table {
@@ -128,15 +119,15 @@
 .table :global(th),
 .table :global(td) {
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--db-border-light);
   text-align: left;
   vertical-align: top;
 }
 
 .table :global(th) {
-  background: rgba(37, 99, 235, 0.06);
+  background: var(--db-primary-muted);
   font-weight: 600;
-  color: #374151;
+  color: var(--db-text);
 }
 
 .table :global(tr:last-child td) {
@@ -144,7 +135,7 @@
 }
 
 .table :global(tr:nth-child(even) td) {
-  background: rgba(0, 0, 0, 0.02);
+  background: var(--db-bg);
 }
 
 .cursor {
@@ -153,12 +144,10 @@
   height: 1em;
   margin-left: 2px;
   vertical-align: text-bottom;
-  background: #2563eb;
+  background: var(--db-primary);
   animation: blink 1s step-end infinite;
 }
 
 @keyframes blink {
-  50% {
-    opacity: 0;
-  }
+  50% { opacity: 0; }
 }

@@ -1,5 +1,47 @@
 .page {
-  padding: 28px 32px;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  overflow: auto;
+  background: var(--db-bg);
+}
+
+.header {
+  padding: 28px 32px 20px;
+  background: var(--db-bg-content);
+  border-bottom: 1px solid var(--db-border-light);
+}
+
+.title {
+  margin: 0 0 8px !important;
+  font-size: 22px !important;
+  font-weight: 650 !important;
+  color: var(--db-text) !important;
+}
+
+.desc {
+  margin: 0 !important;
+  font-size: 14px !important;
+  color: var(--db-text-secondary) !important;
+  max-width: 560px;
+  line-height: 1.6 !important;
+}
+
+.body {
+  flex: 1;
+  padding: 28px 32px 48px;
+  max-width: 640px;
+}
+
+.formCard {
+  background: var(--db-bg-content);
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-lg);
+  padding: 28px 32px;
+  box-shadow: var(--db-shadow-sm);
+}
+
+.alertCard {
+  margin-top: 24px;
+  border-radius: var(--db-radius-md) !important;
 }

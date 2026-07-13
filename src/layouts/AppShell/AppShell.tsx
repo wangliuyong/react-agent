@@ -7,7 +7,6 @@ import {
   SettingOutlined,
   ThunderboltOutlined,
   UnorderedListOutlined,
-  FolderOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined
 } from '@ant-design/icons'
@@ -58,14 +57,20 @@ export function AppShell({ view }: AppShellProps): React.ReactElement {
 
         {!sidebarCollapsed && (
           <>
+            <div className={styles.brand}>
+              <div className={styles.brandIcon}>R</div>
+              <span className={styles.brandName}>React Agent</span>
+            </div>
+
             <div className={styles.newTask}>
               <Button
                 block
-                type="default"
+                type="primary"
+                className={styles.newTaskBtn}
                 icon={<PlusOutlined />}
                 onClick={() => void createSession()}
               >
-                新任务
+                新对话
               </Button>
             </div>
 
@@ -85,14 +90,8 @@ export function AppShell({ view }: AppShellProps): React.ReactElement {
             </nav>
 
             <div className={styles.sectionLabel}>
-              <span>项目</span>
-              <PlusOutlined style={{ fontSize: 12, opacity: 0.5 }} />
+              <span>历史对话</span>
             </div>
-            <div className={styles.folder}>
-              <FolderOutlined />
-              <span>未选项目</span>
-            </div>
-
             <div className={styles.history}>
               {sessions.map((s) => (
                 <button
@@ -136,10 +135,15 @@ export function AppShell({ view }: AppShellProps): React.ReactElement {
           {(view === 'rules' ||
             view === 'channels' ||
             view === 'schedule') && (
-            <div className={styles.placeholder}>
-              <Text type="secondary">「{NAV.find((n) => n.key === view)?.label}」本期为占位，后续迭代开放。</Text>
-            </div>
-          )}
+              <div className={styles.placeholder}>
+                <div className={styles.placeholderIcon}>
+                  {NAV.find((n) => n.key === view)?.icon}
+                </div>
+                <Text className={styles.placeholderText}>
+                  「{NAV.find((n) => n.key === view)?.label}」功能即将上线
+                </Text>
+              </div>
+            )}
         </div>
       </div>
     </div>

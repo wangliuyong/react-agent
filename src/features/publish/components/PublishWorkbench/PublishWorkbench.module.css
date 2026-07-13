@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--db-bg);
 }
 
 .header {
@@ -9,9 +10,22 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
-  background: #fff;
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+.headerTitle {
+  margin: 0 !important;
+  font-size: 20px !important;
+  font-weight: 650 !important;
+  color: var(--db-text) !important;
+}
+
+.headerDesc {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--db-text-secondary);
 }
 
 .body {
@@ -22,8 +36,9 @@
 
 .sidebar {
   width: 240px;
-  border-right: 1px solid var(--border);
-  background: #fafafa;
+  flex-shrink: 0;
+  border-right: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
   padding: 12px;
   overflow: auto;
 }
@@ -31,34 +46,44 @@
 .planItem {
   width: 100%;
   text-align: left;
-  border: 1px solid transparent;
+  border: none;
   background: transparent;
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: var(--db-radius-md);
+  padding: 12px 14px;
   cursor: pointer;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+  transition: background 0.15s ease;
+}
+
+.planItem:hover {
+  background: var(--db-hover);
 }
 
 .planItem[data-active='true'] {
-  background: #fff;
-  border-color: #d6e4ff;
-  box-shadow: var(--shadow);
+  background: var(--db-active);
 }
 
 .planTitle {
   font-weight: 600;
+  font-size: 14px;
+  color: var(--db-text);
+}
+
+.planItem[data-active='true'] .planTitle {
+  color: var(--db-primary);
 }
 
 .planMeta {
   margin-top: 4px;
-  color: var(--text-secondary);
+  color: var(--db-text-secondary);
   font-size: 12px;
 }
 
 .main {
   flex: 1;
-  padding: 20px 24px;
+  padding: 24px 28px;
   overflow: auto;
+  background: var(--db-bg);
 }
 
 .planHeader {
@@ -72,28 +97,34 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 820px;
+  max-width: 760px;
 }
 
 .subCard {
   display: flex;
   gap: 14px;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
+  background: var(--db-bg-content);
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-lg);
+  padding: 16px 18px;
+  transition: box-shadow 0.18s ease;
+}
+
+.subCard:hover {
+  box-shadow: var(--db-shadow-sm);
 }
 
 .subIndex {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #e6f4ff;
-  color: #1677ff;
+  background: var(--db-primary-soft);
+  color: var(--db-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
+  font-size: 13px;
   flex-shrink: 0;
 }
 
@@ -111,9 +142,12 @@
 .subTitle {
   font-weight: 600;
   font-size: 15px;
+  color: var(--db-text);
 }
 
 .subPrompt {
   margin: 8px 0 0 !important;
   white-space: pre-wrap;
+  color: var(--db-text-secondary) !important;
+  font-size: 13px !important;
 }

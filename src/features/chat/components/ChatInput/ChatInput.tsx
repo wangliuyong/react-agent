@@ -88,7 +88,7 @@ export function ChatInput({
       <div className={styles.inner}>
         {awaitUserReason ? (
           <div className={styles.awaitBar}>
-            <Text style={{ color: '#92400e', fontSize: 13 }}>{awaitUserReason}</Text>
+            <Text style={{ color: '#b45309', fontSize: 13 }}>{awaitUserReason}</Text>
             <Button type="primary" icon={<PlayCircleOutlined />} onClick={onContinue}>
               继续
             </Button>
@@ -171,7 +171,7 @@ export function ChatInput({
                   percent={percent}
                   size={22}
                   strokeWidth={10}
-                  strokeColor="#2563eb"
+                  strokeColor="#0057ff"
                   format={() => ''}
                 />
                 <Text type="secondary" style={{ fontSize: 11 }}>

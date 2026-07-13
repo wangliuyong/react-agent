@@ -11,8 +11,7 @@ import {
   Tag,
   message,
   Spin,
-  Card,
-  ConfigProvider
+  Card
 } from 'antd'
 import {
   AppstoreOutlined,
@@ -212,15 +211,7 @@ export function SkillsPage(): React.ReactElement {
   }
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#c9920a',
-          borderRadius: 10
-        }
-      }}
-    >
-      <div className={styles.page}>
+    <div className={styles.page}>
         {/* 顶栏 */}
         <header className={styles.hero}>
           <div className={styles.heroInner}>
@@ -250,7 +241,6 @@ export function SkillsPage(): React.ReactElement {
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
-                className={styles.actionPrimary}
                 onClick={openCreate}
               >
                 新建技能
@@ -571,7 +561,6 @@ export function SkillsPage(): React.ReactElement {
             </Form.Item>
           </Form>
         </Modal>
-      </div>
-    </ConfigProvider>
+    </div>
   )
 }
