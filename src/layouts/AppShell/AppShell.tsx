@@ -18,7 +18,6 @@ import { useSessionStore, ChatPage, formatRelativeTime } from '@/features/chat'
 import { PublishWorkbench } from '@/features/publish'
 import { SettingsPage } from '@/features/settings'
 import { SkillsPage } from '@/features/skills'
-import { AgentBrowser } from '@/features/browser'
 import styles from './AppShell.module.css'
 
 const { Text } = Typography
@@ -39,8 +38,6 @@ export function AppShell({ view }: AppShellProps): React.ReactElement {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const setView = useAppStore((s) => s.setView)
-  const browserOpen = useAppStore((s) => s.browserOpen)
-
   const sessions = useSessionStore((s) => s.sessions)
   const activeSessionId = useSessionStore((s) => s.activeSessionId)
   const setActive = useSessionStore((s) => s.setActive)
@@ -144,7 +141,6 @@ export function AppShell({ view }: AppShellProps): React.ReactElement {
             </div>
           )}
         </div>
-        {view === 'chat' && browserOpen ? <AgentBrowser /> : null}
       </div>
     </div>
   )

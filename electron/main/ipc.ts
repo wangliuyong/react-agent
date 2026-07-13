@@ -62,6 +62,14 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IpcChannels.queryBrowserStatus, () => getBrowserService().getStatus())
+  ipcMain.handle(IpcChannels.postBrowserStart, async () => {
+    await getBrowserService().ensureStarted()
+    return getBrowserService().getStatus()
+  })
+  ipcMain.handle(IpcChannels.postBrowserClose, async () => {
+    await getBrowserService().close()
+    return getBrowserService().getStatus()
+  })
   ipcMain.handle(IpcChannels.postBrowserClearProfile, async () => {
     await getBrowserService().close()
     releaseBrowserProfileLock()
