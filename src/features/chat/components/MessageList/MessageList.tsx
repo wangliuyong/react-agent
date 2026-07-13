@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Alert, Collapse, Tag, Typography } from 'antd'
+import { Alert, Collapse, Typography } from 'antd'
 import { ToolOutlined } from '@ant-design/icons'
 import type { ChatMessage, TaskItem } from '@shared/types'
 import { queryAgentPhase, queryAgentStatusLabel } from '../../utils/agent-status'
@@ -52,22 +52,21 @@ export function MessageList({
       {tasks.length > 0 && (
         <div className={styles.taskInline}>
           {tasks.map((t) => (
-            <Tag
+            <span
               key={t.id}
-              className={t.status === 'running' ? styles.taskRunning : undefined}
-              color={
-                t.status === 'done'
-                  ? 'success'
-                  : t.status === 'running'
-                    ? 'processing'
-                    : t.status === 'failed'
-                      ? 'error'
-                      : 'default'
-              }
+              className={[
+                styles.taskTag,
+                t.status === 'done' && styles.taskTagDone,
+                t.status === 'running' && styles.taskTagRunning,
+                t.status === 'failed' && styles.taskTagFailed,
+                t.status === 'pending' && styles.taskTagPending
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
               {t.status === 'done' ? '✓ ' : t.status === 'running' ? '… ' : ''}
               {t.title}
-            </Tag>
+            </span>
           ))}
         </div>
       )}
