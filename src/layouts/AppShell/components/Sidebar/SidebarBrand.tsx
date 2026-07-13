@@ -13,15 +13,15 @@ export function SidebarBrand({ collapsed = false }: SidebarBrandProps): React.Re
   if (collapsed) {
     return (
       <Tooltip title="React Agent" placement="right">
-        {icon}
+        {/* {icon} */}
       </Tooltip>
     )
   }
 
   return (
     <div className={styles.brand}>
-      {icon}
-      <span className={styles.brandName}>React Agent</span>
+      {/* {icon} */}
+      {/* <span className={styles.brandName}>React Agent</span> */}
     </div>
   )
 }
