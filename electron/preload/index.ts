@@ -40,6 +40,8 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.postAgentContinue, sessionId),
 
   queryBrowserStatus: () => ipcRenderer.invoke(IpcChannels.queryBrowserStatus),
+  postBrowserStart: () => ipcRenderer.invoke(IpcChannels.postBrowserStart),
+  postBrowserClose: () => ipcRenderer.invoke(IpcChannels.postBrowserClose),
   postBrowserClearProfile: () => ipcRenderer.invoke(IpcChannels.postBrowserClearProfile),
 
   queryProjectSkills: () => ipcRenderer.invoke(IpcChannels.queryProjectSkills),

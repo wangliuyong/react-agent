@@ -24,6 +24,8 @@ export const IpcChannels = {
   postAgentContinue: 'post:agent:continue',
   // 浏览器
   queryBrowserStatus: 'query:browser:status',
+  postBrowserStart: 'post:browser:start',
+  postBrowserClose: 'post:browser:close',
   postBrowserClearProfile: 'post:browser:clear-profile',
   // 项目技能（.cursor/skills）
   queryProjectSkills: 'query:project-skills',
@@ -246,6 +248,8 @@ export interface ElectronApi {
   postAgentAbort: (sessionId: string) => Promise<void>
   postAgentContinue: (sessionId: string) => Promise<void>
   queryBrowserStatus: () => Promise<BrowserStatus>
+  postBrowserStart: () => Promise<BrowserStatus>
+  postBrowserClose: () => Promise<BrowserStatus>
   postBrowserClearProfile: () => Promise<void>
   queryProjectSkills: () => Promise<ProjectSkill[]>
   queryProjectSkillDetail: (id: string) => Promise<ProjectSkillDetail | null>

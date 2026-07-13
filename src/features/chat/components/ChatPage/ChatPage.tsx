@@ -1,6 +1,6 @@
 import { Segmented, Space, Typography, Button, Tooltip } from 'antd'
-import { GlobalOutlined, FormOutlined } from '@ant-design/icons'
-import { useAppStore } from '@/stores/app-store'
+import { FormOutlined, GlobalOutlined } from '@ant-design/icons'
+import { useBrowserControl } from '@/features/browser'
 import { useSessionStore } from '../../hooks/useSessionStore'
 import { WelcomeHero } from '../WelcomeHero'
 import { MessageList } from '../MessageList'
@@ -19,8 +19,7 @@ export function ChatPage(): React.ReactElement {
   const sendMessage = useSessionStore((s) => s.sendMessage)
   const abort = useSessionStore((s) => s.abort)
   const continueRun = useSessionStore((s) => s.continueRun)
-  const setBrowserOpen = useAppStore((s) => s.setBrowserOpen)
-  const browserOpen = useAppStore((s) => s.browserOpen)
+  const { browserRunning, loading, toggleBrowser } = useBrowserControl()
 
   const messages = session?.messages ?? []
   const isEmpty = messages.length === 0 && !streamingText
@@ -35,7 +34,7 @@ export function ChatPage(): React.ReactElement {
           <Segmented
             options={[
               { label: '智能助手', value: 'assistant' },
-              { label: '业务系统', value: 'biz' }
+              // { label: '业务系统', value: 'biz' }
             ]}
             value="assistant"
           />
@@ -44,11 +43,12 @@ export function ChatPage(): React.ReactElement {
           <Tooltip title="文档">
             <Button type="text" icon={<FormOutlined />} />
           </Tooltip>
-          <Tooltip title={browserOpen ? '收起浏览器' : '打开智能体浏览器'}>
+          <Tooltip title={browserRunning ? '关闭智能体浏览器' : '打开智能体浏览器'}>
             <Button
-              type={browserOpen ? 'primary' : 'text'}
+              type={browserRunning ? 'primary' : 'text'}
               icon={<GlobalOutlined />}
-              onClick={() => setBrowserOpen(!browserOpen)}
+              loading={loading}
+              onClick={() => void toggleBrowser()}
             />
           </Tooltip>
         </Space>

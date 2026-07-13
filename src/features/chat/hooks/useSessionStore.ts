@@ -89,7 +89,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       activeSessionId = session.id
     }
     set({ running: true, awaitUserReason: null, streamingText: '' })
-    useAppStore.getState().setBrowserOpen(true)
     await postAgentChat(activeSessionId, content, attachmentPaths)
   },
 
@@ -156,13 +155,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       if (event.type === 'await_user') {
         if (event.sessionId === activeId) {
           set({ awaitUserReason: event.reason })
-          useAppStore.getState().setBrowserOpen(true)
         }
-        return
-      }
-
-      if (event.type === 'browser_open') {
-        useAppStore.getState().setBrowserOpen(true)
         return
       }
 
