@@ -1,10 +1,3 @@
-import { Button, Typography } from 'antd'
-import {
-  FileWordOutlined,
-  PictureOutlined,
-  ScheduleOutlined,
-  SendOutlined
-} from '@ant-design/icons'
 import styles from './WelcomeHero.module.css'
 
 const { Title, Paragraph } = Typography

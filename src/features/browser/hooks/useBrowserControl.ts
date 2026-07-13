@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useState } from 'react'
-import { message } from 'antd'
 import { postBrowserClose, postBrowserStart, queryBrowserStatus } from '../api'
 
 interface BrowserControl {

@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
@@ -61,7 +60,7 @@ export function ChatMarkdown({
   source,
   streaming = false,
   className
-}: ChatMarkdownProps): ReactElement {
+}: ChatMarkdownProps): React.ReactElement {
   return (
     <div className={[styles.prose, className].filter(Boolean).join(' ')}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>

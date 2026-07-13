@@ -1,29 +1,3 @@
-import { useMemo, useState } from 'react'
-import {
-  Button,
-  DatePicker,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Segmented,
-  Select,
-  Space,
-  Switch,
-  Tag,
-  TimePicker,
-  Typography,
-  message
-} from 'antd'
-import {
-  ClockCircleOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  PlayCircleOutlined,
-  PlusOutlined,
-  ThunderboltOutlined
-} from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { ScheduledTask, ScheduleActionType, ScheduleRepeat } from '@shared/types'
 import {

@@ -1,10 +1,3 @@
-import {
-  ApiOutlined,
-  ClockCircleOutlined,
-  CloudUploadOutlined,
-  ThunderboltOutlined,
-  UnorderedListOutlined
-} from '@ant-design/icons'
 import type { NavItem } from '../types'
 
 /** 侧边栏主导航静态配置（图标与路由 key 一一对应） */

@@ -1,5 +1,3 @@
-import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons'
-import { Button, Tooltip } from 'antd'
 import styles from './Sidebar.module.css'
 
 interface SidebarCollapseToggleProps {

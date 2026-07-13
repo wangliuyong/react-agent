@@ -1,5 +1,3 @@
-import { Segmented, Space, Typography, Button, Tooltip } from 'antd'
-import { FormOutlined, GlobalOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons'
 import { useBrowserControl } from '@/features/browser'
 import { queryNewChatShortcutLabel } from '@/layouts/AppShell/hooks'
 import { useAppStore } from '@/stores/app-store'

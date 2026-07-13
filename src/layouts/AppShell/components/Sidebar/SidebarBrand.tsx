@@ -1,4 +1,3 @@
-import { Tooltip } from 'antd'
 import styles from './Sidebar.module.css'
 
 interface SidebarBrandProps {

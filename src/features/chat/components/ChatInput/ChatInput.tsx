@@ -1,13 +1,3 @@
-import { useMemo, useState } from 'react'
-import { Button, Dropdown, Progress, Space, Tooltip, Typography, message } from 'antd'
-import {
-  DownOutlined,
-  LoadingOutlined,
-  PaperClipOutlined,
-  PauseCircleOutlined,
-  PlayCircleOutlined,
-  SendOutlined
-} from '@ant-design/icons'
 import { MODEL_OPTIONS, queryModelLabel } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
 import { queryAgentStatusLabel } from '../../utils/agent-status'

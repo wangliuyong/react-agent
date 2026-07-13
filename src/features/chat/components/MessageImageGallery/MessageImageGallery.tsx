@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { Image, Spin } from 'antd'
+import { Image } from 'antd'
 import { queryLocalImageDataUrl } from '../../api'
 import type { MessageImageRef } from '../../utils/message-images'
 import styles from './MessageImageGallery.module.css'

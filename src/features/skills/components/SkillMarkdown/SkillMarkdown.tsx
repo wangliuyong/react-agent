@@ -1,8 +1,7 @@
-import type { ReactElement } from 'react'
 import styles from './SkillMarkdown.module.css'
 
 /** 简易 Markdown 渲染：标题、代码块、段落（技能详情专用排版） */
-export function SkillMarkdown({ source }: { source: string }): ReactElement {
+export function SkillMarkdown({ source }: { source: string }): React.ReactElement {
   const blocks = parseMarkdownBlocks(source)
 
   return (

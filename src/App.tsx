@@ -1,4 +1,3 @@
-import { useEffect, type ReactElement } from 'react'
 import { AppShell } from '@/layouts/AppShell'
 import { useAppStore } from '@/stores/app-store'
 import { useSessionStore } from '@/features/chat'
@@ -11,7 +10,7 @@ import { useChannelsStore } from '@/features/channels'
  * 根编排：启动时拉取设置 / 会话 / 发布计划 / 定时任务，并订阅 Agent 与调度事件。
  * 业务 UI 下沉到 features，App 只做装配。
  */
-export default function App(): ReactElement {
+export default function App(): React.ReactElement {
   const view = useAppStore((s) => s.view)
   const hydrateSessions = useSessionStore((s) => s.hydrate)
   const bindAgentEvents = useSessionStore((s) => s.bindAgentEvents)

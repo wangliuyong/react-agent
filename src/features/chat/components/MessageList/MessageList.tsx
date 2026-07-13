@@ -1,6 +1,3 @@
-import { useEffect, useRef } from 'react'
-import { Alert, Collapse, Typography } from 'antd'
-import { ToolOutlined } from '@ant-design/icons'
 import type { ChatMessage, TaskItem } from '@shared/types'
 import { queryAgentPhase, queryAgentStatusLabel } from '../../utils/agent-status'
 import { ChatMarkdown } from '../ChatMarkdown'
