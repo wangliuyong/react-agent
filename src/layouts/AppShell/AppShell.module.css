@@ -3,21 +3,18 @@
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(22, 119, 255, 0.08), transparent 60%),
-    radial-gradient(900px 500px at 90% 0%, rgba(82, 196, 26, 0.06), transparent 55%),
-    var(--bg-app);
+  background: var(--db-bg);
 }
 
+/* ── 侧边栏：豆包白底简洁风 ── */
 .sidebar {
   width: 260px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg-sidebar);
-  backdrop-filter: blur(16px);
-  border-right: 1px solid var(--border);
-  transition: width 0.2s ease;
+  background: var(--db-sidebar);
+  border-right: 1px solid var(--db-border);
+  transition: width 0.22s ease;
 }
 
 .sidebar[data-collapsed='true'] {
@@ -28,8 +25,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 8px 4px;
-  min-height: 48px;
+  padding: 12px 12px 8px;
+  min-height: 52px;
 }
 
 .trafficSpacer {
@@ -37,8 +34,46 @@
   height: 12px;
 }
 
+/* 品牌 Logo 区 */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px 12px;
+}
+
+.brandIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0057ff 0%, #3370ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px var(--db-primary-glow);
+}
+
+.brandName {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--db-text);
+  letter-spacing: -0.02em;
+}
+
 .newTask {
-  padding: 8px 12px 12px;
+  padding: 0 12px 16px;
+}
+
+/* 新对话按钮 — 豆包主色填充 */
+.newTaskBtn {
+  height: 40px !important;
+  border-radius: var(--db-radius-md) !important;
+  font-weight: 500 !important;
+  box-shadow: 0 2px 8px var(--db-primary-glow) !important;
 }
 
 .nav {
@@ -54,20 +89,21 @@
   gap: 10px;
   border: none;
   background: transparent;
-  border-radius: 10px;
-  padding: 9px 12px;
+  border-radius: var(--db-radius-md);
+  padding: 10px 12px;
   cursor: pointer;
-  color: var(--text);
+  color: var(--db-text);
   font-size: 14px;
+  transition: background 0.15s ease;
 }
 
 .navItem:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--db-hover);
 }
 
 .navItem[data-active='true'] {
-  background: rgba(22, 119, 255, 0.1);
-  color: var(--accent);
+  background: var(--db-active);
+  color: var(--db-primary);
   font-weight: 600;
 }
 
@@ -75,24 +111,17 @@
   width: 18px;
   display: inline-flex;
   justify-content: center;
+  font-size: 16px;
 }
 
 .sectionLabel {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 16px 6px;
-  color: var(--text-secondary);
+  padding: 20px 16px 8px;
+  color: var(--db-text-secondary);
   font-size: 12px;
-}
-
-.folder {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px 10px;
-  color: var(--text-secondary);
-  font-size: 13px;
+  font-weight: 500;
 }
 
 .history {
@@ -108,18 +137,19 @@
   gap: 8px;
   border: none;
   background: transparent;
-  border-radius: 10px;
+  border-radius: var(--db-radius-md);
   padding: 10px 12px;
   cursor: pointer;
   text-align: left;
+  transition: background 0.15s ease;
 }
 
 .historyItem:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--db-hover);
 }
 
 .historyItem[data-active='true'] {
-  background: rgba(22, 119, 255, 0.08);
+  background: var(--db-active);
 }
 
 .historyTitle {
@@ -128,19 +158,25 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
+  color: var(--db-text);
+}
+
+.historyItem[data-active='true'] .historyTitle {
+  color: var(--db-primary);
+  font-weight: 500;
 }
 
 .historyTime {
-  color: var(--text-secondary);
-  font-size: 12px;
+  color: var(--db-text-tertiary);
+  font-size: 11px;
   flex-shrink: 0;
 }
 
 .sidebarFooter {
   display: flex;
   gap: 4px;
-  padding: 10px 12px 14px;
-  border-top: 1px solid var(--border);
+  padding: 12px;
+  border-top: 1px solid var(--db-border-light);
 }
 
 .main {
@@ -148,6 +184,7 @@
   display: flex;
   min-width: 0;
   height: 100%;
+  background: var(--db-bg-content);
 }
 
 .content {
@@ -158,9 +195,30 @@
   flex-direction: column;
 }
 
+/* 占位页 — 豆包空状态 */
 .placeholder {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
+  gap: 12px;
+  background: var(--db-bg);
+}
+
+.placeholderIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--db-primary-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--db-primary);
+}
+
+.placeholderText {
+  font-size: 14px;
+  color: var(--db-text-secondary);
 }

@@ -79,11 +79,11 @@ export function PublishWorkbench(): React.ReactElement {
     <div className={styles.page}>
       <header className={styles.header}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={3} className={styles.headerTitle}>
             发布工作台
           </Title>
-          <Text type="secondary">多账号 / 多渠道 / 串行执行</Text>
-          <Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 0 }}>
+          <div className={styles.headerDesc}>多账号 / 多渠道 / 串行执行</div>
+          <Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 0, fontSize: 12 }}>
             发布计划只负责编辑，执行进度在主聊天窗口查看
           </Paragraph>
         </div>

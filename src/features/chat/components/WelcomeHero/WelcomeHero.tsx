@@ -3,8 +3,7 @@ import {
   FileWordOutlined,
   PictureOutlined,
   ScheduleOutlined,
-  SendOutlined,
-  ThunderboltOutlined
+  SendOutlined
 } from '@ant-design/icons'
 import styles from './WelcomeHero.module.css'
 
@@ -50,18 +49,16 @@ interface WelcomeHeroProps {
   onPick: (prompt: string) => void
 }
 
-/** 新对话落地页：一句话 + 快捷任务卡片 */
+/** 新对话落地页：豆包式问候 + 快捷任务卡片 */
 export function WelcomeHero({ onPick }: WelcomeHeroProps): React.ReactElement {
   return (
     <div className={styles.wrap}>
-      <span className={styles.badge}>
-        <ThunderboltOutlined /> React Agent
-      </span>
+      <div className={styles.avatar}>R</div>
       <Title level={2} className={styles.title}>
-        今天要处理哪块业务？
+        你好，我是 React Agent
       </Title>
       <Paragraph className={styles.sub}>
-        Agent 可联动浏览器、发布工作台，自动完成小红书等内容发布。
+        我可以帮你完成小红书发布、网页配图抓取、内容规划等任务，试试下面的快捷指令吧
       </Paragraph>
       <div className={styles.grid}>
         {CARDS.map((card) => (
