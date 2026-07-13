@@ -16,6 +16,8 @@ interface SessionState {
   activeSessionId: string | null
   running: boolean
   awaitUserReason: string | null
+  /** 用户主动中断且仍有未完成任务时，可点「继续」恢复执行 */
+  canResume: boolean
   streamingText: string
   /** 当前正在执行的工具名（tool_start ~ tool_result 之间） */
   activeToolName: string | null
@@ -26,8 +28,15 @@ interface SessionState {
   sendMessage: (content: string, attachmentPaths?: string[]) => Promise<void>
   abort: () => Promise<void>
   continueRun: () => Promise<void>
+  /** 中断后从任务清单未完成的步骤重新拉起 Agent */
+  resumeRun: () => Promise<void>
   bindAgentEvents: () => () => void
   getActiveSession: () => Session | null
+}
+
+/** 是否存在尚未完成（待执行 / 执行中）的任务项 */
+function queryHasIncompleteTasks(tasks: TaskItem[]): boolean {
+  return tasks.some((t) => t.status === 'pending' || t.status === 'running')
 }
 
 function patchSession(
@@ -43,6 +52,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   activeSessionId: null,
   running: false,
   awaitUserReason: null,
+  canResume: false,
   streamingText: '',
   activeToolName: null,
 
@@ -59,7 +69,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     })
   },
 
-  setActive: (id) => set({ activeSessionId: id, streamingText: '', awaitUserReason: null }),
+  setActive: (id) =>
+    set({ activeSessionId: id, streamingText: '', awaitUserReason: null, canResume: false }),
 
   createSession: async () => {
     const session = await postCreateSession()
@@ -91,7 +102,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const session = await get().createSession()
       activeSessionId = session.id
     }
-    set({ running: true, awaitUserReason: null, streamingText: '', activeToolName: null })
+    set({ running: true, awaitUserReason: null, canResume: false, streamingText: '', activeToolName: null })
     await postAgentChat(activeSessionId, content, attachmentPaths)
   },
 
@@ -105,8 +116,30 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   continueRun: async () => {
     const id = get().activeSessionId
     if (!id) return
-    set({ awaitUserReason: null })
+    set({ awaitUserReason: null, canResume: false })
     await postAgentContinue(id)
+  },
+
+  resumeRun: async () => {
+    const { activeSessionId, sessions } = get()
+    if (!activeSessionId) return
+
+    const session = sessions.find((s) => s.id === activeSessionId)
+    const incomplete = (session?.tasks ?? []).filter(
+      (t) => t.status === 'pending' || t.status === 'running'
+    )
+    if (!incomplete.length) {
+      set({ canResume: false })
+      return
+    }
+
+    const lines = incomplete
+      .map((t) => `- ${t.title}（${t.status === 'running' ? '进行中' : '待执行'}）`)
+      .join('\n')
+    const content = `请从上次中断处继续，完成以下未完成任务：\n${lines}`
+
+    set({ canResume: false })
+    await get().sendMessage(content)
   },
 
   bindAgentEvents: () => {
@@ -180,7 +213,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
       if (event.type === 'done') {
         if (event.sessionId === activeId) {
-          set({ running: false, awaitUserReason: null, streamingText: '', activeToolName: null })
+          const session = get().sessions.find((s) => s.id === event.sessionId)
+          const canResume =
+            event.reason === 'aborted' && queryHasIncompleteTasks(session?.tasks ?? [])
+          set({
+            running: false,
+            awaitUserReason: null,
+            streamingText: '',
+            activeToolName: null,
+            canResume
+          })
         }
         void get().hydrate()
         return

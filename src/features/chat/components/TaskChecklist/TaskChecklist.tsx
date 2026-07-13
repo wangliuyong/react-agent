@@ -26,10 +26,14 @@ interface TaskChecklistProps {
   running?: boolean
   /** 等待用户介入时的原因说明；有值时展示「继续」 */
   awaitUserReason?: string | null
+  /** 中断后仍有未完成任务，可恢复执行 */
+  canResume?: boolean
   /** 中断当前 Agent 执行 */
   onAbort?: () => void
   /** 从 await_user 挂起状态恢复执行 */
   onContinue?: () => void
+  /** 中断后从任务清单继续执行 */
+  onResume?: () => void
 }
 
 interface Position {
@@ -133,7 +137,18 @@ function queryTaskRowClass(status: TaskItemStatus): string {
  * 浮动任务清单：默认固定于聊天页右上角，可拖动，不随消息区滚动。
  * 拖动仅通过标题栏触发，避免与列表内容交互冲突。
  */
-export function TaskChecklist({ tasks, visible }: TaskChecklistProps): React.ReactElement | null {
+const { Text } = Typography
+
+export function TaskChecklist({
+  tasks,
+  visible,
+  running = false,
+  awaitUserReason = null,
+  canResume = false,
+  onAbort,
+  onContinue,
+  onResume
+}: TaskChecklistProps): React.ReactElement | null {
   const cardRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<Position>(() => loadSavedPosition() ?? { x: 0, y: DEFAULT_TOP })
   const [dragging, setDragging] = useState(false)
@@ -224,6 +239,13 @@ export function TaskChecklist({ tasks, visible }: TaskChecklistProps): React.Rea
     setDragging(false)
   }, [dragging])
 
+  /** 是否展示底部操作区：运行中可中断，等待用户/中断后可继续 */
+  const showActionBar =
+    Boolean(awaitUserReason) ||
+    (running && Boolean(onAbort)) ||
+    (canResume && Boolean(onResume))
+  const hasRunningTask = tasks.some((t) => t.status === 'running')
+
   if (!visible || tasks.length === 0) return null
 
   return (
@@ -282,6 +304,61 @@ export function TaskChecklist({ tasks, visible }: TaskChecklistProps): React.Rea
           </li>
         ))}
       </ul>
+
+      {showActionBar ? (
+        <div
+          className={styles.actionBar}
+          /* 操作按钮不参与标题栏拖动 */
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {awaitUserReason ? (
+            <>
+              <Text className={styles.awaitReason} ellipsis={{ tooltip: awaitUserReason }}>
+                {awaitUserReason}
+              </Text>
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlayCircleOutlined />}
+                className={styles.actionBtn}
+                onClick={onContinue}
+              >
+                继续
+              </Button>
+            </>
+          ) : canResume ? (
+            <>
+              <Text type="secondary" className={styles.runningHint}>
+                任务已中断，可继续执行
+              </Text>
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlayCircleOutlined />}
+                className={styles.actionBtn}
+                onClick={onResume}
+              >
+                继续
+              </Button>
+            </>
+          ) : (
+            <>
+              <Text type="secondary" className={styles.runningHint}>
+                {hasRunningTask ? '任务执行中…' : 'Agent 处理中…'}
+              </Text>
+              <Button
+                danger
+                size="small"
+                icon={<PauseCircleOutlined />}
+                className={styles.actionBtn}
+                onClick={onAbort}
+              >
+                中断
+              </Button>
+            </>
+          )}
+        </div>
+      ) : null}
     </Card>
   )
 }

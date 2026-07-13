@@ -21,6 +21,8 @@ export function ChatPage(): React.ReactElement {
   const sendMessage = useSessionStore((s) => s.sendMessage)
   const abort = useSessionStore((s) => s.abort)
   const continueRun = useSessionStore((s) => s.continueRun)
+  const resumeRun = useSessionStore((s) => s.resumeRun)
+  const canResume = useSessionStore((s) => s.canResume)
   const { browserRunning, loading, toggleBrowser } = useBrowserControl()
 
   const messages = session?.messages ?? []
@@ -75,8 +77,10 @@ export function ChatPage(): React.ReactElement {
         visible={Boolean(session?.tasks?.length)}
         running={running}
         awaitUserReason={awaitUserReason}
+        canResume={canResume}
         onAbort={() => void abort()}
         onContinue={() => void continueRun()}
+        onResume={() => void resumeRun()}
       />
 
       <div className={styles.body}>
