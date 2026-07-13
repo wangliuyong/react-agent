@@ -1,13 +1,80 @@
-import type { SkillImportPreview, SkillTemplate, SkillUpsertInput } from '@shared/types'
+import type {
+  ProjectSkill,
+  SkillImportPreview,
+  SkillTemplate,
+  SkillUpsertInput
+} from '@shared/types'
 import { useSkillsStore } from '../../hooks/useSkillsStore'
 import { SkillMarkdown } from '../SkillMarkdown'
 import { isValidSkillId, skillDetailToInput, slugifySkillId } from '../../types'
 import styles from './SkillsPage.module.css'
 
-/** 技能市场：浏览、新建、编辑、删除 .cursor/skills 项目技能，支持模板与链接导入 */
+const { Title, Text } = Typography
+
+/** 主 Tab：活跃 / 已归档 / 市场模板 / 我的技能 */
+type SkillTab = 'active' | 'archived' | 'market' | 'mine'
+
+/** 二级筛选：全部 / 平台内置 / 自定义 */
+type SkillScope = 'all' | 'platform' | 'custom'
+
+/** 排序方式 */
+type SkillSort = 'name_asc' | 'name_desc' | 'updated_desc'
+
+/** 按关键词匹配技能名称、描述或 id */
+function matchSkillQuery(skill: ProjectSkill, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return (
+    skill.name.toLowerCase().includes(q) ||
+    skill.description.toLowerCase().includes(q) ||
+    skill.id.toLowerCase().includes(q)
+  )
+}
+
+/** 按关键词匹配模板 */
+function matchTemplateQuery(template: SkillTemplate, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return (
+    template.name.toLowerCase().includes(q) ||
+    template.description.toLowerCase().includes(q) ||
+    template.id.toLowerCase().includes(q)
+  )
+}
+
+/** 技能列表排序 */
+function sortSkills(list: ProjectSkill[], sort: SkillSort): ProjectSkill[] {
+  const next = [...list]
+  switch (sort) {
+    case 'name_desc':
+      return next.sort((a, b) => b.name.localeCompare(a.name, 'zh-CN'))
+    case 'updated_desc':
+      return next.sort((a, b) => b.updatedAt - a.updatedAt)
+    default:
+      return next.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  }
+}
+
+/** 模板列表排序 */
+function sortTemplates(list: SkillTemplate[], sort: SkillSort): SkillTemplate[] {
+  const next = [...list]
+  if (sort === 'name_desc') {
+    return next.sort((a, b) => b.name.localeCompare(a.name, 'zh-CN'))
+  }
+  return next.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+}
+
+/** 技能卡片状态标签：未启用显示草稿，已启用显示状态 */
+function SkillStatusTag({ skill }: { skill: ProjectSkill }): React.ReactElement {
+  if (!skill.enabled) {
+    return <Tag className={styles.tagDraft}>草稿</Tag>
+  }
+  return <Tag color="success">已启用</Tag>
+}
+
+/** 技能市场：卡片网格浏览、筛选、详情抽屉与 CRUD */
 export function SkillsPage(): React.ReactElement {
   const skills = useSkillsStore((s) => s.skills)
-  const activeSkillId = useSkillsStore((s) => s.activeSkillId)
   const detail = useSkillsStore((s) => s.detail)
   const templates = useSkillsStore((s) => s.templates)
   const loading = useSkillsStore((s) => s.loading)
@@ -22,6 +89,14 @@ export function SkillsPage(): React.ReactElement {
   const installTemplate = useSkillsStore((s) => s.installTemplate)
   const previewImport = useSkillsStore((s) => s.previewImport)
   const importFromUrl = useSkillsStore((s) => s.importFromUrl)
+
+  const [tab, setTab] = useState<SkillTab>('active')
+  const [scope, setScope] = useState<SkillScope>('all')
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SkillSort>('name_asc')
+
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
 
   const [editOpen, setEditOpen] = useState(false)
   const [editMode, setEditMode] = useState<'create' | 'update'>('create')
@@ -46,7 +121,45 @@ export function SkillsPage(): React.ReactElement {
     void hydrate()
   }, [hydrate])
 
-  const enabledCount = skills.filter((s) => s.enabled).length
+  /** 切换到市场 Tab 时预加载模板列表 */
+  useEffect(() => {
+    if (tab !== 'market') return
+    void loadTemplates()
+  }, [tab, loadTemplates])
+
+  /** 当前 Tab 下的技能数量（用于标题 Badge） */
+  const tabCount = useMemo(() => {
+    if (tab === 'market') return templates.length
+    if (tab === 'active') return skills.filter((s) => s.enabled).length
+    if (tab === 'archived') return skills.filter((s) => !s.enabled).length
+    return skills.filter((s) => !s.isBuiltin).length
+  }, [tab, skills, templates])
+
+  /** 经过 Tab、范围、搜索、排序后的技能列表 */
+  const filteredSkills = useMemo(() => {
+    let list = skills
+    if (tab === 'active') list = list.filter((s) => s.enabled)
+    else if (tab === 'archived') list = list.filter((s) => !s.enabled)
+    else if (tab === 'mine') list = list.filter((s) => !s.isBuiltin)
+
+    if (scope === 'platform') list = list.filter((s) => s.isBuiltin)
+    else if (scope === 'custom') list = list.filter((s) => !s.isBuiltin)
+
+    list = list.filter((s) => matchSkillQuery(s, search))
+    return sortSkills(list, sort)
+  }, [skills, tab, scope, search, sort])
+
+  /** 市场模板列表（搜索 + 排序） */
+  const filteredTemplates = useMemo(() => {
+    let list = templates.filter((t) => matchTemplateQuery(t, search))
+    if (scope === 'platform') {
+      // 模板均为平台内置，custom 时为空
+      list = list
+    } else if (scope === 'custom') {
+      list = []
+    }
+    return sortTemplates(list, sort)
+  }, [templates, search, sort, scope])
 
   const openCreate = (): void => {
     const draft = createSkillDraft()
@@ -63,6 +176,17 @@ export function SkillsPage(): React.ReactElement {
     setEditDraft(draft)
     form.setFieldsValue(draft)
     setEditOpen(true)
+  }
+
+  /** 点击卡片：加载详情并打开抽屉 */
+  const openSkillDetail = async (skillId: string): Promise<void> => {
+    setDetailOpen(true)
+    setDetailLoading(true)
+    try {
+      await setActive(skillId)
+    } finally {
+      setDetailLoading(false)
+    }
   }
 
   const handleSave = async (): Promise<void> => {
@@ -96,6 +220,7 @@ export function SkillsPage(): React.ReactElement {
     try {
       await removeSkill(id)
       message.success('技能已删除')
+      setDetailOpen(false)
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败')
     }
@@ -127,6 +252,7 @@ export function SkillsPage(): React.ReactElement {
       await installTemplate(template.id, targetId)
       message.success(`已安装技能「${template.name}」`)
       setTemplateOpen(false)
+      setTab('mine')
     } catch (err) {
       message.error(err instanceof Error ? err.message : '安装失败')
     } finally {
@@ -178,6 +304,7 @@ export function SkillsPage(): React.ReactElement {
       await importFromUrl(url, normalizedId)
       message.success(`已导入技能「${importPreview?.name ?? normalizedId}」`)
       setImportOpen(false)
+      setTab('mine')
     } catch (err) {
       message.error(err instanceof Error ? err.message : '导入失败')
       return Promise.reject(err instanceof Error ? err : new Error('import failed'))
@@ -186,7 +313,27 @@ export function SkillsPage(): React.ReactElement {
     }
   }
 
-  /** 链接导入弹窗 loading：预览分析或正式导入 */
+  /** 导出当前项目技能摘要为 JSON 文件 */
+  const handleExport = (): void => {
+    const payload = skills.map(({ id, name, description, enabled, hasExamples, updatedAt, isBuiltin }) => ({
+      id,
+      name,
+      description,
+      enabled,
+      hasExamples,
+      updatedAt,
+      isBuiltin
+    }))
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `skills-export-${Date.now()}.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
+    message.success('技能列表已导出')
+  }
+
   const importBusy = importing || importPreviewing
   const importLoadingTip = importing
     ? importPreview?.method === 'git_clone'
@@ -198,377 +345,440 @@ export function SkillsPage(): React.ReactElement {
 
   return (
     <div className={styles.page}>
-        {/* 顶栏 */}
-        <header className={styles.hero}>
-          <div className={styles.heroInner}>
-            <div className={styles.heroText}>
-              <span className={styles.eyebrow}>
-                <ThunderboltOutlined /> Agent Skills
-              </span>
-              <h1 className={styles.title}>技能市场</h1>
-              <p className={styles.subtitle}>
-                管理项目 <code>.cursor/skills</code>，将领域知识注入 Agent 系统提示，减少重复探索
-              </p>
-              <div className={styles.stats}>
-                <div className={styles.statPill}>
-                  <span className={`${styles.statValue} ${styles.statValueActive}`}>
-                    {enabledCount}
-                  </span>
-                  <span className={styles.statLabel}>已启用</span>
-                </div>
-                <div className={styles.statPill}>
-                  <span className={styles.statValue}>{skills.length}</span>
-                  <span className={styles.statLabel}>全部技能</span>
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.actions}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={openCreate}
-              >
-                新建技能
-              </Button>
-              <Button icon={<AppstoreOutlined />} onClick={() => void openTemplateModal()}>
-                从模板安装
-              </Button>
-              <Button icon={<LinkOutlined />} onClick={openImportModal}>
-                从链接导入
-              </Button>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={async () => {
-                  await refresh()
-                  message.success('已刷新')
-                }}
-              >
-                刷新
-              </Button>
-            </div>
+      {/* 顶栏：标题 + 全局操作 */}
+      <header className={styles.header}>
+        <div className={styles.headerMain}>
+          <div className={styles.headerIcon}>
+            <ThunderboltOutlined />
           </div>
-        </header>
-
-        {/* 目录 + 详情 */}
-        <div className={styles.workspace}>
-          <aside className={styles.catalog}>
-            <div className={styles.catalogHeader}>
-              <span className={styles.catalogTitle}>技能目录</span>
-              <span className={styles.catalogCount}>{skills.length}</span>
+          <div>
+            <div className={styles.titleRow}>
+              <Title level={3} className={styles.title}>
+                技能
+              </Title>
+              <span className={styles.countBadge}>{skills.length}</span>
             </div>
-            <div className={styles.catalogList}>
-              {loading && skills.length === 0 ? (
-                <div className={styles.loading}>
-                  <Spin />
-                </div>
-              ) : skills.length === 0 ? (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="暂无技能"
-                  style={{ marginTop: 32 }}
-                />
-              ) : (
-                skills.map((skill) => (
-                  <button
-                    key={skill.id}
-                    type="button"
-                    className={styles.skillCard}
-                    data-active={skill.id === activeSkillId}
-                    onClick={() => void setActive(skill.id)}
-                  >
-                    <div className={styles.skillCardTop}>
-                      <span className={styles.skillIconWrap}>
-                        <ThunderboltOutlined />
-                      </span>
-                      <div>
-                        <div className={styles.skillName}>{skill.name}</div>
-                        <div className={styles.skillId}>{skill.id}</div>
-                      </div>
-                    </div>
-                    <div className={styles.skillMeta}>
-                      <Tag className={skill.enabled ? styles.tagEnabled : styles.tagDisabled}>
-                        {skill.enabled ? '已启用' : '已关闭'}
-                      </Tag>
-                      {skill.isBuiltin ? (
-                        <Tag className={styles.tagBuiltin}>内置</Tag>
-                      ) : null}
-                      {skill.hasExamples ? (
-                        <Tag className={styles.tagMuted}>含示例</Tag>
-                      ) : null}
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </aside>
-
-          <section className={styles.detailPanel} key={activeSkillId ?? 'empty'}>
-            {!detail ? (
-              <div className={styles.detailEmpty}>
-                <div className={styles.emptyIcon}>
-                  <ThunderboltOutlined />
-                </div>
-                <h2 className={styles.emptyTitle}>选择或创建一个技能</h2>
-                <p className={styles.emptyHint}>
-                  从左侧目录选择技能查看详情，或通过新建、模板、链接导入扩展 Agent 能力
-                </p>
-              </div>
-            ) : (
-              <div className={styles.detailScroll}>
-                <div className={styles.detailHeader}>
-                  <div>
-                    <h2 className={styles.detailTitle}>{detail.name}</h2>
-                    <code className={styles.detailId}>{detail.id}</code>
-                  </div>
-                  <div className={styles.detailActions}>
-                    <Button icon={<EditOutlined />} onClick={openEdit}>
-                      编辑
-                    </Button>
-                    <Popconfirm
-                      title={
-                        detail.isBuiltin
-                          ? '这是项目内置技能，删除可能影响 Agent 行为，确定删除？'
-                          : '确定删除该技能？'
-                      }
-                      onConfirm={() => void handleDelete(detail.id)}
-                    >
-                      <Button danger icon={<DeleteOutlined />}>
-                        删除
-                      </Button>
-                    </Popconfirm>
-                    <div className={styles.injectToggle}>
-                      <span className={styles.injectLabel}>注入 Agent</span>
-                      <Switch
-                        checked={detail.enabled}
-                        onChange={(v) => void toggleEnabled(detail.id, v)}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {detail.description ? (
-                  <p className={styles.description}>{detail.description}</p>
-                ) : null}
-
-                <div className={styles.markdown}>
-                  <SkillMarkdown source={detail.content} />
-                </div>
-
-                {detail.examplesContent ? (
-                  <div className={styles.examples}>
-                    <h3 className={styles.sectionLabel}>示例</h3>
-                    <SkillMarkdown source={detail.examplesContent} />
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </section>
+            <Text type="secondary" className={styles.desc}>
+              管理项目 <code>.cursor/skills</code>，将领域知识注入 Agent 系统提示
+            </Text>
+          </div>
         </div>
+        <Space wrap>
+          <Button icon={<ImportOutlined />} onClick={openImportModal}>
+            导入
+          </Button>
+          <Button icon={<ExportOutlined />} onClick={handleExport}>
+            导出
+          </Button>
+          <Button icon={<DollarOutlined />} onClick={() => void openTemplateModal()}>
+            智能整理
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            创建
+          </Button>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={async () => {
+              await refresh()
+              message.success('已刷新')
+            }}
+          >
+            刷新
+          </Button>
+        </Space>
+      </header>
 
-        {/* 新建 / 编辑 */}
-        <Modal
-          title={editMode === 'create' ? '新建技能' : '编辑技能'}
-          open={editOpen}
-          onCancel={() => {
-            setEditOpen(false)
-            setEditDraft(null)
-          }}
-          onOk={handleSave}
-          confirmLoading={saving}
-          width={720}
-          destroyOnClose
-        >
-          <Form form={form} layout="vertical" initialValues={editDraft ?? undefined}>
-            <Form.Item
-              name="id"
-              label="技能 ID（目录名）"
-              rules={[
-                { required: true, message: '请输入技能 id' },
-                {
-                  validator: (_, value: string) =>
-                    isValidSkillId(value) ? Promise.resolve() : Promise.reject(new Error('格式无效'))
-                }
-              ]}
-              extra="仅小写字母、数字、连字符，如 my-xhs-skill"
-            >
-              <Input disabled={editMode === 'update'} placeholder="my-skill" />
-            </Form.Item>
-            <Form.Item
-              name="name"
-              label="名称"
-              rules={[{ required: true, message: '请输入名称' }]}
-            >
-              <Input
-                placeholder="技能展示名称"
-                onChange={(e) => {
-                  if (editMode === 'create') {
-                    form.setFieldValue('id', slugifySkillId(e.target.value))
-                  }
-                }}
+      {/* 筛选栏：Tab + 范围 + 搜索 + 排序 */}
+      <div className={styles.toolbar}>
+        <Segmented
+          value={tab}
+          onChange={(v) => setTab(v as SkillTab)}
+          options={[
+            { label: '活跃技能', value: 'active' },
+            { label: '已归档', value: 'archived' },
+            { label: '市场', value: 'market' },
+            { label: '我的', value: 'mine' }
+          ]}
+        />
+        <Segmented
+          value={scope}
+          onChange={(v) => setScope(v as SkillScope)}
+          options={[
+            { label: '全部', value: 'all' },
+            { label: '平台/公共', value: 'platform' },
+            { label: '我的', value: 'custom' }
+          ]}
+        />
+        <div className={styles.toolbarRight}>
+          <span className={styles.resultCount}>{tabCount} 项</span>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="搜索技能..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={styles.searchInput}
+          />
+          <Select
+            value={sort}
+            onChange={setSort}
+            className={styles.sortSelect}
+            options={[
+              { label: '名称 A→Z', value: 'name_asc' },
+              { label: '名称 Z→A', value: 'name_desc' },
+              { label: '最近更新', value: 'updated_desc' }
+            ]}
+          />
+        </div>
+      </div>
+
+      {/* 卡片网格 */}
+      <div className={styles.body}>
+        <Spin spinning={loading && (tab === 'market' ? templates.length === 0 : skills.length === 0)}>
+          {tab === 'market' ? (
+            filteredTemplates.length === 0 ? (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={templateLoading ? '加载模板中…' : '暂无市场模板'}
+                className={styles.empty}
               />
-            </Form.Item>
-            <Form.Item
-              name="description"
-              label="描述"
-              rules={[{ required: true, message: '请输入描述' }]}
-              extra="Agent 用此描述判断何时启用该技能"
-            >
-              <Input.TextArea rows={2} placeholder="描述技能用途与触发场景" />
-            </Form.Item>
-            <Form.Item
-              name="content"
-              label="正文（Markdown）"
-              rules={[{ required: true, message: '请输入正文' }]}
-            >
-              <Input.TextArea rows={12} placeholder="# 技能标题&#10;&#10;## 步骤..." />
-            </Form.Item>
-            <Form.Item name="examplesContent" label="示例（可选，Markdown）">
-              <Input.TextArea rows={6} placeholder="# 示例&#10;..." />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* 模板安装 */}
-        <Modal
-          title="从模板安装"
-          open={templateOpen}
-          onCancel={() => setTemplateOpen(false)}
-          footer={null}
-          width={640}
-          destroyOnClose
-        >
-          {templateLoading ? (
-            <div className={styles.loading}>
-              <Spin tip="加载模板..." />
-            </div>
-          ) : templates.length === 0 ? (
-            <Empty description="未找到内置模板（resources/skill-templates）" />
-          ) : (
-            <div className={styles.templateList}>
-              {templates.map((template) => (
-                <Card key={template.id} size="small" className={styles.templateCard}>
-                  <div className={styles.templateCardHeader}>
-                    <div>
-                      <strong>{template.name}</strong>
-                      <br />
-                      <code style={{ fontSize: 12, color: 'var(--skill-muted)' }}>
-                        {template.id}
-                      </code>
+            ) : (
+              <div className={styles.grid}>
+                {filteredTemplates.map((template) => (
+                  <Card key={template.id} bordered={false} className={styles.card}>
+                    <div className={styles.cardHead}>
+                      <div className={styles.cardTitleRow}>
+                        <span className={styles.cardTitle}>{template.name}</span>
+                        <Tag color="blue">模板</Tag>
+                      </div>
+                      <p className={styles.cardDesc}>
+                        {template.description || '暂无描述'}
+                      </p>
                     </div>
-                    <Button
-                      type="primary"
-                      size="small"
-                      loading={installingId === template.id}
-                      onClick={() => void handleInstall(template)}
-                    >
-                      安装
-                    </Button>
-                  </div>
-                  {template.description ? (
-                    <p style={{ margin: '8px 0', fontSize: 13, color: 'var(--skill-muted)' }}>
-                      {template.description}
+                    <div className={styles.cardFooter}>
+                      <span className={styles.cardAuthor}>@平台</span>
+                      <Button
+                        type="link"
+                        size="small"
+                        loading={installingId === template.id}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void handleInstall(template)
+                        }}
+                      >
+                        安装
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )
+          ) : filteredSkills.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="暂无匹配的技能"
+              className={styles.empty}
+            >
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                创建技能
+              </Button>
+            </Empty>
+          ) : (
+            <div className={styles.grid}>
+              {filteredSkills.map((skill) => (
+                <Card
+                  key={skill.id}
+                  bordered={false}
+                  className={styles.card}
+                  hoverable
+                  onClick={() => void openSkillDetail(skill.id)}
+                >
+                  <div className={styles.cardHead}>
+                    <div className={styles.cardTitleRow}>
+                      <span className={styles.cardTitle}>{skill.name}</span>
+                      <SkillStatusTag skill={skill} />
+                    </div>
+                    <p className={styles.cardDesc}>
+                      {skill.description || '暂无描述'}
                     </p>
-                  ) : null}
-                  <Input
-                    size="small"
-                    addonBefore="目标 ID"
-                    value={installTargetIds[template.id] ?? template.id}
-                    onChange={(e) =>
-                      setInstallTargetIds((prev) => ({
-                        ...prev,
-                        [template.id]: e.target.value
-                      }))
-                    }
-                    placeholder={template.id}
-                  />
+                  </div>
+                  <div className={styles.cardFooter}>
+                    <span className={styles.cardAuthor}>
+                      {skill.isBuiltin ? '@平台' : '@你'}
+                    </span>
+                    <span className={styles.cardUsage}>0 次使用</span>
+                  </div>
                 </Card>
               ))}
             </div>
           )}
-        </Modal>
+        </Spin>
+      </div>
 
-        {/* 链接导入 */}
-        <Modal
-          title="从链接导入"
-          open={importOpen}
-          onCancel={() => setImportOpen(false)}
-          onOk={handleImportConfirm}
-          okText="导入"
-          confirmLoading={importing}
-          closable={!importBusy}
-          maskClosable={!importBusy}
-          okButtonProps={{ disabled: importPreviewing }}
-          cancelButtonProps={{ disabled: importBusy }}
-          width={640}
-          destroyOnClose
-        >
-          <Spin spinning={importBusy} tip={importLoadingTip}>
-            <div className={styles.importModalBody}>
-          <p className={styles.modalHint}>
-            支持 Git 仓库链接与 HTTP 直链。大模型会判断使用 <code>git clone</code>{' '}
-            还是直接下载；Git 仓库将完整复制技能目录（含附属文件）。
-          </p>
-          <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
-            <Input
-              placeholder="https://github.com/white0dew/XiaohongshuSkills"
-              value={importUrl}
-              disabled={importBusy}
-              onChange={(e) => {
-                setImportUrl(e.target.value)
-                setImportPreview(null)
-              }}
-              onPressEnter={() => void handleImportPreview()}
-            />
-            <Button
-              loading={importPreviewing}
-              disabled={importing}
-              onClick={() => void handleImportPreview()}
-            >
-              预览
-            </Button>
-          </Space.Compact>
+      {/* 技能详情抽屉 */}
+      <Modal
+        title={detail?.name ?? '技能详情'}
+        open={detailOpen}
+        onCancel={() => setDetailOpen(false)}
+        footer={null}
+        width={760}
+        destroyOnClose
+        className={styles.detailModal}
+      >
+        <Spin spinning={detailLoading}>
+          {!detail ? (
+            <Empty description="未找到技能详情" />
+          ) : (
+            <div className={styles.detailBody}>
+              <div className={styles.detailHeader}>
+                <div>
+                  <code className={styles.detailId}>{detail.id}</code>
+                  <div className={styles.detailTags}>
+                    <SkillStatusTag skill={detail} />
+                    {detail.isBuiltin ? <Tag color="blue">内置</Tag> : null}
+                    {detail.hasExamples ? <Tag>含示例</Tag> : null}
+                  </div>
+                </div>
+                <Space wrap>
+                  <Button icon={<EditOutlined />} onClick={openEdit}>
+                    编辑
+                  </Button>
+                  <Popconfirm
+                    title={
+                      detail.isBuiltin
+                        ? '这是项目内置技能，删除可能影响 Agent 行为，确定删除？'
+                        : '确定删除该技能？'
+                    }
+                    onConfirm={() => void handleDelete(detail.id)}
+                  >
+                    <Button danger icon={<DeleteOutlined />}>
+                      删除
+                    </Button>
+                  </Popconfirm>
+                  <div className={styles.injectToggle}>
+                    <span className={styles.injectLabel}>注入 Agent</span>
+                    <Switch
+                      checked={detail.enabled}
+                      onChange={(v) => void toggleEnabled(detail.id, v)}
+                    />
+                  </div>
+                </Space>
+              </div>
 
-          {importPreview ? (
-            <Card size="small" className={styles.importPreview}>
-              <strong>{importPreview.name}</strong>
-              {importPreview.description ? (
-                <p style={{ margin: '8px 0', fontSize: 13, color: 'var(--skill-muted)' }}>
-                  {importPreview.description}
-                </p>
+              {detail.description ? (
+                <p className={styles.description}>{detail.description}</p>
               ) : null}
-              <Space wrap size={4}>
-                <Tag color={importPreview.method === 'git_clone' ? 'blue' : 'default'}>
-                  {importPreview.method === 'git_clone' ? 'Git Clone' : 'HTTP 下载'}
-                </Tag>
-                {importPreview.hasExamples ? <Tag>含示例</Tag> : null}
-                <Tag color="success">远程可用</Tag>
-              </Space>
-              {importPreview.reasoning ? (
-                <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--skill-muted)' }}>
-                  {importPreview.reasoning}
-                </p>
-              ) : null}
-            </Card>
-          ) : null}
 
-          <Form layout="vertical" style={{ marginTop: 16 }}>
-            <Form.Item
-              label="目标 ID（安装目录名）"
-              extra="仅小写字母、数字、连字符；与 .cursor/skills/<id> 对应"
-              required
-            >
-              <Input
-                value={importTargetId}
-                disabled={importBusy}
-                onChange={(e) => setImportTargetId(slugifySkillId(e.target.value))}
-                placeholder="my-skill"
-              />
-            </Form.Item>
-          </Form>
+              <div className={styles.markdown}>
+                <SkillMarkdown source={detail.content} />
+              </div>
+
+              {detail.examplesContent ? (
+                <div className={styles.examples}>
+                  <h3 className={styles.sectionLabel}>示例</h3>
+                  <SkillMarkdown source={detail.examplesContent} />
+                </div>
+              ) : null}
             </div>
-          </Spin>
-        </Modal>
+          )}
+        </Spin>
+      </Modal>
+
+      {/* 新建 / 编辑 */}
+      <Modal
+        title={editMode === 'create' ? '新建技能' : '编辑技能'}
+        open={editOpen}
+        onCancel={() => {
+          setEditOpen(false)
+          setEditDraft(null)
+        }}
+        onOk={handleSave}
+        confirmLoading={saving}
+        width={720}
+        destroyOnClose
+      >
+        <Form form={form} layout="vertical" initialValues={editDraft ?? undefined}>
+          <Form.Item
+            name="id"
+            label="技能 ID（目录名）"
+            rules={[
+              { required: true, message: '请输入技能 id' },
+              {
+                validator: (_, value: string) =>
+                  isValidSkillId(value) ? Promise.resolve() : Promise.reject(new Error('格式无效'))
+              }
+            ]}
+            extra="仅小写字母、数字、连字符，如 my-xhs-skill"
+          >
+            <Input disabled={editMode === 'update'} placeholder="my-skill" />
+          </Form.Item>
+          <Form.Item
+            name="name"
+            label="名称"
+            rules={[{ required: true, message: '请输入名称' }]}
+          >
+            <Input
+              placeholder="技能展示名称"
+              onChange={(e) => {
+                if (editMode === 'create') {
+                  form.setFieldValue('id', slugifySkillId(e.target.value))
+                }
+              }}
+            />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="描述"
+            rules={[{ required: true, message: '请输入描述' }]}
+            extra="Agent 用此描述判断何时启用该技能"
+          >
+            <Input.TextArea rows={2} placeholder="描述技能用途与触发场景" />
+          </Form.Item>
+          <Form.Item
+            name="content"
+            label="正文（Markdown）"
+            rules={[{ required: true, message: '请输入正文' }]}
+          >
+            <Input.TextArea rows={12} placeholder="# 技能标题&#10;&#10;## 步骤..." />
+          </Form.Item>
+          <Form.Item name="examplesContent" label="示例（可选，Markdown）">
+            <Input.TextArea rows={6} placeholder="# 示例&#10;..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 模板安装（智能整理） */}
+      <Modal
+        title="从模板安装"
+        open={templateOpen}
+        onCancel={() => setTemplateOpen(false)}
+        footer={null}
+        width={640}
+        destroyOnClose
+      >
+        {templateLoading ? (
+          <div className={styles.loading}>
+            <Spin tip="加载模板..." />
+          </div>
+        ) : templates.length === 0 ? (
+          <Empty description="未找到内置模板（resources/skill-templates）" />
+        ) : (
+          <div className={styles.templateList}>
+            {templates.map((template) => (
+              <Card key={template.id} size="small" className={styles.templateCard}>
+                <div className={styles.templateCardHeader}>
+                  <div>
+                    <strong>{template.name}</strong>
+                    <br />
+                    <code className={styles.templateId}>{template.id}</code>
+                  </div>
+                  <Button
+                    type="primary"
+                    size="small"
+                    loading={installingId === template.id}
+                    onClick={() => void handleInstall(template)}
+                  >
+                    安装
+                  </Button>
+                </div>
+                {template.description ? (
+                  <p className={styles.templateDesc}>{template.description}</p>
+                ) : null}
+                <Input
+                  size="small"
+                  addonBefore="目标 ID"
+                  value={installTargetIds[template.id] ?? template.id}
+                  onChange={(e) =>
+                    setInstallTargetIds((prev) => ({
+                      ...prev,
+                      [template.id]: e.target.value
+                    }))
+                  }
+                  placeholder={template.id}
+                />
+              </Card>
+            ))}
+          </div>
+        )}
+      </Modal>
+
+      {/* 链接导入 */}
+      <Modal
+        title="从链接导入"
+        open={importOpen}
+        onCancel={() => setImportOpen(false)}
+        onOk={handleImportConfirm}
+        okText="导入"
+        confirmLoading={importing}
+        closable={!importBusy}
+        maskClosable={!importBusy}
+        okButtonProps={{ disabled: importPreviewing }}
+        cancelButtonProps={{ disabled: importBusy }}
+        width={640}
+        destroyOnClose
+      >
+        <Spin spinning={importBusy} tip={importLoadingTip}>
+          <div className={styles.importModalBody}>
+            <p className={styles.modalHint}>
+              支持 Git 仓库链接与 HTTP 直链。大模型会判断使用 <code>git clone</code>{' '}
+              还是直接下载；Git 仓库将完整复制技能目录（含附属文件）。
+            </p>
+            <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
+              <Input
+                placeholder="https://github.com/white0dew/XiaohongshuSkills"
+                value={importUrl}
+                disabled={importBusy}
+                onChange={(e) => {
+                  setImportUrl(e.target.value)
+                  setImportPreview(null)
+                }}
+                onPressEnter={() => void handleImportPreview()}
+              />
+              <Button
+                loading={importPreviewing}
+                disabled={importing}
+                onClick={() => void handleImportPreview()}
+              >
+                预览
+              </Button>
+            </Space.Compact>
+
+            {importPreview ? (
+              <Card size="small" className={styles.importPreview}>
+                <strong>{importPreview.name}</strong>
+                {importPreview.description ? (
+                  <p className={styles.importPreviewDesc}>{importPreview.description}</p>
+                ) : null}
+                <Space wrap size={4}>
+                  <Tag color={importPreview.method === 'git_clone' ? 'blue' : 'default'}>
+                    {importPreview.method === 'git_clone' ? 'Git Clone' : 'HTTP 下载'}
+                  </Tag>
+                  {importPreview.hasExamples ? <Tag>含示例</Tag> : null}
+                  <Tag color="success">远程可用</Tag>
+                </Space>
+                {importPreview.reasoning ? (
+                  <p className={styles.importReasoning}>{importPreview.reasoning}</p>
+                ) : null}
+              </Card>
+            ) : null}
+
+            <Form layout="vertical" style={{ marginTop: 16 }}>
+              <Form.Item
+                label="目标 ID（安装目录名）"
+                extra="仅小写字母、数字、连字符；与 .cursor/skills/<id> 对应"
+                required
+              >
+                <Input
+                  value={importTargetId}
+                  disabled={importBusy}
+                  onChange={(e) => setImportTargetId(slugifySkillId(e.target.value))}
+                  placeholder="my-skill"
+                />
+              </Form.Item>
+            </Form>
+          </div>
+        </Spin>
+      </Modal>
     </div>
   )
 }
