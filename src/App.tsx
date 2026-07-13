@@ -5,6 +5,7 @@ import { useSessionStore } from '@/features/chat'
 import { useSettingsStore } from '@/features/settings'
 import { usePublishStore } from '@/features/publish'
 import { useScheduleStore } from '@/features/schedule'
+import { useChannelsStore } from '@/features/channels'
 
 /**
  * 根编排：启动时拉取设置 / 会话 / 发布计划 / 定时任务，并订阅 Agent 与调度事件。
@@ -17,6 +18,7 @@ export default function App(): ReactElement {
   const hydrateSettings = useSettingsStore((s) => s.hydrate)
   const hydratePlans = usePublishStore((s) => s.hydrate)
   const hydrateSchedules = useScheduleStore((s) => s.hydrate)
+  const hydrateChannels = useChannelsStore((s) => s.hydrate)
   const bindScheduleUpdates = useScheduleStore((s) => s.bindScheduleUpdates)
 
   useEffect(() => {
@@ -24,6 +26,7 @@ export default function App(): ReactElement {
     void hydrateSessions()
     void hydratePlans()
     void hydrateSchedules()
+    void hydrateChannels()
     const unsubAgent = bindAgentEvents()
     const unsubSchedule = bindScheduleUpdates()
     return () => {
@@ -35,6 +38,7 @@ export default function App(): ReactElement {
     hydrateSessions,
     hydratePlans,
     hydrateSchedules,
+    hydrateChannels,
     bindAgentEvents,
     bindScheduleUpdates
   ])

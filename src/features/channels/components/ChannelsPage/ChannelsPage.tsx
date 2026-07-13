@@ -3,9 +3,14 @@ import {
   Alert,
   Button,
   Card,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
   Popconfirm,
   Space,
   Spin,
+  Switch,
   Tag,
   Tooltip,
   Typography,
@@ -15,22 +20,30 @@ import {
   ApiOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
   LoginOutlined,
+  PlusOutlined,
   QuestionCircleOutlined,
   ReloadOutlined,
   StopOutlined
 } from '@ant-design/icons'
-import {
-  PUBLISH_CHANNELS,
-  queryPublishChannelMeta,
-  type PublishChannelId
-} from '@shared/publish-channels'
+import type { PublishChannelUpsertInput } from '@shared/publish-channels'
+import { queryPublishChannelMeta } from '@shared/publish-channels'
 import type { ChannelLoginState, ChannelLoginStatus } from '@shared/types'
+import type { PublishChannelId } from '@shared/publish-channels'
 import {
   postBrowserClearProfile,
   postChannelOpenLogin,
   queryChannelLoginStatuses
 } from '../../api'
+import { useChannelsStore } from '../../hooks/useChannelsStore'
+import {
+  channelMetaToInput,
+  createEmptyChannel,
+  isValidChannelId,
+  slugifyChannelId
+} from '../../types'
 import styles from './ChannelsPage.module.css'
 
 const { Title, Paragraph, Text } = Typography
@@ -71,12 +84,29 @@ function renderLoginTag(state: ChannelLoginState | undefined): React.ReactElemen
   }
 }
 
-/** 渠道管理：展示发布渠道元数据、登录态检测与 Profile 维护 */
+/** 渠道管理：展示发布渠道元数据、登录态检测、Profile 维护与 CRUD */
 export function ChannelsPage(): React.ReactElement {
+  const channels = useChannelsStore((s) => s.channels)
+  const channelsLoading = useChannelsStore((s) => s.loading)
+  const hydrate = useChannelsStore((s) => s.hydrate)
+  const saveChannel = useChannelsStore((s) => s.saveChannel)
+  const removeChannel = useChannelsStore((s) => s.removeChannel)
+  const initBuiltinChannels = useChannelsStore((s) => s.initBuiltinChannels)
+
   const [statusMap, setStatusMap] = useState<Record<string, ChannelLoginStatus>>({})
   const [checking, setChecking] = useState(false)
   const [openingId, setOpeningId] = useState<PublishChannelId | null>(null)
   const [clearing, setClearing] = useState(false)
+  const [initializing, setInitializing] = useState(false)
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [editMode, setEditMode] = useState<'create' | 'update'>('create')
+  const [saving, setSaving] = useState(false)
+  const [form] = Form.useForm<PublishChannelUpsertInput>()
+
+  useEffect(() => {
+    void hydrate()
+  }, [hydrate])
 
   /** 拉取全部渠道登录态并写入 map */
   const refreshStatuses = useCallback(async (): Promise<void> => {
@@ -96,28 +126,79 @@ export function ChannelsPage(): React.ReactElement {
   }, [])
 
   useEffect(() => {
-    void refreshStatuses()
-  }, [refreshStatuses])
+    if (channels.length > 0) {
+      void refreshStatuses()
+    }
+  }, [channels.length, refreshStatuses])
 
-  const enabledCount = useMemo(
-    () => PUBLISH_CHANNELS.filter((c) => c.enabled).length,
-    []
-  )
+  const enabledCount = useMemo(() => channels.filter((c) => c.enabled).length, [channels])
 
   const loggedInCount = useMemo(
-    () =>
-      PUBLISH_CHANNELS.filter(
-        (c) => c.enabled && statusMap[c.id]?.state === 'logged_in'
-      ).length,
-    [statusMap]
+    () => channels.filter((c) => c.enabled && statusMap[c.id]?.state === 'logged_in').length,
+    [channels, statusMap]
   )
+
+  const openCreate = (): void => {
+    const draft = createEmptyChannel()
+    setEditMode('create')
+    form.setFieldsValue(draft)
+    setEditOpen(true)
+  }
+
+  const openEdit = (channelId: PublishChannelId): void => {
+    const meta = channels.find((c) => c.id === channelId)
+    if (!meta) return
+    setEditMode('update')
+    form.setFieldsValue(channelMetaToInput(meta))
+    setEditOpen(true)
+  }
+
+  const handleSave = async (): Promise<void> => {
+    try {
+      const values = await form.validateFields()
+      const normalizedId =
+        editMode === 'create' ? slugifyChannelId(values.id || values.label) : values.id.trim()
+      if (!isValidChannelId(normalizedId)) {
+        message.error('渠道 id 仅允许小写字母、数字、连字符和下划线')
+        return Promise.reject(new Error('validation'))
+      }
+      setSaving(true)
+      await saveChannel({
+        ...values,
+        id: normalizedId,
+        label: values.label.trim(),
+        description: values.description.trim(),
+        publishTool: values.publishTool.trim(),
+        loginCheckUrl: values.loginCheckUrl?.trim() || undefined,
+        agentHint: values.agentHint.trim(),
+        titleMaxLength: values.titleMaxLength ?? undefined
+      })
+      message.success(editMode === 'create' ? '渠道已创建' : '渠道已更新')
+      setEditOpen(false)
+    } catch (err) {
+      if (err instanceof Error && err.message && err.message !== 'validation') {
+        message.error(err.message)
+      }
+      return Promise.reject(err instanceof Error ? err : new Error('save failed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string): Promise<void> => {
+    try {
+      await removeChannel(id)
+      message.success('渠道已删除')
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '删除失败')
+    }
+  }
 
   const handleOpenLogin = async (channelId: PublishChannelId): Promise<void> => {
     setOpeningId(channelId)
     try {
       await postChannelOpenLogin(channelId)
       message.success(`已打开${queryPublishChannelMeta(channelId).label}创作者中心，请完成登录`)
-      // 打开后延迟再检测一次，给用户扫码时间
       window.setTimeout(() => {
         void refreshStatuses()
       }, 3000)
@@ -142,6 +223,20 @@ export function ChannelsPage(): React.ReactElement {
     }
   }
 
+  /** 恢复小红书/抖音/视频号为默认配置，自定义渠道保留 */
+  const handleInitBuiltin = async (): Promise<void> => {
+    setInitializing(true)
+    try {
+      await initBuiltinChannels()
+      message.success('已初始化内置渠道（小红书、抖音、视频号）')
+      void refreshStatuses()
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '初始化失败')
+    } finally {
+      setInitializing(false)
+    }
+  }
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -159,19 +254,33 @@ export function ChannelsPage(): React.ReactElement {
             </Paragraph>
           </div>
         </div>
-        <Button
-          icon={<ReloadOutlined />}
-          loading={checking}
-          onClick={() => void refreshStatuses()}
-        >
-          检测全部登录态
-        </Button>
+        <Space>
+          <Popconfirm
+            title="初始化内置渠道？"
+            description="将恢复小红书、抖音、视频号为默认配置，自定义渠道不受影响。"
+            onConfirm={() => void handleInitBuiltin()}
+            okText="初始化"
+            cancelText="取消"
+          >
+            <Button loading={initializing}>初始化内置渠道</Button>
+          </Popconfirm>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新增渠道
+          </Button>
+          <Button
+            icon={<ReloadOutlined />}
+            loading={checking}
+            onClick={() => void refreshStatuses()}
+          >
+            检测全部登录态
+          </Button>
+        </Space>
       </header>
 
       <div className={styles.body}>
-        <Spin spinning={checking && Object.keys(statusMap).length === 0}>
+        <Spin spinning={(channelsLoading || checking) && channels.length === 0}>
           <div className={styles.grid}>
-            {PUBLISH_CHANNELS.map((channel) => {
+            {channels.map((channel) => {
               const status = statusMap[channel.id]
               const isDisabled = !channel.enabled
 
@@ -184,6 +293,7 @@ export function ChannelsPage(): React.ReactElement {
                   <div className={styles.cardHead}>
                     <div className={styles.cardHeadRow}>
                       <span className={styles.channelName}>{channel.label}</span>
+                      {channel.isBuiltin && <Tag color="blue">内置</Tag>}
                       {channel.enabled ? (
                         <Tag color="processing">已接入</Tag>
                       ) : (
@@ -195,6 +305,10 @@ export function ChannelsPage(): React.ReactElement {
                   </div>
 
                   <div className={styles.metaList}>
+                    <div className={styles.metaRow}>
+                      <span className={styles.metaLabel}>渠道 ID</span>
+                      <span className={styles.metaValue}>{channel.id}</span>
+                    </div>
                     <div className={styles.metaRow}>
                       <span className={styles.metaLabel}>发布工具</span>
                       <span className={styles.metaValue}>{channel.publishTool}</span>
@@ -218,6 +332,27 @@ export function ChannelsPage(): React.ReactElement {
                   </div>
 
                   <div className={styles.actions}>
+                    <Button
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => openEdit(channel.id)}
+                    >
+                      编辑
+                    </Button>
+                    {!channel.isBuiltin && (
+                      <Popconfirm
+                        title="确定删除该渠道？"
+                        description="删除后发布计划若引用该渠道，将回退为小红书。"
+                        onConfirm={() => void handleDelete(channel.id)}
+                        okText="删除"
+                        cancelText="取消"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <Button size="small" danger icon={<DeleteOutlined />}>
+                          删除
+                        </Button>
+                      </Popconfirm>
+                    )}
                     {channel.enabled && (
                       <>
                         <Button
@@ -272,6 +407,66 @@ export function ChannelsPage(): React.ReactElement {
           }
         />
       </div>
+
+      <Modal
+        title={editMode === 'create' ? '新增渠道' : '编辑渠道'}
+        open={editOpen}
+        onCancel={() => setEditOpen(false)}
+        onOk={() => void handleSave()}
+        confirmLoading={saving}
+        destroyOnClose
+        width={560}
+      >
+        <Form form={form} layout="vertical" preserve={false}>
+          {editMode === 'create' ? (
+            <Form.Item
+              name="id"
+              label="渠道 ID"
+              tooltip="留空则根据名称自动生成；仅小写字母、数字、连字符与下划线"
+            >
+              <Input placeholder="例如 bilibili" />
+            </Form.Item>
+          ) : (
+            <Form.Item label="渠道 ID">
+              <Input value={form.getFieldValue('id')} disabled />
+            </Form.Item>
+          )}
+          <Form.Item
+            name="label"
+            label="渠道名称"
+            rules={[{ required: true, message: '请输入渠道名称' }]}
+          >
+            <Input placeholder="例如 B站" />
+          </Form.Item>
+          <Form.Item name="description" label="简介">
+            <Input.TextArea rows={2} placeholder="渠道页展示的说明" />
+          </Form.Item>
+          <Form.Item name="enabled" label="已接入" valuePropName="checked">
+            <Switch checkedChildren="是" unCheckedChildren="否" />
+          </Form.Item>
+          <Form.Item
+            name="publishTool"
+            label="Agent 发布工具名"
+            rules={[{ required: true, message: '请输入发布工具名' }]}
+            tooltip="snake_case，如 xhs_publish_note；需在后端实现对应工具"
+          >
+            <Input placeholder="例如 bilibili_publish_note" />
+          </Form.Item>
+          <Form.Item name="titleMaxLength" label="标题字数上限">
+            <InputNumber min={1} max={200} placeholder="可选" style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="loginCheckUrl" label="创作者中心地址">
+            <Input placeholder="登录检测与打开登录页时使用，可选" />
+          </Form.Item>
+          <Form.Item
+            name="agentHint"
+            label="Agent 补充说明"
+            rules={[{ required: true, message: '请填写 Agent 说明' }]}
+          >
+            <Input.TextArea rows={4} placeholder="发布该渠道时的工具用法与注意事项" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }
