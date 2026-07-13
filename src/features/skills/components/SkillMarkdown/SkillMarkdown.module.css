@@ -38,8 +38,8 @@
   margin: 1rem 0;
   padding: 14px 16px;
   border-radius: var(--db-radius-md);
-  background: #1c1f23;
-  color: #e5e6eb;
+  background: var(--db-code-bg);
+  color: var(--db-code-text);
   font-family: 'SF Mono', ui-monospace, monospace;
   font-size: 12.5px;
   line-height: 1.6;

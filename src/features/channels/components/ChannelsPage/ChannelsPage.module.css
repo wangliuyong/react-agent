@@ -14,7 +14,7 @@
   pointer-events: none;
   background:
     radial-gradient(ellipse 70% 45% at 0% 0%, var(--db-primary-muted), transparent 50%),
-    radial-gradient(ellipse 50% 40% at 100% 100%, rgba(0, 87, 255, 0.04), transparent 55%);
+    radial-gradient(ellipse 50% 40% at 100% 100%, var(--db-primary-subtle), transparent 55%);
   opacity: 0.9;
 }
 
@@ -92,8 +92,8 @@
 }
 
 .card:hover {
-  border-color: rgba(0, 87, 255, 0.2);
-  box-shadow: 0 4px 20px rgba(0, 87, 255, 0.06);
+  border-color: var(--db-primary-border-hover);
+  box-shadow: 0 4px 20px var(--db-primary-shadow);
 }
 
 .cardDisabled {
@@ -147,7 +147,7 @@
 
 .metaLabel {
   flex-shrink: 0;
-  color: var(--db-text-tertiary, #999);
+  color: var(--db-text-tertiary);
 }
 
 .metaValue {

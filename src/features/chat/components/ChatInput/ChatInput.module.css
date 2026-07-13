@@ -17,16 +17,21 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #fff8e6;
-  border: 1px solid rgba(255, 136, 0, 0.35);
+  background: var(--db-warning-bg);
+  border: 1px solid color-mix(in srgb, var(--db-warning) 35%, transparent);
   border-radius: var(--db-radius-md);
   padding: 12px 16px;
   margin-bottom: 12px;
   box-shadow:
-    0 8px 28px rgba(255, 136, 0, 0.18),
+    0 8px 28px color-mix(in srgb, var(--db-warning) 18%, transparent),
     0 4px 12px rgba(0, 0, 0, 0.08),
-    0 0 0 1px rgba(255, 136, 0, 0.08);
+    0 0 0 1px color-mix(in srgb, var(--db-warning) 8%, transparent);
   animation: slideUp 0.3s ease;
+}
+
+.awaitText {
+  color: var(--db-warning-text);
+  font-size: 13px;
 }
 
 /* Agent 运行状态条 */
@@ -37,7 +42,7 @@
   padding: 8px 12px;
   border-radius: var(--db-radius-md);
   background: var(--db-primary-muted);
-  border: 1px solid rgba(0, 87, 255, 0.12);
+  border: 1px solid var(--db-primary-border);
   animation: slideUp 0.3s ease;
 }
 
@@ -67,7 +72,7 @@
   padding: 4px 10px !important;
   border-radius: var(--db-radius-sm) !important;
   background: var(--db-primary-muted) !important;
-  border: 1px solid rgba(0, 87, 255, 0.12) !important;
+  border: 1px solid var(--db-primary-border) !important;
   font-size: 12px !important;
   color: var(--db-primary) !important;
 }
@@ -105,7 +110,7 @@
 }
 
 .box[data-running='true'] {
-  border-color: rgba(0, 87, 255, 0.25);
+  border-color: var(--db-primary-border-active);
   box-shadow:
     var(--db-shadow-input),
     0 0 0 3px var(--db-primary-muted);

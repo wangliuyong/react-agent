@@ -23,13 +23,17 @@ export function SettingsPage(): React.ReactElement {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <Title level={3} className={styles.title}>
-          <SettingOutlined style={{ marginRight: 8, color: '#0057ff' }} />
-          设置
-        </Title>
-        <Paragraph className={styles.desc}>
-          API Key 仅保存在本机 userData，不会上传。默认对接阿里云百炼 OpenAI 兼容接口。
-        </Paragraph>
+        <div className={styles.headerIcon}>
+          <SettingOutlined />
+        </div>
+        <div className={styles.headerMain}>
+          <Title level={3} className={styles.title}>
+            设置
+          </Title>
+          <Paragraph className={styles.desc}>
+            API Key 仅保存在本机 userData，不会上传。默认对接阿里云百炼 OpenAI 兼容接口。
+          </Paragraph>
+        </div>
       </header>
 
       <div className={styles.body}>

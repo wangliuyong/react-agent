@@ -14,6 +14,7 @@ import {
   isValidChannelId,
   slugifyChannelId
 } from '../../types'
+import { DB_THEME } from '@/styles/theme-tokens'
 import styles from './ChannelsPage.module.css'
 
 const { Title, Paragraph, Text } = Typography
@@ -257,7 +258,7 @@ export function ChannelsPage(): React.ReactElement {
                   <div className={styles.cardHead}>
                     <div className={styles.cardHeadRow}>
                       <span className={styles.channelName}>{channel.label}</span>
-                      {channel.isBuiltin && <Tag color="blue">内置</Tag>}
+                      {channel.isBuiltin && <Tag color={DB_THEME.primary}>内置</Tag>}
                       {channel.enabled ? (
                         <Tag color="processing">已接入</Tag>
                       ) : (

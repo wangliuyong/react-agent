@@ -3,16 +3,56 @@
   flex-direction: column;
   height: 100%;
   background: var(--db-bg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 与其他功能页统一的背景氛围 */
+.page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 45% at 0% 0%, var(--db-primary-muted), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, var(--db-primary-subtle), transparent 55%);
+  opacity: 0.9;
 }
 
 .header {
+  position: relative;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  padding: 24px 28px;
+  padding: 22px 28px;
   border-bottom: 1px solid var(--db-border-light);
   background: var(--db-bg-content);
+}
+
+.headerMain {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.headerIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--db-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.headerContent {
+  min-width: 0;
 }
 
 .headerTitle {
@@ -29,6 +69,8 @@
 }
 
 .body {
+  position: relative;
+  z-index: 1;
   flex: 1;
   display: flex;
   min-height: 0;

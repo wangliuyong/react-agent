@@ -153,14 +153,19 @@ export function PublishWorkbench(): React.ReactElement {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <div>
-          <Title level={3} className={styles.headerTitle}>
-            发布工作台
-          </Title>
-          <div className={styles.headerDesc}>多账号 / 多渠道 / 串行执行</div>
-          <Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 0, fontSize: 12 }}>
-            发布计划只负责编辑，执行进度在主聊天窗口查看
-          </Paragraph>
+        <div className={styles.headerMain}>
+          <div className={styles.headerIcon}>
+            <SendOutlined />
+          </div>
+          <div className={styles.headerContent}>
+            <Title level={3} className={styles.headerTitle}>
+              发布工作台
+            </Title>
+            <div className={styles.headerDesc}>多账号 / 多渠道 / 串行执行</div>
+            <Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 0, fontSize: 12 }}>
+              发布计划只负责编辑，执行进度在主聊天窗口查看
+            </Paragraph>
+          </div>
         </div>
         <Space>
           <Button

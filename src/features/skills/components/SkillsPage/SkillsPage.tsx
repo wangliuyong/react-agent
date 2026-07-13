@@ -7,6 +7,7 @@ import type {
 import { useSkillsStore } from '../../hooks/useSkillsStore'
 import { SkillMarkdown } from '../SkillMarkdown'
 import { isValidSkillId, skillDetailToInput, slugifySkillId } from '../../types'
+import { DB_THEME } from '@/styles/theme-tokens'
 import styles from './SkillsPage.module.css'
 
 const { Title, Text } = Typography
@@ -449,7 +450,7 @@ export function SkillsPage(): React.ReactElement {
                     <div className={styles.cardHead}>
                       <div className={styles.cardTitleRow}>
                         <span className={styles.cardTitle}>{template.name}</span>
-                        <Tag color="blue">模板</Tag>
+                        <Tag color={DB_THEME.primary}>模板</Tag>
                       </div>
                       <p className={styles.cardDesc}>
                         {template.description || '暂无描述'}
@@ -535,7 +536,7 @@ export function SkillsPage(): React.ReactElement {
                   <code className={styles.detailId}>{detail.id}</code>
                   <div className={styles.detailTags}>
                     <SkillStatusTag skill={detail} />
-                    {detail.isBuiltin ? <Tag color="blue">内置</Tag> : null}
+                    {detail.isBuiltin ? <Tag color={DB_THEME.primary}>内置</Tag> : null}
                     {detail.hasExamples ? <Tag>含示例</Tag> : null}
                   </div>
                 </div>
@@ -750,7 +751,7 @@ export function SkillsPage(): React.ReactElement {
                   <p className={styles.importPreviewDesc}>{importPreview.description}</p>
                 ) : null}
                 <Space wrap size={4}>
-                  <Tag color={importPreview.method === 'git_clone' ? 'blue' : 'default'}>
+                  <Tag color={importPreview.method === 'git_clone' ? DB_THEME.primary : 'default'}>
                     {importPreview.method === 'git_clone' ? 'Git Clone' : 'HTTP 下载'}
                   </Tag>
                   {importPreview.hasExamples ? <Tag>含示例</Tag> : null}

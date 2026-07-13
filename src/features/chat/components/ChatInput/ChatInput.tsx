@@ -114,7 +114,7 @@ export function ChatInput({
       <div className={styles.inner}>
         {awaitUserReason ? (
           <div className={styles.awaitBar}>
-            <Text style={{ color: '#b45309', fontSize: 13 }}>{awaitUserReason}</Text>
+            <Text className={styles.awaitText}>{awaitUserReason}</Text>
             <Button type="primary" icon={<PlayCircleOutlined />} onClick={onContinue}>
               继续
             </Button>

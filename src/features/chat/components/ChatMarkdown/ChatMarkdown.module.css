@@ -50,7 +50,7 @@
 .prose :global(blockquote) {
   margin: 0.75em 0;
   padding: 0.35em 0 0.35em 0.85em;
-  border-left: 3px solid rgba(0, 87, 255, 0.3);
+  border-left: 3px solid var(--db-primary-border-active);
   color: var(--db-text-secondary);
   background: var(--db-primary-muted);
   border-radius: 0 var(--db-radius-sm) var(--db-radius-sm) 0;
@@ -65,7 +65,7 @@
 .link {
   color: var(--db-primary);
   text-decoration: none;
-  border-bottom: 1px solid rgba(0, 87, 255, 0.2);
+  border-bottom: 1px solid var(--db-primary-border-hover);
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
@@ -80,15 +80,15 @@
   background: var(--db-hover);
   font-family: 'SF Mono', ui-monospace, monospace;
   font-size: 0.9em;
-  color: #d4380d;
+  color: var(--db-danger);
 }
 
 .codeBlock {
   margin: 0.85em 0;
   padding: 12px 14px;
   border-radius: var(--db-radius-md);
-  background: #1c1f23;
-  color: #e5e6eb;
+  background: var(--db-code-bg);
+  color: var(--db-code-text);
   font-family: 'SF Mono', ui-monospace, monospace;
   font-size: 12.5px;
   line-height: 1.55;

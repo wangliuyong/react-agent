@@ -116,11 +116,11 @@
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #0057ff 0%, #3370ff 100%);
+  background: linear-gradient(135deg, var(--db-primary) 0%, var(--db-primary-light) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--db-on-primary);
   font-size: 16px;
   font-weight: 700;
   flex-shrink: 0;
