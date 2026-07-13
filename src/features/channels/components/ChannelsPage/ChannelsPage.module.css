@@ -79,11 +79,16 @@
   border: 1px solid var(--db-border-light);
   border-radius: var(--db-radius-lg);
   background: var(--db-bg-content);
-  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card :global(.ant-card-body) {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .card:hover {
@@ -98,7 +103,7 @@
 .cardHead {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* 标题 + 渠道状态 + 登录状态同一行 */
@@ -130,7 +135,7 @@
 .metaList {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   font-size: 12px;
   color: var(--db-text-secondary);
 }
@@ -164,9 +169,8 @@
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-top: auto;
-  padding-top: 4px;
 }
 
 .alertCard {
