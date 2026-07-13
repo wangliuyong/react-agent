@@ -1,13 +1,14 @@
-import type { Session } from '@shared/types'
+import type { Session, SessionType } from '@shared/types'
 
 /** 创建空会话对象（尚未落盘） */
-export function createEmptySession(id: string): Session {
+export function createEmptySession(id: string, type: SessionType = 'chat'): Session {
   const now = Date.now()
   return {
     id,
     title: '新对话',
     messages: [],
     tasks: [],
+    type,
     tokenUsed: 0,
     createdAt: now,
     updatedAt: now

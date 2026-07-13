@@ -36,6 +36,7 @@ function createScheduleSession(task: ScheduledTask): Session {
     title: `[定时] ${task.title}`,
     messages: [],
     tasks: [],
+    type: 'schedule',
     tokenUsed: 0,
     createdAt: now,
     updatedAt: now

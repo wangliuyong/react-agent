@@ -194,6 +194,16 @@
   font-weight: 500;
 }
 
+.sectionLabelText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sectionLabelIcon {
+  font-size: 12px;
+}
+
 .history {
   flex: 1;
   overflow: auto;
@@ -203,6 +213,7 @@
 .historyItem {
   width: 100%;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   border: none;
@@ -212,6 +223,19 @@
   cursor: pointer;
   text-align: left;
   transition: background 0.15s ease;
+}
+
+.historyIcon {
+  width: 18px;
+  display: inline-flex;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--db-text-tertiary);
+}
+
+.historyItem[data-active='true'] .historyIcon {
+  color: var(--db-primary);
 }
 
 .historyItem:hover {

@@ -143,7 +143,7 @@ export function PublishWorkbench(): React.ReactElement {
       message.warning('请先添加子任务')
       return
     }
-    await createSession()
+    await createSession('publish')
     setView('chat')
     // 串行：把所有子任务合成一条指令，由 Agent 按清单执行
     const prompt = [
