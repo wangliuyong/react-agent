@@ -472,3 +472,8 @@
   background: var(--db-hover);
   font-size: 12px;
 }
+
+/* 链接导入弹窗：Spin 遮罩需最小高度以居中展示 tip */
+.importModalBody {
+  min-height: 200px;
+}

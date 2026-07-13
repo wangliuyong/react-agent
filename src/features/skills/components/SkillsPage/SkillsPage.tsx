@@ -210,6 +210,16 @@ export function SkillsPage(): React.ReactElement {
     }
   }
 
+  /** 链接导入弹窗 loading：预览分析或正式导入 */
+  const importBusy = importing || importPreviewing
+  const importLoadingTip = importing
+    ? importPreview?.method === 'git_clone'
+      ? '正在 git clone 并安装技能，请稍候…'
+      : importPreview?.method === 'http_download'
+        ? '正在下载并安装技能，请稍候…'
+        : '正在导入技能，请稍候…'
+    : '正在分析链接并预览远程技能…'
+
   return (
     <div className={styles.page}>
         {/* 顶栏 */}
@@ -510,24 +520,35 @@ export function SkillsPage(): React.ReactElement {
           onOk={handleImportConfirm}
           okText="导入"
           confirmLoading={importing}
+          closable={!importBusy}
+          maskClosable={!importBusy}
+          okButtonProps={{ disabled: importPreviewing }}
+          cancelButtonProps={{ disabled: importBusy }}
           width={640}
           destroyOnClose
         >
+          <Spin spinning={importBusy} tip={importLoadingTip}>
+            <div className={styles.importModalBody}>
           <p className={styles.modalHint}>
-            支持 GitHub 仓库、tree/blob 链接及 raw 直链。仓库链接会自动查找{' '}
-            <code>SKILL.md</code>。
+            支持 Git 仓库链接与 HTTP 直链。大模型会判断使用 <code>git clone</code>{' '}
+            还是直接下载；Git 仓库将完整复制技能目录（含附属文件）。
           </p>
           <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
             <Input
               placeholder="https://github.com/white0dew/XiaohongshuSkills"
               value={importUrl}
+              disabled={importBusy}
               onChange={(e) => {
                 setImportUrl(e.target.value)
                 setImportPreview(null)
               }}
               onPressEnter={() => void handleImportPreview()}
             />
-            <Button loading={importPreviewing} onClick={() => void handleImportPreview()}>
+            <Button
+              loading={importPreviewing}
+              disabled={importing}
+              onClick={() => void handleImportPreview()}
+            >
               预览
             </Button>
           </Space.Compact>
@@ -541,9 +562,17 @@ export function SkillsPage(): React.ReactElement {
                 </p>
               ) : null}
               <Space wrap size={4}>
+                <Tag color={importPreview.method === 'git_clone' ? 'blue' : 'default'}>
+                  {importPreview.method === 'git_clone' ? 'Git Clone' : 'HTTP 下载'}
+                </Tag>
                 {importPreview.hasExamples ? <Tag>含示例</Tag> : null}
                 <Tag color="success">远程可用</Tag>
               </Space>
+              {importPreview.reasoning ? (
+                <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--skill-muted)' }}>
+                  {importPreview.reasoning}
+                </p>
+              ) : null}
             </Card>
           ) : null}
 
@@ -555,11 +584,14 @@ export function SkillsPage(): React.ReactElement {
             >
               <Input
                 value={importTargetId}
+                disabled={importBusy}
                 onChange={(e) => setImportTargetId(slugifySkillId(e.target.value))}
                 placeholder="my-skill"
               />
             </Form.Item>
           </Form>
+            </div>
+          </Spin>
         </Modal>
     </div>
   )
