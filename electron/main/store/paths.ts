@@ -42,6 +42,13 @@ export function getArtifactsDir(): string {
   return join(getDataRoot(), 'artifacts')
 }
 
+/** 技能链接导入时的临时克隆/解压目录 */
+export function getSkillImportTempDir(): string {
+  const dir = join(getDataRoot(), 'skill-import-tmp')
+  ensureDir(dir)
+  return dir
+}
+
 export function getSettingsPath(): string {
   return join(getDataRoot(), 'settings.json')
 }

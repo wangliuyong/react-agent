@@ -286,17 +286,24 @@ export interface SkillTemplate {
   description: string
 }
 
+/** 技能链接导入方式：Git 仓库克隆 或 HTTP 直链下载 */
+export type SkillImportMethod = 'git_clone' | 'http_download'
+
 /** 从 URL 导入技能前的预览信息 */
 export interface SkillImportPreview {
   /** 用户输入的原始链接 */
   url: string
-  /** 解析后的 SKILL.md raw 地址（便于调试） */
+  /** 大模型或规则引擎判定的导入方式 */
+  method: SkillImportMethod
+  /** 解析后的 SKILL.md 地址（HTTP 为 URL；Git 为本地探测说明） */
   skillMdUrl: string
   /** 建议安装目录名 */
   suggestedId: string
   name: string
   description: string
   hasExamples: boolean
+  /** 大模型给出的简要理由（可选，便于 UI 展示） */
+  reasoning?: string
 }
 
 /** 技能详情（含 Markdown 正文） */
