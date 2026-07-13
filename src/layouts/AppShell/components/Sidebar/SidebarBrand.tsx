@@ -8,20 +8,20 @@ interface SidebarBrandProps {
 
 /** 品牌 Logo 展示，无业务逻辑 */
 export function SidebarBrand({ collapsed = false }: SidebarBrandProps): React.ReactElement {
-  const icon = <div className={styles.brandIcon}>R</div>
+  const icon = <div className={styles.brandIcon}>灵</div>
 
   if (collapsed) {
     return (
-      <Tooltip title="React Agent" placement="right">
-        {/* {icon} */}
+      <Tooltip title="灵犀" placement="right">
+        {icon}
       </Tooltip>
     )
   }
 
   return (
     <div className={styles.brand}>
-      {/* {icon} */}
-      {/* <span className={styles.brandName}>React Agent</span> */}
+      {icon}
+      <span className={styles.brandName}>灵犀</span>
     </div>
   )
 }

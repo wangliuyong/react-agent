@@ -60,12 +60,12 @@ interface WelcomeHeroProps {
 export function WelcomeHero({ onPick }: WelcomeHeroProps): React.ReactElement {
   return (
     <div className={styles.wrap}>
-      <div className={styles.avatar}>R</div>
+      <div className={styles.avatar}>灵</div>
       <Title level={2} className={styles.title}>
-        你好，我是 React Agent
+        你好，我是灵犀
       </Title>
       <Paragraph className={styles.sub}>
-        我可以帮你完成小红书/抖音发布、网页配图抓取、内容规划等任务，试试下面的快捷指令吧
+        智能感知热点、抓取配图、生成文案，并帮你发布到小红书与抖音，试试下面的快捷指令吧
       </Paragraph>
       <div className={styles.grid}>
         {CARDS.map((card) => (

@@ -1,8 +1,8 @@
-# React Agent
+# 灵犀
 
-跨平台 AI Agent 桌面应用（Electron + React）。
+跨平台 AI 发布助手桌面应用（Electron + React）。
 
-- 首期能力：小红书图文自动发布
+- 核心能力：小红书 / 抖音图文自动发布、网页配图抓取、发布计划与定时任务
 - 模型：阿里云百炼（DashScope / 通义千问）
 - 数据：本地 JSON 缓存（无数据库）
 
