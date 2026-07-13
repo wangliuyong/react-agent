@@ -1,4 +1,3 @@
-import { Typography } from 'antd'
 import styles from './AppMain.module.css'
 
 const { Text } = Typography

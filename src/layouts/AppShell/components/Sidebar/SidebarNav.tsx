@@ -1,5 +1,4 @@
 import type { AppView } from '@/stores/app-store'
-import { Tooltip } from 'antd'
 import type { NavItem } from '../../types'
 import styles from './Sidebar.module.css'
 

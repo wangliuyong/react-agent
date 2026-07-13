@@ -1,13 +1,3 @@
-import {
-  CheckCircleFilled,
-  CloseCircleFilled,
-  HolderOutlined,
-  LoadingOutlined,
-  PauseCircleOutlined,
-  PlayCircleOutlined
-} from '@ant-design/icons'
-import { Button, Card, Typography } from 'antd'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { TaskItem, TaskItemStatus } from '@shared/types'
 import styles from './TaskChecklist.module.css'
 
@@ -193,7 +183,7 @@ export function TaskChecklist({
   }, [dragging, position])
 
   /** 标题栏按下：开始拖动 */
-  const handleDragStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+  const handleDragStart = useCallback((event) => {
     const cardEl = cardRef.current
     const parentEl = cardEl?.offsetParent as HTMLElement | null
     if (!cardEl || !parentEl) return
@@ -212,7 +202,7 @@ export function TaskChecklist({
 
   /** 拖动中：根据指针位置更新卡片坐标 */
   const handleDragMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+    (event) => {
       if (!dragging) return
 
       const cardEl = cardRef.current
@@ -231,7 +221,7 @@ export function TaskChecklist({
   )
 
   /** 松开指针：结束拖动 */
-  const handleDragEnd = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+  const handleDragEnd = useCallback((event) => {
     if (!dragging) return
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
@@ -287,7 +277,7 @@ export function TaskChecklist({
           <li
             key={item.id}
             className={queryTaskRowClass(item.status)}
-            style={{ '--task-index': index } as React.CSSProperties}
+            style={{ '--task-index': index } as Record<string, number>}
           >
             <span className={styles.statusIcon}>
               <TaskStatusIcon status={item.status} />

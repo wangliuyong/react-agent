@@ -1,5 +1,3 @@
-import { DeleteOutlined, HistoryOutlined } from '@ant-design/icons'
-import { Button, Popconfirm } from 'antd'
 import type { AppView } from '@/stores/app-store'
 import { formatRelativeTime } from '@/features/chat'
 import { SESSION_TYPE_ICONS } from '../../config/session-type-icons'

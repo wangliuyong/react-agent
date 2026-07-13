@@ -1,5 +1,3 @@
-import { FormOutlined } from '@ant-design/icons'
-import { Tooltip } from 'antd'
 import { queryNewChatShortcutLabel } from '../../hooks/useNewChatShortcut'
 import styles from './Sidebar.module.css'
 

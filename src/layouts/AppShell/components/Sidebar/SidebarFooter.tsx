@@ -1,5 +1,3 @@
-import { LogoutOutlined, SettingOutlined } from '@ant-design/icons'
-import { Button, Tooltip } from 'antd'
 import type { AppView } from '@/stores/app-store'
 import { SidebarCollapseToggle } from './SidebarCollapseToggle'
 import styles from './Sidebar.module.css'

@@ -1,27 +1,3 @@
-import { useEffect, useState } from 'react'
-import {
-  Button,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Space,
-  Switch,
-  Tag,
-  message,
-  Spin,
-  Card
-} from 'antd'
-import {
-  AppstoreOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  LinkOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  ThunderboltOutlined
-} from '@ant-design/icons'
 import type { SkillImportPreview, SkillTemplate, SkillUpsertInput } from '@shared/types'
 import { useSkillsStore } from '../../hooks/useSkillsStore'
 import { SkillMarkdown } from '../SkillMarkdown'

@@ -1,5 +1,3 @@
-import { useEffect } from 'react'
-
 interface UseNewChatShortcutOptions {
   onCreate: () => void
 }
