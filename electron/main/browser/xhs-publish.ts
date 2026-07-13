@@ -1,9 +1,19 @@
+import { join } from 'path'
 import type { Page } from 'playwright'
+import { getArtifactsDir } from '../store/paths'
+import {
+  assertXhsBehaviorAllowed,
+  postRecordXhsBehavior,
+  queryXhsOffPeakPublishWarning
+} from '../store/xhs-behavior-guard'
 import { getBrowserService } from './service'
+import { humanMicroPause, humanStepPause } from './human-behavior'
 import {
   humanTypeBySelectors,
   humanTypeInto
 } from './human-input'
+import { postVaryXhsPublishImages } from './xhs-image-variation'
+import { runXhsWarmupBrowse } from './xhs-warmup-path'
 import {
   XHS_PUBLISH_URL,
   clickXhsConfirmDialog,
@@ -34,7 +44,7 @@ function assertNotAborted(signal?: AbortSignal): void {
 }
 
 /**
- * 小红书图文发布：全程拟人鼠标移动/点击 + 键盘逐字输入。
+ * 小红书图文发布：浏览热身 → 拟人操作 → 频次/作息校验。
  * 适配创作台 closed Shadow DOM（xhs-publish-btn）与浮层遮挡。
  */
 export async function publishXhsNote(params: PublishXhsParams): Promise<string> {
@@ -49,12 +59,17 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     signal
   } = params
 
+  // 作息与发布频次（深夜 0-6 点硬阻断，日/周上限硬阻断）
+  assertXhsBehaviorAllowed('publish')
+  const offPeakWarn = queryXhsOffPeakPublishWarning()
+
   const setTasks = (
     items: Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' }>
   ) => updateTasks(() => items)
 
   setTasks([
-    { id: '1', title: '打开小红书创作平台', status: 'running' },
+    { id: '0', title: '模拟浏览热身（发现页）', status: 'running' },
+    { id: '1', title: '打开小红书创作平台', status: 'pending' },
     { id: '2', title: '确认登录状态', status: 'pending' },
     { id: '3', title: '切换图文并上传配图', status: 'pending' },
     { id: '4', title: '填写标题正文并发布', status: 'pending' }
@@ -64,12 +79,31 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   const page = await browser.ensureStarted()
   assertNotAborted(signal)
 
+  // 非直达：先走发现页完整浏览链路
+  let warmupMsg = ''
+  try {
+    warmupMsg = await runXhsWarmupBrowse(page, { signal })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.includes('用户已中止') || msg.includes('深夜静默')) throw e
+    warmupMsg = `浏览热身部分跳过：${msg}`
+  }
+
+  setTasks([
+    { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
+    { id: '1', title: '打开小红书创作平台', status: 'running' },
+    { id: '2', title: '确认登录状态', status: 'pending' },
+    { id: '3', title: '切换图文并上传配图', status: 'pending' },
+    { id: '4', title: '填写标题正文并发布', status: 'pending' }
+  ])
+
   await browser.navigate(XHS_PUBLISH_URL)
   await page.waitForLoadState('domcontentloaded').catch(() => undefined)
-  await page.waitForTimeout(2000)
+  await humanStepPause({ min: 2000, max: 5000 })
   assertNotAborted(signal)
 
   setTasks([
+    { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
     { id: '1', title: '打开小红书创作平台', status: 'done' },
     { id: '2', title: '确认登录状态', status: 'running' },
     { id: '3', title: '切换图文并上传配图', status: 'pending' },
@@ -83,17 +117,17 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     )
     assertNotAborted(signal)
     await browser.navigate(XHS_PUBLISH_URL)
-    await page.waitForTimeout(2000)
+    await humanStepPause({ min: 2000, max: 4500 })
   }
 
   setTasks([
+    { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
     { id: '1', title: '打开小红书创作平台', status: 'done' },
     { id: '2', title: '确认登录状态', status: 'done' },
     { id: '3', title: '切换图文并上传配图', status: 'running' },
     { id: '4', title: '填写标题正文并发布', status: 'pending' }
   ])
 
-  // 先清理浮层，再切到「上传图文」TAB（避免默认停在视频页）
   await removeXhsPopoverOverlay(page)
   const tabOk = await clickXhsImageTab(page)
   if (!tabOk) {
@@ -103,7 +137,7 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     )
   }
 
-  await page.waitForTimeout(600)
+  await humanMicroPause()
   const inputCount = await page.locator('input[type=file], .upload-input').count()
   if (inputCount === 0) {
     return (
@@ -112,13 +146,17 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     )
   }
 
+  // 配图差异化：微裁剪/缩放，降低批量同质化风险
+  const variedDir = join(getArtifactsDir(), 'xhs-varied', String(Date.now()))
+  const uploadPaths = postVaryXhsPublishImages(imagePaths, variedDir)
+
   try {
-    await uploadXhsImages(page, imagePaths)
+    await uploadXhsImages(page, uploadPaths)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return `切换图文 TAB 成功，但上传配图失败：${msg}`
   }
-  await page.waitForTimeout(1500)
+  await humanStepPause({ min: 2000, max: 6000 })
   assertNotAborted(signal)
 
   const titleText = title.slice(0, 20)
@@ -131,14 +169,17 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
       '[class*="title"] input',
       '[class*="title"] textarea'
     ],
-    titleText
+    titleText,
+    { delayMin: 45, delayMax: 130 }
   )
   if (!titleFilled) {
     const editable = page.locator('[contenteditable="true"]').first()
     if (await editable.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await humanTypeInto(page, editable, titleText)
+      await humanTypeInto(page, editable, titleText, { delayMin: 45, delayMax: 130 })
     }
   }
+
+  await humanStepPause({ min: 2000, max: 5000 })
 
   const bodyFilled = await humanTypeBySelectors(
     page,
@@ -148,7 +189,8 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
       'textarea[placeholder*="输入"]',
       '[class*="editor"] [contenteditable="true"]'
     ],
-    content
+    content,
+    { delayMin: 40, delayMax: 120 }
   )
   if (!bodyFilled) {
     return (
@@ -158,7 +200,11 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     )
   }
 
+  // 填写完成后停留检查，模拟真人审阅
+  await humanStepPause({ min: 3000, max: 8000 })
+
   setTasks([
+    { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
     { id: '1', title: '打开小红书创作平台', status: 'done' },
     { id: '2', title: '确认登录状态', status: 'done' },
     { id: '3', title: '切换图文并上传配图', status: 'done' },
@@ -167,13 +213,16 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
 
   if (!autoPublish) {
     setTasks([
+      { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
       { id: '1', title: '打开小红书创作平台', status: 'done' },
       { id: '2', title: '确认登录状态', status: 'done' },
       { id: '3', title: '切换图文并上传配图', status: 'done' },
       { id: '4', title: '填写标题正文并发布', status: 'pending' }
     ])
     return (
-      `已切换图文 TAB 并填写标题与正文，配图 ${imagePaths.length} 张，停在待发布状态（autoPublish=false）。` +
+      `已切换图文 TAB 并填写标题与正文，配图 ${uploadPaths.length} 张，停在待发布状态（autoPublish=false）。` +
+      `${warmupMsg ? `\n${warmupMsg}` : ''}` +
+      `${offPeakWarn ? `\n⚠️ ${offPeakWarn}` : ''}` +
       `用户可在浏览器中检查后手动点「发布」。`
     )
   }
@@ -184,6 +233,7 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   }
 
   await removeXhsPopoverOverlay(page)
+  await humanMicroPause()
 
   let published = await clickXhsPublishButton(page)
   if (!published) {
@@ -198,16 +248,23 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     )
   }
 
-  await page.waitForTimeout(3000)
+  await humanStepPause({ min: 2500, max: 5000 })
+  postRecordXhsBehavior('publish')
 
   setTasks([
+    { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
     { id: '1', title: '打开小红书创作平台', status: 'done' },
     { id: '2', title: '确认登录状态', status: 'done' },
     { id: '3', title: '切换图文并上传配图', status: 'done' },
     { id: '4', title: '填写标题正文并发布', status: 'done' }
   ])
 
-  return `已触发发布流程。标题「${title}」。请在智能体浏览器中确认是否发布成功。【执行完毕】`
+  return (
+    `已触发发布流程。标题「${title}」。请在智能体浏览器中确认是否发布成功。` +
+    `${warmupMsg ? `\n${warmupMsg}` : ''}` +
+    `${offPeakWarn ? `\n⚠️ ${offPeakWarn}` : ''}` +
+    `【执行完毕】`
+  )
 }
 
 async function detectNeedLogin(page: Page): Promise<boolean> {

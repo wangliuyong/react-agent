@@ -1,7 +1,6 @@
 import type { Page } from 'playwright'
+import { humanMicroPause, humanStepPause, rand, sleep } from './human-behavior'
 import { humanClickAt, humanClickLocator, humanMoveTo } from './human-input'
-
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 /** 小红书创作台发布页（与社区 MCP 对齐，带 source 参数） */
 export const XHS_PUBLISH_URL =
@@ -31,7 +30,7 @@ export async function removeXhsPopoverOverlay(page: Page): Promise<void> {
   })
   // 点击页面上方空白区，收起可能残留的 popover
   await humanClickAt(page, 380 + Math.random() * 80, 28 + Math.random() * 40)
-  await sleep(200)
+  await humanMicroPause()
 }
 
 /** 元素中心是否被其它层遮挡（elementFromPoint 检测） */
@@ -95,7 +94,7 @@ export async function clickXhsImageTab(page: Page, timeoutMs = 15_000): Promise<
           continue
         }
         await humanClickAt(page, alt.x, alt.y)
-        await sleep(800)
+        await humanStepPause({ min: 600, max: 1800 })
         return true
       }
       await sleep(250)
@@ -109,7 +108,7 @@ export async function clickXhsImageTab(page: Page, timeoutMs = 15_000): Promise<
     }
 
     await humanClickAt(page, hit.x, hit.y)
-    await sleep(800)
+    await humanStepPause({ min: 600, max: 1800 })
     return true
   }
 
@@ -293,7 +292,7 @@ export async function uploadXhsImages(page: Page, imagePaths: string[]): Promise
     const input = page.locator(selector).first()
     await input.waitFor({ state: 'attached', timeout: 15_000 })
     await input.setInputFiles(imagePaths[i])
-    await sleep(i === 0 ? 1500 : 1000)
+    await humanStepPause({ min: i === 0 ? 1200 : 900, max: i === 0 ? 2800 : 2200 })
     // 等待预览数量达到 i+1
     await page
       .locator('.img-preview-area .pr')

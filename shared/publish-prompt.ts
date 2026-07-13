@@ -22,6 +22,8 @@ export function buildSubTaskPrompt(sub: PublishSubTask): string {
     })
     .join('\n')
 
+  const hasXhs = channelIds.includes('xhs')
+
   return [
     multiChannel
       ? `请帮我在以下渠道依次发布同一条内容：${channelLabels}。`
@@ -32,6 +34,9 @@ export function buildSubTaskPrompt(sub: PublishSubTask): string {
     multiChannel ? `渠道执行顺序：${channelLabels}（前一个渠道完成后再执行下一个）。` : '',
     `自动发布：${sub.autoPublish ? '是（填好后发布）' : '否（只填好停在待发布）'}`,
     '配图：优先用 fetch_web_images 从相关新闻/内容来源网页抓取；用户本地上传仅为可选。',
+    hasXhs
+      ? '小红书风控：每篇标题/正文结构/话题须差异化，禁止同一模板批量发；发布时间分散在活跃时段，勿短时间连发多篇。'
+      : '',
     channelBlocks
   ]
     .filter(Boolean)
