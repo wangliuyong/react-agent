@@ -2,12 +2,12 @@
   position: sticky;
   bottom: 0;
   z-index: 10;
-  padding: 0 24px 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, var(--db-bg-content) 30%);
+  padding: 0 32px 28px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, var(--db-bg-content) 28%);
 }
 
 .inner {
-  max-width: 760px;
+  max-width: 820px;
   margin: 0 auto;
 }
 
@@ -72,23 +72,23 @@
   color: var(--db-primary) !important;
 }
 
-/* 输入框容器 — 豆包大圆角输入框 */
+/* 输入框容器 — 参考样式：大圆角、轻阴影 */
 .box {
   background: var(--db-bg-content);
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-xl);
   box-shadow: var(--db-shadow-input);
-  padding: 14px 16px 10px;
+  padding: 16px 18px 12px;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
 }
 
 .box:focus-within {
-  border-color: rgba(0, 87, 255, 0.4);
+  border-color: rgba(28, 31, 35, 0.18);
   box-shadow:
     var(--db-shadow-input),
-    0 0 0 3px var(--db-primary-muted);
+    0 0 0 3px rgba(28, 31, 35, 0.04);
 }
 
 .textarea {
@@ -101,7 +101,7 @@
   font-family: inherit;
   background: transparent;
   color: var(--db-text);
-  min-height: 44px;
+  min-height: 48px;
 }
 
 .box[data-running='true'] {
@@ -123,11 +123,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--db-border-light);
 }
 
+/* 完全访问状态点 — 参考样式：红色指示 */
 .dot {
   display: inline-block;
   width: 7px;
@@ -139,21 +140,34 @@
 }
 
 .dot[data-on='true'] {
-  background: var(--db-success);
+  background: var(--db-danger);
+}
+
+.accessBtn {
+  font-size: 12px !important;
+  color: var(--db-text-secondary) !important;
+  padding: 2px 6px !important;
+  height: auto !important;
+}
+
+.accessChevron {
+  font-size: 9px;
+  margin-left: 4px;
+  opacity: 0.45;
 }
 
 .modelBtn {
   font-size: 12px !important;
-  padding: 2px 8px !important;
+  padding: 2px 10px !important;
   height: auto !important;
-  border-radius: var(--db-radius-sm);
+  border-radius: var(--db-radius-pill);
   background: var(--db-hover);
   color: var(--db-text-secondary) !important;
 }
 
 .modelBtn:hover:not(:disabled) {
-  background: var(--db-primary-muted) !important;
-  color: var(--db-primary) !important;
+  background: rgba(28, 31, 35, 0.06) !important;
+  color: var(--db-text) !important;
 }
 
 .modelChevron {
@@ -187,6 +201,12 @@
   color: var(--db-primary);
 }
 
+.tokenText {
+  font-size: 11px !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
 .tokenSpin {
   font-size: 14px;
   color: var(--db-primary);
@@ -204,6 +224,13 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  background: var(--db-text) !important;
+  border-color: var(--db-text) !important;
+}
+
+.sendBtn:not(:disabled):hover {
+  background: #333 !important;
+  border-color: #333 !important;
 }
 
 .stopBtn {

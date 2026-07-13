@@ -11,6 +11,9 @@ import styles from './ChatPage.module.css'
 
 const { Title } = Typography
 
+/** 顶栏模式切换：智能助手 / 业务系统（业务系统暂未开放） */
+type ChatMode = 'assistant' | 'business'
+
 /** 聊天页容器：编排 store 与展示组件 */
 export function ChatPage(): React.ReactElement {
   const session = useSessionStore((s) => s.getActiveSession())
@@ -28,6 +31,7 @@ export function ChatPage(): React.ReactElement {
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const { browserRunning, loading, toggleBrowser } = useBrowserControl()
 
+  const [chatMode, setChatMode] = useState<ChatMode>('assistant')
   const newChatShortcut = queryNewChatShortcutLabel()
 
   const messages = session?.messages ?? []
@@ -43,32 +47,23 @@ export function ChatPage(): React.ReactElement {
   return (
     <div className={styles.page}>
       <header className={`${styles.header} app-drag`}>
+        {/* 左侧：侧边栏展开按钮（收起时）+ 会话标题 */}
         <div className={styles.headerLeft}>
-          <Space size={4} className="app-no-drag">
-            <Tooltip title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}>
+          {sidebarCollapsed ? (
+            <Tooltip title="展开侧边栏">
               <Button
                 type="text"
-                className={styles.headerIconBtn}
-                icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                className={`${styles.headerIconBtn} app-no-drag`}
+                icon={<MenuUnfoldOutlined />}
                 onClick={toggleSidebar}
               />
             </Tooltip>
-            <Tooltip title={`新对话 ${newChatShortcut}`}>
-              <Button
-                type="text"
-                className={styles.headerIconBtn}
-                icon={<FormOutlined />}
-                onClick={() => void createSession()}
-              />
-            </Tooltip>
-          </Space>
+          ) : null}
           <div className={styles.titleWrap}>
             <Title level={5} className={`${styles.title} app-no-drag`}>
-              {session?.title ?? '新对话'}
+              {session?.title ?? '新会话'}
             </Title>
-            {isEmpty ? (
-              <span className={`${styles.disclaimer} app-no-drag`}>AI 生成可能出错 注意核实</span>
-            ) : headerStatus ? (
+            {!isEmpty && headerStatus ? (
               <span className={`${styles.headerStatus} app-no-drag`}>
                 <span className={styles.statusDot} />
                 {headerStatus}
@@ -76,23 +71,54 @@ export function ChatPage(): React.ReactElement {
             ) : null}
           </div>
         </div>
-        <div className="app-no-drag">
-          <Segmented
+
+        {/* 中部：智能助手 / 业务系统 切换 */}
+        <div className={`${styles.headerCenter} app-no-drag`}>
+          <Segmented<ChatMode>
+            className={styles.modeSwitch}
             options={[
-              { label: '智能助手', value: 'assistant' }
+              {
+                label: (
+                  <span className={styles.modeLabel}>
+                    <RobotOutlined />
+                    智能助手
+                  </span>
+                ),
+                value: 'assistant'
+              },
+              {
+                label: (
+                  <span className={styles.modeLabel}>
+                    <FolderOutlined />
+                    业务系统
+                  </span>
+                ),
+                value: 'business',
+                disabled: true
+              }
             ]}
-            value="assistant"
+            value={chatMode}
+            onChange={(value) => setChatMode(value)}
           />
         </div>
-        <Space className="app-no-drag">
-          <Tooltip title="文档">
-            <Button type="text" icon={<FormOutlined />} />
+
+        {/* 右侧：新会话、浏览器控制 */}
+        <Space size={4} className={`${styles.headerRight} app-no-drag`}>
+          <Tooltip title={`新会话 ${newChatShortcut}`}>
+            <Button
+              type="text"
+              className={styles.headerIconBtn}
+              icon={<FormOutlined />}
+              onClick={() => void createSession()}
+            />
           </Tooltip>
           <Tooltip title={browserRunning ? '关闭智能体浏览器' : '打开智能体浏览器'}>
             <Button
-              type={browserRunning ? 'primary' : 'text'}
+              type="text"
+              className={styles.headerIconBtn}
               icon={<GlobalOutlined />}
               loading={loading}
+              data-active={browserRunning}
               onClick={() => void toggleBrowser()}
             />
           </Tooltip>

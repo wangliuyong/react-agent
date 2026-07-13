@@ -219,11 +219,12 @@ export function PublishWorkbench(): React.ReactElement {
                   </Text>
                 </div>
                 <Space>
-                  <Button onClick={() => setPlanModal({ mode: 'edit', plan: { ...active } })}>
+                  <Button type="link" size='small' onClick={() => setPlanModal({ mode: 'edit', plan: { ...active } })}>
                     编辑
                   </Button>
                   <Button
-                    type="primary"
+                    type="link"
+                    size='small'
                     icon={<PlayCircleOutlined />}
                     onClick={() => void runPlan(active)}
                   >
@@ -232,6 +233,7 @@ export function PublishWorkbench(): React.ReactElement {
                   <Button
                     danger
                     type="link"
+                    size='small'
                     onClick={async () => {
                       await removePlan(active.id)
                       message.success('已删除')

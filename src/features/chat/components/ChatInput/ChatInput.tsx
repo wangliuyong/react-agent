@@ -37,8 +37,10 @@ export function ChatInput({
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
 
-  const tokenMax = 1_000_000
-  const percent = Math.min(100, Math.round((tokenUsed / tokenMax) * 100))
+  /** 参考样式：以 120k 为展示上限 */
+  const tokenDisplayMax = 120_000
+  const tokenDisplayUsed = Math.round(tokenUsed / 1000)
+  const tokenDisplayMaxK = Math.round(tokenDisplayMax / 1000)
 
   const statusLabel = useMemo(
     () =>
@@ -142,7 +144,9 @@ export function ChatInput({
           <textarea
             className={styles.textarea}
             placeholder={
-              running ? 'Agent 正在处理，请稍候…' : '描述你的任务，Enter 发送，Shift+Enter 换行…'
+              running
+                ? 'Agent 正在处理，请稍候…'
+                : '描述你的任务，Enter 发送，Shift+Enter 换行…'
             }
             value={text}
             rows={2}
@@ -179,9 +183,10 @@ export function ChatInput({
                   ]
                 }}
               >
-                <Button type="text" size="small" disabled={running}>
+                <Button type="text" size="small" className={styles.accessBtn} disabled={running}>
                   <span className={styles.dot} data-on={settings.fullAccess} />
                   {settings.fullAccess ? '完全访问' : '需确认'}
+                  <DownOutlined className={styles.accessChevron} />
                 </Button>
               </Dropdown>
               <Tooltip title={running ? '任务运行中，请结束后再切换模型' : '选择大模型'}>
@@ -204,20 +209,9 @@ export function ChatInput({
             </Space>
             <Space size={10}>
               <div className={styles.token} data-running={running}>
-                {running ? (
-                  <LoadingOutlined className={styles.tokenSpin} spin />
-                ) : (
-                  <Progress
-                    type="circle"
-                    percent={percent}
-                    size={22}
-                    strokeWidth={10}
-                    strokeColor="#0057ff"
-                    format={() => ''}
-                  />
-                )}
-                <Text type="secondary" style={{ fontSize: 11 }}>
-                  {running ? '处理中' : `${Math.round(tokenUsed / 1000)}k`}
+                {running ? <LoadingOutlined className={styles.tokenSpin} spin /> : null}
+                <Text type="secondary" className={styles.tokenText}>
+                  {running ? '处理中' : `${tokenDisplayUsed}/${tokenDisplayMaxK}k`}
                 </Text>
               </div>
               {running ? (
