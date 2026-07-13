@@ -64,27 +64,27 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     })
   },
 
-  /** 预置截图同款「小红书任务」示例，方便开箱体验 */
+  /** 预置示例计划：含小红书与抖音子任务，方便开箱体验多渠道 */
   addDemoPlan: async () => {
     const plan = createEmptyPlan()
-    plan.title = '小红书任务'
-    plan.description = ''
+    plan.title = '多渠道发布任务'
+    plan.description = '小红书 + 抖音串行示例'
     plan.subTasks = [
       createEmptySubTask({
-        title: '体育 发布',
-        channel: '小红书',
+        title: '体育 · 小红书',
+        channel: 'xhs',
         topic: '体育',
         autoPublish: true,
         contentPrompt:
           '内容主题：搜罗昨日最新 nba 信息、交易、球星评论等。配图：从相关新闻来源网页用 fetch_web_images 抓取封面图（本地上传可选）。确认点：如果需要登录。'
       }),
       createEmptySubTask({
-        title: '人工智能 发布',
-        channel: '小红书',
+        title: '人工智能 · 抖音',
+        channel: 'douyin',
         topic: '人工智能',
         autoPublish: true,
         contentPrompt:
-          '内容主题：搜罗昨日 ai 最新热门新闻。标题要求：不超过 20 个字。配图：从相关新闻来源网页抓取（本地上传可选）。确认点：如果需要登录。'
+          '内容主题：搜罗昨日 ai 最新热门新闻。标题要求：不超过 30 个字。配图：从相关新闻来源网页抓取（本地上传可选）。确认点：如果需要登录。'
       })
     ]
     await postPublishPlan(plan)

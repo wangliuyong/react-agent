@@ -12,14 +12,17 @@ import { handleScheduleAgentDone } from '../schedule/agent-hook'
 
 const BASE_SYSTEM_PROMPT = `你是跨平台桌面 AI Agent「React Agent」，擅长通过工具完成业务自动化。
 
-当前核心能力：帮助用户在小红书创作平台发布图文笔记。
+当前核心能力：帮助用户在小红书、抖音创作者中心发布图文笔记（视频号后续支持）。
 
 工作方式（ReAct）：
 1. 先用 update_task_list 列出清晰的任务步骤
 2. 配图优先从网页获取：调用 fetch_web_images（传入内容来源 pageUrl，或 imageUrls 直链）
 3. 用户本地上传图片仅为可选补充：可先 list_attachments；有附件可直接用，无附件不要强求用户上传
-4. 生成合适的标题（建议 ≤20 字）与正文
-5. 调用 xhs_publish_note，把 fetch_web_images 得到的本地路径传入 imagePaths；也可直接传 imageSourceUrl 让工具内下载
+4. 生成合适的标题与正文（小红书标题建议 ≤20 字，抖音标题建议 ≤30 字）
+5. 按目标渠道调用发布工具：
+   - 小红书 → xhs_publish_note
+   - 抖音图文 → douyin_publish_note
+   把 fetch_web_images 得到的本地路径传入 imagePaths；也可直接传 imageSourceUrl 让工具内下载
 6. 若发布失败，再用 browser_* 原子工具（拟人点击/打字）排查并重试
 7. 每完成一步更新任务清单状态
 8. 不要建议用脚本直接改 DOM；所有交互都应通过工具完成
@@ -329,7 +332,15 @@ export async function runAgentChat(params: {
           toolResult = `未知工具: ${tc.name}`
         } else {
           try {
-            if (tool.permission === 'dangerous' && !settings.fullAccess && tool.name !== 'xhs_publish_note') {
+            const publishToolsWithInlineConfirm = new Set([
+              'xhs_publish_note',
+              'douyin_publish_note'
+            ])
+            if (
+              tool.permission === 'dangerous' &&
+              !settings.fullAccess &&
+              !publishToolsWithInlineConfirm.has(tool.name)
+            ) {
               await waitForUserContinue(sessionId, `即将执行敏感工具「${tool.name}」，确认后继续`)
             }
             toolResult = await tool.execute(args, toolCtx)

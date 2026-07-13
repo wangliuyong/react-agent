@@ -24,7 +24,7 @@ export interface FetchWebImagesResult {
 }
 
 /**
- * 从网页或直链下载配图到 artifacts，供小红书发布使用。
+ * 从网页或直链下载配图到 artifacts，供各渠道发布使用。
  * 用户本地上传变为可选；优先走网页来源。
  */
 export async function fetchWebImages(opts: FetchWebImagesOptions): Promise<FetchWebImagesResult> {

@@ -1,0 +1,90 @@
+/**
+ * 发布渠道注册表：UI 展示、Agent 工具路由、旧数据迁移均由此处统一维护。
+ * 新增渠道（如视频号）只需追加 PUBLISH_CHANNELS 并实现对应 publish 工具。
+ */
+
+/** 发布渠道 id（持久化字段，勿随意改名） */
+export type PublishChannelId = 'xhs' | 'douyin' | 'wechat_channels'
+
+export interface PublishChannelMeta {
+  id: PublishChannelId
+  /** 用户可见名称 */
+  label: string
+  /** 是否可在工作台选择 */
+  enabled: boolean
+  /** Agent 发布工具名（snake_case） */
+  publishTool: string
+  /** 标题建议最大字数；无单独标题的渠道可省略 */
+  titleMaxLength?: number
+  /** 发给 Agent 的补充说明 */
+  agentHint: string
+}
+
+/** 全部渠道元数据；wechat_channels 预留，enabled=false */
+export const PUBLISH_CHANNELS: PublishChannelMeta[] = [
+  {
+    id: 'xhs',
+    label: '小红书',
+    enabled: true,
+    publishTool: 'xhs_publish_note',
+    titleMaxLength: 20,
+    agentHint: '优先使用 xhs_publish_note（可传 imageSourceUrl 或先 fetch 再传 imagePaths）。'
+  },
+  {
+    id: 'douyin',
+    label: '抖音',
+    enabled: true,
+    publishTool: 'douyin_publish_note',
+    titleMaxLength: 30,
+    agentHint:
+      '优先使用 douyin_publish_note 发布图文笔记（可传 imageSourceUrl 或先 fetch 再传 imagePaths）。' +
+      '当前仅支持图文，视频发布后续支持。'
+  },
+  {
+    id: 'wechat_channels',
+    label: '视频号',
+    enabled: false,
+    publishTool: 'wechat_channels_publish_note',
+    agentHint: '视频号发布能力尚未接入，请勿调用发布工具。'
+  }
+]
+
+const CHANNEL_BY_ID = new Map(PUBLISH_CHANNELS.map((c) => [c.id, c]))
+
+/** 旧版子任务存的是中文 label，读盘时需归一化为 id */
+const LEGACY_LABEL_TO_ID: Record<string, PublishChannelId> = {
+  小红书: 'xhs',
+  抖音: 'douyin',
+  视频号: 'wechat_channels'
+}
+
+/**
+ * 将持久化的 channel 字段规范为 PublishChannelId。
+ * 兼容历史 JSON 中的中文 label。
+ */
+export function normalizePublishChannelId(raw: string | PublishChannelId): PublishChannelId {
+  if (CHANNEL_BY_ID.has(raw as PublishChannelId)) {
+    return raw as PublishChannelId
+  }
+  const fromLabel = LEGACY_LABEL_TO_ID[raw.trim()]
+  if (fromLabel) return fromLabel
+  // 未知值回退小红书，避免 Agent 无法路由
+  return 'xhs'
+}
+
+/** 取渠道展示名 */
+export function queryPublishChannelLabel(id: PublishChannelId | string): string {
+  const normalized = normalizePublishChannelId(String(id))
+  return CHANNEL_BY_ID.get(normalized)?.label ?? String(id)
+}
+
+/** 取渠道元数据 */
+export function queryPublishChannelMeta(id: PublishChannelId | string): PublishChannelMeta {
+  const normalized = normalizePublishChannelId(String(id))
+  return CHANNEL_BY_ID.get(normalized) ?? PUBLISH_CHANNELS[0]
+}
+
+/** 工作台 Select 可用选项 */
+export function queryEnabledPublishChannels(): PublishChannelMeta[] {
+  return PUBLISH_CHANNELS.filter((c) => c.enabled)
+}

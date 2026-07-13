@@ -159,12 +159,14 @@ export interface Session {
   updatedAt: number
 }
 
+import type { PublishChannelId } from './publish-channels'
+
 /** 发布计划子任务 */
 export interface PublishSubTask {
   id: string
   title: string
-  /** 渠道标签，如 小红书 */
-  channel: string
+  /** 发布渠道 id，见 shared/publish-channels.ts */
+  channel: PublishChannelId
   /** 主题标签 */
   topic: string
   /** 是否自动发布 */

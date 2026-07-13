@@ -7,7 +7,19 @@ import {
 } from 'fs'
 import { join } from 'path'
 import type { PublishPlan } from '../../../shared/types'
+import { normalizePublishChannelId } from '../../../shared/publish-channels'
 import { getPlansDir } from './paths'
+
+/** 读盘时归一化子任务 channel（兼容旧版中文 label） */
+function normalizePlan(plan: PublishPlan): PublishPlan {
+  return {
+    ...plan,
+    subTasks: plan.subTasks.map((sub) => ({
+      ...sub,
+      channel: normalizePublishChannelId(sub.channel as string)
+    }))
+  }
+}
 
 export function queryPublishPlans(): PublishPlan[] {
   const dir = getPlansDir()
@@ -15,7 +27,7 @@ export function queryPublishPlans(): PublishPlan[] {
   const list: PublishPlan[] = []
   for (const file of files) {
     try {
-      list.push(JSON.parse(readFileSync(join(dir, file), 'utf-8')) as PublishPlan)
+      list.push(normalizePlan(JSON.parse(readFileSync(join(dir, file), 'utf-8')) as PublishPlan))
     } catch {
       // skip corrupt
     }
@@ -27,7 +39,7 @@ export function queryPublishPlan(id: string): PublishPlan | null {
   const path = join(getPlansDir(), `${id}.json`)
   if (!existsSync(path)) return null
   try {
-    return JSON.parse(readFileSync(path, 'utf-8')) as PublishPlan
+    return normalizePlan(JSON.parse(readFileSync(path, 'utf-8')) as PublishPlan)
   } catch {
     return null
   }

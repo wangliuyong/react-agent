@@ -1,6 +1,14 @@
 import type { PublishPlan, PublishSubTask } from '@shared/types'
+import type { PublishChannelId } from '@shared/publish-channels'
 
 export { buildSubTaskPrompt, buildPublishPlanPrompt } from '@shared/publish-prompt'
+export {
+  PUBLISH_CHANNELS,
+  queryEnabledPublishChannels,
+  queryPublishChannelLabel,
+  normalizePublishChannelId
+} from '@shared/publish-channels'
+export type { PublishChannelId } from '@shared/publish-channels'
 
 export function createEmptyPlan(): PublishPlan {
   const now = Date.now()
@@ -18,7 +26,7 @@ export function createEmptySubTask(partial?: Partial<PublishSubTask>): PublishSu
   return {
     id: crypto.randomUUID(),
     title: '新子任务',
-    channel: '小红书',
+    channel: 'xhs',
     topic: '',
     autoPublish: true,
     contentPrompt: '',

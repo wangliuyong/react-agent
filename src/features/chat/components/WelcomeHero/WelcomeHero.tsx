@@ -18,6 +18,13 @@ interface QuickCard {
 
 const CARDS: QuickCard[] = [
   {
+    title: '发一条抖音图文',
+    desc: '从来源网页抓取配图，生成标题正文并发布到抖音创作者中心',
+    prompt:
+      '帮我发一条抖音图文，内容关于今日热点。请先找相关新闻来源页，用 fetch_web_images 抓取配图，再调用 douyin_publish_note 发布；标题不超过30字。我本地上传图片仅作可选补充。',
+    icon: <SendOutlined />
+  },
+  {
     title: '发一条小红书',
     desc: '从来源网页抓取配图，生成标题正文并发布（本地上传可选）',
     prompt:
@@ -40,7 +47,7 @@ const CARDS: QuickCard[] = [
   {
     title: '规划内容发布流',
     desc: '创建多子任务的发布计划并串行执行',
-    prompt: '帮我规划一个小红书发布计划：体育与人工智能两个子任务，串行执行；配图从来源网页抓取。',
+    prompt: '帮我规划一个多渠道发布计划：小红书体育 + 抖音人工智能两个子任务，串行执行；配图从来源网页抓取。',
     icon: <FileWordOutlined />
   }
 ]
@@ -58,7 +65,7 @@ export function WelcomeHero({ onPick }: WelcomeHeroProps): React.ReactElement {
         你好，我是 React Agent
       </Title>
       <Paragraph className={styles.sub}>
-        我可以帮你完成小红书发布、网页配图抓取、内容规划等任务，试试下面的快捷指令吧
+        我可以帮你完成小红书/抖音发布、网页配图抓取、内容规划等任务，试试下面的快捷指令吧
       </Paragraph>
       <div className={styles.grid}>
         {CARDS.map((card) => (
