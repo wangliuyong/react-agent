@@ -116,7 +116,11 @@ export function PublishWorkbench(): React.ReactElement {
     mode: 'create' | 'edit'
     plan: PublishPlan
   } | null>(null)
-  const [subEditing, setSubEditing] = useState<PublishSubTask | null>(null)
+  /** 子任务弹窗：create 为草稿，确认后才写入 plan.subTasks */
+  const [subModal, setSubModal] = useState<{
+    mode: 'create' | 'edit'
+    draft: PublishSubTask
+  } | null>(null)
 
   const active = useMemo(() => {
     const plan = plans.find((p) => p.id === activePlanId) ?? null
@@ -133,7 +137,7 @@ export function PublishWorkbench(): React.ReactElement {
     }
     await savePlan(next)
     // 若正在编辑被删子任务，关闭弹窗
-    if (subEditing?.id === subId) setSubEditing(null)
+    if (subModal?.draft.id === subId) setSubModal(null)
     message.success('已删除子任务')
   }
 
@@ -230,7 +234,7 @@ export function PublishWorkbench(): React.ReactElement {
                   <Button
                     type="link"
                     size='small'
-                    icon={<PlayCircleOutlined />}
+                    // icon={<PlayCircleOutlined />}
                     onClick={() => void runPlan(active)}
                   >
                     运行
@@ -260,7 +264,9 @@ export function PublishWorkbench(): React.ReactElement {
                           <Button
                             type="link"
                             size="small"
-                            onClick={() => setSubEditing(normalizePublishSubTask(sub))}
+                            onClick={() =>
+                              setSubModal({ mode: 'edit', draft: normalizePublishSubTask(sub) })
+                            }
                           >
                             编辑
                           </Button>
@@ -268,7 +274,7 @@ export function PublishWorkbench(): React.ReactElement {
                             title="确定删除该子任务？"
                             onConfirm={() => void removeSubTask(sub.id)}
                           >
-                            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                            <Button type="link" size="small" danger>
                               删除
                             </Button>
                           </Popconfirm>
@@ -290,14 +296,9 @@ export function PublishWorkbench(): React.ReactElement {
                 <Button
                   block
                   icon={<PlusOutlined />}
-                  onClick={async () => {
-                    const next = {
-                      ...active,
-                      subTasks: [...active.subTasks, createEmptySubTask()],
-                      updatedAt: Date.now()
-                    }
-                    await savePlan(next)
-                    setSubEditing(next.subTasks[next.subTasks.length - 1])
+                  onClick={() => {
+                    // 仅打开草稿弹窗，确认后再落盘
+                    setSubModal({ mode: 'create', draft: createEmptySubTask() })
                   }}
                 >
                   添加子任务
@@ -322,40 +323,48 @@ export function PublishWorkbench(): React.ReactElement {
       />
 
       <Modal
-        title="编辑子任务"
-        open={Boolean(subEditing) && Boolean(active)}
-        onCancel={() => setSubEditing(null)}
+        title={subModal?.mode === 'create' ? '新建子任务' : '编辑子任务'}
+        open={Boolean(subModal) && Boolean(active)}
+        onCancel={() => setSubModal(null)}
         onOk={async () => {
-          if (!active || !subEditing) return
-          if (!subEditing.channels.length) {
+          if (!active || !subModal) return
+          const { mode, draft } = subModal
+          if (!draft.channels.length) {
             message.warning('请至少选择一个发布渠道')
             return
           }
+          const subTasks =
+            mode === 'create'
+              ? [...active.subTasks, draft]
+              : active.subTasks.map((s) => (s.id === draft.id ? draft : s))
           const next = {
             ...active,
-            subTasks: active.subTasks.map((s) => (s.id === subEditing.id ? subEditing : s)),
+            subTasks,
             updatedAt: Date.now()
           }
           await savePlan(next)
-          setSubEditing(null)
-          message.success('已保存')
+          setSubModal(null)
+          message.success(mode === 'create' ? '已添加子任务' : '已保存')
         }}
+        okText={subModal?.mode === 'create' ? '添加' : '保存'}
         destroyOnClose
       >
-        {subEditing ? (
+        {subModal ? (
           <Form layout="vertical">
             <Form.Item label="标题">
               <Input
-                value={subEditing.title}
-                onChange={(e) => setSubEditing({ ...subEditing, title: e.target.value })}
+                value={subModal.draft.title}
+                onChange={(e) =>
+                  setSubModal({ ...subModal, draft: { ...subModal.draft, title: e.target.value } })
+                }
               />
             </Form.Item>
             <Form.Item label="渠道" required>
               <Select
                 mode="multiple"
-                value={subEditing.channels}
+                value={subModal.draft.channels}
                 onChange={(channels: PublishChannelId[]) =>
-                  setSubEditing({ ...subEditing, channels })
+                  setSubModal({ ...subModal, draft: { ...subModal.draft, channels } })
                 }
                 placeholder="选择发布渠道，可多选"
                 options={enabledChannels.map((c) => ({
@@ -366,23 +375,30 @@ export function PublishWorkbench(): React.ReactElement {
             </Form.Item>
             <Form.Item label="主题">
               <Input
-                value={subEditing.topic}
-                onChange={(e) => setSubEditing({ ...subEditing, topic: e.target.value })}
+                value={subModal.draft.topic}
+                onChange={(e) =>
+                  setSubModal({ ...subModal, draft: { ...subModal.draft, topic: e.target.value } })
+                }
               />
             </Form.Item>
             <Form.Item label="内容说明">
               <Input.TextArea
                 rows={4}
-                value={subEditing.contentPrompt}
+                value={subModal.draft.contentPrompt}
                 onChange={(e) =>
-                  setSubEditing({ ...subEditing, contentPrompt: e.target.value })
+                  setSubModal({
+                    ...subModal,
+                    draft: { ...subModal.draft, contentPrompt: e.target.value }
+                  })
                 }
               />
             </Form.Item>
             <Form.Item label="自动发布">
               <Switch
-                checked={subEditing.autoPublish}
-                onChange={(v) => setSubEditing({ ...subEditing, autoPublish: v })}
+                checked={subModal.draft.autoPublish}
+                onChange={(v) =>
+                  setSubModal({ ...subModal, draft: { ...subModal.draft, autoPublish: v } })
+                }
               />
             </Form.Item>
           </Form>
