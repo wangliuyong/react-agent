@@ -214,15 +214,36 @@
   width: 100%;
   display: flex;
   align-items: center;
+  gap: 2px;
+  border-radius: var(--db-radius-md);
+  transition: background 0.15s ease;
+}
+
+.historyMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   border: none;
   background: transparent;
   border-radius: var(--db-radius-md);
-  padding: 10px 12px;
+  padding: 10px 4px 10px 12px;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s ease;
+}
+
+.historyDelete {
+  flex-shrink: 0;
+  opacity: 0;
+  width: 28px !important;
+  transition: opacity 0.15s ease;
+}
+
+.historyItem:hover .historyDelete,
+.historyItem[data-active='true'] .historyDelete {
+  opacity: 1;
 }
 
 .historyIcon {
@@ -244,6 +265,11 @@
 
 .historyItem[data-active='true'] {
   background: var(--db-active);
+}
+
+.historyItem:hover .historyMain,
+.historyItem[data-active='true'] .historyMain {
+  background: transparent;
 }
 
 .historyTitle {

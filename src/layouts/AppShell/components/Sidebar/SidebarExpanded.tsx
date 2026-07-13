@@ -13,6 +13,7 @@ interface SidebarExpandedProps {
   activeSessionId: string | null
   onNavigate: (view: AppView) => void
   onSelectSession: (sessionId: string) => void
+  onDeleteSession: (sessionId: string) => void
   onCreateSession: () => void
   onToggleCollapse: () => void
 }
@@ -24,6 +25,7 @@ export function SidebarExpanded({
   activeSessionId,
   onNavigate,
   onSelectSession,
+  onDeleteSession,
   onCreateSession,
   onToggleCollapse
 }: SidebarExpandedProps): React.ReactElement {
@@ -37,6 +39,7 @@ export function SidebarExpanded({
         activeSessionId={activeSessionId}
         activeView={view}
         onSelect={onSelectSession}
+        onDelete={onDeleteSession}
       />
       <SidebarFooter
         activeView={view}

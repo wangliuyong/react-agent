@@ -1,4 +1,5 @@
-import { HistoryOutlined } from '@ant-design/icons'
+import { DeleteOutlined, HistoryOutlined } from '@ant-design/icons'
+import { Button, Popconfirm } from 'antd'
 import type { AppView } from '@/stores/app-store'
 import { formatRelativeTime } from '@/features/chat'
 import { SESSION_TYPE_ICONS } from '../../config/session-type-icons'
@@ -10,6 +11,7 @@ interface SidebarHistoryProps {
   activeSessionId: string | null
   activeView: AppView
   onSelect: (sessionId: string) => void
+  onDelete: (sessionId: string) => void
 }
 
 /** 历史对话列表，仅展开态展示 */
@@ -17,7 +19,8 @@ export function SidebarHistory({
   items,
   activeSessionId,
   activeView,
-  onSelect
+  onSelect,
+  onDelete
 }: SidebarHistoryProps): React.ReactElement {
   return (
     <>
@@ -29,20 +32,42 @@ export function SidebarHistory({
       </div>
       <div className={styles.history}>
         {items.map((item) => (
-          <button
+          <div
             key={item.id}
-            type="button"
             className={styles.historyItem}
             data-active={item.id === activeSessionId && activeView === 'chat'}
-            onClick={() => onSelect(item.id)}
           >
-            {/* 按会话类型展示不同图标 */}
-            <span className={styles.historyIcon}>
-              {SESSION_TYPE_ICONS[item.type]}
-            </span>
-            <span className={styles.historyTitle}>{item.title}</span>
-            <span className={styles.historyTime}>{formatRelativeTime(item.updatedAt)}</span>
-          </button>
+            <button
+              type="button"
+              className={styles.historyMain}
+              onClick={() => onSelect(item.id)}
+            >
+              {/* 按会话类型展示不同图标 */}
+              <span className={styles.historyIcon}>
+                {SESSION_TYPE_ICONS[item.type]}
+              </span>
+              <span className={styles.historyTitle}>{item.title}</span>
+              <span className={styles.historyTime}>{formatRelativeTime(item.updatedAt)}</span>
+            </button>
+            <Popconfirm
+              title="确定删除该对话？"
+              description="删除后无法恢复"
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => onDelete(item.id)}
+            >
+              <Button
+                type="text"
+                size="small"
+                danger
+                className={styles.historyDelete}
+                icon={<DeleteOutlined />}
+                aria-label={`删除对话：${item.title}`}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </Popconfirm>
+          </div>
         ))}
       </div>
     </>
