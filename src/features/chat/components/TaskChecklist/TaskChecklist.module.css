@@ -26,7 +26,7 @@
   background: linear-gradient(
     90deg,
     var(--db-primary) 0%,
-    rgba(0, 87, 255, 0.35) 55%,
+    var(--db-primary-grad-soft) 55%,
     transparent 100%
   );
   pointer-events: none;
@@ -125,7 +125,7 @@
 .progressFill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--db-primary), rgba(0, 87, 255, 0.55));
+  background: linear-gradient(90deg, var(--db-primary), var(--db-primary-grad-mid));
   transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -166,7 +166,7 @@
 }
 
 .taskRowDone:not(:last-child)::after {
-  background: linear-gradient(180deg, rgba(0, 87, 255, 0.28) 0%, var(--db-border) 100%);
+  background: linear-gradient(180deg, var(--db-primary-line) 0%, var(--db-border) 100%);
 }
 
 /* ── 状态指示器 ── */
@@ -317,7 +317,7 @@
   min-width: 0;
   font-size: 11px;
   line-height: 1.4;
-  color: #b45309;
+  color: var(--db-warning-text);
 }
 
 .runningHint {

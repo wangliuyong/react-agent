@@ -16,7 +16,7 @@
   pointer-events: none;
   background:
     radial-gradient(ellipse 70% 45% at 0% 0%, var(--db-primary-muted), transparent 50%),
-    radial-gradient(ellipse 50% 40% at 100% 100%, rgba(0, 87, 255, 0.04), transparent 55%);
+    radial-gradient(ellipse 50% 40% at 100% 100%, var(--db-primary-subtle), transparent 55%);
   opacity: 0.9;
 }
 
@@ -74,7 +74,7 @@
   padding: 0 8px;
   border-radius: var(--db-radius-pill);
   background: var(--db-primary);
-  color: #fff;
+  color: var(--db-on-primary);
   font-size: 12px;
   font-weight: 600;
 }
@@ -173,8 +173,8 @@
 }
 
 .card:hover {
-  border-color: rgba(0, 87, 255, 0.25) !important;
-  box-shadow: 0 4px 20px rgba(0, 87, 255, 0.06);
+  border-color: var(--db-primary-border-active) !important;
+  box-shadow: 0 4px 20px var(--db-primary-shadow);
 }
 
 .cardHead {
@@ -232,7 +232,7 @@
 
 .cardUsage {
   font-size: 12px;
-  color: var(--db-text-tertiary, #999);
+  color: var(--db-text-tertiary);
 }
 
 .tagDraft {
@@ -240,7 +240,7 @@
   flex-shrink: 0;
   border: none !important;
   background: rgba(250, 173, 20, 0.12) !important;
-  color: #d48806 !important;
+  color: var(--db-warning-text-alt) !important;
   font-size: 11px !important;
   border-radius: 6px !important;
 }
@@ -306,7 +306,7 @@
   margin: 0 !important;
   border-radius: var(--db-radius-md);
   background: var(--db-primary-muted);
-  border: 1px solid rgba(0, 87, 255, 0.12);
+  border: 1px solid var(--db-primary-border);
   font-size: 14px;
   line-height: 1.65;
   color: var(--db-text);
@@ -384,7 +384,7 @@
 .importPreview {
   border-radius: var(--db-radius-md) !important;
   background: var(--db-primary-muted) !important;
-  border: 1px solid rgba(0, 87, 255, 0.15) !important;
+  border: 1px solid var(--db-primary-border-md) !important;
 }
 
 .importPreviewDesc {

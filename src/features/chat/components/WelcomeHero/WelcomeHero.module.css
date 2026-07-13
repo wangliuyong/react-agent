@@ -75,7 +75,7 @@
 
 .card:hover {
   border-color: rgba(28, 31, 35, 0.15);
-  background: #fafbfc;
+  background: var(--db-bg-subtle);
   box-shadow: var(--db-shadow-sm);
 }
 

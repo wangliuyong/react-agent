@@ -126,7 +126,7 @@
 }
 
 .modeSwitch :global(.ant-segmented-item-selected .ant-segmented-item-label) {
-  color: #fff !important;
+  color: var(--db-on-primary) !important;
 }
 
 .modeLabel {

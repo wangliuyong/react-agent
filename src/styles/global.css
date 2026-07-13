@@ -16,17 +16,40 @@
   --db-text-secondary: #86909c;
   --db-text-tertiary: #b0b4bc;
 
-  /* 品牌色 — 豆包蓝 */
+  /* 品牌色 — 豆包蓝（与 theme-tokens.ts 保持同步） */
   --db-primary: #0057ff;
   --db-primary-hover: #0046cc;
+  --db-primary-light: #3370ff;
   --db-primary-soft: #e8f0ff;
   --db-primary-muted: rgba(0, 87, 255, 0.08);
   --db-primary-glow: rgba(0, 87, 255, 0.18);
+  --db-primary-faint: rgba(0, 87, 255, 0.03);
+  --db-primary-subtle: rgba(0, 87, 255, 0.04);
+  --db-primary-shadow: rgba(0, 87, 255, 0.06);
+  --db-primary-border: rgba(0, 87, 255, 0.12);
+  --db-primary-border-md: rgba(0, 87, 255, 0.15);
+  --db-primary-border-strong: rgba(0, 87, 255, 0.18);
+  --db-primary-border-hover: rgba(0, 87, 255, 0.2);
+  --db-primary-border-active: rgba(0, 87, 255, 0.25);
+  --db-primary-line: rgba(0, 87, 255, 0.28);
+  --db-primary-grad-soft: rgba(0, 87, 255, 0.35);
+  --db-primary-grad-mid: rgba(0, 87, 255, 0.55);
+  --db-on-primary: #ffffff;
 
   /* 功能色 */
   --db-success: #00b578;
   --db-warning: #ff8800;
+  --db-warning-bg: #fff8e6;
+  --db-warning-text: #b45309;
+  --db-warning-text-alt: #d48806;
   --db-danger: #f53f3f;
+
+  /* 代码块 */
+  --db-code-bg: #1c1f23;
+  --db-code-text: #e5e6eb;
+
+  /* 辅助背景 */
+  --db-bg-subtle: #fafbfc;
 
   /* 圆角 */
   --db-radius-sm: 8px;

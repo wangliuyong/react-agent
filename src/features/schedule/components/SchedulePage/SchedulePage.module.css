@@ -19,8 +19,8 @@
       90deg,
       transparent,
       transparent 59px,
-      rgba(0, 87, 255, 0.03) 59px,
-      rgba(0, 87, 255, 0.03) 60px
+      var(--db-primary-faint) 59px,
+      var(--db-primary-faint) 60px
     );
   opacity: 0.9;
 }
@@ -100,7 +100,7 @@
   padding: 8px 14px;
   border-radius: var(--db-radius-pill);
   background: var(--db-primary-muted);
-  border: 1px solid rgba(0, 87, 255, 0.12);
+  border: 1px solid var(--db-primary-border);
   font-size: 12px;
   color: var(--db-primary);
   animation: nextPulse 3s ease-in-out infinite;
@@ -109,10 +109,10 @@
 @keyframes nextPulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 87, 255, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(0, 87, 255, 0.06);
+    box-shadow: 0 0 0 6px var(--db-primary-shadow);
   }
 }
 
@@ -154,11 +154,11 @@
 
 .taskItem[data-active='true'] {
   background: var(--db-active);
-  border-color: rgba(0, 87, 255, 0.15);
+  border-color: var(--db-primary-border-md);
 }
 
 .taskItem[data-next='true'] {
-  border-color: rgba(0, 87, 255, 0.25);
+  border-color: var(--db-primary-border-active);
   box-shadow: inset 3px 0 0 var(--db-primary);
 }
 
