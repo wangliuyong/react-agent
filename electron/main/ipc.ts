@@ -37,6 +37,11 @@ import {
 } from './store/skills'
 import { querySkillImportPreview, postImportSkillFromUrl } from './store/skill-import'
 import { queryLocalImageDataUrl } from './store/local-image'
+import {
+  queryAllChannelLoginStatuses,
+  postOpenChannelLogin
+} from './browser/channel-login'
+import type { PublishChannelId } from '../../shared/publish-channels'
 
 /** 注册全部 IPC；读 query* / 写 post* */
 export function registerIpcHandlers(): void {
@@ -97,6 +102,11 @@ export function registerIpcHandlers(): void {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  ipcMain.handle(IpcChannels.queryChannelLoginStatuses, () => queryAllChannelLoginStatuses())
+  ipcMain.handle(IpcChannels.postChannelOpenLogin, async (_e, channelId: PublishChannelId) =>
+    postOpenChannelLogin(channelId)
+  )
 
   ipcMain.handle(IpcChannels.queryProjectSkills, () => queryProjectSkills())
   ipcMain.handle(IpcChannels.queryProjectSkillDetail, (_e, id: string) =>
