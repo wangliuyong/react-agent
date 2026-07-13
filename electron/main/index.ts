@@ -29,7 +29,11 @@ function createWindow(): void {
   setMainWindow(mainWindow)
 
   if (process.env.ELECTRON_RENDERER_URL) {
+    // 本地开发：加载 Vite 开发服务器并自动打开调试面板
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow?.webContents.openDevTools({ mode: 'detach' })
+    })
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
