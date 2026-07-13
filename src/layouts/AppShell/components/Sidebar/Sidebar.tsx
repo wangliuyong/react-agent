@@ -11,7 +11,7 @@ interface SidebarProps {
 /** 侧边栏容器：组合 hooks 与展开/折叠展示组件 */
 export function Sidebar({ view }: SidebarProps): React.ReactElement {
   const { sidebarCollapsed, toggleSidebar } = useSidebar()
-  const { historyItems, activeSessionId, navigateTo, selectSession, createNewSession } =
+  const { historyItems, activeSessionId, navigateTo, selectSession, createNewSession, deleteSession } =
     useSidebarNavigation({ view })
 
   return (
@@ -34,6 +34,7 @@ export function Sidebar({ view }: SidebarProps): React.ReactElement {
           activeSessionId={activeSessionId}
           onNavigate={navigateTo}
           onSelectSession={selectSession}
+          onDeleteSession={(id) => void deleteSession(id)}
           onCreateSession={createNewSession}
           onToggleCollapse={toggleSidebar}
         />
