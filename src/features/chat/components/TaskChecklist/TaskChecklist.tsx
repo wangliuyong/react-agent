@@ -1,7 +1,12 @@
-import { CheckCircleOutlined } from '@ant-design/icons'
-import { Card, List } from 'antd'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { TaskItem } from '@shared/types'
+import {
+  CheckCircleFilled,
+  CloseCircleFilled,
+  HolderOutlined,
+  LoadingOutlined
+} from '@ant-design/icons'
+import { Card } from 'antd'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { TaskItem, TaskItemStatus } from '@shared/types'
 import styles from './TaskChecklist.module.css'
 
 /** 默认距顶部偏移（位于 header 下方） */
@@ -73,6 +78,47 @@ function clampPosition(
   }
 }
 
+/** 渲染单个任务的状态图标 */
+function TaskStatusIcon({ status }: { status: TaskItemStatus }): React.ReactElement {
+  if (status === 'done') {
+    return <CheckCircleFilled className={styles.iconDone} />
+  }
+  if (status === 'failed') {
+    return <CloseCircleFilled className={styles.iconFailed} />
+  }
+  if (status === 'running') {
+    return (
+      <>
+        <span className={styles.statusRunningRing} aria-hidden />
+        <LoadingOutlined className={styles.iconRunning} spin />
+      </>
+    )
+  }
+  return <span className={styles.iconPending} aria-hidden />
+}
+
+/** 渲染任务标题样式类名 */
+function queryTaskTitleClass(status: TaskItemStatus): string {
+  return [
+    styles.taskTitle,
+    status === 'done' && styles.taskTitleDone,
+    status === 'running' && styles.taskTitleRunning,
+    status === 'failed' && styles.taskTitleFailed
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+/** 渲染任务行样式类名 */
+function queryTaskRowClass(status: TaskItemStatus): string {
+  return [
+    styles.taskRow,
+    status === 'done' && styles.taskRowDone
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
 /**
  * 浮动任务清单：默认固定于聊天页右上角，可拖动，不随消息区滚动。
  * 拖动仅通过标题栏触发，避免与列表内容交互冲突。
@@ -83,6 +129,14 @@ export function TaskChecklist({ tasks, visible }: TaskChecklistProps): React.Rea
   const [dragging, setDragging] = useState(false)
   /** 指针按下时，记录指针相对卡片左上角的偏移 */
   const dragOffsetRef = useRef<Position>({ x: 0, y: 0 })
+
+  /** 任务进度统计：已完成 / 总数 / 进度百分比 */
+  const progress = useMemo(() => {
+    const total = tasks.length
+    const done = tasks.filter((t) => t.status === 'done').length
+    const percent = total > 0 ? Math.round((done / total) * 100) : 0
+    return { total, done, percent }
+  }, [tasks])
 
   /** 窗口尺寸变化时重新校正位置，防止卡片超出可视区域 */
   useEffect(() => {
@@ -123,8 +177,6 @@ export function TaskChecklist({ tasks, visible }: TaskChecklistProps): React.Rea
     event.currentTarget.setPointerCapture(event.pointerId)
 
     const cardRect = cardEl.getBoundingClientRect()
-    const parentRect = parentEl.getBoundingClientRect()
-
     dragOffsetRef.current = {
       x: event.clientX - cardRect.left,
       y: event.clientY - cardRect.top
@@ -176,42 +228,50 @@ export function TaskChecklist({ tasks, visible }: TaskChecklistProps): React.Rea
           onPointerUp={handleDragEnd}
           onPointerCancel={handleDragEnd}
         >
-          <span>任务清单</span>
+          <HolderOutlined className={styles.dragIcon} aria-hidden />
+          <div className={styles.headerMain}>
+            <div className={styles.headerRow}>
+              <span className={styles.headerTitle}>任务清单</span>
+              <span
+                className={`${styles.headerMeta} ${progress.done === progress.total ? styles.headerMetaDone : ''}`}
+              >
+                {progress.done}/{progress.total}
+              </span>
+            </div>
+            <div className={styles.progressTrack} aria-hidden>
+              <div
+                className={styles.progressFill}
+                style={{ width: `${progress.percent}%` }}
+              />
+            </div>
+          </div>
         </div>
       }
       className={styles.card}
       style={{ left: position.x, top: position.y }}
-      styles={{ body: { padding: '8px 12px' } }}
     >
-      <List
-        size="small"
-        dataSource={tasks}
-        renderItem={(item) => (
-          <List.Item style={{ padding: '6px 0', border: 'none' }}>
-            <span
-              className={[
-                styles.taskItem,
-                item.status === 'done' && styles.taskItemDone,
-                item.status === 'running' && styles.taskItemRunning,
-                item.status === 'failed' && styles.taskItemFailed
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              {item.status === 'done' ? (
-                <CheckCircleOutlined className={styles.doneIcon} />
-              ) : item.status === 'running' ? (
-                <span className={styles.dot} />
-              ) : (
-                <span className={styles.pending} />
-              )}
-              <span className={item.status === 'done' ? styles.doneText : undefined}>
-                {item.title}
-              </span>
+      <ul className={styles.taskList}>
+        {tasks.map((item, index) => (
+          <li
+            key={item.id}
+            className={queryTaskRowClass(item.status)}
+            style={{ '--task-index': index } as React.CSSProperties}
+          >
+            <span className={styles.statusIcon}>
+              <TaskStatusIcon status={item.status} />
             </span>
-          </List.Item>
-        )}
-      />
+            <div className={styles.taskContent}>
+              <span className={queryTaskTitleClass(item.status)}>{item.title}</span>
+              {item.status === 'running' ? (
+                <span className={`${styles.taskBadge} ${styles.badgeRunning}`}>执行中</span>
+              ) : null}
+              {item.status === 'failed' ? (
+                <span className={`${styles.taskBadge} ${styles.badgeFailed}`}>失败</span>
+              ) : null}
+            </div>
+          </li>
+        ))}
+      </ul>
     </Card>
   )
 }

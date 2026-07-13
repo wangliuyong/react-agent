@@ -1,40 +1,66 @@
+/* ── 浮动任务清单：豆包极简 + 时间轴进度 ── */
+
 .card {
   position: absolute;
-  width: 272px;
+  width: 288px;
   z-index: 10;
   border-radius: var(--db-radius-lg) !important;
   border: 1px solid var(--db-border) !important;
   background: var(--db-bg-content) !important;
-  box-shadow: var(--db-shadow-lg) !important;
-  animation: slideIn 0.3s ease;
+  box-shadow:
+    var(--db-shadow-lg),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset !important;
+  animation: panelEnter 0.38s cubic-bezier(0.22, 1, 0.36, 1);
   touch-action: none;
+  overflow: hidden;
 }
 
-@keyframes slideIn {
+/* 顶部品牌色渐变条 */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--db-primary) 0%,
+    rgba(0, 87, 255, 0.35) 55%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes panelEnter {
   from {
     opacity: 0;
-    transform: translateX(12px);
+    transform: translateX(16px) translateY(-4px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateX(0) translateY(0) scale(1);
   }
 }
 
 .card :global(.ant-card-head) {
-  min-height: 40px !important;
+  min-height: auto !important;
   padding: 0 !important;
-  border-bottom: 1px solid var(--db-border-light) !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
+  border-bottom: none !important;
+  background: linear-gradient(180deg, var(--db-primary-muted) 0%, transparent 100%) !important;
 }
 
+.card :global(.ant-card-body) {
+  padding: 0 0 10px !important;
+}
+
+/* ── 标题栏（可拖动） ── */
 .dragHandle {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 14px;
-  height: 40px;
+  padding: 12px 14px 10px;
   cursor: grab;
   user-select: none;
 }
@@ -46,74 +72,226 @@
 .dragIcon {
   color: var(--db-text-tertiary);
   font-size: 12px;
-}
-
-.dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--db-primary);
-  margin-right: 8px;
   flex-shrink: 0;
-  animation: runPulse 1.2s ease-in-out infinite;
+  transition: color 0.2s ease;
 }
 
-.taskItem {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--db-text);
-}
-
-.taskItemDone {
+.dragHandle:hover .dragIcon {
   color: var(--db-text-secondary);
 }
 
-.taskItemRunning {
-  color: var(--db-primary);
-  font-weight: 500;
+.headerMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.taskItemFailed {
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.headerTitle {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--db-text);
+}
+
+.headerMeta {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--db-text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.headerMetaDone {
+  color: var(--db-primary);
+}
+
+/* 整体进度条 */
+.progressTrack {
+  height: 3px;
+  border-radius: var(--db-radius-pill);
+  background: var(--db-border-light);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--db-primary), rgba(0, 87, 255, 0.55));
+  transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── 任务列表 ── */
+.taskList {
+  list-style: none;
+  margin: 0;
+  padding: 4px 12px 0;
+}
+
+.taskRow {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 4px;
+  border-radius: var(--db-radius-sm);
+  animation: taskReveal 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--task-index, 0) * 45ms);
+}
+
+.taskRow:hover {
+  background: var(--db-hover);
+}
+
+/* 时间轴竖线 */
+.taskRow:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 26px;
+  bottom: -7px;
+  width: 1px;
+  background: linear-gradient(180deg, var(--db-border) 0%, transparent 100%);
+}
+
+.taskRowDone:not(:last-child)::after {
+  background: linear-gradient(180deg, rgba(0, 87, 255, 0.28) 0%, var(--db-border) 100%);
+}
+
+/* ── 状态指示器 ── */
+.statusIcon {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.iconDone {
+  font-size: 15px;
+  color: var(--db-primary);
+}
+
+.iconFailed {
+  font-size: 15px;
   color: var(--db-danger);
 }
 
-.doneIcon {
-  margin-right: 6px;
-  color: var(--db-primary);
+.iconRunning {
   font-size: 14px;
-  flex-shrink: 0;
-  margin-top: 3px;
-}
-
-.doneText {
-  text-decoration: line-through;
-  text-decoration-color: rgba(0, 87, 255, 0.35);
   color: var(--db-primary);
 }
 
-.pending {
-  display: inline-block;
+.iconPending {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   border: 1.5px solid var(--db-border);
-  margin-right: 8px;
-  flex-shrink: 0;
-  margin-top: 5px;
+  background: var(--db-bg-content);
 }
 
-@keyframes runPulse {
+/* 进行中：外圈脉冲 */
+.statusRunningRing {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--db-primary-glow);
+  animation: runRing 1.4s ease-out infinite;
+}
+
+@keyframes runRing {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+/* ── 任务文案 ── */
+.taskContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.taskTitle {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--db-text);
+  word-break: break-word;
+}
+
+.taskTitleDone {
+  color: var(--db-text-secondary);
+  text-decoration: line-through;
+  text-decoration-color: rgba(134, 144, 156, 0.45);
+}
+
+.taskTitleRunning {
+  color: var(--db-primary);
+  font-weight: 500;
+}
+
+.taskTitleFailed {
+  color: var(--db-danger);
+}
+
+.taskBadge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 1px 7px;
+  border-radius: var(--db-radius-pill);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+}
+
+.badgeRunning {
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  animation: badgePulse 1.6s ease-in-out infinite;
+}
+
+.badgeFailed {
+  background: rgba(245, 63, 63, 0.08);
+  color: var(--db-danger);
+}
+
+@keyframes badgePulse {
   0%,
   100% {
     opacity: 1;
-    box-shadow: 0 0 0 0 var(--db-primary-glow);
   }
   50% {
-    opacity: 0.55;
-    box-shadow: 0 0 0 4px transparent;
+    opacity: 0.65;
+  }
+}
+
+@keyframes taskReveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
