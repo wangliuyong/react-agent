@@ -42,9 +42,15 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   savePlan: async (plan) => {
     const next = { ...plan, updatedAt: Date.now() }
     await postPublishPlan(next)
-    set((s) => ({
-      plans: s.plans.map((p) => (p.id === next.id ? next : p))
-    }))
+    set((s) => {
+      const exists = s.plans.some((p) => p.id === next.id)
+      return {
+        plans: exists
+          ? s.plans.map((p) => (p.id === next.id ? next : p))
+          : [next, ...s.plans],
+        activePlanId: exists ? s.activePlanId : next.id
+      }
+    })
   },
 
   removePlan: async (id) => {

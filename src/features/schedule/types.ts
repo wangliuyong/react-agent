@@ -9,7 +9,7 @@ export function createEmptyScheduledTask(): ScheduledTask {
 
   return {
     id: crypto.randomUUID(),
-    title: '未命名定时任务',
+    title: '',
     description: '',
     enabled: true,
     repeat: 'daily',

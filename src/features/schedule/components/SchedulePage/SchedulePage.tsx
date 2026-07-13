@@ -25,7 +25,7 @@ import {
   ThunderboltOutlined
 } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
-import type { ScheduledTask, ScheduleRepeat } from '@shared/types'
+import type { ScheduledTask, ScheduleActionType, ScheduleRepeat } from '@shared/types'
 import {
   formatNextRunAt,
   formatScheduleSummary,
@@ -33,12 +33,197 @@ import {
   WEEKDAY_OPTIONS
 } from '@shared/schedule-utils'
 import { useScheduleStore } from '../../hooks/useScheduleStore'
+import { createEmptyScheduledTask } from '../../types'
 import { usePublishStore } from '@/features/publish'
 import { useSessionStore } from '@/features/chat'
 import { useAppStore } from '@/stores/app-store'
 import styles from './SchedulePage.module.css'
 
 const { Title, Text, Paragraph } = Typography
+
+interface TaskFormValues {
+  title: string
+  description: string
+  repeat: ScheduleRepeat
+  runAt?: Dayjs
+  weekday?: number
+  timeOfDay?: Dayjs
+  actionType: ScheduleActionType
+  publishPlanId?: string
+  customPrompt?: string
+  enabled: boolean
+}
+
+/** 将表单值合并回定时任务实体 */
+function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): ScheduledTask {
+  return {
+    ...base,
+    title: values.title.trim(),
+    description: values.description?.trim() ?? '',
+    repeat: values.repeat,
+    runAt: values.repeat === 'once' ? values.runAt?.valueOf() : base.runAt,
+    weekday: values.repeat === 'weekly' ? values.weekday : base.weekday,
+    timeOfDay: values.repeat !== 'once' ? (values.timeOfDay?.format('HH:mm') ?? '09:00') : base.timeOfDay,
+    actionType: values.actionType,
+    publishPlanId: values.actionType === 'publish_plan' ? values.publishPlanId : undefined,
+    customPrompt: values.actionType === 'custom_prompt' ? values.customPrompt?.trim() : undefined,
+    enabled: values.enabled
+  }
+}
+
+/** 定时任务表单：新建/编辑共用，确定前必须通过必填校验 */
+function TaskEditModal({
+  open,
+  mode,
+  initialTask,
+  plans,
+  onCancel,
+  onSubmit
+}: {
+  open: boolean
+  mode: 'create' | 'edit'
+  initialTask: ScheduledTask | null
+  plans: Array<{ id: string; title: string; subTasks: unknown[] }>
+  onCancel: () => void
+  onSubmit: (task: ScheduledTask) => Promise<void>
+}): React.ReactElement {
+  const [form] = Form.useForm<TaskFormValues>()
+  const [submitting, setSubmitting] = useState(false)
+  const repeat = Form.useWatch('repeat', form)
+  const actionType = Form.useWatch('actionType', form)
+
+  const handleOk = async (): Promise<void> => {
+    if (!initialTask) return
+    try {
+      const values = await form.validateFields()
+      setSubmitting(true)
+      await onSubmit(mergeTaskFormValues(initialTask, values))
+    } catch {
+      // 校验未通过，保持弹窗打开
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Modal
+      title={mode === 'create' ? '新建定时任务' : '编辑定时任务'}
+      open={open}
+      onCancel={onCancel}
+      onOk={() => void handleOk()}
+      confirmLoading={submitting}
+      okText={mode === 'create' ? '创建' : '保存'}
+      width={560}
+      destroyOnClose
+      afterOpenChange={(visible) => {
+        if (visible && initialTask) {
+          form.setFieldsValue({
+            title: initialTask.title,
+            description: initialTask.description,
+            repeat: initialTask.repeat,
+            runAt: initialTask.runAt ? dayjs(initialTask.runAt) : undefined,
+            weekday: initialTask.weekday ?? 1,
+            timeOfDay: dayjs(initialTask.timeOfDay, 'HH:mm'),
+            actionType: initialTask.actionType,
+            publishPlanId: initialTask.publishPlanId,
+            customPrompt: initialTask.customPrompt,
+            enabled: initialTask.enabled
+          })
+        } else {
+          form.resetFields()
+        }
+      }}
+    >
+      <Form form={form} layout="vertical" className={styles.form} preserve={false}>
+        <Form.Item
+          label="标题"
+          name="title"
+          rules={[
+            { required: true, whitespace: true, message: '请填写任务标题' },
+            { max: 60, message: '标题不超过 60 字' }
+          ]}
+        >
+          <Input placeholder="例如：每日小红书发布" maxLength={60} showCount />
+        </Form.Item>
+        <Form.Item label="说明" name="description">
+          <Input.TextArea rows={2} placeholder="可选" maxLength={200} showCount />
+        </Form.Item>
+        <Form.Item label="重复规则" name="repeat" rules={[{ required: true, message: '请选择重复规则' }]}>
+          <Segmented
+            block
+            options={SCHEDULE_REPEAT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          />
+        </Form.Item>
+        {repeat === 'once' ? (
+          <Form.Item
+            label="执行时间"
+            name="runAt"
+            rules={[{ required: true, message: '请选择执行时间' }]}
+          >
+            <DatePicker showTime style={{ width: '100%' }} />
+          </Form.Item>
+        ) : (
+          <>
+            {repeat === 'weekly' ? (
+              <Form.Item
+                label="星期"
+                name="weekday"
+                rules={[{ required: true, message: '请选择星期' }]}
+              >
+                <Select options={WEEKDAY_OPTIONS} />
+              </Form.Item>
+            ) : null}
+            <Form.Item
+              label="时刻"
+              name="timeOfDay"
+              rules={[{ required: true, message: '请选择时刻' }]}
+            >
+              <TimePicker format="HH:mm" style={{ width: '100%' }} />
+            </Form.Item>
+          </>
+        )}
+        <Form.Item label="执行动作" name="actionType" rules={[{ required: true, message: '请选择执行动作' }]}>
+          <Segmented
+            block
+            options={[
+              { value: 'publish_plan', label: '发布计划' },
+              { value: 'custom_prompt', label: '自定义指令' }
+            ]}
+          />
+        </Form.Item>
+        {actionType === 'publish_plan' ? (
+          <Form.Item
+            label="关联发布计划"
+            name="publishPlanId"
+            rules={[{ required: true, message: '请选择关联的发布计划' }]}
+          >
+            <Select
+              placeholder="选择发布计划"
+              options={plans.map((p) => ({
+                value: p.id,
+                label: `${p.title}（${p.subTasks.length} 子任务）`
+              }))}
+            />
+          </Form.Item>
+        ) : (
+          <Form.Item
+            label="Agent 指令"
+            name="customPrompt"
+            rules={[
+              { required: true, whitespace: true, message: '请填写 Agent 指令' },
+              { min: 10, message: '指令至少 10 个字符' }
+            ]}
+          >
+            <Input.TextArea rows={5} placeholder="到点时发送给 Agent 的完整指令…" />
+          </Form.Item>
+        )}
+        <Form.Item label="启用" name="enabled" valuePropName="checked">
+          <Switch />
+        </Form.Item>
+      </Form>
+    </Modal>
+  )
+}
 
 /** 执行状态对应的展示标签 */
 function StatusTag({ status }: { status: ScheduledTask['lastRunStatus'] }): React.ReactElement | null {
@@ -58,7 +243,6 @@ export function SchedulePage(): React.ReactElement {
   const tasks = useScheduleStore((s) => s.tasks)
   const activeTaskId = useScheduleStore((s) => s.activeTaskId)
   const setActive = useScheduleStore((s) => s.setActive)
-  const createTask = useScheduleStore((s) => s.createTask)
   const saveTask = useScheduleStore((s) => s.saveTask)
   const removeTask = useScheduleStore((s) => s.removeTask)
   const toggleEnabled = useScheduleStore((s) => s.toggleEnabled)
@@ -69,7 +253,10 @@ export function SchedulePage(): React.ReactElement {
   const setActiveSession = useSessionStore((s) => s.setActive)
   const setView = useAppStore((s) => s.setView)
 
-  const [editing, setEditing] = useState<ScheduledTask | null>(null)
+  const [taskModal, setTaskModal] = useState<{
+    mode: 'create' | 'edit'
+    task: ScheduledTask
+  } | null>(null)
 
   const active = useMemo(
     () => tasks.find((t) => t.id === activeTaskId) ?? null,
@@ -88,22 +275,7 @@ export function SchedulePage(): React.ReactElement {
   const enabledCount = tasks.filter((t) => t.enabled).length
 
   const openEdit = (task: ScheduledTask): void => {
-    setEditing({ ...task })
-  }
-
-  const handleSaveEdit = async (): Promise<void> => {
-    if (!editing) return
-    if (editing.actionType === 'publish_plan' && !editing.publishPlanId) {
-      message.warning('请选择关联的发布计划')
-      return
-    }
-    if (editing.actionType === 'custom_prompt' && !editing.customPrompt?.trim()) {
-      message.warning('请填写自定义指令')
-      return
-    }
-    await saveTask(editing)
-    setEditing(null)
-    message.success('已保存')
+    setTaskModal({ mode: 'edit', task: { ...task } })
   }
 
   const handleRunNow = async (task: ScheduledTask): Promise<void> => {
@@ -153,9 +325,9 @@ export function SchedulePage(): React.ReactElement {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={async () => {
-              const task = await createTask()
-              openEdit(task)
+            onClick={() => {
+              // 仅打开弹窗草稿，校验通过后再落盘
+              setTaskModal({ mode: 'create', task: createEmptyScheduledTask() })
             }}
           >
             新建定时任务
@@ -316,121 +488,19 @@ export function SchedulePage(): React.ReactElement {
         </main>
       </div>
 
-      <Modal
-        title="编辑定时任务"
-        open={Boolean(editing)}
-        onCancel={() => setEditing(null)}
-        onOk={() => void handleSaveEdit()}
-        width={560}
-        destroyOnClose
-      >
-        {editing ? (
-          <Form layout="vertical" className={styles.form}>
-            <Form.Item label="标题" required>
-              <Input
-                value={editing.title}
-                onChange={(e) => setEditing({ ...editing, title: e.target.value })}
-              />
-            </Form.Item>
-            <Form.Item label="说明">
-              <Input.TextArea
-                rows={2}
-                value={editing.description}
-                onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-              />
-            </Form.Item>
-            <Form.Item label="重复规则">
-              <Segmented
-                block
-                options={SCHEDULE_REPEAT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-                value={editing.repeat}
-                onChange={(v) => setEditing({ ...editing, repeat: v as ScheduleRepeat })}
-              />
-            </Form.Item>
-            {editing.repeat === 'once' ? (
-              <Form.Item label="执行时间" required>
-                <DatePicker
-                  showTime
-                  style={{ width: '100%' }}
-                  value={editing.runAt ? dayjs(editing.runAt) : null}
-                  onChange={(d: Dayjs | null) =>
-                    setEditing({ ...editing, runAt: d?.valueOf() })
-                  }
-                />
-              </Form.Item>
-            ) : (
-              <>
-                {editing.repeat === 'weekly' ? (
-                  <Form.Item label="星期" required>
-                    <Select
-                      options={WEEKDAY_OPTIONS}
-                      value={editing.weekday ?? 1}
-                      onChange={(v) => setEditing({ ...editing, weekday: v })}
-                    />
-                  </Form.Item>
-                ) : null}
-                <Form.Item label="时刻" required>
-                  <TimePicker
-                    format="HH:mm"
-                    style={{ width: '100%' }}
-                    value={dayjs(editing.timeOfDay, 'HH:mm')}
-                    onChange={(d: Dayjs | null) =>
-                      setEditing({
-                        ...editing,
-                        timeOfDay: d ? d.format('HH:mm') : '09:00'
-                      })
-                    }
-                  />
-                </Form.Item>
-              </>
-            )}
-            <Form.Item label="执行动作">
-              <Segmented
-                block
-                options={[
-                  { value: 'publish_plan', label: '发布计划' },
-                  { value: 'custom_prompt', label: '自定义指令' }
-                ]}
-                value={editing.actionType}
-                onChange={(v) =>
-                  setEditing({
-                    ...editing,
-                    actionType: v as ScheduledTask['actionType']
-                  })
-                }
-              />
-            </Form.Item>
-            {editing.actionType === 'publish_plan' ? (
-              <Form.Item label="关联发布计划" required>
-                <Select
-                  placeholder="选择发布计划"
-                  options={plans.map((p) => ({
-                    value: p.id,
-                    label: `${p.title}（${p.subTasks.length} 子任务）`
-                  }))}
-                  value={editing.publishPlanId}
-                  onChange={(v) => setEditing({ ...editing, publishPlanId: v })}
-                />
-              </Form.Item>
-            ) : (
-              <Form.Item label="Agent 指令" required>
-                <Input.TextArea
-                  rows={5}
-                  placeholder="到点时发送给 Agent 的完整指令…"
-                  value={editing.customPrompt}
-                  onChange={(e) => setEditing({ ...editing, customPrompt: e.target.value })}
-                />
-              </Form.Item>
-            )}
-            <Form.Item label="启用">
-              <Switch
-                checked={editing.enabled}
-                onChange={(v) => setEditing({ ...editing, enabled: v })}
-              />
-            </Form.Item>
-          </Form>
-        ) : null}
-      </Modal>
+      <TaskEditModal
+        open={Boolean(taskModal)}
+        mode={taskModal?.mode ?? 'create'}
+        initialTask={taskModal?.task ?? null}
+        plans={plans}
+        onCancel={() => setTaskModal(null)}
+        onSubmit={async (task) => {
+          const isCreate = taskModal?.mode === 'create'
+          await saveTask(task)
+          setTaskModal(null)
+          message.success(isCreate ? '已创建定时任务' : '已保存')
+        }}
+      />
     </div>
   )
 }

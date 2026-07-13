@@ -6,7 +6,7 @@ export function createEmptyPlan(): PublishPlan {
   const now = Date.now()
   return {
     id: crypto.randomUUID(),
-    title: '未命名发布计划',
+    title: '',
     description: '',
     subTasks: [],
     createdAt: now,

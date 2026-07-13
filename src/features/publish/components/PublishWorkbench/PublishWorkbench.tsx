@@ -14,7 +14,7 @@ import {
 } from 'antd'
 import { PlusOutlined, PlayCircleOutlined, DeleteOutlined } from '@ant-design/icons'
 import { usePublishStore } from '../../hooks/usePublishStore'
-import { buildSubTaskPrompt, createEmptySubTask } from '../../types'
+import { buildSubTaskPrompt, createEmptyPlan, createEmptySubTask } from '../../types'
 import type { PublishPlan, PublishSubTask } from '@shared/types'
 import { useSessionStore } from '@/features/chat'
 import { useAppStore } from '@/stores/app-store'
@@ -22,12 +22,89 @@ import styles from './PublishWorkbench.module.css'
 
 const { Title, Text, Paragraph } = Typography
 
+interface PlanFormValues {
+  title: string
+  description: string
+}
+
+/** 发布计划表单：新建/编辑共用，确定前必须通过必填校验 */
+function PlanEditModal({
+  open,
+  mode,
+  initialPlan,
+  onCancel,
+  onSubmit
+}: {
+  open: boolean
+  mode: 'create' | 'edit'
+  initialPlan: PublishPlan | null
+  onCancel: () => void
+  onSubmit: (plan: PublishPlan) => Promise<void>
+}): React.ReactElement {
+  const [form] = Form.useForm<PlanFormValues>()
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleOk = async (): Promise<void> => {
+    if (!initialPlan) return
+    try {
+      const values = await form.validateFields()
+      setSubmitting(true)
+      await onSubmit({
+        ...initialPlan,
+        title: values.title.trim(),
+        description: values.description.trim()
+      })
+    } catch {
+      // 校验未通过，保持弹窗打开
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Modal
+      title={mode === 'create' ? '新建发布计划' : '编辑发布计划'}
+      open={open}
+      onCancel={onCancel}
+      onOk={() => void handleOk()}
+      confirmLoading={submitting}
+      okText={mode === 'create' ? '创建' : '保存'}
+      destroyOnClose
+      afterOpenChange={(visible) => {
+        if (visible && initialPlan) {
+          form.setFieldsValue({
+            title: initialPlan.title,
+            description: initialPlan.description
+          })
+        } else {
+          form.resetFields()
+        }
+      }}
+    >
+      <Form form={form} layout="vertical" preserve={false}>
+        <Form.Item
+          label="标题"
+          name="title"
+          rules={[
+            { required: true, whitespace: true, message: '请填写计划标题' },
+            { max: 60, message: '标题不超过 60 字' }
+          ]}
+        >
+          <Input placeholder="例如：小红书每日发布" maxLength={60} showCount />
+        </Form.Item>
+        <Form.Item label="说明" name="description">
+          <Input.TextArea rows={3} placeholder="可选，补充计划用途说明" maxLength={200} showCount />
+        </Form.Item>
+      </Form>
+    </Modal>
+  )
+}
+
 /** 发布工作台：计划编辑；执行进度在主聊天窗口查看 */
 export function PublishWorkbench(): React.ReactElement {
   const plans = usePublishStore((s) => s.plans)
   const activePlanId = usePublishStore((s) => s.activePlanId)
   const setActive = usePublishStore((s) => s.setActive)
-  const createPlan = usePublishStore((s) => s.createPlan)
   const savePlan = usePublishStore((s) => s.savePlan)
   const removePlan = usePublishStore((s) => s.removePlan)
   const addDemoPlan = usePublishStore((s) => s.addDemoPlan)
@@ -36,7 +113,10 @@ export function PublishWorkbench(): React.ReactElement {
   const sendMessage = useSessionStore((s) => s.sendMessage)
   const setView = useAppStore((s) => s.setView)
 
-  const [editing, setEditing] = useState<PublishPlan | null>(null)
+  const [planModal, setPlanModal] = useState<{
+    mode: 'create' | 'edit'
+    plan: PublishPlan
+  } | null>(null)
   const [subEditing, setSubEditing] = useState<PublishSubTask | null>(null)
 
   const active = useMemo(
@@ -99,9 +179,9 @@ export function PublishWorkbench(): React.ReactElement {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={async () => {
-              const plan = await createPlan()
-              setEditing(plan)
+            onClick={() => {
+              // 仅打开弹窗草稿，校验通过后再落盘
+              setPlanModal({ mode: 'create', plan: createEmptyPlan() })
             }}
           >
             新建发布计划
@@ -144,7 +224,9 @@ export function PublishWorkbench(): React.ReactElement {
                   </Text>
                 </div>
                 <Space>
-                  <Button onClick={() => setEditing(active)}>编辑</Button>
+                  <Button onClick={() => setPlanModal({ mode: 'edit', plan: { ...active } })}>
+                    编辑
+                  </Button>
                   <Button
                     type="primary"
                     icon={<PlayCircleOutlined />}
@@ -218,36 +300,18 @@ export function PublishWorkbench(): React.ReactElement {
         </main>
       </div>
 
-      <Modal
-        title="编辑发布计划"
-        open={Boolean(editing)}
-        onCancel={() => setEditing(null)}
-        onOk={async () => {
-          if (!editing) return
-          await savePlan(editing)
-          setEditing(null)
-          message.success('已保存')
+      <PlanEditModal
+        open={Boolean(planModal)}
+        mode={planModal?.mode ?? 'create'}
+        initialPlan={planModal?.plan ?? null}
+        onCancel={() => setPlanModal(null)}
+        onSubmit={async (plan) => {
+          const isCreate = planModal?.mode === 'create'
+          await savePlan(plan)
+          setPlanModal(null)
+          message.success(isCreate ? '已创建发布计划' : '已保存')
         }}
-        destroyOnClose
-      >
-        {editing ? (
-          <Form layout="vertical">
-            <Form.Item label="标题">
-              <Input
-                value={editing.title}
-                onChange={(e) => setEditing({ ...editing, title: e.target.value })}
-              />
-            </Form.Item>
-            <Form.Item label="说明">
-              <Input.TextArea
-                rows={3}
-                value={editing.description}
-                onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-              />
-            </Form.Item>
-          </Form>
-        ) : null}
-      </Modal>
+      />
 
       <Modal
         title="编辑子任务"

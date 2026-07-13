@@ -47,9 +47,15 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
 
   saveTask: async (task) => {
     const saved = await postScheduledTask(task)
-    set((s) => ({
-      tasks: s.tasks.map((t) => (t.id === saved.id ? saved : t))
-    }))
+    set((s) => {
+      const exists = s.tasks.some((t) => t.id === saved.id)
+      return {
+        tasks: exists
+          ? s.tasks.map((t) => (t.id === saved.id ? saved : t))
+          : [saved, ...s.tasks],
+        activeTaskId: exists ? s.activeTaskId : saved.id
+      }
+    })
     return saved
   },
 
