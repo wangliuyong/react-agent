@@ -125,12 +125,6 @@ export function ChannelsPage(): React.ReactElement {
     }
   }, [])
 
-  useEffect(() => {
-    if (channels.length > 0) {
-      void refreshStatuses()
-    }
-  }, [channels.length, refreshStatuses])
-
   const enabledCount = useMemo(() => channels.filter((c) => c.enabled).length, [channels])
 
   const loggedInCount = useMemo(
