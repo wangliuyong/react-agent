@@ -4,8 +4,9 @@
   "description": "我的私人秘书",
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
-    "dev:debug": "electron-vite dev --sourcemap --remoteDebuggingPort 9222",
+    "dev": "electron-vite dev --sourcemap --remoteDebuggingPort 9222",
+    "dev:fast": "electron-vite dev",
+    "dev:debug": "pnpm dev",
     "dev:inspect": "electron-vite dev --inspect --sourcemap",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
