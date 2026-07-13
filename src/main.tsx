@@ -27,8 +27,9 @@ createRoot(document.getElementById('root')!).render(
           fontFamily:
             '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, sans-serif',
           controlHeight: 36,
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)',
-          boxShadowSecondary: '0 1px 3px rgba(0, 0, 0, 0.04)'
+          boxShadow:
+            '0 16px 48px rgba(0, 0, 0, 0.14), 0 6px 16px rgba(0, 0, 0, 0.08)',
+          boxShadowSecondary: '0 8px 28px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)'
         },
         components: {
           Button: {

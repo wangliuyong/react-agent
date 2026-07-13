@@ -40,6 +40,11 @@
   --db-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
   --db-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
   --db-shadow-input: 0 2px 12px rgba(0, 0, 0, 0.06);
+  /* 弹窗 / 二次确认浮层：加深阴影，避免与白底页面融为一体 */
+  --db-shadow-overlay:
+    0 16px 48px rgba(0, 0, 0, 0.14),
+    0 6px 16px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
 
   /* 兼容旧变量名 */
   --bg-app: var(--db-bg);
@@ -126,4 +131,17 @@ a {
 .ant-segmented-item-selected {
   border-radius: calc(var(--db-radius-md) - 2px) !important;
   box-shadow: var(--db-shadow-sm) !important;
+}
+
+/* Modal / Popconfirm 二次确认：增强浮层阴影与遮罩对比 */
+.ant-modal-content {
+  box-shadow: var(--db-shadow-overlay) !important;
+}
+
+.ant-popover-inner {
+  box-shadow: var(--db-shadow-overlay) !important;
+}
+
+.ant-modal-mask {
+  background: rgba(0, 0, 0, 0.42) !important;
 }
