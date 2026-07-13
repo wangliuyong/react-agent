@@ -60,7 +60,7 @@ interface WelcomeHeroProps {
 export function WelcomeHero({ onPick }: WelcomeHeroProps): React.ReactElement {
   return (
     <div className={styles.wrap}>
-      <div className={styles.avatar}>灵</div>
+      {/* <div className={styles.avatar}>灵</div> */}
       <Title level={2} className={styles.title}>
         你好，我是灵犀
       </Title>

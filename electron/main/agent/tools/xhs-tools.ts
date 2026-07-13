@@ -56,7 +56,9 @@ export const fetchWebImagesTool: AgentTool = {
 export const xhsPublishNoteTool: AgentTool = {
   name: 'xhs_publish_note',
   description:
-    '在小红书创作平台发布图文笔记。全程模拟用户鼠标移动/点击与键盘逐字输入。' +
+    '在小红书创作平台发布图文笔记。发布前自动浏览发现页热身（刷笔记、停留、点赞），' +
+    '步骤间 2～10 秒随机延迟，贝塞尔曲线滚动/鼠标轨迹，配图自动微裁剪去同质化。' +
+    '遵守作息（0-6 点不操作）与日≤2篇/周≤10篇限制。' +
     '配图优先使用 imagePaths（通常来自 fetch_web_images）；也可传 imageSourceUrl / imageUrls 由本工具内下载。' +
     '用户本轮上传的附件仅为可选补充。' +
     '若未登录会暂停等待扫码；非完全访问模式下点「发布」前会再次确认。',

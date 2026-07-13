@@ -28,7 +28,10 @@ export const PUBLISH_CHANNELS: PublishChannelMeta[] = [
     enabled: true,
     publishTool: 'xhs_publish_note',
     titleMaxLength: 20,
-    agentHint: '优先使用 xhs_publish_note（可传 imageSourceUrl 或先 fetch 再传 imagePaths）。'
+    agentHint:
+      '优先使用 xhs_publish_note（可传 imageSourceUrl 或先 fetch 再传 imagePaths）。' +
+      '内容须去同质化：每篇标题结构、正文段落、话题标签需差异化，禁止模板批量替换关键词。' +
+      '工具会自动浏览热身、随机延迟、配图微处理；遵守日≤2篇/周≤10篇、深夜0-6点不操作。'
   },
   {
     id: 'douyin',

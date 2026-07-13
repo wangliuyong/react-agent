@@ -1,23 +1,16 @@
 import type { Locator, Page } from 'playwright'
-
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
-
-function rand(min: number, max: number): number {
-  return min + Math.random() * (max - min)
-}
+import { humanBezierMoveTo, rand, sleep } from './human-behavior'
 
 /**
- * 拟人鼠标/键盘：移动轨迹 + 真实 click/type，避免 locator.fill / 瞬时 click。
+ * 拟人鼠标/键盘：贝塞尔移动轨迹 + 真实 click/type，避免 locator.fill / 瞬时 click。
  * 用于小红书发布等需要「像用户操作」的场景。
  */
 export async function humanMoveTo(
   page: Page,
   target: { x: number; y: number },
-  steps = 18
+  _steps = 18
 ): Promise<void> {
-  const stepCount = Math.max(8, Math.floor(steps + rand(-3, 5)))
-  await page.mouse.move(target.x, target.y, { steps: stepCount })
-  await sleep(rand(40, 120))
+  await humanBezierMoveTo(page, target)
 }
 
 export async function humanClickLocator(
@@ -124,7 +117,7 @@ export async function humanTypeBySelectors(
   page: Page,
   selectors: string[],
   text: string,
-  opts?: { clear?: boolean }
+  opts?: { clear?: boolean; delayMin?: number; delayMax?: number }
 ): Promise<boolean> {
   for (const sel of selectors) {
     try {
