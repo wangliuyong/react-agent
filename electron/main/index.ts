@@ -5,6 +5,7 @@ import { getDataRoot } from './store/paths'
 import { setMainWindow } from './window'
 import { getBrowserService } from './browser/service'
 import { releaseBrowserProfileLock } from './browser/profile-lock'
+import { startScheduleService } from './schedule/scheduler'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -47,6 +48,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   getDataRoot()
   registerIpcHandlers()
+  startScheduleService()
   createWindow()
 
   app.on('activate', () => {

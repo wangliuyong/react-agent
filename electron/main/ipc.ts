@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { rmSync, existsSync } from 'fs'
 import { IpcChannels } from '../../shared/types'
-import type { AgentChatRequest, AppSettings, PublishPlan, Session, SkillStates, SkillUpsertInput } from '../../shared/types'
+import type { AgentChatRequest, AppSettings, PublishPlan, ScheduledTask, Session, SkillStates, SkillUpsertInput } from '../../shared/types'
 import { querySettings, postSettings } from './store/settings'
 import {
   querySessions,
@@ -15,6 +15,13 @@ import {
   postPublishPlan,
   postDeletePublishPlan
 } from './store/plans'
+import {
+  queryScheduledTasks,
+  queryScheduledTask,
+  postScheduledTask,
+  postDeleteScheduledTask
+} from './store/schedules'
+import { triggerScheduledTask } from './schedule/scheduler'
 import { runAgentChat, postAgentAbort, postAgentContinue } from './agent/loop'
 import { getBrowserService } from './browser/service'
 import { getBrowserProfileDir } from './store/paths'
@@ -48,6 +55,18 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.postPublishPlan, (_e, plan: PublishPlan) => postPublishPlan(plan))
   ipcMain.handle(IpcChannels.postDeletePublishPlan, (_e, id: string) =>
     postDeletePublishPlan(id)
+  )
+
+  ipcMain.handle(IpcChannels.queryScheduledTasks, () => queryScheduledTasks())
+  ipcMain.handle(IpcChannels.queryScheduledTask, (_e, id: string) => queryScheduledTask(id))
+  ipcMain.handle(IpcChannels.postScheduledTask, (_e, task: ScheduledTask) =>
+    postScheduledTask(task)
+  )
+  ipcMain.handle(IpcChannels.postDeleteScheduledTask, (_e, id: string) =>
+    postDeleteScheduledTask(id)
+  )
+  ipcMain.handle(IpcChannels.postRunScheduledTask, async (_e, id: string) =>
+    triggerScheduledTask(id, true)
   )
 
   ipcMain.handle(IpcChannels.postAgentChat, async (_e, req: AgentChatRequest) => {

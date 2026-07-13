@@ -4,9 +4,10 @@ import { useAppStore } from '@/stores/app-store'
 import { useSessionStore } from '@/features/chat'
 import { useSettingsStore } from '@/features/settings'
 import { usePublishStore } from '@/features/publish'
+import { useScheduleStore } from '@/features/schedule'
 
 /**
- * 根编排：启动时拉取设置 / 会话 / 发布计划，并订阅 Agent 事件。
+ * 根编排：启动时拉取设置 / 会话 / 发布计划 / 定时任务，并订阅 Agent 与调度事件。
  * 业务 UI 下沉到 features，App 只做装配。
  */
 export default function App(): ReactElement {
@@ -15,14 +16,28 @@ export default function App(): ReactElement {
   const bindAgentEvents = useSessionStore((s) => s.bindAgentEvents)
   const hydrateSettings = useSettingsStore((s) => s.hydrate)
   const hydratePlans = usePublishStore((s) => s.hydrate)
+  const hydrateSchedules = useScheduleStore((s) => s.hydrate)
+  const bindScheduleUpdates = useScheduleStore((s) => s.bindScheduleUpdates)
 
   useEffect(() => {
     void hydrateSettings()
     void hydrateSessions()
     void hydratePlans()
-    const unsub = bindAgentEvents()
-    return unsub
-  }, [hydrateSettings, hydrateSessions, hydratePlans, bindAgentEvents])
+    void hydrateSchedules()
+    const unsubAgent = bindAgentEvents()
+    const unsubSchedule = bindScheduleUpdates()
+    return () => {
+      unsubAgent()
+      unsubSchedule()
+    }
+  }, [
+    hydrateSettings,
+    hydrateSessions,
+    hydratePlans,
+    hydrateSchedules,
+    bindAgentEvents,
+    bindScheduleUpdates
+  ])
 
   return <AppShell view={view} />
 }
