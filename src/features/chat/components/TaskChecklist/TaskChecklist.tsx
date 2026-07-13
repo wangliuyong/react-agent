@@ -1,3 +1,4 @@
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import type { TaskItem, TaskItemStatus } from '@shared/types'
 import styles from './TaskChecklist.module.css'
 
@@ -183,7 +184,7 @@ export function TaskChecklist({
   }, [dragging, position])
 
   /** 标题栏按下：开始拖动 */
-  const handleDragStart = useCallback((event) => {
+  const handleDragStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const cardEl = cardRef.current
     const parentEl = cardEl?.offsetParent as HTMLElement | null
     if (!cardEl || !parentEl) return
@@ -202,7 +203,7 @@ export function TaskChecklist({
 
   /** 拖动中：根据指针位置更新卡片坐标 */
   const handleDragMove = useCallback(
-    (event) => {
+    (event: ReactPointerEvent<HTMLDivElement>) => {
       if (!dragging) return
 
       const cardEl = cardRef.current
@@ -221,7 +222,7 @@ export function TaskChecklist({
   )
 
   /** 松开指针：结束拖动 */
-  const handleDragEnd = useCallback((event) => {
+  const handleDragEnd = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragging) return
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
@@ -277,7 +278,7 @@ export function TaskChecklist({
           <li
             key={item.id}
             className={queryTaskRowClass(item.status)}
-            style={{ '--task-index': index } as Record<string, number>}
+            style={{ '--task-index': index } as CSSProperties}
           >
             <span className={styles.statusIcon}>
               <TaskStatusIcon status={item.status} />
