@@ -1,0 +1,255 @@
+/* ── 侧边栏：豆包白底简洁风 ── */
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--db-sidebar);
+  border-right: 1px solid var(--db-border);
+  transition: width 0.22s ease;
+}
+
+.sidebar[data-collapsed='true'] {
+  width: 64px;
+}
+
+.sidebar[data-collapsed='true'] .sidebarTop {
+  justify-content: center;
+  padding: 12px 8px 4px;
+}
+
+.sidebar[data-collapsed='true'] .trafficSpacer {
+  display: none;
+}
+
+.sidebarTop {
+  display: flex;
+  align-items: center;
+  padding: 12px 12px 4px;
+  min-height: 40px;
+}
+
+.trafficSpacer {
+  width: 68px;
+  height: 12px;
+}
+
+/* ── 折叠态快捷操作 ── */
+.collapsedBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  padding: 0 8px 8px;
+  min-height: 0;
+}
+
+.collapsedPrimaryBtn {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: var(--db-radius-md) !important;
+  box-shadow: 0 2px 8px var(--db-primary-glow) !important;
+}
+
+.collapsedNav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.collapsedNavItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: var(--db-radius-md);
+  cursor: pointer;
+  color: var(--db-text);
+  font-size: 16px;
+  transition: background 0.15s ease;
+}
+
+.collapsedNavItem:hover {
+  background: var(--db-hover);
+}
+
+.collapsedNavItem[data-active='true'] {
+  background: var(--db-active);
+  color: var(--db-primary);
+}
+
+.collapsedFooter {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--db-border-light);
+}
+
+.collapsedIconBtn {
+  width: 40px !important;
+  height: 40px !important;
+}
+
+.collapsedIconBtn[data-active='true'] {
+  color: var(--db-primary) !important;
+  background: var(--db-active) !important;
+}
+
+/* 品牌 Logo 区 */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px 12px;
+}
+
+.brandIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0057ff 0%, #3370ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px var(--db-primary-glow);
+}
+
+.brandName {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--db-text);
+  letter-spacing: -0.02em;
+}
+
+.newTask {
+  padding: 0 12px 16px;
+}
+
+.newTaskBtn {
+  height: 40px !important;
+  border-radius: var(--db-radius-md) !important;
+  font-weight: 500 !important;
+  box-shadow: 0 2px 8px var(--db-primary-glow) !important;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--db-radius-md);
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--db-text);
+  font-size: 14px;
+  transition: background 0.15s ease;
+}
+
+.navItem:hover {
+  background: var(--db-hover);
+}
+
+.navItem[data-active='true'] {
+  background: var(--db-active);
+  color: var(--db-primary);
+  font-weight: 600;
+}
+
+.navIcon {
+  width: 18px;
+  display: inline-flex;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.sectionLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 16px 8px;
+  color: var(--db-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.history {
+  flex: 1;
+  overflow: auto;
+  padding: 0 8px 8px;
+}
+
+.historyItem {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--db-radius-md);
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.historyItem:hover {
+  background: var(--db-hover);
+}
+
+.historyItem[data-active='true'] {
+  background: var(--db-active);
+}
+
+.historyTitle {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--db-text);
+}
+
+.historyItem[data-active='true'] .historyTitle {
+  color: var(--db-primary);
+  font-weight: 500;
+}
+
+.historyTime {
+  color: var(--db-text-tertiary);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.sidebarFooter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px;
+  border-top: 1px solid var(--db-border-light);
+}
+
+.collapseToggleWrap {
+  margin-left: auto;
+}
