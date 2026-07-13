@@ -5,7 +5,7 @@ import {
   postPublishPlan,
   queryPublishPlans
 } from '../api'
-import { createEmptyPlan, createEmptySubTask } from '../types'
+import { createEmptyPlan, createEmptySubTask, normalizePublishPlan } from '../types'
 
 interface PublishState {
   plans: PublishPlan[]
@@ -23,7 +23,7 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   activePlanId: null,
 
   hydrate: async () => {
-    const plans = await queryPublishPlans()
+    const plans = (await queryPublishPlans()).map(normalizePublishPlan)
     set({
       plans,
       activePlanId: plans[0]?.id ?? null
@@ -40,15 +40,15 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   },
 
   savePlan: async (plan) => {
-    const next = { ...plan, updatedAt: Date.now() }
-    await postPublishPlan(next)
+    const next = normalizePublishPlan({ ...plan, updatedAt: Date.now() })
+    const saved = await postPublishPlan(next)
     set((s) => {
-      const exists = s.plans.some((p) => p.id === next.id)
+      const exists = s.plans.some((p) => p.id === saved.id)
       return {
         plans: exists
-          ? s.plans.map((p) => (p.id === next.id ? next : p))
-          : [next, ...s.plans],
-        activePlanId: exists ? s.activePlanId : next.id
+          ? s.plans.map((p) => (p.id === saved.id ? saved : p))
+          : [saved, ...s.plans],
+        activePlanId: exists ? s.activePlanId : saved.id
       }
     })
   },
@@ -64,27 +64,27 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     })
   },
 
-  /** 预置示例计划：含小红书与抖音子任务，方便开箱体验多渠道 */
+  /** 预置示例计划：含单渠道与多渠道子任务，方便开箱体验 */
   addDemoPlan: async () => {
     const plan = createEmptyPlan()
     plan.title = '多渠道发布任务'
-    plan.description = '小红书 + 抖音串行示例'
+    plan.description = '单任务多渠道 + 分渠道串行示例'
     plan.subTasks = [
       createEmptySubTask({
-        title: '体育 · 小红书',
-        channel: 'xhs',
-        topic: '体育',
-        autoPublish: true,
-        contentPrompt:
-          '内容主题：搜罗昨日最新 nba 信息、交易、球星评论等。配图：从相关新闻来源网页用 fetch_web_images 抓取封面图（本地上传可选）。确认点：如果需要登录。'
-      }),
-      createEmptySubTask({
-        title: '人工智能 · 抖音',
-        channel: 'douyin',
+        title: '人工智能 · 小红书 + 抖音',
+        channels: ['xhs', 'douyin'],
         topic: '人工智能',
         autoPublish: true,
         contentPrompt:
-          '内容主题：搜罗昨日 ai 最新热门新闻。标题要求：不超过 30 个字。配图：从相关新闻来源网页抓取（本地上传可选）。确认点：如果需要登录。'
+          '内容主题：搜罗昨日 ai 最新热门新闻。配图：从相关新闻来源网页用 fetch_web_images 抓取封面图（本地上传可选）。确认点：如果需要登录。'
+      }),
+      createEmptySubTask({
+        title: '体育 · 小红书',
+        channels: ['xhs'],
+        topic: '体育',
+        autoPublish: true,
+        contentPrompt:
+          '内容主题：搜罗昨日最新 nba 信息、交易、球星评论等。配图：从相关新闻来源网页抓取（本地上传可选）。确认点：如果需要登录。'
       })
     ]
     await postPublishPlan(plan)

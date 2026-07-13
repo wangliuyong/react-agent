@@ -88,3 +88,38 @@ export function queryPublishChannelMeta(id: PublishChannelId | string): PublishC
 export function queryEnabledPublishChannels(): PublishChannelMeta[] {
   return PUBLISH_CHANNELS.filter((c) => c.enabled)
 }
+
+/**
+ * 将持久化的渠道字段规范为 id 数组。
+ * 兼容旧版单字段 channel 与中文 label。
+ */
+export function normalizePublishSubTaskChannels(
+  raw: { channels?: unknown; channel?: unknown } | PublishChannelId[]
+): PublishChannelId[] {
+  if (Array.isArray(raw)) {
+    const ids = raw
+      .map((item) => normalizePublishChannelId(String(item)))
+      .filter((id, index, arr) => arr.indexOf(id) === index)
+    return ids.length ? ids : ['xhs']
+  }
+
+  const channels = raw.channels
+  if (Array.isArray(channels) && channels.length > 0) {
+    const ids = channels
+      .map((item) => normalizePublishChannelId(String(item)))
+      .filter((id, index, arr) => arr.indexOf(id) === index)
+    return ids.length ? ids : ['xhs']
+  }
+
+  if (raw.channel != null && String(raw.channel).trim()) {
+    return [normalizePublishChannelId(String(raw.channel))]
+  }
+
+  return ['xhs']
+}
+
+/** 多渠道展示名，如「小红书、抖音」 */
+export function queryPublishChannelLabels(ids: PublishChannelId[]): string {
+  const normalized = normalizePublishSubTaskChannels(ids)
+  return normalized.map((id) => queryPublishChannelLabel(id)).join('、')
+}
