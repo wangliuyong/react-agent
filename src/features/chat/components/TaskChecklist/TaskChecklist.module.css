@@ -74,6 +74,7 @@
   font-size: 12px;
   flex-shrink: 0;
   transition: color 0.2s ease;
+  margin-bottom: 8px;
 }
 
 .dragHandle:hover .dragIcon {
