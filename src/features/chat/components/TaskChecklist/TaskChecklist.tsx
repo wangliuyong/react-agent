@@ -2,9 +2,11 @@ import {
   CheckCircleFilled,
   CloseCircleFilled,
   HolderOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined
 } from '@ant-design/icons'
-import { Card } from 'antd'
+import { Button, Card, Typography } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { TaskItem, TaskItemStatus } from '@shared/types'
 import styles from './TaskChecklist.module.css'
@@ -20,6 +22,14 @@ const POSITION_STORAGE_KEY = 'react-agent:task-checklist-position'
 interface TaskChecklistProps {
   tasks: TaskItem[]
   visible: boolean
+  /** Agent 是否正在执行（含工具调用与流式输出） */
+  running?: boolean
+  /** 等待用户介入时的原因说明；有值时展示「继续」 */
+  awaitUserReason?: string | null
+  /** 中断当前 Agent 执行 */
+  onAbort?: () => void
+  /** 从 await_user 挂起状态恢复执行 */
+  onContinue?: () => void
 }
 
 interface Position {

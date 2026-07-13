@@ -298,3 +298,35 @@
     transform: translateY(0);
   }
 }
+
+/* ── 底部操作区：中断 / 继续 ── */
+.actionBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 12px 2px;
+  padding: 8px 10px;
+  border-radius: var(--db-radius-sm);
+  border: 1px solid var(--db-border-light);
+  background: var(--db-bg-subtle);
+}
+
+.awaitReason {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #b45309;
+}
+
+.runningHint {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.actionBtn {
+  flex-shrink: 0;
+}
