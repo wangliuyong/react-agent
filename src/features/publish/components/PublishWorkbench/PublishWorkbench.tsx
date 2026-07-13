@@ -216,7 +216,7 @@ export function PublishWorkbench(): React.ReactElement {
             <>
               <div className={styles.planHeader}>
                 <div>
-                  <Title level={4} style={{ margin: 0 }}>
+                  <Title level={5} style={{ margin: 0 }}>
                     {active.title}
                   </Title>
                   <Text type="secondary">
