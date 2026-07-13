@@ -165,8 +165,8 @@ import type { PublishChannelId } from './publish-channels'
 export interface PublishSubTask {
   id: string
   title: string
-  /** 发布渠道 id，见 shared/publish-channels.ts */
-  channel: PublishChannelId
+  /** 发布渠道 id 列表，同一子任务可同时发布到多个渠道，见 shared/publish-channels.ts */
+  channels: PublishChannelId[]
   /** 主题标签 */
   topic: string
   /** 是否自动发布 */

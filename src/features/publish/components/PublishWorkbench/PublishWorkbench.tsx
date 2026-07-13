@@ -19,6 +19,8 @@ import {
   buildPublishPlanPrompt,
   createEmptyPlan,
   createEmptySubTask,
+  normalizePublishSubTask,
+  normalizePublishPlan,
   queryEnabledPublishChannels,
   queryPublishChannelLabel
 } from '../../types'
@@ -127,10 +129,10 @@ export function PublishWorkbench(): React.ReactElement {
   } | null>(null)
   const [subEditing, setSubEditing] = useState<PublishSubTask | null>(null)
 
-  const active = useMemo(
-    () => plans.find((p) => p.id === activePlanId) ?? null,
-    [plans, activePlanId]
-  )
+  const active = useMemo(() => {
+    const plan = plans.find((p) => p.id === activePlanId) ?? null
+    return plan ? normalizePublishPlan(plan) : null
+  }, [plans, activePlanId])
 
   /** 从当前计划中移除指定子任务 */
   const removeSubTask = async (subId: string): Promise<void> => {
@@ -259,7 +261,11 @@ export function PublishWorkbench(): React.ReactElement {
                       <div className={styles.subTitleRow}>
                         <span className={styles.subTitle}>{sub.title}</span>
                         <Space size={0}>
-                          <Button type="link" size="small" onClick={() => setSubEditing(sub)}>
+                          <Button
+                            type="link"
+                            size="small"
+                            onClick={() => setSubEditing(normalizePublishSubTask(sub))}
+                          >
                             编辑
                           </Button>
                           <Popconfirm
@@ -273,7 +279,9 @@ export function PublishWorkbench(): React.ReactElement {
                         </Space>
                       </div>
                       <Space size={6} wrap>
-                        <Tag>{queryPublishChannelLabel(sub.channel)}</Tag>
+                        {sub.channels.map((ch) => (
+                          <Tag key={ch}>{queryPublishChannelLabel(ch)}</Tag>
+                        ))}
                         {sub.topic ? <Tag>{sub.topic}</Tag> : null}
                         {sub.autoPublish ? <Tag>自动发布</Tag> : <Tag>待确认发布</Tag>}
                       </Space>
@@ -323,6 +331,10 @@ export function PublishWorkbench(): React.ReactElement {
         onCancel={() => setSubEditing(null)}
         onOk={async () => {
           if (!active || !subEditing) return
+          if (!subEditing.channels.length) {
+            message.warning('请至少选择一个发布渠道')
+            return
+          }
           const next = {
             ...active,
             subTasks: active.subTasks.map((s) => (s.id === subEditing.id ? subEditing : s)),
@@ -342,10 +354,14 @@ export function PublishWorkbench(): React.ReactElement {
                 onChange={(e) => setSubEditing({ ...subEditing, title: e.target.value })}
               />
             </Form.Item>
-            <Form.Item label="渠道">
-              <Select<PublishChannelId>
-                value={subEditing.channel}
-                onChange={(channel) => setSubEditing({ ...subEditing, channel })}
+            <Form.Item label="渠道" required>
+              <Select
+                mode="multiple"
+                value={subEditing.channels}
+                onChange={(channels: PublishChannelId[]) =>
+                  setSubEditing({ ...subEditing, channels })
+                }
+                placeholder="选择发布渠道，可多选"
                 options={queryEnabledPublishChannels().map((c) => ({
                   value: c.id,
                   label: c.label

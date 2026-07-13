@@ -7,18 +7,12 @@ import {
 } from 'fs'
 import { join } from 'path'
 import type { PublishPlan } from '../../../shared/types'
-import { normalizePublishChannelId } from '../../../shared/publish-channels'
+import { normalizePublishPlan } from '../../../shared/publish-normalize'
 import { getPlansDir } from './paths'
 
-/** 读盘时归一化子任务 channel（兼容旧版中文 label） */
+/** 读盘时归一化子任务 channels（兼容旧版单 channel 与中文 label） */
 function normalizePlan(plan: PublishPlan): PublishPlan {
-  return {
-    ...plan,
-    subTasks: plan.subTasks.map((sub) => ({
-      ...sub,
-      channel: normalizePublishChannelId(sub.channel as string)
-    }))
-  }
+  return normalizePublishPlan(plan)
 }
 
 export function queryPublishPlans(): PublishPlan[] {
@@ -46,9 +40,10 @@ export function queryPublishPlan(id: string): PublishPlan | null {
 }
 
 export function postPublishPlan(plan: PublishPlan): PublishPlan {
-  const path = join(getPlansDir(), `${plan.id}.json`)
-  writeFileSync(path, JSON.stringify(plan, null, 2), 'utf-8')
-  return plan
+  const normalized = normalizePublishPlan(plan)
+  const path = join(getPlansDir(), `${normalized.id}.json`)
+  writeFileSync(path, JSON.stringify(normalized, null, 2), 'utf-8')
+  return normalized
 }
 
 export function postDeletePublishPlan(id: string): void {
