@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import type { AppView } from '@/stores/app-store'
 import { useAppStore } from '@/stores/app-store'
-import { useSessionStore } from '@/features/chat'
+import { useSessionStore, querySessionType } from '@/features/chat'
 import type { SessionHistoryItem } from '../types'
 
 interface UseSidebarNavigationOptions {
@@ -34,7 +34,8 @@ export function useSidebarNavigation({ view }: UseSidebarNavigationOptions) {
   const historyItems: SessionHistoryItem[] = sessions.map((s) => ({
     id: s.id,
     title: s.title,
-    updatedAt: s.updatedAt
+    updatedAt: s.updatedAt,
+    type: querySessionType(s)
   }))
 
   return {

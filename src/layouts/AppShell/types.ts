@@ -1,4 +1,5 @@
 import type { AppView } from '@/stores/app-store'
+import type { SessionType } from '@shared/types'
 
 /** 侧边栏主导航项配置 */
 export interface NavItem {
@@ -14,4 +15,6 @@ export interface SessionHistoryItem {
   id: string
   title: string
   updatedAt: number
+  /** 会话类型，用于历史列表图标 */
+  type: SessionType
 }

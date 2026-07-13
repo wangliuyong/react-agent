@@ -143,11 +143,16 @@ export interface TaskItem {
   status: TaskItemStatus
 }
 
+/** 会话来源类型：决定侧边栏历史列表图标与归类 */
+export type SessionType = 'chat' | 'publish' | 'schedule'
+
 export interface Session {
   id: string
   title: string
   messages: ChatMessage[]
   tasks: TaskItem[]
+  /** 会话类型；旧数据缺省时由 querySessionType 推断 */
+  type?: SessionType
   /** 累计估算 token（展示用） */
   tokenUsed: number
   createdAt: number

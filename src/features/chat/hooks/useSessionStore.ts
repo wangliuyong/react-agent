@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AgentEvent, ChatMessage, Session, TaskItem } from '@shared/types'
+import type { AgentEvent, ChatMessage, Session, SessionType, TaskItem } from '@shared/types'
 import {
   postAgentAbort,
   postAgentChat,
@@ -23,7 +23,7 @@ interface SessionState {
   activeToolName: string | null
   hydrate: () => Promise<void>
   setActive: (id: string | null) => void
-  createSession: () => Promise<Session>
+  createSession: (type?: SessionType) => Promise<Session>
   removeSession: (id: string) => Promise<void>
   sendMessage: (content: string, attachmentPaths?: string[]) => Promise<void>
   abort: () => Promise<void>
@@ -72,8 +72,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setActive: (id) =>
     set({ activeSessionId: id, streamingText: '', awaitUserReason: null, canResume: false }),
 
-  createSession: async () => {
-    const session = await postCreateSession()
+  createSession: async (type: SessionType = 'chat') => {
+    const session = await postCreateSession(type)
     set((state) => ({
       sessions: [session, ...state.sessions],
       activeSessionId: session.id,

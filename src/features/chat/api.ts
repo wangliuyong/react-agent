@@ -1,4 +1,4 @@
-import type { Session } from '@shared/types'
+import type { Session, SessionType } from '@shared/types'
 import { createEmptySession } from './types'
 
 /** 读：会话列表 */
@@ -19,8 +19,8 @@ export async function postDeleteSession(id: string): Promise<void> {
   return window.api.postDeleteSession(id)
 }
 
-export async function postCreateSession(): Promise<Session> {
-  const session = createEmptySession(crypto.randomUUID())
+export async function postCreateSession(type: SessionType = 'chat'): Promise<Session> {
+  const session = createEmptySession(crypto.randomUUID(), type)
   return postSession(session)
 }
 
