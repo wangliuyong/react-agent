@@ -6,6 +6,7 @@ import {
   Input,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Switch,
   Tag,
@@ -14,8 +15,15 @@ import {
 } from 'antd'
 import { PlusOutlined, PlayCircleOutlined, DeleteOutlined } from '@ant-design/icons'
 import { usePublishStore } from '../../hooks/usePublishStore'
-import { buildSubTaskPrompt, createEmptyPlan, createEmptySubTask } from '../../types'
+import {
+  buildPublishPlanPrompt,
+  createEmptyPlan,
+  createEmptySubTask,
+  queryEnabledPublishChannels,
+  queryPublishChannelLabel
+} from '../../types'
 import type { PublishPlan, PublishSubTask } from '@shared/types'
+import type { PublishChannelId } from '@shared/publish-channels'
 import { useSessionStore } from '@/features/chat'
 import { useAppStore } from '@/stores/app-store'
 import styles from './PublishWorkbench.module.css'
@@ -145,12 +153,8 @@ export function PublishWorkbench(): React.ReactElement {
     }
     await createSession('publish')
     setView('chat')
-    // 串行：把所有子任务合成一条指令，由 Agent 按清单执行
-    const prompt = [
-      `请按顺序串行执行以下 ${plan.subTasks.length} 个小红书发布子任务（计划：${plan.title}）：`,
-      ...plan.subTasks.map((s, i) => `\n### 子任务 ${i + 1}\n${buildSubTaskPrompt(s)}`),
-      '\n每完成一个子任务更新任务清单。若需要配图请提示我上传。'
-    ].join('\n')
+    // 串行：把所有子任务合成一条指令，由 Agent 按清单执行（渠道由 buildPublishPlanPrompt 路由）
+    const prompt = buildPublishPlanPrompt(plan)
     await sendMessage(prompt)
     message.success('已在主聊天窗口开始执行')
   }
@@ -269,7 +273,7 @@ export function PublishWorkbench(): React.ReactElement {
                         </Space>
                       </div>
                       <Space size={6} wrap>
-                        <Tag>{sub.channel}</Tag>
+                        <Tag>{queryPublishChannelLabel(sub.channel)}</Tag>
                         {sub.topic ? <Tag>{sub.topic}</Tag> : null}
                         {sub.autoPublish ? <Tag>自动发布</Tag> : <Tag>待确认发布</Tag>}
                       </Space>
@@ -339,9 +343,13 @@ export function PublishWorkbench(): React.ReactElement {
               />
             </Form.Item>
             <Form.Item label="渠道">
-              <Input
+              <Select<PublishChannelId>
                 value={subEditing.channel}
-                onChange={(e) => setSubEditing({ ...subEditing, channel: e.target.value })}
+                onChange={(channel) => setSubEditing({ ...subEditing, channel })}
+                options={queryEnabledPublishChannels().map((c) => ({
+                  value: c.id,
+                  label: c.label
+                }))}
               />
             </Form.Item>
             <Form.Item label="主题">

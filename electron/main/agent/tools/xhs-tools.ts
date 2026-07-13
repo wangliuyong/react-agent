@@ -10,8 +10,8 @@ export const fetchWebImagesTool: AgentTool = {
   name: 'fetch_web_images',
   description:
     '从内容来源网页提取并下载配图，或按图片直链下载到本地。' +
-    '发布小红书前应优先调用本工具获取配图；用户上传图片是可选的。' +
-    '返回本地绝对路径列表，可交给 xhs_publish_note 的 imagePaths。',
+    '发布小红书/抖音前应优先调用本工具获取配图；用户上传图片是可选的。' +
+    '返回本地绝对路径列表，可交给 xhs_publish_note 或 douyin_publish_note 的 imagePaths。',
   permission: 'safe',
   parameters: {
     type: 'object',

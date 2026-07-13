@@ -17,6 +17,7 @@ const TOOL_LABELS: Record<string, string> = {
   browser_upload: '上传文件',
   browser_wait: '等待页面',
   xhs_publish_note: '发布小红书',
+  douyin_publish_note: '发布抖音',
   fetch_web_images: '抓取网页配图',
   web_search: '搜索网络',
   read_file: '读取文件',
