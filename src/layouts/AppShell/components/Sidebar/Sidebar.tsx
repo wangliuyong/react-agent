@@ -25,9 +25,9 @@ export function Sidebar({ view }: SidebarProps): React.ReactElement {
 
   return (
     <aside className={styles.sidebar} data-collapsed={sidebarCollapsed}>
-      <div className={`${styles.sidebarTop} app-drag`}>
+      {/* <div className={`${styles.sidebarTop} app-drag`}>
         <div className={`${styles.trafficSpacer} app-no-drag`} />
-      </div>
+      </div> */}
 
       {sidebarCollapsed ? (
         <SidebarCollapsed
