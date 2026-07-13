@@ -18,6 +18,12 @@ export const IpcChannels = {
   queryPublishPlan: 'query:publish-plan',
   postPublishPlan: 'post:publish-plan',
   postDeletePublishPlan: 'post:publish-plan:delete',
+  // 定时任务
+  queryScheduledTasks: 'query:scheduled-tasks',
+  queryScheduledTask: 'query:scheduled-task',
+  postScheduledTask: 'post:scheduled-task',
+  postDeleteScheduledTask: 'post:scheduled-task:delete',
+  postRunScheduledTask: 'post:scheduled-task:run',
   // Agent
   postAgentChat: 'post:agent:chat',
   postAgentAbort: 'post:agent:abort',
@@ -40,7 +46,8 @@ export const IpcChannels = {
   queryLocalImageDataUrl: 'query:local-image-data-url',
   // 事件推送（main → renderer）
   onAgentEvent: 'event:agent',
-  onBrowserFrame: 'event:browser-frame'
+  onBrowserFrame: 'event:browser-frame',
+  onScheduleUpdate: 'event:schedule-update'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -170,6 +177,46 @@ export interface PublishPlan {
   updatedAt: number
 }
 
+/** 定时任务重复规则 */
+export type ScheduleRepeat = 'once' | 'daily' | 'weekly'
+
+/** 定时任务最近一次执行状态 */
+export type ScheduleRunStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped'
+
+/** 定时任务触发后的动作类型 */
+export type ScheduleActionType = 'publish_plan' | 'custom_prompt'
+
+/**
+ * 定时任务：主进程调度器到点自动创建会话并调用 Agent。
+ * 与发布工作台共用发布计划 prompt 构建逻辑。
+ */
+export interface ScheduledTask {
+  id: string
+  title: string
+  description: string
+  /** 关闭后调度器跳过，nextRunAt 置空 */
+  enabled: boolean
+  repeat: ScheduleRepeat
+  /** HH:mm，daily / weekly 使用 */
+  timeOfDay: string
+  /** weekly 时 0=周日 … 6=周六 */
+  weekday?: number
+  /** once 时执行的 Unix 毫秒时间戳 */
+  runAt?: number
+  actionType: ScheduleActionType
+  /** 关联发布计划 id */
+  publishPlanId?: string
+  /** 自定义 Agent 指令 */
+  customPrompt?: string
+  lastRunAt?: number
+  nextRunAt?: number
+  lastRunStatus?: ScheduleRunStatus
+  /** 最近一次执行创建的会话，便于跳转查看 */
+  lastSessionId?: string
+  createdAt: number
+  updatedAt: number
+}
+
 /** Agent 流式事件（主进程推送到渲染进程） */
 export type AgentEvent =
   | { type: 'text_delta'; sessionId: string; delta: string }
@@ -266,6 +313,11 @@ export interface ElectronApi {
   queryPublishPlan: (id: string) => Promise<PublishPlan | null>
   postPublishPlan: (plan: PublishPlan) => Promise<PublishPlan>
   postDeletePublishPlan: (id: string) => Promise<void>
+  queryScheduledTasks: () => Promise<ScheduledTask[]>
+  queryScheduledTask: (id: string) => Promise<ScheduledTask | null>
+  postScheduledTask: (task: ScheduledTask) => Promise<ScheduledTask>
+  postDeleteScheduledTask: (id: string) => Promise<void>
+  postRunScheduledTask: (id: string) => Promise<ScheduledTask | null>
   postAgentChat: (req: AgentChatRequest) => Promise<void>
   postAgentAbort: (sessionId: string) => Promise<void>
   postAgentContinue: (sessionId: string) => Promise<void>
@@ -285,6 +337,7 @@ export interface ElectronApi {
   queryLocalImageDataUrl: (filePath: string) => Promise<string | null>
   onAgentEvent: (cb: (event: AgentEvent) => void) => () => void
   onBrowserFrame: (cb: (frame: BrowserFramePayload) => void) => () => void
+  onScheduleUpdate: (cb: (tasks: ScheduledTask[]) => void) => () => void
   /** 选择本地图片文件 */
   postSelectImages: () => Promise<string[]>
   /** 在系统默认浏览器中打开链接 */

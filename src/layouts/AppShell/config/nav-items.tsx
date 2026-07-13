@@ -13,7 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'rules', label: '规则', icon: <UnorderedListOutlined />, placeholder: true },
   { key: 'channels', label: '渠道', icon: <ApiOutlined />, placeholder: true },
   { key: 'publish', label: '发布', icon: <CloudUploadOutlined /> },
-  { key: 'schedule', label: '定时任务', icon: <ClockCircleOutlined />, placeholder: true }
+  { key: 'schedule', label: '定时任务', icon: <ClockCircleOutlined /> }
 ]
 
 /** 按 view key 查找导航项，用于占位页展示 */

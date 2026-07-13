@@ -1,0 +1,89 @@
+import { create } from 'zustand'
+import type { ScheduledTask } from '@shared/types'
+import {
+  postDeleteScheduledTask,
+  postRunScheduledTask,
+  postScheduledTask,
+  queryScheduledTasks
+} from '../api'
+import { createEmptyScheduledTask } from '../types'
+
+interface ScheduleState {
+  tasks: ScheduledTask[]
+  activeTaskId: string | null
+  hydrate: () => Promise<void>
+  setActive: (id: string | null) => void
+  createTask: () => Promise<ScheduledTask>
+  saveTask: (task: ScheduledTask) => Promise<ScheduledTask>
+  removeTask: (id: string) => Promise<void>
+  toggleEnabled: (id: string, enabled: boolean) => Promise<void>
+  runNow: (id: string) => Promise<ScheduledTask | null>
+  bindScheduleUpdates: () => () => void
+}
+
+export const useScheduleStore = create<ScheduleState>((set, get) => ({
+  tasks: [],
+  activeTaskId: null,
+
+  hydrate: async () => {
+    const tasks = await queryScheduledTasks()
+    set({
+      tasks,
+      activeTaskId: get().activeTaskId ?? tasks[0]?.id ?? null
+    })
+  },
+
+  setActive: (id) => set({ activeTaskId: id }),
+
+  createTask: async () => {
+    const task = createEmptyScheduledTask()
+    const saved = await postScheduledTask(task)
+    set((s) => ({
+      tasks: [saved, ...s.tasks],
+      activeTaskId: saved.id
+    }))
+    return saved
+  },
+
+  saveTask: async (task) => {
+    const saved = await postScheduledTask(task)
+    set((s) => ({
+      tasks: s.tasks.map((t) => (t.id === saved.id ? saved : t))
+    }))
+    return saved
+  },
+
+  removeTask: async (id) => {
+    await postDeleteScheduledTask(id)
+    set((s) => {
+      const tasks = s.tasks.filter((t) => t.id !== id)
+      return {
+        tasks,
+        activeTaskId: s.activeTaskId === id ? (tasks[0]?.id ?? null) : s.activeTaskId
+      }
+    })
+  },
+
+  toggleEnabled: async (id, enabled) => {
+    const task = get().tasks.find((t) => t.id === id)
+    if (!task) return
+    await get().saveTask({ ...task, enabled })
+  },
+
+  runNow: async (id) => {
+    const result = await postRunScheduledTask(id)
+    if (result) {
+      set((s) => ({
+        tasks: s.tasks.map((t) => (t.id === result.id ? result : t))
+      }))
+    }
+    return result
+  },
+
+  /** 订阅主进程调度器推送，保持列表与执行状态同步 */
+  bindScheduleUpdates: () => {
+    return window.api.onScheduleUpdate((tasks) => {
+      set({ tasks })
+    })
+  }
+}))

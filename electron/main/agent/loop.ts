@@ -8,6 +8,7 @@ import { getAllTools, getToolByName } from './tools'
 import { toOpenAiTools, type ToolContext } from './tools/types'
 import { getMainWindow } from '../window'
 import { queryEnabledSkillPrompt } from '../store/skills'
+import { handleScheduleAgentDone } from '../schedule/agent-hook'
 
 const BASE_SYSTEM_PROMPT = `你是跨平台桌面 AI Agent「React Agent」，擅长通过工具完成业务自动化。
 
@@ -61,6 +62,7 @@ function emit(event: AgentEvent): void {
   if (win && !win.isDestroyed()) {
     win.webContents.send('event:agent', event)
   }
+  handleScheduleAgentDone(event)
 }
 
 function persistSession(session: Session): void {

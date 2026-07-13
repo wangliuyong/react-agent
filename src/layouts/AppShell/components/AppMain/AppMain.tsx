@@ -1,6 +1,7 @@
 import type { AppView } from '@/stores/app-store'
 import { ChatPage } from '@/features/chat'
 import { PublishWorkbench } from '@/features/publish'
+import { SchedulePage } from '@/features/schedule'
 import { SettingsPage } from '@/features/settings'
 import { SkillsPage } from '@/features/skills'
 import { queryNavItem } from '../../config/nav-items'
@@ -20,6 +21,7 @@ export function AppMain({ view }: AppMainProps): React.ReactElement {
       <div className={styles.content}>
         {view === 'chat' && <ChatPage />}
         {view === 'publish' && <PublishWorkbench />}
+        {view === 'schedule' && <SchedulePage />}
         {view === 'settings' && <SettingsPage />}
         {view === 'skills' && <SkillsPage />}
         {placeholderNav?.placeholder && (

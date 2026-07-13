@@ -16,6 +16,7 @@ export function getDataRoot(): string {
   ensureDir(root)
   ensureDir(join(root, 'sessions'))
   ensureDir(join(root, 'publish-plans'))
+  ensureDir(join(root, 'scheduled-tasks'))
   ensureDir(join(root, 'browser-profile'))
   ensureDir(join(root, 'artifacts'))
   return root
@@ -27,6 +28,10 @@ export function getSessionsDir(): string {
 
 export function getPlansDir(): string {
   return join(getDataRoot(), 'publish-plans')
+}
+
+export function getSchedulesDir(): string {
+  return join(getDataRoot(), 'scheduled-tasks')
 }
 
 export function getBrowserProfileDir(): string {

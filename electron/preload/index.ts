@@ -9,6 +9,7 @@ import type {
   ProjectSkill,
   ProjectSkillDetail,
   PublishPlan,
+  ScheduledTask,
   Session,
   SkillStates,
   SkillTemplate,
@@ -32,6 +33,15 @@ const api: ElectronApi = {
   postPublishPlan: (plan: PublishPlan) => ipcRenderer.invoke(IpcChannels.postPublishPlan, plan),
   postDeletePublishPlan: (id: string) =>
     ipcRenderer.invoke(IpcChannels.postDeletePublishPlan, id),
+
+  queryScheduledTasks: () => ipcRenderer.invoke(IpcChannels.queryScheduledTasks),
+  queryScheduledTask: (id: string) => ipcRenderer.invoke(IpcChannels.queryScheduledTask, id),
+  postScheduledTask: (task: ScheduledTask) =>
+    ipcRenderer.invoke(IpcChannels.postScheduledTask, task),
+  postDeleteScheduledTask: (id: string) =>
+    ipcRenderer.invoke(IpcChannels.postDeleteScheduledTask, id),
+  postRunScheduledTask: (id: string) =>
+    ipcRenderer.invoke(IpcChannels.postRunScheduledTask, id),
 
   postAgentChat: (req: AgentChatRequest) => ipcRenderer.invoke(IpcChannels.postAgentChat, req),
   postAgentAbort: (sessionId: string) =>
@@ -77,6 +87,14 @@ const api: ElectronApi = {
     }
     ipcRenderer.on(IpcChannels.onBrowserFrame, listener)
     return () => ipcRenderer.removeListener(IpcChannels.onBrowserFrame, listener)
+  },
+
+  onScheduleUpdate: (cb) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: ScheduledTask[]): void => {
+      cb(data)
+    }
+    ipcRenderer.on(IpcChannels.onScheduleUpdate, listener)
+    return () => ipcRenderer.removeListener(IpcChannels.onScheduleUpdate, listener)
   },
 
   postSelectImages: () => ipcRenderer.invoke('dialog:select-images'),
