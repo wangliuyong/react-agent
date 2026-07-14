@@ -4,7 +4,8 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
-  useState
+  useState,
+  type MouseEvent as ReactMouseEvent
 } from 'react'
 import {
   ReactFlow,
@@ -25,40 +26,40 @@ import {
 import '@xyflow/react/dist/style.css'
 import type {
   WorkflowCanvas as WorkflowCanvasModel,
-  WorkflowConditionNode,
+  WorkflowCanvasEdge,
   WorkflowLeafNode,
-  WorkflowNode
+  WorkflowNode,
+  WorkflowTerminalNode
 } from '@shared/types'
 import { WorkflowFlowNode, type WorkflowRfNode } from '../WorkflowFlowNode'
 import {
-  WorkflowConditionFlowNode,
-  type WorkflowConditionRfNode
-} from '../WorkflowConditionFlowNode'
+  WorkflowTerminalFlowNode,
+  type WorkflowTerminalRfNode
+} from '../WorkflowTerminalFlowNode'
 import { WorkflowNodeEditModal } from '../WorkflowNodeEditModal'
-import { createConditionNode, createEmptyNode } from '../../types'
+import {
+  WorkflowEdgeEditModal,
+  type WorkflowEdgeEditValue
+} from '../WorkflowEdgeEditModal'
+import { createEmptyNode } from '../../types'
 import {
   applyCanvasToDefinition,
-  flattenWorkflowConditions,
   flattenWorkflowLeaves,
+  flattenWorkflowTerminals,
   resolveWorkflowCanvas
 } from '../../utils/workflowCanvasGraph'
 import styles from './WorkflowCanvas.module.css'
 
 const nodeTypes = {
   workflow: WorkflowFlowNode,
-  workflowCondition: WorkflowConditionFlowNode
+  workflowTerminal: WorkflowTerminalFlowNode
 } as NodeTypes
 
-/** 画布上可新增的叶子类型 */
 export type WorkflowCanvasLeafType = WorkflowLeafNode['type']
+export type WorkflowCanvasRfNode = WorkflowRfNode | WorkflowTerminalRfNode
 
-export type WorkflowCanvasRfNode = WorkflowRfNode | WorkflowConditionRfNode
-
-/** 供父级（画布编辑区头部）调用的命令式 API */
 export interface WorkflowCanvasHandle {
   addLeafByType: (type: WorkflowCanvasLeafType) => void
-  /** 追加默认 If/Else 条件节点 */
-  addCondition: () => void
 }
 
 interface WorkflowCanvasProps {
@@ -70,14 +71,26 @@ interface WorkflowCanvasProps {
   fullscreenContainer?: HTMLElement | null
 }
 
+function queryEdgeLabel(e: WorkflowCanvasEdge): string | undefined {
+  if (e.label?.trim()) return e.label.trim()
+  if (e.isDefault) return '默认'
+  if (e.when?.expression?.trim()) return e.when.expression.trim()
+  if (e.when?.contextKey) {
+    return `${e.when.contextKey}${e.when.op ? ` ${e.when.op}` : ''}`
+  }
+  return undefined
+}
+
+function edgeHasCondition(e: WorkflowCanvasEdge): boolean {
+  if (e.isDefault) return true
+  return Boolean(e.when?.expression?.trim() || e.when?.contextKey?.trim())
+}
+
 function toRfNodes(
   leaves: WorkflowLeafNode[],
-  conditions: WorkflowConditionNode[],
+  terminals: WorkflowTerminalNode[],
   canvas: WorkflowCanvasModel,
-  handlers: {
-    onEdit: (id: string) => void
-    onDelete: (id: string) => void
-  }
+  handlers: { onEdit: (id: string) => void; onDelete: (id: string) => void }
 ): WorkflowCanvasRfNode[] {
   const leafNodes: WorkflowRfNode[] = leaves.map((leaf) => ({
     id: leaf.id,
@@ -89,30 +102,43 @@ function toRfNodes(
       onDelete: handlers.onDelete
     }
   }))
-  const condNodes: WorkflowConditionRfNode[] = conditions.map((condition) => ({
-    id: condition.id,
-    type: 'workflowCondition',
-    position: canvas.positions[condition.id] ?? { x: 40, y: 40 },
-    data: {
-      condition,
-      onEdit: handlers.onEdit
-    }
+  const terminalNodes: WorkflowTerminalRfNode[] = terminals.map((terminal) => ({
+    id: terminal.id,
+    type: 'workflowTerminal',
+    position: canvas.positions[terminal.id] ?? {
+      x: 80,
+      y: terminal.type === 'start' ? 24 : 280
+    },
+    deletable: false,
+    data: { terminal }
   }))
-  return [...leafNodes, ...condNodes]
+  return [...terminalNodes, ...leafNodes]
 }
 
 function toRfEdges(canvas: WorkflowCanvasModel): Edge[] {
-  return canvas.edges.map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    sourceHandle: e.branchKey ?? null,
-    label: e.branchKey,
-    animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
-    style: { stroke: 'var(--db-primary)', strokeWidth: 1 },
-    labelStyle: { fontSize: 6, fill: 'var(--db-text-secondary)' }
-  }))
+  return canvas.edges.map((e) => {
+    const label = queryEdgeLabel(e)
+    const conditional = edgeHasCondition(e)
+    return {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      label,
+      animated: true,
+      markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
+      style: {
+        stroke: conditional ? 'var(--db-warning)' : 'var(--db-primary)',
+        strokeWidth: 1,
+        strokeDasharray: conditional ? '4 3' : undefined
+      },
+      labelStyle: { fontSize: 6, fill: 'var(--db-text-secondary)' },
+      data: {
+        label: e.label,
+        when: e.when,
+        isDefault: e.isDefault
+      } satisfies Partial<WorkflowCanvasEdge>
+    }
+  })
 }
 
 function queryLeavesFromRf(rfNodes: WorkflowCanvasRfNode[]): WorkflowLeafNode[] {
@@ -121,10 +147,10 @@ function queryLeavesFromRf(rfNodes: WorkflowCanvasRfNode[]): WorkflowLeafNode[] 
     .map((n) => n.data.leaf)
 }
 
-function queryConditionsFromRf(rfNodes: WorkflowCanvasRfNode[]): WorkflowConditionNode[] {
+function queryTerminalsFromRf(rfNodes: WorkflowCanvasRfNode[]): WorkflowTerminalNode[] {
   return rfNodes
-    .filter((n): n is WorkflowConditionRfNode => n.type === 'workflowCondition')
-    .map((n) => n.data.condition)
+    .filter((n): n is WorkflowTerminalRfNode => n.type === 'workflowTerminal')
+    .map((n) => n.data.terminal)
 }
 
 function queryCanvasFromRf(
@@ -137,28 +163,36 @@ function queryCanvasFromRf(
   }
   return {
     positions,
-    edges: edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      ...(e.sourceHandle
-        ? { branchKey: String(e.sourceHandle) }
-        : {})
-    }))
+    edges: edges.map((e) => {
+      const data = (e.data ?? {}) as Partial<WorkflowCanvasEdge>
+      const edge: WorkflowCanvasEdge = {
+        id: e.id,
+        source: e.source,
+        target: e.target
+      }
+      if (data.label) edge.label = data.label
+      if (data.when) edge.when = data.when
+      if (data.isDefault) edge.isDefault = true
+      return edge
+    })
   }
 }
 
-function queryEdgeStyle(): Partial<Edge> {
+function queryEdgeStyle(conditional = false): Partial<Edge> {
   return {
     animated: true,
     markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
-    style: { stroke: 'var(--db-primary)', strokeWidth: 1 },
+    style: {
+      stroke: conditional ? 'var(--db-warning)' : 'var(--db-primary)',
+      strokeWidth: 1,
+      strokeDasharray: conditional ? '4 3' : undefined
+    },
     labelStyle: { fontSize: 6, fill: 'var(--db-text-secondary)' }
   }
 }
 
 /**
- * 流程画布：叶子 + 条件节点；无标签多出线 = 并行，条件出口带 branchKey = XOR。
+ * 流程画布：开始/结束 + 叶子；双击连线编辑条件；无条件多出线=并行。
  */
 export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasProps>(
   function WorkflowCanvas(
@@ -173,14 +207,13 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
     ref
   ): React.ReactElement {
     const [editOpen, setEditOpen] = useState(false)
-    const [editingNode, setEditingNode] = useState<WorkflowLeafNode | WorkflowConditionNode | null>(
-      null
-    )
+    const [editingLeaf, setEditingLeaf] = useState<WorkflowLeafNode | null>(null)
+    const [edgeEditOpen, setEdgeEditOpen] = useState(false)
+    const [editingEdge, setEditingEdge] = useState<WorkflowCanvasEdge | null>(null)
     const [graphError, setGraphError] = useState<string | null>(null)
 
     const engineNodesRef = useRef(engineNodes)
     engineNodesRef.current = engineNodes
-
     const onEditRef = useRef<(id: string) => void>(() => {})
     const onDeleteRef = useRef<(id: string) => void>(() => {})
 
@@ -188,7 +221,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
     const [rfNodes, setNodes, onNodesChangeInternal] = useNodesState<WorkflowCanvasRfNode>(
       toRfNodes(
         flattenWorkflowLeaves(engineNodes),
-        flattenWorkflowConditions(engineNodes),
+        flattenWorkflowTerminals(engineNodes),
         initialCanvas,
         {
           onEdit: (id) => onEditRef.current(id),
@@ -196,14 +229,16 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
         }
       )
     )
-    const [rfEdges, setEdges, onEdgesChangeInternal] = useEdgesState(toRfEdges(initialCanvas))
+    const [rfEdges, setEdges, onEdgesChangeInternal] = useEdgesState(
+      toRfEdges(initialCanvas)
+    )
 
     const emitChange = useCallback(
       (nextNodes: WorkflowCanvasRfNode[], nextEdges: Edge[]) => {
         const leaves = queryLeavesFromRf(nextNodes)
-        const conditions = queryConditionsFromRf(nextNodes)
+        const terminals = queryTerminalsFromRf(nextNodes)
         const canvas = queryCanvasFromRf(nextNodes, nextEdges)
-        const applied = applyCanvasToDefinition(leaves, conditions, canvas)
+        const applied = applyCanvasToDefinition(leaves, terminals, canvas)
         if (applied.error) {
           setGraphError(applied.error)
           onChange({ nodes: engineNodesRef.current, canvas })
@@ -216,23 +251,21 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
     )
 
     onEditRef.current = (id: string) => {
-      const fromRfLeaf = queryLeavesFromRf(rfNodes).find((l) => l.id === id)
-      const fromRfCond = queryConditionsFromRf(rfNodes).find((c) => c.id === id)
-      const fromEngineLeaf = flattenWorkflowLeaves(engineNodesRef.current).find((l) => l.id === id)
-      const fromEngineCond = flattenWorkflowConditions(engineNodesRef.current).find(
-        (c) => c.id === id
-      )
-      // 编辑时优先用引擎里的 condition（含已编译的 cases.nodes），RF 上 nodes 常为空
-      const engineFull = engineNodesRef.current.find((n) => n.id === id)
-      if (engineFull?.type === 'condition') {
-        setEditingNode(engineFull)
-      } else {
-        setEditingNode(fromRfCond ?? fromEngineCond ?? fromRfLeaf ?? fromEngineLeaf ?? null)
-      }
+      const leaf =
+        queryLeavesFromRf(rfNodes).find((l) => l.id === id) ??
+        flattenWorkflowLeaves(engineNodesRef.current).find((l) => l.id === id) ??
+        null
+      if (!leaf) return
+      setEditingLeaf(leaf)
       setEditOpen(true)
     }
 
     onDeleteRef.current = (id: string) => {
+      const term = queryTerminalsFromRf(rfNodes).find((t) => t.id === id)
+      if (term) {
+        message.warning('开始/结束节点不可删除')
+        return
+      }
       setNodes((prev) => {
         const nextNodes = prev.filter((n) => n.id !== id)
         setEdges((eds) => {
@@ -249,7 +282,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
       setNodes(
         toRfNodes(
           flattenWorkflowLeaves(engineNodes),
-          flattenWorkflowConditions(engineNodes),
+          flattenWorkflowTerminals(engineNodes),
           canvas,
           {
             onEdit: (id) => onEditRef.current(id),
@@ -264,8 +297,17 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
 
     const onNodesChange: OnNodesChange<WorkflowCanvasRfNode> = useCallback(
       (changes) => {
-        onNodesChangeInternal(changes)
-        const shouldPersist = changes.some(
+        // 阻止删除开始/结束
+        const filtered = changes.filter((c) => {
+          if (c.type !== 'remove') return true
+          const n = rfNodes.find((x) => x.id === c.id)
+          return n?.type !== 'workflowTerminal'
+        })
+        if (filtered.length !== changes.length) {
+          message.warning('开始/结束节点不可删除')
+        }
+        onNodesChangeInternal(filtered)
+        const shouldPersist = filtered.some(
           (c) =>
             (c.type === 'position' && 'dragging' in c && c.dragging === false) ||
             c.type === 'remove'
@@ -281,7 +323,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
           })
         })
       },
-      [onNodesChangeInternal, emitChange, setNodes, setEdges]
+      [onNodesChangeInternal, emitChange, setNodes, setEdges, rfNodes]
     )
 
     const onEdgesChange: OnEdgesChange = useCallback(
@@ -304,21 +346,13 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
     const onConnect: OnConnect = useCallback(
       (connection: Connection) => {
         setNodes((ns) => {
-          const sourceNode = ns.find((n) => n.id === connection.source)
-          const isCondition = sourceNode?.type === 'workflowCondition'
-          // 条件出口 Handle.id = case.key，写入 branchKey；普通连线不带标签
-          const branchKey =
-            isCondition && connection.sourceHandle
-              ? String(connection.sourceHandle)
-              : undefined
           setEdges((eds) => {
             const next = addEdge(
               {
                 ...connection,
                 id: `e_${connection.source}_${connection.target}_${Date.now()}`,
-                sourceHandle: branchKey ?? connection.sourceHandle,
-                label: branchKey,
-                ...queryEdgeStyle()
+                data: {},
+                ...queryEdgeStyle(false)
               },
               eds
             )
@@ -330,6 +364,59 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
       },
       [setEdges, setNodes, emitChange]
     )
+
+    const onEdgeDoubleClick = useCallback(
+      (_: ReactMouseEvent, edge: Edge) => {
+        const data = (edge.data ?? {}) as Partial<WorkflowCanvasEdge>
+        setEditingEdge({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          label: data.label,
+          when: data.when,
+          isDefault: data.isDefault
+        })
+        setEdgeEditOpen(true)
+      },
+      []
+    )
+
+    const handleEdgeEditOk = (patch: WorkflowEdgeEditValue): void => {
+      if (!editingEdge) return
+      setEdges((eds) => {
+        const next = eds.map((e) => {
+          if (e.id !== editingEdge.id) return e
+          const data: Partial<WorkflowCanvasEdge> = {
+            label: patch.label,
+            when: patch.when,
+            isDefault: patch.isDefault
+          }
+          const model: WorkflowCanvasEdge = {
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            ...data
+          }
+          const label = queryEdgeLabel(model)
+          const conditional = edgeHasCondition(model)
+          return {
+            ...e,
+            label,
+            data,
+            ...queryEdgeStyle(conditional)
+          }
+        })
+        queueMicrotask(() => {
+          setNodes((ns) => {
+            emitChange(ns, next)
+            return ns
+          })
+        })
+        return next
+      })
+      setEdgeEditOpen(false)
+      setEditingEdge(null)
+    }
 
     const addLeaf = useCallback(
       (leaf: WorkflowLeafNode): void => {
@@ -353,72 +440,26 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
       [rfNodes.length, rfEdges, setNodes, emitChange]
     )
 
-    const addCondition = useCallback((): void => {
-      const condition = createConditionNode()
-      const offset = rfNodes.length
-      const rfNode: WorkflowConditionRfNode = {
-        id: condition.id,
-        type: 'workflowCondition',
-        position: { x: 100 + (offset % 3) * 48, y: 90 + offset * 40 },
-        data: {
-          condition,
-          onEdit: (id) => onEditRef.current(id)
-        }
-      }
-      setNodes((ns) => {
-        const next = [...ns, rfNode]
-        queueMicrotask(() => emitChange(next, rfEdges))
-        return next
-      })
-    }, [rfNodes.length, rfEdges, setNodes, emitChange])
-
     useImperativeHandle(
       ref,
       () => ({
         addLeafByType: (type) => {
           addLeaf(createEmptyNode(type) as WorkflowLeafNode)
-        },
-        addCondition
+        }
       }),
-      [addLeaf, addCondition]
+      [addLeaf]
     )
 
     const handleEditOk = (node: WorkflowNode): void => {
-      if (node.type === 'parallel') {
-        message.error('画布只用叶子与条件节点；并行请从一个步骤连出多条无标签线')
+      if (
+        node.type === 'parallel' ||
+        node.type === 'condition' ||
+        node.type === 'start' ||
+        node.type === 'end'
+      ) {
+        message.error('画布请添加步骤节点；并行/条件请用连线表达')
         return
       }
-
-      if (node.type === 'condition') {
-        setNodes((ns) => {
-          const next = ns.map((n) => {
-            if (n.id !== node.id || n.type !== 'workflowCondition') return n
-            return {
-              ...n,
-              data: { ...n.data, condition: { ...node, cases: node.cases.map((c) => ({ ...c })) } }
-            }
-          }) as WorkflowCanvasRfNode[]
-          // case.key 变更时同步边的 sourceHandle / branchKey
-          setEdges((eds) => {
-            const keySet = new Set(node.cases.map((c) => c.key))
-            const synced = eds.map((e) => {
-              if (e.source !== node.id) return e
-              const handle = e.sourceHandle ? String(e.sourceHandle) : ''
-              if (handle && keySet.has(handle)) {
-                return { ...e, label: handle }
-              }
-              return e
-            })
-            queueMicrotask(() => emitChange(next, synced))
-            return synced
-          })
-          return next
-        })
-        setEditOpen(false)
-        setEditingNode(null)
-        return
-      }
-
       setNodes((ns) => {
         const exists = ns.some((n) => n.id === node.id && n.type === 'workflow')
         const next: WorkflowCanvasRfNode[] = exists
@@ -444,7 +485,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
         return next
       })
       setEditOpen(false)
-      setEditingNode(null)
+      setEditingLeaf(null)
     }
 
     return (
@@ -459,6 +500,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
             onNodesChange={onNodesChange as OnNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onEdgeDoubleClick={onEdgeDoubleClick}
             nodeTypes={nodeTypes}
             fitView
             deleteKeyCode={['Backspace', 'Delete']}
@@ -471,16 +513,27 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
 
         <WorkflowNodeEditModal
           open={editOpen}
-          node={editingNode}
+          node={editingLeaf}
           leafOnly
-          allowCondition
           isFullscreen={isFullscreen}
           fullscreenContainer={fullscreenContainer}
           onCancel={() => {
             setEditOpen(false)
-            setEditingNode(null)
+            setEditingLeaf(null)
           }}
           onOk={handleEditOk}
+        />
+
+        <WorkflowEdgeEditModal
+          open={edgeEditOpen}
+          edge={editingEdge}
+          isFullscreen={isFullscreen}
+          fullscreenContainer={fullscreenContainer}
+          onCancel={() => {
+            setEdgeEditOpen(false)
+            setEditingEdge(null)
+          }}
+          onOk={handleEdgeEditOk}
         />
       </div>
     )

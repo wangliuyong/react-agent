@@ -93,6 +93,8 @@ function flattenTaskSpecs(nodes: WorkflowNode[]): FlatTaskSpec[] {
           specs.push({ id: child.id, title: child.title, parentId: node.id })
         }
       }
+    } else if (node.type === 'start' || node.type === 'end') {
+      specs.push({ id: node.id, title: node.title })
     } else {
       specs.push({ id: node.id, title: node.title })
     }
@@ -388,6 +390,15 @@ async function executeTopLevelNode(
   session: Session,
   signal: AbortSignal
 ): Promise<WorkflowRun> {
+  if (node.type === 'start' || node.type === 'end') {
+    statusMap.set(node.id, 'running')
+    persistSessionTasks(session, buildTasks(specs, statusMap))
+    run = patchRun(run, { cursorNodeId: node.id, status: 'running' })
+    statusMap.set(node.id, 'done')
+    persistSessionTasks(session, buildTasks(specs, statusMap))
+    return run
+  }
+
   if (node.type === 'condition') {
     try {
       return await executeConditionNode(

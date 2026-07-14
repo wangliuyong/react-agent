@@ -265,7 +265,9 @@ function queryPickDefault(
 
 /**
  * 选出要执行的 case.key。
- * agent 模式传入模型解析出的 key；expression 模式从 context 求值。
+ * - 边条件模型：cases[].when 各自求值，第一个为真者胜出，否则 defaultKey
+ * - 旧节点级 when：布尔/枚举映射 true/false 或 case.key
+ * - agent：兼容旧数据
  */
 export function queryConditionCaseKey(
   node: WorkflowConditionNode,
@@ -280,13 +282,25 @@ export function queryConditionCaseKey(
     return queryPickDefault(node)
   }
 
+  // 边条件：按 case.when 顺序匹配
+  const edged = node.cases.filter((c) => c.when != null)
+  if (edged.length > 0) {
+    for (const c of edged) {
+      const evaluated = queryEvaluateWhen(c.when, context)
+      if ('error' in evaluated) {
+        return { error: `分支「${c.label || c.key}」：${evaluated.error}` }
+      }
+      if (evaluated.value) return { key: c.key }
+    }
+    return queryPickDefault(node)
+  }
+
   const evaluated = queryEvaluateWhen(node.when, context)
   if ('error' in evaluated) return evaluated
 
   const v = evaluated.value
   const keys = new Set(node.cases.map((c) => c.key))
 
-  // If/Else：布尔映射 true/false
   if (typeof v === 'boolean' && keys.has(String(v))) {
     return { key: String(v) }
   }
@@ -296,7 +310,6 @@ export function queryConditionCaseKey(
     if (keys.has(asKey)) return { key: asKey }
   }
 
-  // 其它真假值若存在 true/false case，再映射一次
   if (keys.has('true') && keys.has('false')) {
     return { key: v ? 'true' : 'false' }
   }

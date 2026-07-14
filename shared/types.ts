@@ -452,16 +452,21 @@ export interface WorkflowConditionWhen {
   value?: string | number | boolean
 }
 
-/** 条件支路：key 对应画布边 branchKey；nodes 由画布拓扑编译填入 */
+/**
+ * 条件支路：nodes 由画布拓扑编译填入。
+ * 边条件模型下每条 case 自带 when；旧 true/false 模型可用节点级 when。
+ */
 export interface WorkflowConditionCase {
   key: string
   label?: string
+  /** 该支路的边条件（表达式求值为真则选中） */
+  when?: WorkflowConditionWhen
   nodes: WorkflowLeafNode[]
 }
 
 /**
- * 条件分支（XOR）：求值或 Agent 选出一个 case.key，只执行该支路，其余 skipped。
- * 与 parallel（AND）互斥；画布出边须带 branchKey。
+ * 条件分支（XOR）：引擎内部编译产物；画布侧不再编辑此节点，条件在连线上。
+ * mode=expression + cases[].when 为现行默认；agent 模式仅兼容旧数据。
  */
 export interface WorkflowConditionNode {
   id: string
@@ -469,23 +474,44 @@ export interface WorkflowConditionNode {
   title: string
   mode: WorkflowConditionMode
   when?: WorkflowConditionWhen
-  /** agent 模式：提示模型只输出某个 case.key */
   prompt?: string
   toolWhitelist?: string[]
   cases: WorkflowConditionCase[]
-  /** 无匹配时走的 case.key */
   defaultKey?: string
 }
 
-export type WorkflowLeafNode = WorkflowAgentNode | WorkflowToolNode | WorkflowAwaitNode
-export type WorkflowNode = WorkflowLeafNode | WorkflowParallelNode | WorkflowConditionNode
+/** 流程开始（每流程恰好一个；画布不可删） */
+export interface WorkflowStartNode {
+  id: string
+  type: 'start'
+  title: string
+}
 
-/** 画布连线（拖拽可视化编排） */
+/** 流程结束（每流程恰好一个；画布不可删） */
+export interface WorkflowEndNode {
+  id: string
+  type: 'end'
+  title: string
+}
+
+export type WorkflowLeafNode = WorkflowAgentNode | WorkflowToolNode | WorkflowAwaitNode
+export type WorkflowTerminalNode = WorkflowStartNode | WorkflowEndNode
+export type WorkflowNode =
+  | WorkflowLeafNode
+  | WorkflowParallelNode
+  | WorkflowConditionNode
+  | WorkflowTerminalNode
+
+/** 画布连线：条件在边上；全无 when/default 的多出线仍为 parallel */
 export interface WorkflowCanvasEdge {
   id: string
   source: string
   target: string
-  /** 从 condition 节点出发时必填，对应 case.key；无此字段的多出线仍为 parallel */
+  label?: string
+  when?: WorkflowConditionWhen
+  /** else 兜底；同一 source 最多一条 */
+  isDefault?: boolean
+  /** @deprecated 旧 condition 画布字段；迁移后清除 */
   branchKey?: string
 }
 
