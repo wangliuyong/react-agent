@@ -20,65 +20,57 @@ import {
   isValidChannelId,
   slugifyChannelId
 } from '../../types'
-import { DB_THEME } from '@/styles/theme-tokens'
 import styles from './ChannelsPage.module.css'
 
 const { Title, Text } = Typography
 
 type ChannelFilter = 'all' | 'enabled' | 'reserved'
 
+/** 渠道卡片/详情用状态标签（样式对齐技能页 tag） */
 function renderLoginTag(state: ChannelLoginState | undefined): React.ReactElement {
   switch (state) {
     case 'logged_in':
-      return (
-        <Tag icon={<CheckCircleOutlined />} color="success">
-          已登录
-        </Tag>
-      )
+      return <Tag className={styles.tagSuccess}>已登录</Tag>
     case 'logged_out':
-      return (
-        <Tag icon={<CloseCircleOutlined />} color="warning">
-          未登录
-        </Tag>
-      )
+      return <Tag className={styles.tagWarn}>未登录</Tag>
     case 'unsupported':
-      return (
-        <Tag icon={<StopOutlined />} color="default">
-          即将上线
-        </Tag>
-      )
+      return <Tag className={styles.tagMuted}>即将上线</Tag>
     case 'error':
-      return (
-        <Tag icon={<CloseCircleOutlined />} color="error">
-          检测失败
-        </Tag>
-      )
+      return <Tag className={styles.tagDanger}>检测失败</Tag>
     default:
-      return (
-        <Tag icon={<QuestionCircleOutlined />} color="default">
-          未检测
-        </Tag>
-      )
+      return <Tag className={styles.tagMuted}>未检测</Tag>
   }
 }
 
 /** 通知渠道配置状态徽标 */
 function renderNotifyConfigTag(channel: PublishChannelMeta): React.ReactElement {
   if (!channel.enabled || channel.id === 'wechat_notify' || channel.id === 'qq_notify') {
-    return <Tag>即将上线</Tag>
+    return <Tag className={styles.tagMuted}>即将上线</Tag>
   }
   if (isNotifyChannelConfigured(channel)) {
-    return (
-      <Tag icon={<CheckCircleOutlined />} color="success">
-        已配置
-      </Tag>
-    )
+    return <Tag className={styles.tagSuccess}>已配置</Tag>
   }
-  return (
-    <Tag icon={<CloseCircleOutlined />} color="warning">
-      未配置
-    </Tag>
-  )
+  return <Tag className={styles.tagWarn}>未配置</Tag>
+}
+
+/** 按渠道 id 映射图标与品牌色，让卡片一眼可辨 */
+function channelVisual(id: string): { icon: React.ReactNode; toneClass: string } {
+  switch (id) {
+    case 'xhs':
+      return { icon: <FireOutlined />, toneClass: styles.tone_xhs }
+    case 'douyin':
+      return { icon: <PlaySquareOutlined />, toneClass: styles.tone_douyin }
+    case 'wechat_channels':
+      return { icon: <VideoCameraOutlined />, toneClass: styles.tone_wechat }
+    case 'feishu':
+      return { icon: <SendOutlined />, toneClass: styles.tone_feishu }
+    case 'wechat_notify':
+      return { icon: <WechatOutlined />, toneClass: styles.tone_wechat }
+    case 'qq_notify':
+      return { icon: <MessageOutlined />, toneClass: styles.tone_qq }
+    default:
+      return { icon: <ApiOutlined />, toneClass: styles.tone_default }
+  }
 }
 
 function matchChannelQuery(channel: PublishChannelMeta, query: string): boolean {
@@ -108,7 +100,7 @@ function notifyFooterLabel(channel: PublishChannelMeta): string {
   return isNotifyChannelConfigured(channel) ? '已配置' : '未配置'
 }
 
-/** 渠道管理：对齐技能市场 — Tab 分发布/通知 + 卡片浏览 */
+/** 渠道管理：对齐技能市场 — Segmented 分发布/通知 + 卡片浏览 */
 export function ChannelsPage(): React.ReactElement {
   const channels = useChannelsStore((s) => s.channels)
   const channelsLoading = useChannelsStore((s) => s.loading)
@@ -328,10 +320,12 @@ export function ChannelsPage(): React.ReactElement {
   const detailIsNotify = detailChannel
     ? normalizeChannelKind(detailChannel.kind) === 'notify'
     : false
+  const detailVisual = detailChannel ? channelVisual(detailChannel.id) : null
   const formIsNotify = normalizeChannelKind(editKind ?? kindTab) === 'notify'
 
   return (
     <div className={styles.page}>
+      {/* 顶栏：对齐技能市场 — 图标标题 + 全局操作 */}
       <header className={styles.header}>
         <div className={styles.headerMain}>
           <div className={styles.headerIcon}>
@@ -342,12 +336,12 @@ export function ChannelsPage(): React.ReactElement {
               <Title level={3} className={styles.title}>
                 渠道
               </Title>
-              <span className={styles.countBadge}>{tabChannels.length}</span>
+              <span className={styles.countBadge}>{channels.length}</span>
             </div>
             <Text type="secondary" className={styles.desc}>
               {kindTab === 'publish'
-                ? `已接入 ${enabledCount} 个 · 已登录 ${loggedInCount} 个；共用本机浏览器 Profile`
-                : `已接入 ${enabledCount} 个 · 已配置 ${configuredNotifyCount} 个；Webhook 仅存本机`}
+                ? `发布 · 已接入 ${enabledCount} · 已登录 ${loggedInCount}；共用本机浏览器 Profile`
+                : `通知 · 已接入 ${enabledCount} · 已配置 ${configuredNotifyCount}；Webhook 仅存本机`}
             </Text>
           </div>
         </div>
@@ -371,25 +365,25 @@ export function ChannelsPage(): React.ReactElement {
             </Button>
           ) : null}
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            新增渠道
+            新增
           </Button>
         </Space>
       </header>
 
-      <Tabs
-        activeKey={kindTab}
-        onChange={(k) => {
-          setKindTab(k as ChannelKind)
-          setFilter('all')
-          setSearch('')
-        }}
-        items={[
-          { key: 'publish', label: '发布渠道' },
-          { key: 'notify', label: '通知渠道' }
-        ]}
-      />
-
+      {/* 筛选栏：类型 Tab + 范围 + 搜索（结构对齐技能页） */}
       <div className={styles.toolbar}>
+        <Segmented
+          value={kindTab}
+          onChange={(v) => {
+            setKindTab(v as ChannelKind)
+            setFilter('all')
+            setSearch('')
+          }}
+          options={[
+            { label: '发布渠道', value: 'publish' },
+            { label: '通知渠道', value: 'notify' }
+          ]}
+        />
         <Segmented
           value={filter}
           onChange={(v) => setFilter(v as ChannelFilter)}
@@ -431,6 +425,7 @@ export function ChannelsPage(): React.ReactElement {
               {filtered.map((channel, index) => {
                 const isNotify = normalizeChannelKind(channel.kind) === 'notify'
                 const status = statusMap[channel.id]
+                const visual = channelVisual(channel.id)
                 return (
                   <Card
                     key={channel.id}
@@ -442,13 +437,19 @@ export function ChannelsPage(): React.ReactElement {
                   >
                     <div className={styles.cardHead}>
                       <div className={styles.cardTitleRow}>
+                        <span
+                          className={`${styles.cardAvatar} ${visual.toneClass}`}
+                          aria-hidden
+                        >
+                          {visual.icon}
+                        </span>
                         <span className={styles.cardTitle}>{channel.label}</span>
                         {isNotify ? (
                           renderNotifyConfigTag(channel)
                         ) : channel.enabled ? (
-                          <Tag color="processing">已接入</Tag>
+                          <Tag className={styles.tagActive}>已接入</Tag>
                         ) : (
-                          <Tag>预留</Tag>
+                          <Tag className={styles.tagMuted}>预留</Tag>
                         )}
                       </div>
                       <p className={styles.cardDesc}>
@@ -457,7 +458,7 @@ export function ChannelsPage(): React.ReactElement {
                     </div>
                     <div className={styles.cardFooter}>
                       <span className={styles.cardAuthor}>
-                        {channel.isBuiltin ? '@平台' : '@自定义'}
+                        {channel.isBuiltin ? '@平台' : '@你'}
                       </span>
                       <span className={styles.cardUsage}>
                         {isNotify
@@ -472,41 +473,34 @@ export function ChannelsPage(): React.ReactElement {
           )}
         </Spin>
 
+        {/* 底部说明：样式对齐技能详情 description 条，替代默认 Alert */}
         {kindTab === 'publish' ? (
-          <Alert
-            className={styles.alertCard}
-            type="info"
-            showIcon
-            message="浏览器登录态"
-            description={
-              <Space direction="vertical">
-                <Text>
-                  各发布渠道共用同一个 Playwright 浏览器 Profile。若登录异常或 Cookie
-                  冲突，可清除后重新扫码。
-                </Text>
-                <Popconfirm
-                  title="确定清除全部渠道登录态？"
-                  description="将删除本机 browser-profile 目录，所有渠道需重新登录。"
-                  onConfirm={() => void handleClearProfile()}
-                  okText="清除"
-                  cancelText="取消"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button danger loading={clearing}>
-                    清除全部登录态
-                  </Button>
-                </Popconfirm>
-              </Space>
-            }
-          />
+          <aside className={styles.tipPanel}>
+            <div className={styles.tipTitle}>浏览器登录态</div>
+            <p className={styles.tipText}>
+              各发布渠道共用同一个 Playwright 浏览器 Profile。若登录异常或 Cookie
+              冲突，可清除后重新扫码。
+            </p>
+            <Popconfirm
+              title="确定清除全部渠道登录态？"
+              description="将删除本机 browser-profile 目录，所有渠道需重新登录。"
+              onConfirm={() => void handleClearProfile()}
+              okText="清除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger size="small" loading={clearing}>
+                清除全部登录态
+              </Button>
+            </Popconfirm>
+          </aside>
         ) : (
-          <Alert
-            className={styles.alertCard}
-            type="info"
-            showIcon
-            message="通知渠道"
-            description="飞书使用自定义机器人 Webhook；Webhook 与签名密钥仅保存在本机，不会发给 Agent。"
-          />
+          <aside className={styles.tipPanel}>
+            <div className={styles.tipTitle}>通知渠道</div>
+            <p className={styles.tipText}>
+              飞书使用自定义机器人 Webhook；Webhook 与签名密钥仅保存在本机，不会发给 Agent。
+            </p>
+          </aside>
         )}
       </div>
 
@@ -524,25 +518,35 @@ export function ChannelsPage(): React.ReactElement {
         ) : (
           <div className={styles.detailBody}>
             <div className={styles.detailHeader}>
-              <div>
-                <code className={styles.detailId}>{detailChannel.id}</code>
-                <div className={styles.detailTags}>
-                  {detailChannel.isBuiltin ? (
-                    <Tag color={DB_THEME.primary}>内置</Tag>
-                  ) : null}
-                  <Tag color={detailIsNotify ? 'cyan' : 'processing'}>
-                    {detailIsNotify ? '通知' : '发布'}
-                  </Tag>
-                  {detailIsNotify
-                    ? renderNotifyConfigTag(detailChannel)
-                    : detailChannel.enabled
-                      ? (
-                          <Tag color="processing">已接入</Tag>
-                        )
-                      : (
-                          <Tag>预留</Tag>
-                        )}
-                  {!detailIsNotify ? renderLoginTag(detailStatus?.state) : null}
+              <div className={styles.detailIdentity}>
+                {detailVisual ? (
+                  <span
+                    className={`${styles.detailAvatar} ${detailVisual.toneClass}`}
+                    aria-hidden
+                  >
+                    {detailVisual.icon}
+                  </span>
+                ) : null}
+                <div>
+                  <code className={styles.detailId}>{detailChannel.id}</code>
+                  <div className={styles.detailTags}>
+                    {detailChannel.isBuiltin ? (
+                      <Tag className={styles.tagBuiltin}>内置</Tag>
+                    ) : null}
+                    <Tag className={detailIsNotify ? styles.tagNotify : styles.tagActive}>
+                      {detailIsNotify ? '通知' : '发布'}
+                    </Tag>
+                    {detailIsNotify
+                      ? renderNotifyConfigTag(detailChannel)
+                      : detailChannel.enabled
+                        ? (
+                            <Tag className={styles.tagActive}>已接入</Tag>
+                          )
+                        : (
+                            <Tag className={styles.tagMuted}>预留</Tag>
+                          )}
+                    {!detailIsNotify ? renderLoginTag(detailStatus?.state) : null}
+                  </div>
                 </div>
               </div>
               <Space wrap>
@@ -684,7 +688,7 @@ export function ChannelsPage(): React.ReactElement {
             </Form.Item>
           )}
           <Form.Item label="类型">
-            <Tag color={formIsNotify ? 'cyan' : 'processing'}>
+            <Tag className={formIsNotify ? styles.tagNotify : styles.tagActive}>
               {formIsNotify ? '通知渠道' : '发布渠道'}
             </Tag>
             <Text type="secondary" style={{ marginLeft: 8 }}>
