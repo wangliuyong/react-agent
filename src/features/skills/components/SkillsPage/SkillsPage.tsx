@@ -73,7 +73,7 @@ function SkillStatusTag({ skill }: { skill: ProjectSkill }): React.ReactElement 
   return <Tag color="success">已启用</Tag>
 }
 
-/** 技能市场：卡片网格浏览、筛选、详情抽屉与 CRUD */
+/** 技能市场：卡片网格浏览、筛选、详情弹窗与新建/编辑抽屉 CRUD */
 export function SkillsPage(): React.ReactElement {
   const skills = useSkillsStore((s) => s.skills)
   const detail = useSkillsStore((s) => s.detail)
@@ -585,20 +585,42 @@ export function SkillsPage(): React.ReactElement {
         </Spin>
       </Modal>
 
-      {/* 新建 / 编辑 */}
-      <Modal
+      {/* 新建 / 编辑：右侧抽屉（可从详情 Modal 叠开，故抬高 zIndex） */}
+      <Drawer
         title={editMode === 'create' ? '新建技能' : '编辑技能'}
+        placement="right"
+        width="69vw"
         open={editOpen}
-        onCancel={() => {
+        onClose={() => {
           setEditOpen(false)
           setEditDraft(null)
         }}
-        onOk={handleSave}
-        confirmLoading={saving}
-        width={720}
         destroyOnHidden
+        zIndex={1200}
+        className={styles.editDrawer}
+        footer={
+          <div className={styles.editDrawerFooter}>
+            <Button
+              onClick={() => {
+                setEditOpen(false)
+                setEditDraft(null)
+              }}
+            >
+              取消
+            </Button>
+            <Button type="primary" loading={saving} onClick={() => void handleSave()}>
+              保存
+            </Button>
+          </div>
+        }
       >
-        <Form form={form} layout="vertical" initialValues={editDraft ?? undefined}>
+        <Form
+          key={editDraft ? `${editMode}-${editDraft.id || 'new'}` : 'closed'}
+          form={form}
+          layout="vertical"
+          initialValues={editDraft ?? undefined}
+          disabled={saving}
+        >
           <Form.Item
             name="id"
             label="技能 ID（目录名）"
@@ -640,13 +662,13 @@ export function SkillsPage(): React.ReactElement {
             label="正文（Markdown）"
             rules={[{ required: true, message: '请输入正文' }]}
           >
-            <Input.TextArea rows={12} placeholder="# 技能标题&#10;&#10;## 步骤..." />
+            <Input.TextArea rows={14} placeholder="# 技能标题&#10;&#10;## 步骤..." />
           </Form.Item>
           <Form.Item name="examplesContent" label="示例（可选，Markdown）">
             <Input.TextArea rows={6} placeholder="# 示例&#10;..." />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
 
       {/* 模板安装（智能整理） */}
       <Modal
