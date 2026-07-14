@@ -136,7 +136,7 @@
 }
 
 .toolBlock {
-  background: var(--db-bg) !important;
+  background: #fff !important;
   border: 1px solid var(--db-border) !important;
   border-radius: var(--db-radius-md) !important;
   overflow: hidden;

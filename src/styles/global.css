@@ -168,3 +168,7 @@ a {
 .ant-modal-mask {
   background: rgba(0, 0, 0, 0.42) !important;
 }
+
+.ant-collapse-header{
+  align-items: center!important;
+}
