@@ -68,6 +68,18 @@ export function SettingsPage(): React.ReactElement {
             <Form.Item label="最大工具轮次" name="maxTurns">
               <InputNumber min={5} max={100} style={{ width: '100%' }} />
             </Form.Item>
+            <Form.Item
+              label="Agent 运行时"
+              name="agentRuntime"
+              tooltip="langgraph 为默认编排；legacy 可回滚到自研 ReAct（迁移期）"
+            >
+              <Select
+                options={[
+                  { value: 'langgraph', label: 'LangGraph（推荐）' },
+                  { value: 'legacy', label: 'Legacy ReAct' }
+                ]}
+              />
+            </Form.Item>
             <Form.Item label="完全访问" name="fullAccess" valuePropName="checked">
               <Switch />
             </Form.Item>

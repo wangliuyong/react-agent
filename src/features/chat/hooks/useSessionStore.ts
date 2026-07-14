@@ -160,6 +160,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   bindAgentEvents: () => {
     return window.api.onAgentEvent((event: AgentEvent) => {
+      // agent_role 仅驱动状态文案，不改正文列表
+      if (event.type === 'agent_role') {
+        return
+      }
       const activeId = get().activeSessionId
 
       if (event.type === 'text_delta') {

@@ -34,6 +34,7 @@ import {
   interpolatePromptSoft,
   queryDecodeWorkflowToolResult
 } from './tool-result'
+import { isGraphInterrupt, interrupt } from '@langchain/langgraph'
 
 /** 同一时刻每个会话只跑一个工作流 */
 const runningBySession = new Set<string>()
@@ -277,7 +278,14 @@ async function executeLeafNode(
       role: 'assistant',
       content: `等待确认：${node.reason || node.title}`
     })
-    await waitForUserContinue(sessionId, node.reason || node.title)
+    const reason = node.reason || node.title
+    // LangGraph 节点内：interrupt；图外/legacy：promise waiter
+    try {
+      interrupt({ type: 'await_user', sessionId, reason })
+    } catch (e) {
+      if (isGraphInterrupt(e)) throw e
+      await waitForUserContinue(sessionId, reason)
+    }
     if (signal.aborted) throw new Error('__aborted__')
     return patchRun(run, { status: 'running' })
   }
@@ -627,20 +635,85 @@ function findResumeIndex(nodes: WorkflowNode[], cursorNodeId: string | null): nu
 }
 
 async function executeWorkflowRun(runId: string, fromStart: boolean): Promise<void> {
+  // 默认走 LangGraph 编译执行；legacy 保留 for 循环以便回滚
+  if (querySettings().agentRuntime !== 'legacy') {
+    const { executeWorkflowWithLangGraph } = await import('./compile-to-langgraph')
+    await executeWorkflowWithLangGraph(runId, fromStart)
+    return
+  }
+  await executeWorkflowRunLegacy(runId, fromStart)
+}
+
+/** 自研 for 循环（agentRuntime=legacy） */
+async function executeWorkflowRunLegacy(runId: string, fromStart: boolean): Promise<void> {
+  const prepared = __graphApi_prepareWorkflowRun(runId, fromStart)
+  if (!prepared) return
+
+  const { workflow, session: liveSession, run: initialRun, specs, statusMap, startIndex, signal } =
+    prepared
+  const sessionId = liveSession.id
+  let run = initialRun
+
+  try {
+    for (let i = startIndex; i < workflow.nodes.length; i++) {
+      if (signal.aborted) {
+        throw new Error('__aborted__')
+      }
+      const node = workflow.nodes[i]
+      run = await executeTopLevelNode(
+        sessionId,
+        node,
+        run,
+        statusMap,
+        specs,
+        liveSession,
+        signal
+      )
+    }
+    __graphApi_finalizeWorkflowRun(runId, sessionId, 'success')
+  } catch (e) {
+    if (e instanceof Error && e.message === '__aborted__') {
+      __graphApi_finalizeWorkflowRun(runId, sessionId, 'aborted')
+    } else {
+      const message = e instanceof Error ? e.message : String(e)
+      __graphApi_finalizeWorkflowRun(runId, sessionId, 'failed', message)
+    }
+  } finally {
+    releaseSessionAbort(sessionId)
+    runningBySession.delete(sessionId)
+  }
+}
+
+/**
+ * 准备 Run 执行上下文（任务骨架、abort、开场消息）。
+ * LangGraph / legacy 共用。
+ */
+export function __graphApi_prepareWorkflowRun(
+  runId: string,
+  fromStart: boolean
+): {
+  workflow: WorkflowDefinition
+  session: Session
+  run: WorkflowRun
+  specs: FlatTaskSpec[]
+  statusMap: Map<string, TaskItemStatus>
+  startIndex: number
+  signal: AbortSignal
+} | null {
   let run = queryWorkflowRun(runId)
-  if (!run) return
+  if (!run) return null
 
   const workflow = queryWorkflow(run.workflowId)
   if (!workflow) {
     patchRun(run, { status: 'failed', errorMessage: '工作流定义不存在' })
     emitError(run.sessionId, '工作流定义不存在')
     emitDone(run.sessionId, 'error')
-    return
+    return null
   }
 
   const sessionId = run.sessionId
   if (runningBySession.has(sessionId)) {
-    return
+    return null
   }
   runningBySession.add(sessionId)
 
@@ -650,13 +723,12 @@ async function executeWorkflowRun(runId: string, fromStart: boolean): Promise<vo
     emitError(sessionId, '会话不存在')
     emitDone(sessionId, 'error')
     runningBySession.delete(sessionId)
-    return
+    return null
   }
 
   const specs = flattenTaskSpecs(workflow.nodes)
   const statusMap = new Map<string, TaskItemStatus>()
   for (const s of specs) {
-    // 续跑时：cursor 之前的节点视为已完成
     statusMap.set(s.id, 'pending')
   }
 
@@ -668,7 +740,6 @@ async function executeWorkflowRun(runId: string, fromStart: boolean): Promise<vo
       for (const c of n.children) statusMap.set(c.id, 'done')
     }
     if (n.type === 'condition') {
-      // 续跑无法精确还原当时选中的支路，统一标 done（与 parallel 同粒度粗恢复）
       for (const arm of n.cases) {
         for (const c of arm.nodes) statusMap.set(c.id, 'done')
       }
@@ -691,43 +762,62 @@ async function executeWorkflowRun(runId: string, fromStart: boolean): Promise<vo
     })
   }
 
+  return {
+    workflow,
+    session: liveSession,
+    run,
+    specs,
+    statusMap,
+    startIndex,
+    signal: controller.signal
+  }
+}
+
+/** 供 LangGraph advance 节点调用 */
+export async function __graphApi_executeTopLevelNode(
+  sessionId: string,
+  node: WorkflowNode,
+  run: WorkflowRun,
+  statusMap: Map<string, TaskItemStatus>,
+  specs: FlatTaskSpec[],
+  session: Session,
+  signal: AbortSignal
+): Promise<WorkflowRun> {
+  return executeTopLevelNode(sessionId, node, run, statusMap, specs, session, signal)
+}
+
+/** 结束 Run：写状态、推送事件、释放锁 */
+export function __graphApi_finalizeWorkflowRun(
+  runId: string,
+  sessionId: string,
+  outcome: 'success' | 'aborted' | 'failed',
+  errorMessage?: string
+): void {
+  const run = queryWorkflowRun(runId)
+  const session = querySession(sessionId)
   try {
-    for (let i = startIndex; i < workflow.nodes.length; i++) {
-      if (controller.signal.aborted) {
-        throw new Error('__aborted__')
+    if (!run) return
+    if (outcome === 'success') {
+      patchRun(run, { status: 'success', cursorNodeId: null })
+      if (session) {
+        appendWorkflowMessage(session, { role: 'assistant', content: '流程执行完毕。' })
       }
-      const node = workflow.nodes[i]
-      run = await executeTopLevelNode(
-        sessionId,
-        node,
-        run,
-        statusMap,
-        specs,
-        liveSession,
-        controller.signal
-      )
-    }
-    run = patchRun(run, { status: 'success', cursorNodeId: null })
-    appendWorkflowMessage(liveSession, {
-      role: 'assistant',
-      content: '流程执行完毕。'
-    })
-    emitDone(sessionId, 'workflow_success')
-  } catch (e) {
-    if (e instanceof Error && e.message === '__aborted__') {
+      emitDone(sessionId, 'workflow_success')
+    } else if (outcome === 'aborted') {
       patchRun(run, { status: 'aborted' })
-      appendWorkflowMessage(liveSession, {
-        role: 'assistant',
-        content: '流程已中止。'
-      })
+      if (session) {
+        appendWorkflowMessage(session, { role: 'assistant', content: '流程已中止。' })
+      }
       emitDone(sessionId, 'aborted')
     } else {
-      const message = e instanceof Error ? e.message : String(e)
+      const message = errorMessage || '未知错误'
       patchRun(run, { status: 'failed', errorMessage: message })
-      appendWorkflowMessage(liveSession, {
-        role: 'assistant',
-        content: `流程执行失败：${message}`
-      })
+      if (session) {
+        appendWorkflowMessage(session, {
+          role: 'assistant',
+          content: `流程执行失败：${message}`
+        })
+      }
       emitError(sessionId, message)
       emitDone(sessionId, 'error')
     }
