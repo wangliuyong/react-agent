@@ -1,25 +1,24 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 32px 28px 160px;
+  gap: 22px;
+  padding: 28px 28px 168px;
   max-width: 820px;
   margin: 0 auto;
   width: 100%;
-
 }
 
 .row {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  animation: msgIn 0.3s ease both;
+  gap: 8px;
+  animation: msgIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes msgIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -35,34 +34,76 @@
   align-items: flex-start;
 }
 
+/* 角色标签 — 轻量胶囊，对齐技能页次要信息层级 */
 .label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   color: var(--db-text-secondary);
-  padding: 0 4px;
+  padding: 0 2px;
 }
 
-/* 用户气泡 — 豆包浅蓝 */
+.label::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--db-border);
+  flex-shrink: 0;
+}
+
+.rowUser .label::before {
+  background: var(--db-primary);
+  box-shadow: 0 0 0 3px var(--db-primary-muted);
+}
+
+.rowAssistant .label::before {
+  background: var(--db-primary-grad-soft, var(--db-primary));
+  box-shadow: 0 0 0 3px var(--db-primary-muted);
+}
+
+/* 用户气泡 — 技能卡同系圆角 / 细边框 / 轻阴影 */
 .userBubble {
   max-width: 85%;
   background: var(--db-primary-soft);
-  border-radius:8px;
+  border: 1px solid var(--db-primary-border-md);
+  border-radius: var(--db-radius-lg);
   padding: 12px 16px;
-  border: none;
+  box-shadow: 0 2px 10px var(--db-primary-shadow);
 }
 
-/* 助手回复 — 豆包无气泡纯文本风 */
+/* 助手回复 — 无气泡阅读流，左侧微妙呼吸线仅在流式时出现 */
 .assistantCard {
   width: 100%;
   background: transparent;
   border: none;
   border-radius: 0;
-  padding: 4px 0;
+  padding: 2px 0 2px 2px;
   box-shadow: none;
 }
 
 .assistantCardStreaming {
   position: relative;
+  padding-left: 12px;
+}
+
+.assistantCardStreaming::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--db-primary) 0%,
+    var(--db-primary-grad-soft, var(--db-primary)) 100%
+  );
+  opacity: 0.85;
 }
 
 .assistantCardStreaming::after {
@@ -98,11 +139,13 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-radius: var(--db-radius-md);
+  border-radius: var(--db-radius-lg);
   background: var(--db-primary-muted);
   border: 1px solid var(--db-primary-border-md);
   font-size: 13px;
+  font-weight: 500;
   color: var(--db-primary);
+  box-shadow: 0 2px 12px var(--db-primary-shadow);
   animation: fadeIn 0.25s ease;
 }
 
@@ -136,33 +179,52 @@
   flex-shrink: 0;
 }
 
+/* 工具结果 — 对齐技能卡片：content 底、细边框、悬停微阴影 */
 .toolBlock {
-  background: #fff !important;
-  border: 1px solid var(--db-border) !important;
-  border-radius: var(--db-radius-md) !important;
+  width: 100%;
+  background: var(--db-bg-content) !important;
+  border: 1px solid var(--db-border-light) !important;
+  border-radius: var(--db-radius-lg) !important;
   overflow: hidden;
+  box-shadow: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.toolBlock:hover {
+  border-color: var(--db-primary-border-active) !important;
+  box-shadow: 0 4px 20px var(--db-primary-shadow);
 }
 
 .toolBlock :global(.ant-collapse-header) {
   font-size: 12px !important;
-  font-weight: 600 !important;
+  font-weight: 650 !important;
   color: var(--db-text-secondary) !important;
+  padding: 12px 14px !important;
+  align-items: center !important;
+}
+
+.toolBlock :global(.ant-collapse-content) {
+  border-top: 1px solid var(--db-border-light) !important;
 }
 
 .toolBlock :global(.ant-collapse-content-box) {
-  background: var(--db-bg-content);
+  background: var(--db-bg);
   font-size: 12px;
+  padding: 12px 14px !important;
 }
 
 .taskInline {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 8px;
-  padding: 12px 14px;
-  border-radius: var(--db-radius-md);
-  background: var(--db-bg);
+  margin-bottom: 4px;
+  padding: 14px 16px;
+  border-radius: var(--db-radius-lg);
+  background: var(--db-bg-content);
   border: 1px solid var(--db-border-light);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
 }
 
 /* 任务标签 — 完成/进行中使用主题色 */
@@ -210,7 +272,8 @@
 
 .doneAlert {
   margin-top: 12px !important;
-  border-radius: var(--db-radius-md) !important;
+  border-radius: var(--db-radius-lg) !important;
+  border: 1px solid var(--db-primary-border-md) !important;
 }
 
 .userMarkdown {
@@ -219,6 +282,8 @@
 
 .toolMarkdown {
   font-size: 12px;
+  line-height: 1.6;
+  color: var(--db-text-secondary);
 }
 
 .cursor {
