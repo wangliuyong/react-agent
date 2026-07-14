@@ -1,5 +1,7 @@
+import { useRef } from 'react'
 import type { WorkflowCanvas as WorkflowCanvasModel, WorkflowDefinition } from '@shared/types'
 import { DB_THEME } from '@/styles/theme-tokens'
+import { useElementFullscreen } from '@/hooks/useElementFullscreen'
 import { WorkflowCanvas } from '../WorkflowCanvas'
 import { flattenWorkflowLeaves } from '../../utils/workflowCanvasGraph'
 import styles from './WorkflowCanvasDrawer.module.css'
@@ -29,8 +31,21 @@ export function WorkflowCanvasDrawer({
   onSave,
   onRun
 }: WorkflowCanvasDrawerProps): React.ReactElement {
+  const canvasPanelRef = useRef<HTMLDivElement>(null)
+  const { isFullscreen, toggleFullscreen, exitFullscreen } =
+    useElementFullscreen(canvasPanelRef)
+
   const stepCount = draft ? flattenWorkflowLeaves(draft.nodes).length : 0
   const isPublish = draft?.templateKind === 'publish'
+
+  /** 关闭抽屉时若仍全屏，先退出，避免残留全屏壳 */
+  const handleClose = (): void => {
+    if (isFullscreen) {
+      void exitFullscreen().finally(() => onClose())
+      return
+    }
+    onClose()
+  }
 
   return (
     <Drawer
@@ -43,7 +58,7 @@ export function WorkflowCanvasDrawer({
       placement="right"
       width="80vw"
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       closable
       closeIcon={<CloseOutlined />}
       destroyOnHidden
@@ -94,7 +109,7 @@ export function WorkflowCanvasDrawer({
             拖拽节点、从锚点拉线编排步骤；一源多出线表示并行分支。
           </p>
 
-          <div className={styles.canvasPanel}>
+          <div className={styles.canvasPanel} ref={canvasPanelRef}>
             <div className={styles.canvasPanelHead}>
               <div className={styles.canvasPanelIcon}>
                 <NodeIndexOutlined />
@@ -106,6 +121,16 @@ export function WorkflowCanvasDrawer({
                     ? `当前 ${stepCount} 个步骤，拖拽与连线后记得保存`
                     : '尚未配置步骤，从空白画布开始添加节点'}
                 </div>
+              </div>
+              <div className={styles.canvasPanelActions}>
+                <Button
+                  type="text"
+                  className={styles.fullscreenBtn}
+                  icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+                  title={isFullscreen ? '退出全屏' : '全屏'}
+                  aria-label={isFullscreen ? '退出全屏' : '全屏'}
+                  onClick={() => void toggleFullscreen()}
+                />
               </div>
             </div>
             <div className={styles.drawerBody}>
