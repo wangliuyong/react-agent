@@ -152,27 +152,31 @@
   background: var(--db-hover);
 }
 
-/* 时间轴竖线 — 与 statusIcon 水平居中，自图标底部连至下一项 */
+/*
+ * 时间轴竖线：图标列始终左对齐（子步骤只缩进文案），实线贯穿至下一图标，
+ * 避免渐变淡出 / 子步骤 padding 错位造成的缺口。
+ */
 .taskRow:not(:last-child)::after {
   content: '';
   position: absolute;
   /* 4px 行左内边距 + 11px（图标宽 22px 的一半） */
   left: calc(4px + 11px);
   transform: translateX(-50%);
-  /* 7px 上内边距 + 1px 图标上边距 + 22px 图标高度 */
+  /* 自图标底部起，并向下伸入下一行上内边距，与下一图标顶部相接 */
   top: calc(7px + 1px + 22px);
-  bottom: -7px;
-  width: 1px;
-  background: linear-gradient(180deg, var(--db-border) 0%, transparent 100%);
+  bottom: calc(-1 * (7px + 1px));
+  width: 1.5px;
+  background: var(--db-border);
+  pointer-events: none;
 }
 
 .taskRowDone:not(:last-child)::after {
-  background: linear-gradient(180deg, var(--db-primary-line) 0%, var(--db-border) 100%);
+  background: var(--db-primary-line);
 }
 
-/* 并行组子步骤：相对父节点缩进 */
-.taskRowChild {
-  padding-left: 18px;
+/* 并行 / 条件支路子步骤：仅文案缩进，图标与时间轴保持同一竖线 */
+.taskRowChild .taskContent {
+  padding-left: 8px;
 }
 
 /* ── 状态指示器 ── */
