@@ -2,25 +2,36 @@ import type {
   WorkflowCanvas,
   WorkflowCanvasEdge,
   WorkflowConditionNode,
+  WorkflowConditionWhen,
+  WorkflowEndNode,
   WorkflowLeafNode,
   WorkflowNode,
-  WorkflowParallelNode
+  WorkflowParallelNode,
+  WorkflowStartNode,
+  WorkflowTerminalNode
 } from '@shared/types'
 import { isLeafNode } from '../types'
 
 const COL_GAP = 110
 const ROW_GAP = 50
 
-/** 从引擎 nodes 展开画布用的叶子节点（parallel / condition 拆成子叶） */
+function edgeHasCondition(e: WorkflowCanvasEdge): boolean {
+  if (e.isDefault) return true
+  const w = e.when
+  if (!w) return false
+  return Boolean(w.expression?.trim() || w.contextKey?.trim())
+}
+
+/** 叶子：parallel/condition 子步展开；不含 start/end */
 export function flattenWorkflowLeaves(nodes: WorkflowNode[]): WorkflowLeafNode[] {
   const leaves: WorkflowLeafNode[] = []
   for (const node of nodes) {
     if (node.type === 'parallel') {
       leaves.push(...node.children)
     } else if (node.type === 'condition') {
-      for (const arm of node.cases) {
-        leaves.push(...arm.nodes)
-      }
+      for (const arm of node.cases) leaves.push(...arm.nodes)
+    } else if (node.type === 'start' || node.type === 'end') {
+      /* skip */
     } else {
       leaves.push(node)
     }
@@ -28,10 +39,13 @@ export function flattenWorkflowLeaves(nodes: WorkflowNode[]): WorkflowLeafNode[]
   return leaves
 }
 
-/**
- * 收集 condition 元数据（cases.nodes 清空），供画布编辑态回填。
- * 支路叶子内容以拓扑编译为准。
- */
+export function flattenWorkflowTerminals(nodes: WorkflowNode[]): WorkflowTerminalNode[] {
+  return nodes.filter(
+    (n): n is WorkflowTerminalNode => n.type === 'start' || n.type === 'end'
+  )
+}
+
+/** @deprecated 画布不再持有 condition；仅用于旧数据迁移 */
 export function flattenWorkflowConditions(nodes: WorkflowNode[]): WorkflowConditionNode[] {
   return nodes
     .filter((n): n is WorkflowConditionNode => n.type === 'condition')
@@ -41,9 +55,14 @@ export function flattenWorkflowConditions(nodes: WorkflowNode[]): WorkflowCondit
     }))
 }
 
+function whenFromLegacyBranchKey(key: string): WorkflowConditionWhen | undefined {
+  if (key === 'true') return { expression: 'true' }
+  if (key === 'false') return { expression: 'false' }
+  return { contextKey: 'branch', op: 'eq', value: key }
+}
+
 /**
- * 由引擎 nodes 推导初始画布（无 canvas 落盘时使用）。
- * 结构：顺序纵向；parallel / condition 扇出后须汇合。
+ * 把引擎里的 condition 节点展开为「边条件」画布形态（不再放置 condition 节点）。
  */
 export function queryCanvasFromNodes(nodes: WorkflowNode[]): WorkflowCanvas {
   const positions: Record<string, { x: number; y: number }> = {}
@@ -52,37 +71,36 @@ export function queryCanvasFromNodes(nodes: WorkflowNode[]): WorkflowCanvas {
   let row = 0
 
   for (const node of nodes) {
+    if (node.type === 'start' || node.type === 'end') {
+      positions[node.id] = { x: 80, y: 80 + row * ROW_GAP }
+      for (const prev of prevIds) {
+        edges.push({ id: `e_${prev}_${node.id}`, source: prev, target: node.id })
+      }
+      prevIds = [node.id]
+      row += 1
+      continue
+    }
+
     if (node.type === 'parallel') {
       const childIds = node.children.map((c) => c.id)
       node.children.forEach((child, i) => {
-        positions[child.id] = {
-          x: 80 + i * COL_GAP,
-          y: 80 + row * ROW_GAP
-        }
+        positions[child.id] = { x: 80 + i * COL_GAP, y: 80 + row * ROW_GAP }
       })
       for (const prev of prevIds) {
         for (const cid of childIds) {
-          edges.push({
-            id: `e_${prev}_${cid}`,
-            source: prev,
-            target: cid
-          })
+          edges.push({ id: `e_${prev}_${cid}`, source: prev, target: cid })
         }
       }
       prevIds = childIds
       row += 1
-    } else if (node.type === 'condition') {
-      positions[node.id] = { x: 80, y: 80 + row * ROW_GAP }
-      for (const prev of prevIds) {
-        edges.push({
-          id: `e_${prev}_${node.id}`,
-          source: prev,
-          target: node.id
-        })
-      }
-      row += 1
+      continue
+    }
+
+    if (node.type === 'condition') {
+      // 不画 condition 节点：前驱 → 各支路首叶（带 when / isDefault）
       const tipIds: string[] = []
       let maxArm = 0
+      const sources = prevIds.length ? prevIds : []
       node.cases.forEach((arm, i) => {
         maxArm = Math.max(maxArm, arm.nodes.length)
         arm.nodes.forEach((leaf, j) => {
@@ -91,39 +109,40 @@ export function queryCanvasFromNodes(nodes: WorkflowNode[]): WorkflowCanvas {
             y: 80 + (row + j) * ROW_GAP
           }
           if (j === 0) {
-            edges.push({
-              id: `e_${node.id}_${leaf.id}_${arm.key}`,
-              source: node.id,
-              target: leaf.id,
-              branchKey: arm.key
-            })
+            const isDef = node.defaultKey === arm.key
+            for (const prev of sources) {
+              edges.push({
+                id: `e_${prev}_${leaf.id}_${arm.key}`,
+                source: prev,
+                target: leaf.id,
+                label: arm.label || arm.key,
+                when: isDef
+                  ? undefined
+                  : arm.when ?? whenFromLegacyBranchKey(arm.key),
+                isDefault: isDef || undefined
+              })
+            }
           } else {
-            const prevLeaf = arm.nodes[j - 1]
             edges.push({
-              id: `e_${prevLeaf.id}_${leaf.id}`,
-              source: prevLeaf.id,
+              id: `e_${arm.nodes[j - 1].id}_${leaf.id}`,
+              source: arm.nodes[j - 1].id,
               target: leaf.id
             })
           }
         })
-        if (arm.nodes.length) {
-          tipIds.push(arm.nodes[arm.nodes.length - 1].id)
-        }
+        if (arm.nodes.length) tipIds.push(arm.nodes[arm.nodes.length - 1].id)
       })
       row += Math.max(maxArm, 1)
-      prevIds = tipIds.length ? tipIds : [node.id]
-    } else {
-      positions[node.id] = { x: 80, y: 80 + row * ROW_GAP }
-      for (const prev of prevIds) {
-        edges.push({
-          id: `e_${prev}_${node.id}`,
-          source: prev,
-          target: node.id
-        })
-      }
-      prevIds = [node.id]
-      row += 1
+      prevIds = tipIds.length ? tipIds : prevIds
+      continue
     }
+
+    positions[node.id] = { x: 80, y: 80 + row * ROW_GAP }
+    for (const prev of prevIds) {
+      edges.push({ id: `e_${prev}_${node.id}`, source: prev, target: node.id })
+    }
+    prevIds = [node.id]
+    row += 1
   }
 
   return { positions, edges }
@@ -132,7 +151,6 @@ export function queryCanvasFromNodes(nodes: WorkflowNode[]): WorkflowCanvas {
 function buildAdjacency(edges: WorkflowCanvasEdge[]): {
   out: Map<string, string[]>
   inn: Map<string, string[]>
-  /** source -> 带 branchKey 的出边明细（条件编译用） */
   outEdges: Map<string, WorkflowCanvasEdge[]>
 } {
   const out = new Map<string, string[]>()
@@ -175,33 +193,37 @@ function queryIntersection(lists: string[][]): string[] | null {
 }
 
 /**
- * 将画布叶子 + 条件节点 + 连线编译为引擎 nodes。
- * - 无 branchKey 的一源多出 → parallel（AND）
- * - 从 condition 出发且带 branchKey → condition（XOR）
+ * 画布 → 引擎 nodes。
+ * 必须恰好 1 start + 1 end；边 when/isDefault → 内部 condition；无条件多出 → parallel。
  */
 export function compileCanvasToWorkflowNodes(
   leaves: WorkflowLeafNode[],
-  conditions: WorkflowConditionNode[],
+  terminals: WorkflowTerminalNode[],
   canvas: WorkflowCanvas
 ): { nodes: WorkflowNode[]; error?: string } {
   const byLeaf = new Map(leaves.map((l) => [l.id, l]))
-  const byCond = new Map(
-    conditions.map((c) => [
-      c.id,
-      {
-        ...c,
-        cases: c.cases.map((arm) => ({ ...arm, nodes: [] as WorkflowLeafNode[] }))
-      }
-    ])
-  )
-  const allIds = Array.from(byLeaf.keys()).concat(Array.from(byCond.keys()))
+  const starts = terminals.filter((t): t is WorkflowStartNode => t.type === 'start')
+  const ends = terminals.filter((t): t is WorkflowEndNode => t.type === 'end')
+  if (starts.length !== 1) {
+    return { nodes: [], error: '流程必须恰好有一个开始节点' }
+  }
+  if (ends.length !== 1) {
+    return { nodes: [], error: '流程必须恰好有一个结束节点' }
+  }
+  const start = starts[0]
+  const end = ends[0]
+  const byTerminal = new Map<string, WorkflowTerminalNode>([
+    [start.id, start],
+    [end.id, end]
+  ])
+  const allIds = Array.from(byLeaf.keys()).concat([start.id, end.id])
   const { out, inn, outEdges } = buildAdjacency(canvas.edges)
 
   for (const e of canvas.edges) {
-    if (!byLeaf.has(e.source) && !byCond.has(e.source)) {
+    if (!byLeaf.has(e.source) && !byTerminal.has(e.source)) {
       return { nodes: [], error: '连线引用了不存在的节点，请删除无效连线' }
     }
-    if (!byLeaf.has(e.target) && !byCond.has(e.target)) {
+    if (!byLeaf.has(e.target) && !byTerminal.has(e.target)) {
       return { nodes: [], error: '连线引用了不存在的节点，请删除无效连线' }
     }
   }
@@ -210,18 +232,18 @@ export function compileCanvasToWorkflowNodes(
     return { nodes: [], error: '流程图不能有环，请调整连线' }
   }
 
-  if (!allIds.length) return { nodes: [] }
+  if ((inn.get(start.id)?.length ?? 0) > 0) {
+    return { nodes: [], error: '开始节点不能有入边' }
+  }
+  if ((out.get(end.id)?.length ?? 0) > 0) {
+    return { nodes: [], error: '结束节点不能有出边' }
+  }
 
   const sortByPos = (a: string, b: string): number => {
     const pa = canvas.positions[a] ?? { x: 0, y: 0 }
     const pb = canvas.positions[b] ?? { x: 0, y: 0 }
     if (pa.y !== pb.y) return pa.y - pb.y
     return pa.x - pb.x
-  }
-
-  const roots = allIds.filter((id) => !(inn.get(id)?.length)).sort(sortByPos)
-  if (!roots.length) {
-    return { nodes: [], error: '找不到起始节点（每个节点都有入边）' }
   }
 
   const consumed = new Set<string>()
@@ -234,18 +256,16 @@ export function compileCanvasToWorkflowNodes(
     return leaf
   }
 
-  /** 沿入度为 1 的唯一后继链收集支路叶子，在汇合点（入度>1）前停下 */
   const takeArmChain = (
     startId: string
   ): { chain: WorkflowLeafNode[]; tipOuts: string[] } | { error: string } => {
     const chain: WorkflowLeafNode[] = []
     let cur = startId
     while (true) {
-      if (byCond.has(cur)) {
-        return { error: '条件支路内不能再嵌套条件节点（首版）' }
-      }
+      if (cur === end.id) return { chain, tipOuts: [end.id] }
+      if (cur === start.id) return { error: '支路不能再次进入开始节点' }
       if (!byLeaf.has(cur)) {
-        return { error: '条件支路必须连接到步骤节点' }
+        return { error: '条件支路必须连接到步骤节点或结束' }
       }
       const leaf = takeLeaf(cur)
       if (!leaf) {
@@ -259,24 +279,35 @@ export function compileCanvasToWorkflowNodes(
       }
       const next = outs[0]
       const inDeg = inn.get(next)?.length ?? 0
-      // 入度 > 1：多路汇合点，不纳入本支路
-      if (inDeg > 1 || byCond.has(next)) {
+      if (inDeg > 1 || next === end.id) {
         return { chain, tipOuts: [next] }
       }
       cur = next
     }
   }
 
-  let frontier = roots
+  // 必须从 start 出发
+  let frontier = [start.id]
+  consumed.add(start.id)
+  result.push(start)
 
   while (frontier.length) {
     frontier = Array.from(new Set(frontier)).sort(sortByPos)
 
+    if (frontier.length === 1 && frontier[0] === end.id) {
+      if (!consumed.has(end.id)) {
+        consumed.add(end.id)
+        result.push(end)
+      }
+      frontier = []
+      break
+    }
+
     if (frontier.length > 1) {
-      if (frontier.some((id) => byCond.has(id))) {
+      if (frontier.some((id) => id === start.id || id === end.id)) {
         return {
           nodes: [],
-          error: '多个前沿节点含条件分支时无法编译，请调整连线使条件单独成段'
+          error: '并行前沿不能包含开始/结束节点，请调整连线'
         }
       }
       const children: WorkflowLeafNode[] = []
@@ -285,125 +316,134 @@ export function compileCanvasToWorkflowNodes(
         if (leaf) children.push(leaf)
       }
       if (!children.length) break
-
-      const parallel: WorkflowParallelNode = {
+      result.push({
         id: `parallel_${children.map((c) => c.id).join('_').slice(0, 48)}`,
         type: 'parallel',
         title: `并行组（${children.length}）`,
         children
-      }
-      result.push(parallel)
-
+      })
       const nextSet = new Set<string>()
       for (const c of children) {
         for (const n of out.get(c.id) ?? []) nextSet.add(n)
       }
-      frontier = Array.from(nextSet).filter((id) => !consumed.has(id))
+      frontier = Array.from(nextSet).filter((id) => !consumed.has(id) || id === end.id)
+      frontier = frontier.filter((id) => id === end.id || !consumed.has(id))
       continue
     }
 
     const cur = frontier[0]
-
-    // —— 条件节点 ——
-    if (byCond.has(cur)) {
-      if (consumed.has(cur)) break
-      consumed.add(cur)
-      const meta = byCond.get(cur)!
-      const edgesFrom = outEdges.get(cur) ?? []
-      if (!edgesFrom.length) {
-        return { nodes: [], error: `条件节点「${meta.title}」需要至少一条分支出线` }
-      }
-      if (edgesFrom.some((e) => !e.branchKey?.trim())) {
-        return {
-          nodes: [],
-          error: `条件节点「${meta.title}」的出线必须带分支标签（branchKey）`
-        }
-      }
-
-      const caseKeys = new Set(meta.cases.map((c) => c.key))
-      const filledCases = meta.cases.map((c) => ({ ...c, nodes: [] as WorkflowLeafNode[] }))
-      const tipOutLists: string[][] = []
-
-      for (const arm of filledCases) {
-        const armEdges = edgesFrom.filter((e) => e.branchKey === arm.key)
-        if (armEdges.length !== 1) {
-          return {
-            nodes: [],
-            error: `条件分支「${arm.label || arm.key}」需要恰好一条出线`
-          }
-        }
-        const taken = takeArmChain(armEdges[0].target)
-        if ('error' in taken) return { nodes: [], error: taken.error }
-        arm.nodes = taken.chain
-        tipOutLists.push(taken.tipOuts)
-      }
-
-      for (const e of edgesFrom) {
-        const key = e.branchKey!.trim()
-        if (!caseKeys.has(key)) {
-          return {
-            nodes: [],
-            error: `连线分支「${key}」不在条件节点「${meta.title}」的 case 列表中`
-          }
-        }
-      }
-
-      const allTerminal = tipOutLists.every((o) => o.length === 0)
-      if (!allTerminal) {
-        const join = queryIntersection(tipOutLists)
-        if (!join || join.length !== 1) {
-          return {
-            nodes: [],
-            error: '条件分支须汇合到同一个后续节点，或各分支均为结束节点'
-          }
-        }
-        result.push({ ...meta, cases: filledCases })
-        frontier = join.filter((id) => !consumed.has(id))
-      } else {
-        result.push({ ...meta, cases: filledCases })
-        frontier = []
-      }
+    if (cur === end.id) {
+      consumed.add(end.id)
+      result.push(end)
+      frontier = []
       continue
     }
 
-    // —— 叶子节点 ——
+    if (cur === start.id) {
+      // 已推入 result；推进出边
+      const edgesFrom = outEdges.get(cur) ?? []
+      const nexts = Array.from(new Set(out.get(cur) ?? [])).sort(sortByPos)
+      if (!nexts.length) {
+        return { nodes: [], error: '开始节点需要至少一条出线' }
+      }
+      if (nexts.length === 1) {
+        frontier = nexts
+        continue
+      }
+      const anyCond = edgesFrom.some(edgeHasCondition)
+      const allCond = edgesFrom.every(edgeHasCondition)
+      if (anyCond && !allCond) {
+        return { nodes: [], error: '同一节点的出线不能混用并行与条件分支' }
+      }
+      if (anyCond) {
+        const compiled = compileXorFromEdges(
+          `cond_from_${cur}`,
+          '条件分支',
+          edgesFrom,
+          takeArmChain
+        )
+        if ('error' in compiled) return { nodes: [], error: compiled.error }
+        result.push(compiled.node)
+        frontier = compiled.join
+        continue
+      }
+      // parallel fan-out from start
+      const childLeaves: WorkflowLeafNode[] = []
+      for (const nid of nexts) {
+        if (nid === end.id) {
+          return { nodes: [], error: '并行分支目标不能直接是结束节点（请先放步骤）' }
+        }
+        const child = takeLeaf(nid)
+        if (child) childLeaves.push(child)
+      }
+      result.push({
+        id: `parallel_from_${cur}`,
+        type: 'parallel',
+        title: `并行组（${childLeaves.length}）`,
+        children: childLeaves
+      })
+      const outsList = childLeaves.map((c) => Array.from(new Set(out.get(c.id) ?? [])))
+      if (outsList.every((o) => o.length === 0)) {
+        frontier = []
+        continue
+      }
+      const join = queryIntersection(outsList)
+      if (!join || join.length !== 1) {
+        return {
+          nodes: [],
+          error: '并行分支须汇合到同一个后续节点，或各分支均为结束节点'
+        }
+      }
+      frontier = join.filter((id) => !consumed.has(id) || id === end.id)
+      continue
+    }
+
+    // 普通叶子
     const leaf = takeLeaf(cur)
-    if (!leaf) break
+    if (!leaf) {
+      // 可能已在 XOR 支路中消费
+      break
+    }
 
     const edgesFrom = outEdges.get(cur) ?? []
     const nexts = Array.from(new Set(out.get(cur) ?? [])).sort(sortByPos)
-    const hasBranch = edgesFrom.some((e) => e.branchKey?.trim())
-    const allBranch =
-      edgesFrom.length > 0 && edgesFrom.every((e) => e.branchKey?.trim())
-    if (hasBranch && !allBranch) {
-      return {
-        nodes: [],
-        error: '同一节点的出线不能混用并行与条件分支'
-      }
-    }
-    if (allBranch && edgesFrom.length > 0) {
-      return {
-        nodes: [],
-        error: '仅条件节点可使用分支连线；请从条件节点的出口拉线'
-      }
+
+    if (nexts.length === 0) {
+      result.push(leaf)
+      return { nodes: [], error: `步骤「${leaf.title}」未连接到后续或结束节点` }
     }
 
-    if (nexts.length <= 1) {
+    if (nexts.length === 1) {
       result.push(leaf)
-      frontier = nexts.filter((id) => !consumed.has(id))
+      frontier = nexts
       continue
     }
 
-    // fan-out：当前节点串行，后继进 parallel（AND）
+    const anyCond = edgesFrom.some(edgeHasCondition)
+    const allCond = edgesFrom.every(edgeHasCondition)
+    if (anyCond && !allCond) {
+      return { nodes: [], error: '同一节点的出线不能混用并行与条件分支' }
+    }
+
     result.push(leaf)
+
+    if (anyCond) {
+      const compiled = compileXorFromEdges(
+        `cond_from_${cur}`,
+        `条件（${leaf.title}）`,
+        edgesFrom,
+        takeArmChain
+      )
+      if ('error' in compiled) return { nodes: [], error: compiled.error }
+      result.push(compiled.node)
+      frontier = compiled.join
+      continue
+    }
 
     const childLeaves: WorkflowLeafNode[] = []
     for (const nid of nexts) {
-      if (byCond.has(nid)) {
-        return {
-          nodes: [],
-          error: '并行分叉的目标不能是条件节点，请先汇合再连接条件'
-        }
+      if (nid === end.id) {
+        return { nodes: [], error: '并行分支目标不能直接是结束节点' }
       }
       const child = takeLeaf(nid)
       if (child) childLeaves.push(child)
@@ -412,21 +452,17 @@ export function compileCanvasToWorkflowNodes(
       frontier = []
       continue
     }
-
     result.push({
       id: `parallel_from_${cur}`,
       type: 'parallel',
       title: `并行组（${childLeaves.length}）`,
       children: childLeaves
     })
-
     const outsList = childLeaves.map((c) => Array.from(new Set(out.get(c.id) ?? [])))
-    const allTerminal = outsList.every((o) => o.length === 0)
-    if (allTerminal) {
+    if (outsList.every((o) => o.length === 0)) {
       frontier = []
       continue
     }
-
     const join = queryIntersection(outsList)
     if (!join || join.length !== 1) {
       return {
@@ -434,8 +470,14 @@ export function compileCanvasToWorkflowNodes(
         error: '并行分支须汇合到同一个后续节点，或各分支均为结束节点'
       }
     }
+    frontier = join.filter((id) => !consumed.has(id) || id === end.id)
+  }
 
-    frontier = join.filter((id) => !consumed.has(id))
+  if (!consumed.has(end.id)) {
+    // 若前沿已空但仍未到 end
+    if (!result.some((n) => n.type === 'end')) {
+      return { nodes: [], error: '流程必须能到达结束节点' }
+    }
   }
 
   const leftover = allIds.filter((id) => !consumed.has(id))
@@ -443,21 +485,96 @@ export function compileCanvasToWorkflowNodes(
     return {
       nodes: [],
       error: `存在未连通的节点：${leftover
-        .map((id) => byLeaf.get(id)?.title ?? byCond.get(id)?.title ?? id)
+        .map(
+          (id) =>
+            byLeaf.get(id)?.title ?? byTerminal.get(id)?.title ?? id
+        )
         .join('、')}，请连线或删除`
     }
+  }
+
+  // 保证 end 在结果末尾一次
+  if (!result.some((n) => n.type === 'end')) {
+    result.push(end)
   }
 
   return { nodes: result }
 }
 
-/** 合并 canvas：有落盘则用落盘，否则从 nodes 推导；并补全缺坐标 */
+function compileXorFromEdges(
+  id: string,
+  title: string,
+  edgesFrom: WorkflowCanvasEdge[],
+  takeArmChain: (
+    startId: string
+  ) => { chain: WorkflowLeafNode[]; tipOuts: string[] } | { error: string }
+): { node: WorkflowConditionNode; join: string[] } | { error: string } {
+  const defaults = edgesFrom.filter((e) => e.isDefault)
+  if (defaults.length > 1) {
+    return { error: '同一节点最多一条默认（else）连线' }
+  }
+  const tipOutLists: string[][] = []
+  const cases: WorkflowConditionNode['cases'] = []
+  let defaultKey: string | undefined
+
+  for (const e of edgesFrom) {
+    const key = e.id
+    const taken = takeArmChain(e.target)
+    if ('error' in taken) return { error: taken.error }
+    tipOutLists.push(taken.tipOuts)
+    if (e.isDefault) {
+      defaultKey = key
+      cases.push({
+        key,
+        label: e.label || '默认',
+        nodes: taken.chain
+      })
+    } else {
+      if (!edgeHasCondition(e) || !e.when) {
+        return { error: '条件分支的每条出线都须配置条件或标记为默认' }
+      }
+      cases.push({
+        key,
+        label: e.label || key.slice(0, 8),
+        when: e.when,
+        nodes: taken.chain
+      })
+    }
+  }
+
+  if (!cases.some((c) => c.when) && !defaultKey) {
+    return { error: '条件分支至少需要一条带条件的出线' }
+  }
+
+  const allTerminal = tipOutLists.every((o) => o.length === 0)
+  let join: string[] = []
+  if (!allTerminal) {
+    const j = queryIntersection(tipOutLists)
+    if (!j || j.length !== 1) {
+      return {
+        error: '条件分支须汇合到同一个后续节点，或各分支均为结束节点'
+      }
+    }
+    join = j
+  }
+
+  const node: WorkflowConditionNode = {
+    id,
+    type: 'condition',
+    title,
+    mode: 'expression',
+    cases,
+    defaultKey
+  }
+  return { node, join }
+}
+
 export function resolveWorkflowCanvas(
   nodes: WorkflowNode[],
   canvas?: WorkflowCanvas
 ): WorkflowCanvas {
   const leaves = flattenWorkflowLeaves(nodes)
-  const conditions = flattenWorkflowConditions(nodes)
+  const terminals = flattenWorkflowTerminals(nodes)
   const base = canvas?.edges?.length || canvas?.positions
     ? {
         positions: { ...(canvas?.positions ?? {}) },
@@ -470,24 +587,30 @@ export function resolveWorkflowCanvas(
       base.positions[leaf.id] = { x: 80, y: 80 + i * ROW_GAP }
     }
   })
-  conditions.forEach((c, i) => {
-    if (!base.positions[c.id]) {
-      base.positions[c.id] = { x: 40, y: 40 + i * ROW_GAP }
+  terminals.forEach((t, i) => {
+    if (!base.positions[t.id]) {
+      base.positions[t.id] = {
+        x: 80,
+        y: t.type === 'start' ? 24 : 280 + i * ROW_GAP
+      }
     }
   })
 
-  const idSet = new Set([...leaves.map((l) => l.id), ...conditions.map((c) => c.id)])
+  // 去掉指向旧 condition 画布节点的边（迁移后不应再有）
+  const idSet = new Set([
+    ...leaves.map((l) => l.id),
+    ...terminals.map((t) => t.id)
+  ])
   base.edges = base.edges.filter((e) => idSet.has(e.source) && idSet.has(e.target))
   return base
 }
 
-/** 从画布编辑结果写回 WorkflowDefinition 字段 */
 export function applyCanvasToDefinition(
   leaves: WorkflowLeafNode[],
-  conditions: WorkflowConditionNode[],
+  terminals: WorkflowTerminalNode[],
   canvas: WorkflowCanvas
 ): { nodes: WorkflowNode[]; canvas: WorkflowCanvas; error?: string } {
-  const compiled = compileCanvasToWorkflowNodes(leaves, conditions, canvas)
+  const compiled = compileCanvasToWorkflowNodes(leaves, terminals, canvas)
   if (compiled.error) {
     return { nodes: [], canvas, error: compiled.error }
   }

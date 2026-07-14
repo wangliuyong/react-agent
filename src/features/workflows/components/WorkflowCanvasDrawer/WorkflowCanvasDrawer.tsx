@@ -25,12 +25,11 @@ interface WorkflowCanvasDrawerProps {
   onRun: () => void
 }
 
-/** 画布编辑区头部「添加节点」菜单项（条件分支为控制节点，单独 key） */
-const ADD_NODE_MENU_TYPES: { key: WorkflowCanvasLeafType | 'condition'; label: string }[] = [
+/** 画布编辑区头部「添加节点」菜单项（开始/结束固定存在；条件在连线上） */
+const ADD_NODE_MENU_TYPES: { key: WorkflowCanvasLeafType; label: string }[] = [
   { key: 'agent', label: 'Agent 步骤' },
   { key: 'tool', label: '工具步骤' },
-  { key: 'await_user', label: '等待确认' },
-  { key: 'condition', label: '条件分支' }
+  { key: 'await_user', label: '等待确认' }
 ]
 
 /** 流程画布抽屉：信息架构对齐技能市场详情弹窗，顶栏展示关闭图标 */
@@ -61,17 +60,11 @@ export function WorkflowCanvasDrawer({
     onClose()
   }
 
-  /** 通过画布命令式 API 追加叶子或条件节点 */
+  /** 通过画布命令式 API 追加叶子步骤 */
   const addMenu: MenuProps['items'] = ADD_NODE_MENU_TYPES.map(({ key, label }) => ({
     key,
     label,
-    onClick: () => {
-      if (key === 'condition') {
-        canvasRef.current?.addCondition()
-        return
-      }
-      canvasRef.current?.addLeafByType(key)
-    }
+    onClick: () => canvasRef.current?.addLeafByType(key)
   }))
 
   return (
@@ -133,8 +126,7 @@ export function WorkflowCanvasDrawer({
           </div>
 
           <p className={styles.description}>
-            拖拽节点、从锚点拉线编排步骤。带标签（条件出口）的出线 = 条件分支；无标签多出线 =
-            并行。双击节点可编辑。
+            流程从「开始」到「结束」。无条件多出线 = 并行；双击连线可设条件（只走一路）。开始/结束不可删除。
           </p>
 
           <div className={styles.canvasPanel} ref={canvasPanelRef}>

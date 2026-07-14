@@ -5,10 +5,13 @@ import type {
   WorkflowAgentNode,
   WorkflowCanvas,
   WorkflowConditionNode,
+  WorkflowConditionWhen,
   WorkflowDefinition,
+  WorkflowEndNode,
   WorkflowLeafNode,
   WorkflowNode,
   WorkflowParallelNode,
+  WorkflowStartNode,
   WorkflowToolNode
 } from '../../../shared/types'
 import { mergeBuiltinWorkflowTemplates } from '../workflow/templates'
@@ -66,6 +69,17 @@ function normalizeLeaf(
   }
 }
 
+function normalizeWhen(raw: unknown): WorkflowConditionWhen | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const w = raw as WorkflowConditionWhen
+  return {
+    ...(w.expression != null ? { expression: String(w.expression) } : {}),
+    ...(w.contextKey != null ? { contextKey: String(w.contextKey) } : {}),
+    ...(w.op != null ? { op: w.op } : {}),
+    ...(w.value !== undefined ? { value: w.value } : {})
+  }
+}
+
 function normalizeCondition(raw: WorkflowConditionNode): WorkflowConditionNode {
   const cases = Array.isArray(raw.cases)
     ? raw.cases
@@ -73,6 +87,7 @@ function normalizeCondition(raw: WorkflowConditionNode): WorkflowConditionNode {
         .map((c) => ({
           key: String(c.key).trim(),
           label: c.label != null ? String(c.label) : undefined,
+          when: normalizeWhen(c.when),
           nodes: Array.isArray(c.nodes)
             ? c.nodes
                 .filter(
@@ -89,7 +104,7 @@ function normalizeCondition(raw: WorkflowConditionNode): WorkflowConditionNode {
     type: 'condition',
     title: String(raw.title || '').trim() || '条件分支',
     mode: raw.mode === 'agent' ? 'agent' : 'expression',
-    when: raw.when && typeof raw.when === 'object' ? { ...raw.when } : undefined,
+    when: normalizeWhen(raw.when),
     prompt: raw.prompt != null ? String(raw.prompt) : undefined,
     toolWhitelist: Array.isArray(raw.toolWhitelist)
       ? raw.toolWhitelist.map(String)
@@ -105,6 +120,22 @@ function normalizeCondition(raw: WorkflowConditionNode): WorkflowConditionNode {
 }
 
 function normalizeNode(raw: WorkflowNode): WorkflowNode {
+  if (raw.type === 'start') {
+    const node: WorkflowStartNode = {
+      id: String(raw.id || '').trim() || crypto.randomUUID(),
+      type: 'start',
+      title: String(raw.title || '').trim() || '开始'
+    }
+    return node
+  }
+  if (raw.type === 'end') {
+    const node: WorkflowEndNode = {
+      id: String(raw.id || '').trim() || crypto.randomUUID(),
+      type: 'end',
+      title: String(raw.title || '').trim() || '结束'
+    }
+    return node
+  }
   if (raw.type === 'condition') {
     return normalizeCondition(raw)
   }
@@ -142,27 +173,62 @@ function normalizeCanvas(raw: WorkflowCanvas | undefined): WorkflowCanvas | unde
   const edges = Array.isArray(raw.edges)
     ? raw.edges
         .filter((e) => e && e.source && e.target)
-        .map((e) => ({
-          id: String(e.id || `e_${e.source}_${e.target}`),
-          source: String(e.source),
-          target: String(e.target),
-          ...(e.branchKey != null && String(e.branchKey).trim()
-            ? { branchKey: String(e.branchKey).trim() }
-            : {})
-        }))
+        .map((e) => {
+          const edge: WorkflowCanvas['edges'][number] = {
+            id: String(e.id || `e_${e.source}_${e.target}`),
+            source: String(e.source),
+            target: String(e.target)
+          }
+          if (e.label != null && String(e.label).trim()) {
+            edge.label = String(e.label).trim()
+          }
+          const when = normalizeWhen(e.when)
+          if (when && (when.expression || when.contextKey)) edge.when = when
+          if (e.isDefault === true) edge.isDefault = true
+          // 保留旧 branchKey 供前端迁移
+          if (e.branchKey != null && String(e.branchKey).trim()) {
+            edge.branchKey = String(e.branchKey).trim()
+          }
+          return edge
+        })
     : []
   if (!edges.length && !Object.keys(positions).length) return undefined
   return { positions, edges }
 }
 
+/** 确保恰好一个 start / end（缺则补；多则保留第一个） */
+function ensureTerminalNodes(nodes: WorkflowNode[]): WorkflowNode[] {
+  const starts = nodes.filter((n) => n.type === 'start')
+  const ends = nodes.filter((n) => n.type === 'end')
+  const rest = nodes.filter((n) => n.type !== 'start' && n.type !== 'end')
+  const start: WorkflowStartNode =
+    starts[0] ??
+    ({
+      id: crypto.randomUUID(),
+      type: 'start',
+      title: '开始'
+    } as WorkflowStartNode)
+  const end: WorkflowEndNode =
+    ends[0] ??
+    ({
+      id: crypto.randomUUID(),
+      type: 'end',
+      title: '结束'
+    } as WorkflowEndNode)
+  return [start, ...rest, end]
+}
+
 function normalizeWorkflow(raw: WorkflowDefinition): WorkflowDefinition {
   const now = Date.now()
+  const nodes = ensureTerminalNodes(
+    Array.isArray(raw.nodes) ? raw.nodes.map(normalizeNode) : []
+  )
   return {
     id: String(raw.id || '').trim() || crypto.randomUUID(),
     title: String(raw.title || '').trim() || '未命名流程',
     description: String(raw.description || '').trim(),
     templateKind: raw.templateKind === 'publish' ? 'publish' : 'generic',
-    nodes: Array.isArray(raw.nodes) ? raw.nodes.map(normalizeNode) : [],
+    nodes,
     canvas: normalizeCanvas(raw.canvas),
     createdAt: raw.createdAt ?? now,
     updatedAt: raw.updatedAt ?? now

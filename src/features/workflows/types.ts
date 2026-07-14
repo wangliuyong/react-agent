@@ -3,21 +3,48 @@ import type {
   WorkflowAwaitNode,
   WorkflowConditionNode,
   WorkflowDefinition,
+  WorkflowEndNode,
   WorkflowLeafNode,
   WorkflowNode,
   WorkflowParallelNode,
+  WorkflowStartNode,
   WorkflowToolNode
 } from '@shared/types'
 
-/** 新建空流程（generic） */
+export function createStartNode(partial?: Partial<WorkflowStartNode>): WorkflowStartNode {
+  return {
+    id: partial?.id ?? crypto.randomUUID(),
+    type: 'start',
+    title: partial?.title ?? '开始'
+  }
+}
+
+export function createEndNode(partial?: Partial<WorkflowEndNode>): WorkflowEndNode {
+  return {
+    id: partial?.id ?? crypto.randomUUID(),
+    type: 'end',
+    title: partial?.title ?? '结束'
+  }
+}
+
+/** 新建空流程：强制带唯一开始/结束与初始画布坐标 */
 export function createEmptyWorkflow(): WorkflowDefinition {
   const now = Date.now()
+  const start = createStartNode()
+  const end = createEndNode()
   return {
     id: crypto.randomUUID(),
     title: '未命名流程',
     description: '',
     templateKind: 'generic',
-    nodes: [],
+    nodes: [start, end],
+    canvas: {
+      positions: {
+        [start.id]: { x: 80, y: 40 },
+        [end.id]: { x: 80, y: 220 }
+      },
+      edges: []
+    },
     createdAt: now,
     updatedAt: now
   }
@@ -63,7 +90,7 @@ export function createParallelNode(partial?: Partial<WorkflowParallelNode>): Wor
   }
 }
 
-/** 默认 If/Else（true/false）；cases.nodes 由画布编译填入 */
+/** @deprecated 画布已改为边条件；仅兼容旧数据 / 引擎内部编译 */
 export function createConditionNode(
   partial?: Partial<WorkflowConditionNode>
 ): WorkflowConditionNode {
@@ -90,6 +117,8 @@ export function createEmptyNode(type: WorkflowNode['type']): WorkflowNode {
   if (type === 'await_user') return createAwaitNode()
   if (type === 'parallel') return createParallelNode()
   if (type === 'condition') return createConditionNode()
+  if (type === 'start') return createStartNode()
+  if (type === 'end') return createEndNode()
   return createAgentNode()
 }
 
@@ -100,11 +129,19 @@ export function queryNodeTypeLabel(type: WorkflowNode['type']): string {
     tool: '工具',
     await_user: '确认',
     parallel: '并行组',
-    condition: '条件分支'
+    condition: '条件分支',
+    start: '开始',
+    end: '结束'
   }
   return map[type]
 }
 
 export function isLeafNode(node: WorkflowNode): node is WorkflowLeafNode {
   return node.type === 'agent' || node.type === 'tool' || node.type === 'await_user'
+}
+
+export function isTerminalNode(
+  node: WorkflowNode
+): node is WorkflowStartNode | WorkflowEndNode {
+  return node.type === 'start' || node.type === 'end'
 }

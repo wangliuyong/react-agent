@@ -34,6 +34,9 @@ function remapNode(node: WorkflowNode, prefix: string): WorkflowNode {
     }
     return condition
   }
+  if (node.type === 'start' || node.type === 'end') {
+    return { ...node, id: `${prefix}__${node.id}` }
+  }
   return remapLeaf(node, prefix)
 }
 

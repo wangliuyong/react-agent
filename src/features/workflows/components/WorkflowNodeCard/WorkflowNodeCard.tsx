@@ -25,6 +25,8 @@ function queryNodeSummary(node: WorkflowNode): string {
   if (node.type === 'condition') {
     return `${node.mode === 'agent' ? 'Agent 选路' : '表达式'} · ${node.cases.length} 路`
   }
+  if (node.type === 'start') return '流程入口'
+  if (node.type === 'end') return '流程出口'
   return `${node.children.length} 个子步骤`
 }
 
