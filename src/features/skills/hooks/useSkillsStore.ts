@@ -31,6 +31,8 @@ interface SkillsState {
   installTemplate: (templateId: string, targetId?: string) => Promise<ProjectSkillDetail>
   previewImport: (url: string) => Promise<SkillImportPreview>
   importFromUrl: (url: string, targetId?: string) => Promise<ProjectSkillDetail>
+  /** 从已解析的 SkillUpsertInput 列表写入（本地 JSON） */
+  importFromJson: (inputs: SkillUpsertInput[], targetId?: string) => Promise<ProjectSkillDetail>
 }
 
 export const useSkillsStore = create<SkillsState>((set, get) => ({
@@ -130,5 +132,32 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     const skills = await queryProjectSkills()
     set({ skills, activeSkillId: detail.id, detail })
     return detail
+  },
+
+  /** 本地 / 已解析的 JSON 技能批量写入（同 id 覆盖） */
+  importFromJson: async (inputs, targetId) => {
+    if (inputs.length === 0) {
+      throw new Error('没有可导入的技能')
+    }
+    const normalizedTarget = targetId?.trim()
+      ? inputs.length === 1
+        ? targetId.trim()
+        : undefined
+      : undefined
+    const toWrite =
+      inputs.length === 1 && normalizedTarget
+        ? [{ ...inputs[0], id: normalizedTarget }]
+        : inputs
+
+    let last: ProjectSkillDetail | null = null
+    for (const input of toWrite) {
+      last = await postProjectSkill(input)
+    }
+    if (!last) {
+      throw new Error('导入失败')
+    }
+    const skills = await queryProjectSkills()
+    set({ skills, activeSkillId: last.id, detail: last })
+    return last
   }
 }))

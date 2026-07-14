@@ -372,24 +372,38 @@ export interface SkillTemplate {
   description: string
 }
 
-/** 技能链接导入方式：Git 仓库克隆 或 HTTP 直链下载 */
-export type SkillImportMethod = 'git_clone' | 'http_download'
+/**
+ * 技能链接导入方式：
+ * - git_clone / http_download：远程 SKILL.md 目录
+ * - json：远端或本地 JSON（单个对象或数组）
+ */
+export type SkillImportMethod = 'git_clone' | 'http_download' | 'json'
 
-/** 从 URL 导入技能前的预览信息 */
+/** JSON 导入预览中的单条技能摘要（不含正文，仅 UI 展示） */
+export interface SkillImportJsonItemPreview {
+  id: string
+  name: string
+  description: string
+  hasExamples: boolean
+}
+
+/** 从 URL / JSON 导入技能前的预览信息 */
 export interface SkillImportPreview {
-  /** 用户输入的原始链接 */
+  /** 用户输入的原始链接；本地文件导入时可为空字符串 */
   url: string
   /** 大模型或规则引擎判定的导入方式 */
   method: SkillImportMethod
-  /** 解析后的 SKILL.md 地址（HTTP 为 URL；Git 为本地探测说明） */
+  /** 解析后的 SKILL.md 地址（HTTP 为 URL；Git 为本地探测说明；JSON 为源 URL） */
   skillMdUrl: string
-  /** 建议安装目录名 */
+  /** 建议安装目录名（JSON 多条时取第一条） */
   suggestedId: string
   name: string
   description: string
   hasExamples: boolean
   /** 大模型给出的简要理由（可选，便于 UI 展示） */
   reasoning?: string
+  /** method=json 时列出将导入的技能摘要 */
+  jsonItems?: SkillImportJsonItemPreview[]
 }
 
 /** 技能详情（含 Markdown 正文） */

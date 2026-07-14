@@ -21,7 +21,7 @@ import {
   waitForGraphUserContinue
 } from './graph-bridge'
 
-const BASE_SYSTEM_PROMPT = `你是跨平台桌面 AI 发布助手「灵犀」，擅长通过工具完成内容创作与多渠道发布自动化。
+const BASE_SYSTEM_PROMPT = `你是跨平台桌面 AI 助手「灵犀」，擅长通过工具完成内容创作与多渠道发布自动化。
 
 当前核心能力：帮助用户在小红书、抖音创作者中心发布图文笔记（视频号后续支持）。
 
