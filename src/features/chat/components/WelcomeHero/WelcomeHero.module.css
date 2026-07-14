@@ -2,14 +2,14 @@
   width: 100%;
   max-width: 820px;
   margin: 0 auto;
-  padding: 0 32px 24px;
-  animation: heroIn 0.45s ease;
+  padding: 8px 28px 32px;
+  animation: heroIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes heroIn {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -18,18 +18,18 @@
 }
 
 .title {
-  margin-bottom: 12px !important;
+  margin-bottom: 10px !important;
   font-weight: 650 !important;
   letter-spacing: -0.02em;
   color: var(--db-text) !important;
-  line-height: 1.35 !important;
+  line-height: 1.3 !important;
   font-size: 28px !important;
   text-align: center;
 }
 
 .sub {
-  margin-bottom: 36px !important;
-  font-size: 14px !important;
+  margin-bottom: 32px !important;
+  font-size: 13px !important;
   line-height: 1.65 !important;
   color: var(--db-text-secondary) !important;
   max-width: 560px;
@@ -41,31 +41,36 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
   text-align: left;
 }
 
-/* 快捷卡片 — 参考样式：纯文字、细边框、轻阴影 */
+/* 快捷卡片 — 对齐技能市场卡片：细边框、悬停主题阴影 */
 .card {
   appearance: none;
-  border: 1px solid var(--db-border);
+  border: 1px solid var(--db-border-light);
   background: var(--db-bg-content);
   border-radius: var(--db-radius-lg);
   padding: 16px 18px;
+  min-height: 96px;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    background 0.18s ease;
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
   text-align: left;
-  animation: cardIn 0.4s ease both;
+  animation: cardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: calc(var(--card-index, 0) * 0.04s);
 }
 
 @keyframes cardIn {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -74,31 +79,38 @@
 }
 
 .card:hover {
-  border-color: var(--db-primary-border-hover);
-  background: var(--db-primary-muted);
-  box-shadow:
-    var(--db-shadow-sm),
-    0 0 0 1px var(--db-primary-faint);
+  border-color: var(--db-primary-border-active);
+  background: var(--db-bg-content);
+  box-shadow: 0 4px 20px var(--db-primary-shadow);
+  transform: translateY(-1px);
 }
 
 .card:hover .cardTitle {
   color: var(--db-primary);
 }
 
+.card:active {
+  transform: translateY(0);
+}
+
 .cardTitle {
   display: block;
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 650;
+  font-size: 15px;
   color: var(--db-text);
   line-height: 1.4;
-  transition: color 0.18s ease;
+  transition: color 0.15s ease;
 }
 
 .cardDesc {
-  margin: 6px 0 0;
+  margin: 0;
   color: var(--db-text-secondary);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 @media (max-width: 900px) {
@@ -108,5 +120,9 @@
 
   .title {
     font-size: 24px !important;
+  }
+
+  .wrap {
+    padding: 0 20px 24px;
   }
 }

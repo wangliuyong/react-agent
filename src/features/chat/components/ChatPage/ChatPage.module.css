@@ -8,7 +8,7 @@
   background: var(--db-bg);
 }
 
-/* 与其他功能页统一的背景氛围 */
+/* 与技能市场统一的背景氛围 */
 .page::before {
   content: '';
   position: absolute;
@@ -20,12 +20,13 @@
   opacity: 0.9;
 }
 
-/* 顶栏 — 参考样式：左标题 / 中切换 / 右操作 */
+/* 顶栏 — 对齐技能页字重与间距，保留三栏布局 */
 .header {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  padding: 12px 20px;
+  gap: 12px;
+  padding: 16px 28px;
   border-bottom: 1px solid var(--db-border-light);
   background: var(--db-bg-content);
   position: relative;
@@ -36,7 +37,7 @@
   justify-self: start;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -49,10 +50,13 @@
 }
 
 .headerIconBtn {
-  width: 32px !important;
-  height: 32px !important;
+  width: 36px !important;
+  height: 36px !important;
   color: var(--db-text-secondary) !important;
-  border-radius: var(--db-radius-sm) !important;
+  border-radius: var(--db-radius-md) !important;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease !important;
 }
 
 .headerIconBtn:hover {
@@ -67,21 +71,21 @@
 
 .title {
   margin: 0 !important;
-  font-weight: 600 !important;
+  font-weight: 650 !important;
   letter-spacing: -0.01em;
   color: var(--db-text) !important;
-  max-width: 240px;
+  max-width: 280px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px !important;
-  line-height: 1.4 !important;
+  font-size: 16px !important;
+  line-height: 1.35 !important;
 }
 
 .titleWrap {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 
@@ -90,6 +94,7 @@
   align-items: center;
   gap: 6px;
   font-size: 11px;
+  font-weight: 500;
   color: var(--db-primary);
   animation: fadeStatus 0.25s ease;
 }
@@ -99,6 +104,7 @@
   height: 6px;
   border-radius: 50%;
   background: var(--db-primary);
+  box-shadow: 0 0 0 3px var(--db-primary-muted);
   animation: pulseDot 1.2s ease-in-out infinite;
 }
 
@@ -148,6 +154,7 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
+  font-weight: 500;
   padding: 2px 4px;
 }
 
