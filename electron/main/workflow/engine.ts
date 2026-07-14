@@ -1,4 +1,5 @@
 import type {
+  ChatMessage,
   Session,
   TaskItem,
   TaskItemStatus,
@@ -29,6 +30,10 @@ import type { ToolContext } from '../agent/tools/types'
 import { getMainWindow } from '../window'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
 import { interpolateDeep } from './interpolate'
+import {
+  interpolatePromptSoft,
+  queryDecodeWorkflowToolResult
+} from './tool-result'
 
 /** 同一时刻每个会话只跑一个工作流 */
 const runningBySession = new Set<string>()
@@ -69,6 +74,41 @@ function emitToolResult(sessionId: string, toolName: string, result: string): vo
   if (win && !win.isDestroyed()) {
     win.webContents.send('event:agent', { type: 'tool_result', sessionId, toolName, result })
   }
+}
+
+function emitMessage(sessionId: string, message: ChatMessage): void {
+  const win = getMainWindow()
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('event:agent', { type: 'message', sessionId, message })
+  }
+}
+
+/**
+ * 将流程步骤写入会话消息并实时推送到聊天 UI。
+ * 纯 tool/condition 流程原先只更新 tasks，不落盘 messages，导致历史空白。
+ */
+function appendWorkflowMessage(
+  session: Session,
+  msg: Omit<ChatMessage, 'id' | 'createdAt'>
+): ChatMessage {
+  // 与 persistSessionTasks 同理：先同步磁盘 messages，防止并行 Agent 写入后被覆盖
+  const latest = querySession(session.id)
+  if (latest) {
+    session.messages = latest.messages
+    session.tasks = latest.tasks
+    session.title = latest.title
+    session.tokenUsed = latest.tokenUsed
+  }
+  const full: ChatMessage = {
+    id: crypto.randomUUID(),
+    createdAt: Date.now(),
+    ...msg
+  }
+  session.messages.push(full)
+  session.updatedAt = Date.now()
+  postSession(session)
+  emitMessage(session.id, full)
+  return full
 }
 
 interface FlatTaskSpec {
@@ -114,7 +154,17 @@ function buildTasks(
   }))
 }
 
+/**
+ * 写回 tasks 前先把磁盘上的 messages（如 Agent ReAct 新增）合并进内存会话，
+ * 避免用引擎持有的旧对象覆盖掉 loop 已落盘的聊天记录。
+ */
 function persistSessionTasks(session: Session, tasks: TaskItem[]): void {
+  const latest = querySession(session.id)
+  if (latest) {
+    session.messages = latest.messages
+    session.title = latest.title
+    session.tokenUsed = latest.tokenUsed
+  }
   session.tasks = tasks
   session.updatedAt = Date.now()
   postSession(session)
@@ -144,11 +194,12 @@ function createWorkflowSession(workflow: WorkflowDefinition): Session {
  * 并行组内多个 tool 可同时跑，由调用方统一 patchRun，避免互相覆盖 cursor/status。
  */
 async function executeToolNode(
-  sessionId: string,
+  session: Session,
   node: Extract<WorkflowLeafNode, { type: 'tool' }>,
   context: Record<string, unknown>,
   onAwaitUser?: () => Promise<void>
 ): Promise<Record<string, unknown>> {
+  const sessionId = session.id
   const tool = getToolByName(node.toolName)
   if (!tool) {
     throw new Error(`未知工具: ${node.toolName}`)
@@ -172,34 +223,48 @@ async function executeToolNode(
     }
   }
 
-  let result: string
+  let rawResult: string
   try {
-    result = await tool.execute(args, toolCtx)
+    rawResult = await tool.execute(args, toolCtx)
   } catch (err) {
-    result = `工具执行失败: ${err instanceof Error ? err.message : String(err)}`
-    emitToolResult(sessionId, node.toolName, result)
-    throw new Error(result)
+    rawResult = `工具执行失败: ${err instanceof Error ? err.message : String(err)}`
+    emitToolResult(sessionId, node.toolName, rawResult)
+    // 失败也写入聊天，便于排查
+    appendWorkflowMessage(session, {
+      role: 'tool',
+      toolName: node.toolName,
+      content: rawResult
+    })
+    throw new Error(rawResult)
   }
 
-  emitToolResult(sessionId, node.toolName, result)
+  // 支持 @@workflow_ctx@@ 把 patch 写入 context（如 hotTopicsOk），message 仍作工具日志
+  const decoded = queryDecodeWorkflowToolResult(rawResult)
+  emitToolResult(sessionId, node.toolName, decoded.message)
+  appendWorkflowMessage(session, {
+    role: 'tool',
+    toolName: node.toolName,
+    content: decoded.message
+  })
 
-  const nextContext = { ...context }
+  const nextContext = { ...context, ...decoded.patch }
   if (node.outputKeys?.length) {
     for (const key of node.outputKeys) {
-      nextContext[key] = result
+      nextContext[key] = decoded.message
     }
-  } else {
-    nextContext[node.toolName] = result
+  } else if (!Object.keys(decoded.patch).length) {
+    nextContext[node.toolName] = decoded.message
   }
   return nextContext
 }
 
 async function executeLeafNode(
-  sessionId: string,
+  session: Session,
   node: WorkflowLeafNode,
   run: WorkflowRun,
   signal: AbortSignal
 ): Promise<WorkflowRun> {
+  const sessionId = session.id
   if (signal.aborted) {
     throw new Error('__aborted__')
   }
@@ -208,28 +273,36 @@ async function executeLeafNode(
 
   if (node.type === 'await_user') {
     run = patchRun(run, { status: 'awaiting_user' })
+    appendWorkflowMessage(session, {
+      role: 'assistant',
+      content: `等待确认：${node.reason || node.title}`
+    })
     await waitForUserContinue(sessionId, node.reason || node.title)
     if (signal.aborted) throw new Error('__aborted__')
     return patchRun(run, { status: 'running' })
   }
 
   if (node.type === 'tool') {
-    const nextContext = await executeToolNode(sessionId, node, run.context, async () => {
+    const nextContext = await executeToolNode(session, node, run.context, async () => {
       run = patchRun(run, { status: 'awaiting_user' })
     })
     return patchRun(run, { context: nextContext, status: 'running' })
   }
 
-  // agent：本步目标写进会话，跑 scoped ReAct
-  const stepResult = await runAgentStep({
-    sessionId,
-    prompt: [
+  // agent：本步目标写进会话；prompt 支持 {{contextKey}} 软插值
+  const stepPrompt = interpolatePromptSoft(
+    [
       `【工作流步骤】${node.title}`,
       node.prompt,
       '完成本步骤目标后直接结束本轮，不要擅自执行后续流程步骤。'
     ]
       .filter(Boolean)
       .join('\n\n'),
+    run.context
+  )
+  const stepResult = await runAgentStep({
+    sessionId,
+    prompt: stepPrompt,
     toolWhitelist: node.toolWhitelist
   })
 
@@ -348,6 +421,14 @@ async function executeConditionNode(
   const chosen = node.cases.find((c) => c.key === selectedKey)
   if (!chosen) throw new Error(`条件分支无 case: ${selectedKey}`)
 
+  // expression 模式无 agent 消息时补一条选路说明；agent 模式已有 ReAct 记录
+  if (node.mode !== 'agent') {
+    appendWorkflowMessage(session, {
+      role: 'assistant',
+      content: `条件「${node.title}」选择分支：${chosen.label || selectedKey}`
+    })
+  }
+
   for (const arm of node.cases) {
     if (arm.key === selectedKey) continue
     for (const child of arm.nodes) statusMap.set(child.id, 'skipped')
@@ -358,7 +439,7 @@ async function executeConditionNode(
     statusMap.set(child.id, 'running')
     persistSessionTasks(session, buildTasks(specs, statusMap))
     try {
-      run = await executeLeafNode(sessionId, child, run, signal)
+      run = await executeLeafNode(session, child, run, signal)
       statusMap.set(child.id, 'done')
       persistSessionTasks(session, buildTasks(specs, statusMap))
     } catch (e) {
@@ -394,6 +475,10 @@ async function executeTopLevelNode(
     statusMap.set(node.id, 'running')
     persistSessionTasks(session, buildTasks(specs, statusMap))
     run = patchRun(run, { cursorNodeId: node.id, status: 'running' })
+    appendWorkflowMessage(session, {
+      role: 'assistant',
+      content: node.type === 'start' ? `流程开始：${node.title}` : `流程结束：${node.title}`
+    })
     statusMap.set(node.id, 'done')
     persistSessionTasks(session, buildTasks(specs, statusMap))
     return run
@@ -424,7 +509,7 @@ async function executeTopLevelNode(
     statusMap.set(node.id, 'running')
     persistSessionTasks(session, buildTasks(specs, statusMap))
     try {
-      run = await executeLeafNode(sessionId, node, run, signal)
+      run = await executeLeafNode(session, node, run, signal)
       statusMap.set(node.id, 'done')
       persistSessionTasks(session, buildTasks(specs, statusMap))
       return run
@@ -457,7 +542,7 @@ async function executeTopLevelNode(
           if (signal.aborted) throw new Error('__aborted__')
           try {
             const nextContext = await executeToolNode(
-              sessionId,
+              session,
               child as Extract<WorkflowLeafNode, { type: 'tool' }>,
               baseContext,
               async () => {
@@ -498,7 +583,7 @@ async function executeTopLevelNode(
       statusMap.set(child.id, 'running')
       persistSessionTasks(session, buildTasks(specs, statusMap))
       try {
-        run = await executeLeafNode(sessionId, child, run, signal)
+        run = await executeLeafNode(session, child, run, signal)
         statusMap.set(child.id, 'done')
         persistSessionTasks(session, buildTasks(specs, statusMap))
       } catch (e) {
@@ -594,6 +679,18 @@ async function executeWorkflowRun(runId: string, fromStart: boolean): Promise<vo
   const controller = bindSessionAbort(sessionId)
   run = patchRun(run, { status: 'running', errorMessage: undefined })
 
+  if (fromStart) {
+    appendWorkflowMessage(liveSession, {
+      role: 'assistant',
+      content: `开始执行流程「${workflow.title}」。`
+    })
+  } else {
+    appendWorkflowMessage(liveSession, {
+      role: 'assistant',
+      content: `继续执行流程「${workflow.title}」。`
+    })
+  }
+
   try {
     for (let i = startIndex; i < workflow.nodes.length; i++) {
       if (controller.signal.aborted) {
@@ -611,14 +708,26 @@ async function executeWorkflowRun(runId: string, fromStart: boolean): Promise<vo
       )
     }
     run = patchRun(run, { status: 'success', cursorNodeId: null })
+    appendWorkflowMessage(liveSession, {
+      role: 'assistant',
+      content: '流程执行完毕。'
+    })
     emitDone(sessionId, 'workflow_success')
   } catch (e) {
     if (e instanceof Error && e.message === '__aborted__') {
       patchRun(run, { status: 'aborted' })
+      appendWorkflowMessage(liveSession, {
+        role: 'assistant',
+        content: '流程已中止。'
+      })
       emitDone(sessionId, 'aborted')
     } else {
       const message = e instanceof Error ? e.message : String(e)
       patchRun(run, { status: 'failed', errorMessage: message })
+      appendWorkflowMessage(liveSession, {
+        role: 'assistant',
+        content: `流程执行失败：${message}`
+      })
       emitError(sessionId, message)
       emitDone(sessionId, 'error')
     }
