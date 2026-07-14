@@ -11,7 +11,8 @@ export function createEmptyScheduledTask(): ScheduledTask {
     id: crypto.randomUUID(),
     title: '',
     description: '',
-    enabled: true,
+    // 默认不启用，避免新建后被调度器到点自动执行
+    enabled: false,
     repeat: 'daily',
     timeOfDay: '09:00',
     weekday: 1,
