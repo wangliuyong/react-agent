@@ -44,6 +44,18 @@ function queryHasIncompleteTasks(tasks: TaskItem[]): boolean {
   return tasks.some((t) => t.status === 'pending' || t.status === 'running')
 }
 
+/**
+ * 非执行中且任务清单仍有未完成项时，应展示「继续」。
+ * 刷新后进程内 abort/await 状态会丢，只能从落盘的 tasks 恢复该按钮。
+ */
+function queryCanResumeFromSession(
+  session: Session | null | undefined,
+  running: boolean
+): boolean {
+  if (running || !session) return false
+  return queryHasIncompleteTasks(session.tasks ?? [])
+}
+
 function patchSession(
   sessions: Session[],
   id: string,
@@ -68,14 +80,29 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   hydrate: async () => {
     const sessions = await querySessions()
+    const prevId = get().activeSessionId
+    // 保留当前选中会话（若仍存在），避免 done 后 hydrate 把焦点跳走并丢掉继续态
+    const activeSessionId =
+      (prevId && sessions.some((s) => s.id === prevId) ? prevId : null) ??
+      sessions[0]?.id ??
+      null
+    const active = sessions.find((s) => s.id === activeSessionId)
     set({
       sessions,
-      activeSessionId: sessions[0]?.id ?? null
+      activeSessionId,
+      canResume: queryCanResumeFromSession(active, get().running)
     })
   },
 
-  setActive: (id) =>
-    set({ activeSessionId: id, streamingText: '', awaitUserReason: null, canResume: false }),
+  setActive: (id) => {
+    const session = get().sessions.find((s) => s.id === id)
+    set({
+      activeSessionId: id,
+      streamingText: '',
+      awaitUserReason: null,
+      canResume: queryCanResumeFromSession(session, get().running)
+    })
+  },
 
   createSession: async (type: SessionType = 'chat') => {
     const session = await postCreateSession(type)
@@ -83,7 +110,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       sessions: [session, ...state.sessions],
       activeSessionId: session.id,
       streamingText: '',
-      awaitUserReason: null
+      awaitUserReason: null,
+      canResume: false
     }))
     useAppStore.getState().setView('chat')
     return session
@@ -115,7 +143,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const id = get().activeSessionId
     if (!id) return
     await postAgentAbort(id)
-    set({ running: false, awaitUserReason: null })
+    const session = get().sessions.find((s) => s.id === id)
+    set({
+      running: false,
+      awaitUserReason: null,
+      // 不必等 done：有未完成任务时立刻可继续（刷新场景同理依赖 tasks 落盘）
+      canResume: queryHasIncompleteTasks(session?.tasks ?? [])
+    })
   },
 
   continueRun: async () => {
@@ -239,17 +273,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
       if (event.type === 'done') {
         if (event.sessionId === activeId) {
-          const session = get().sessions.find((s) => s.id === event.sessionId)
-          const canResume =
-            event.reason === 'aborted' && queryHasIncompleteTasks(session?.tasks ?? [])
           set({
             running: false,
             awaitUserReason: null,
             streamingText: '',
-            activeToolName: null,
-            canResume
+            activeToolName: null
           })
         }
+        // hydrate 会按落盘 tasks 恢复 canResume（中断 / 刷新后均可继续）
         void get().hydrate()
         return
       }
