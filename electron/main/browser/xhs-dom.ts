@@ -1,5 +1,12 @@
 import type { Page } from 'playwright'
-import { humanMicroPause, humanStepPause, rand, sleep } from './human-behavior'
+import {
+  humanBezierMoveTo,
+  humanBezierScroll,
+  humanMicroPause,
+  humanStepPause,
+  rand,
+  sleep
+} from './human-behavior'
 import { humanClickAt, humanClickLocator, humanMoveTo } from './human-input'
 
 /** 小红书创作台发布页（与社区 MCP 对齐，带 source 参数） */
@@ -227,7 +234,71 @@ async function clickLegacyPublishButton(page: Page): Promise<boolean> {
 }
 
 /**
- * 点击「发布」：优先 invoke 宿主方法，再坐标点击 xhs-publish-btn，最后旧版按钮。
+ * 分段拟人滚到发布条（页面底部「发布」），避免瞬间跳转。
+ */
+export async function scrollXhsPublishFooterIntoView(page: Page): Promise<void> {
+  const rounds = Math.floor(rand(2, 4))
+  for (let i = 0; i < rounds; i++) {
+    await humanBezierScroll(page, {
+      direction: 'down',
+      distance: rand(380, 720)
+    })
+  }
+
+  await page.evaluate(() => {
+    const forceBottom = (el: Element | Document): void => {
+      const target = el instanceof Document ? el.documentElement : (el as HTMLElement)
+      try {
+        target.scrollTop = target.scrollHeight
+      } catch {
+        /* ignore */
+      }
+    }
+    forceBottom(document)
+    forceBottom(document.body)
+    document.querySelectorAll('[class*="scroll"], [class*="content"], main, [role="main"]').forEach((el) => {
+      const h = el as HTMLElement
+      if (h.scrollHeight > h.clientHeight + 80) forceBottom(h)
+    })
+    const widget =
+      document.querySelector('xhs-publish-btn') ||
+      document.querySelector('.publish-page-publish-btn')
+    widget?.scrollIntoView({ block: 'center', inline: 'center' })
+  })
+  await sleep(rand(280, 520))
+  await humanBezierScroll(page, { direction: 'down', distance: rand(120, 280) })
+}
+
+/**
+ * 滚到底后模拟人类审阅：底栏附近挪鼠标 + 随机停顿约 3.5～9 秒，再点发布。
+ */
+export async function dwellBeforeXhsPublish(page: Page): Promise<void> {
+  const vp = page.viewportSize() ?? { width: 1280, height: 800 }
+  await humanBezierMoveTo(page, {
+    x: rand(vp.width * 0.55, vp.width * 0.92),
+    y: rand(vp.height * 0.75, vp.height * 0.95)
+  })
+  await sleep(rand(400, 900))
+
+  if (Math.random() < 0.55) {
+    await humanBezierScroll(page, {
+      direction: Math.random() < 0.4 ? 'up' : 'down',
+      distance: rand(50, 140)
+    })
+    await humanBezierScroll(page, { direction: 'down', distance: rand(70, 180) })
+  }
+
+  await humanStepPause({ min: 3500, max: 9000 })
+
+  await humanBezierMoveTo(page, {
+    x: rand(vp.width * 0.7, vp.width * 0.96),
+    y: rand(vp.height * 0.8, vp.height * 0.97)
+  })
+  await sleep(rand(350, 800))
+}
+
+/**
+ * 点击「发布」：拟人滚到底 → 停留确认 → 再 invoke / 坐标点击 / 旧版按钮。
  */
 export async function clickXhsPublishButton(page: Page): Promise<boolean> {
   await removeXhsPopoverOverlay(page)
@@ -235,16 +306,13 @@ export async function clickXhsPublishButton(page: Page): Promise<boolean> {
   const ready = await waitForXhsPublishReady(page)
   if (!ready) return false
 
-  // 滚动到底部，确保发布条可见
-  await page.evaluate(() => {
-    const widget = document.querySelector('xhs-publish-btn')
-    widget?.scrollIntoView({ block: 'center', inline: 'center' })
-  })
-  await sleep(300)
+  await scrollXhsPublishFooterIntoView(page)
+  await dwellBeforeXhsPublish(page)
+  await removeXhsPopoverOverlay(page)
 
   const invoked = await invokeXhsPublishAction(page, 'publish')
   if (invoked.ok) {
-    await sleep(500)
+    await sleep(rand(500, 900))
     if (await clickXhsConfirmDialog(page)) return true
     // 部分版本 invoke 后无跳转，继续坐标兜底
   }
@@ -252,7 +320,7 @@ export async function clickXhsPublishButton(page: Page): Promise<boolean> {
   const point = await queryXhsPublishClickPoint(page)
   if (point) {
     await humanClickAt(page, point.x, point.y)
-    await sleep(500)
+    await sleep(rand(500, 900))
     if (await clickXhsConfirmDialog(page)) return true
     return true
   }

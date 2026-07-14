@@ -1,7 +1,7 @@
 import { chromium, type BrowserContext, type Page } from 'playwright'
 import { getBrowserProfileDir } from '../store/paths'
 import { getMainWindow } from '../window'
-import type { BrowserFramePayload, BrowserStatus } from '../../../shared/types'
+import type { BrowserStatus } from '../../../shared/types'
 import { isProfileLockError, releaseBrowserProfileLock } from './profile-lock'
 import { humanClickLocator, humanClickText, humanTypeInto, humanUploadFiles } from './human-input'
 
@@ -9,14 +9,13 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 
 /**
  * Playwright 持久化浏览器服务。
- * - 使用 userDataDir 复用小红书登录 Cookie
+ * - 使用 userDataDir 复用小红书/抖音登录 Cookie
  * - 启动前自动清理 SingletonLock / 残留 Chrome for Testing
- * - 定时截帧推送到渲染进程「智能体浏览器」
+ * - 有头窗口供用户直接查看；不再定时截帧（会触发窗口闪烁）
  */
 class BrowserService {
   private context: BrowserContext | null = null
   private page: Page | null = null
-  private screencastTimer: ReturnType<typeof setInterval> | null = null
   private lastUrl = ''
   private lastTitle = ''
   private starting: Promise<Page> | null = null
@@ -78,7 +77,6 @@ class BrowserService {
           this.page = null
         })
 
-        this.startScreencast()
         return this.page
       } catch (err) {
         lastError = err
@@ -100,37 +98,15 @@ class BrowserService {
       : new Error(String(lastError ?? '浏览器启动失败'))
   }
 
-  private startScreencast(): void {
-    if (this.screencastTimer) return
-    this.screencastTimer = setInterval(() => {
-      void this.pushFrame()
-    }, 500)
-  }
-
-  private async pushFrame(): Promise<void> {
-    if (!this.page || this.page.isClosed()) return
-    try {
-      const buffer = await this.page.screenshot({ type: 'jpeg', quality: 55 })
-      this.lastUrl = this.page.url()
-      this.lastTitle = await this.page.title()
-      const payload: BrowserFramePayload = {
-        data: buffer.toString('base64'),
-        url: this.lastUrl,
-        title: this.lastTitle
-      }
-      const win = getMainWindow()
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('event:browser-frame', payload)
-      }
-    } catch {
-      // 页面导航中截图失败可忽略
-    }
-  }
-
   async navigate(url: string): Promise<void> {
     const page = await this.ensureStarted()
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 })
     this.lastUrl = page.url()
+    try {
+      this.lastTitle = await page.title()
+    } catch {
+      // ignore
+    }
     const win = getMainWindow()
     if (win && !win.isDestroyed()) {
       win.webContents.send('event:agent', {
@@ -211,10 +187,6 @@ class BrowserService {
   }
 
   async close(): Promise<void> {
-    if (this.screencastTimer) {
-      clearInterval(this.screencastTimer)
-      this.screencastTimer = null
-    }
     if (this.context) {
       await this.context.close().catch(() => undefined)
     }

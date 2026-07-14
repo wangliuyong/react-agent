@@ -2,7 +2,7 @@
  * 将 WorkflowDefinition 编译为 LangGraph StateGraph，替代 engine 内 for 循环主路径。
  * 节点业务逻辑复用 engine 导出的 executeTopLevelNode。
  */
-import { Command, END, MemorySaver, START, StateGraph, interrupt, isGraphInterrupt } from '@langchain/langgraph'
+import { Command, END, MemorySaver, START, StateGraph, interrupt, isGraphInterrupt, isInterrupted, INTERRUPT } from '@langchain/langgraph'
 import type {
   Session,
   TaskItemStatus,
@@ -68,11 +68,36 @@ export async function executeWorkflowWithLangGraph(
           ...config,
           streamMode: 'values'
         })
-        for await (const _ of stream) {
+        let needResume = false
+        for await (const chunk of stream) {
           if (signal.aborted) {
             finalizeWorkflowRun(runId, session.id, 'aborted')
             return
           }
+          if (isInterrupted(chunk)) {
+            const reason = extractReasonFromInterrupted(chunk) || '等待用户确认'
+            const { waitForUserContinue } = await import('../agent/loop')
+            const { queryWorkflowRun, postWorkflowRun } = await import('../store/workflow-runs')
+            const live = queryWorkflowRun(runId)
+            if (live) {
+              postWorkflowRun({
+                ...live,
+                status: 'awaiting_user',
+                updatedAt: Date.now()
+              })
+            }
+            await waitForUserContinue(session.id, reason)
+            if (signal.aborted) {
+              finalizeWorkflowRun(runId, session.id, 'aborted')
+              return
+            }
+            needResume = true
+            break
+          }
+        }
+        if (needResume) {
+          input = new Command({ resume: true })
+          continue
         }
       } catch (e) {
         if (isGraphInterrupt(e)) {
@@ -203,15 +228,31 @@ function extractReason(err: unknown): string | null {
   return null
 }
 
+function extractReasonFromInterrupted(chunk: unknown): string | null {
+  if (!isInterrupted(chunk)) return null
+  const list = (chunk as Record<string, Array<{ value?: unknown }>>)[INTERRUPT] ?? []
+  for (const item of list) {
+    const v = item?.value as { reason?: string } | string | undefined
+    if (typeof v === 'string') return v
+    if (v && typeof v === 'object' && typeof v.reason === 'string') return v.reason
+  }
+  return null
+}
+
 function hasInterrupt(state: {
+  values?: unknown
   tasks?: Array<{ interrupts?: unknown[] }>
 }): boolean {
+  if (isInterrupted(state.values)) return true
   return (state.tasks ?? []).some((t) => (t.interrupts?.length ?? 0) > 0)
 }
 
 function extractReasonFromState(state: {
+  values?: unknown
   tasks?: Array<{ interrupts?: Array<{ value?: unknown }> }>
 }): string | null {
+  const fromChunk = extractReasonFromInterrupted(state.values)
+  if (fromChunk) return fromChunk
   for (const task of state.tasks ?? []) {
     for (const item of task.interrupts ?? []) {
       const v = item?.value as { reason?: string } | string | undefined

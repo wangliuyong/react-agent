@@ -58,11 +58,10 @@ export function queryOrMigratePublishWorkflow(planId: string): WorkflowDefinitio
     return syncPublishPlanWorkflow(plan)
   }
 
-  const existing = queryWorkflow(planId)
-  if (existing && existing.nodes.length > 0) {
-    return existing
+  // 普通发布计划每次从计划重编译，保证策略变更（如去掉强制确认节点）立即生效
+  if (!plan.subTasks.length) {
+    return queryWorkflow(planId)
   }
-  if (!plan.subTasks.length) return existing
   return syncPublishPlanWorkflow(plan)
 }
 

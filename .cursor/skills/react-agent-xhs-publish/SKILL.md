@@ -30,12 +30,14 @@ description: >-
 
 1. 打开 `https://creator.xiaohongshu.com/publish/publish`
 2. 检测登录 → 未登录 `emitAwaitUser` 等人扫码
-3. 拟人上传配图、填标题（≤20 字建议）、正文
-4. `autoPublish=false` 时只填好停在待发布
-5. `fullAccess=false` 时正式发布前再次 `emitAwaitUser`
-6. 全程 `updateTasks` 更新任务清单
+3. 拟人上传配图、填标题（≤20 字建议）、正文（字段间 `humanStepPause`）
+4. 分段滚到底部发布栏 → 底栏停留约 3.5～9 秒（`dwellBeforeXhsPublish`）→ 再点发布
+5. `autoPublish=false` 时只填好停在待发布
+6. `fullAccess=false` 时正式发布前再次 `emitAwaitUser`
+7. 全程 `updateTasks` 更新任务清单
 
 **DOM 改版**：优先 `humanClickText` 多文案 fallback；实在不行 `browser_snapshot` + 原子工具。
+**拟人**：禁止瞬间滚到底后立刻点发布；与抖音一致需「滚到底 → 停留确认 → 再发布」。
 
 ## Agent 工具参数
 

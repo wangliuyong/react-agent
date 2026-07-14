@@ -1,15 +1,14 @@
 import type {
   WorkflowAgentNode,
-  WorkflowAwaitNode,
   WorkflowDefinition,
   WorkflowNode,
-  WorkflowParallelNode,
   PublishPlan,
   PublishSubTask
 } from './types'
 import {
   normalizePublishSubTaskChannels,
   queryPublishChannelLabel,
+  queryPublishChannelLabels,
   queryPublishChannelMeta
 } from './publish-channels'
 
@@ -20,90 +19,72 @@ export function queryPublishWorkflowId(planId: string): string {
   return planId
 }
 
-function buildCreateAgentNode(sub: PublishSubTask): WorkflowAgentNode {
+/**
+ * 单个子任务 → 单一 Agent 节点：调研/创作/配图/发布在同一步内串行完成，不再拆成创作+分渠道发布多段流程。
+ */
+function buildEndToEndAgentNode(sub: PublishSubTask): WorkflowAgentNode {
   const channels = normalizePublishSubTaskChannels(sub.channels)
-  const labels = channels.map((id) => queryPublishChannelLabel(id)).join('、')
+  const labels = queryPublishChannelLabels(channels)
+  const autoPublish = sub.autoPublish !== false
+  const publishHint = autoPublish
+    ? '调用发布工具时必须传 autoPublish=true，填好后自动点击发布（未登录时工具会暂停等人扫码）。'
+    : '调用发布工具时必须传 autoPublish=false，只填好内容停在待发布，勿自动点击发布。'
+
+  const channelBlocks = channels.map((id) => {
+    const meta = queryPublishChannelMeta(id)
+    const label = queryPublishChannelLabel(id)
+    const titleHint =
+      meta.titleMaxLength != null ? `标题建议不超过 ${meta.titleMaxLength} 字。` : ''
+    return [
+      `#### ${label}`,
+      titleHint,
+      meta.agentHint,
+      `必须使用工具 ${meta.publishTool} 完成该渠道发布。`
+    ]
+      .filter(Boolean)
+      .join('\n')
+  })
+
+  const toolWhitelist = Array.from(
+    new Set([
+      'fetch_hot_topics',
+      'fetch_web_images',
+      'list_attachments',
+      'update_task_list',
+      ...channels.map((id) => queryPublishChannelMeta(id).publishTool)
+    ])
+  )
+
   return {
-    id: `${sub.id}_create`,
+    id: `${sub.id}_run`,
     type: 'agent',
-    title: `创作：${sub.title}`,
+    title: sub.title,
     prompt: [
-      `为以下发布子任务准备标题、正文与配图（先不调用发布工具）：`,
+      channels.length > 1
+        ? `请在同一步内完成选题、创作、配图，并依次发布到：${labels}（前一个渠道完成后再发下一个）。`
+        : `请在同一步内完成选题、创作、配图并发布到${labels || '目标渠道'}。`,
       `任务标题：${sub.title}`,
       sub.topic ? `主题标签：${sub.topic}` : '',
       `内容要求：${sub.contentPrompt || '按主题自由发挥'}`,
-      `目标渠道：${labels || '未指定'}`,
-      '配图：优先用 fetch_web_images 从相关网页抓取；用户本地上传仅为可选。',
-      '完成后用简短中文说明标题/正文要点与配图路径，供后续发布步骤使用。'
+      '若需热点选题，先调用 fetch_hot_topics；再撰写标题与正文。',
+      '配图：必须调用 fetch_web_images（传入 pageUrl 或 imageUrls）拿到本地绝对路径后再发布；不要只给「建议来源」而不下载。',
+      publishHint,
+      ...channelBlocks,
+      '不要拆成多轮「只创作不发布」；本步结束前应完成全部目标渠道的发布工具调用。'
     ]
       .filter(Boolean)
       .join('\n'),
-    toolWhitelist: ['fetch_web_images', 'list_attachments', 'update_task_list']
-  }
-}
-
-function buildChannelAgentNode(sub: PublishSubTask, channelId: string): WorkflowAgentNode {
-  const meta = queryPublishChannelMeta(channelId)
-  const label = queryPublishChannelLabel(channelId)
-  const titleHint =
-    meta.titleMaxLength != null ? `标题建议不超过 ${meta.titleMaxLength} 字。` : ''
-
-  return {
-    id: `${sub.id}_pub_${channelId}`,
-    type: 'agent',
-    title: `发布到${label}`,
-    prompt: [
-      `将上一步创作的内容发布到「${label}」。`,
-      `任务标题：${sub.title}`,
-      sub.topic ? `主题：${sub.topic}` : '',
-      // 产品策略：流程/任务执行不自动点发布，一律停在待发布
-      '调用发布工具时必须 autoPublish=false，只填好内容停在待发布，勿自动点击发布。',
-      titleHint,
-      meta.agentHint,
-      `必须使用工具 ${meta.publishTool} 完成；不要改发到其他渠道。`
-    ]
-      .filter(Boolean)
-      .join('\n'),
-    toolWhitelist: [meta.publishTool, 'fetch_web_images', 'list_attachments', 'update_task_list']
+    toolWhitelist
   }
 }
 
 function buildSubTaskNodes(sub: PublishSubTask): WorkflowNode[] {
-  const nodes: WorkflowNode[] = [buildCreateAgentNode(sub)]
-  const channels = normalizePublishSubTaskChannels(sub.channels)
-
-  // 始终在发布前暂停，避免任务/流程无人确认就执行到终态
-  const awaitNode: WorkflowAwaitNode = {
-    id: `${sub.id}_confirm`,
-    type: 'await_user',
-    title: `确认发布：${sub.title}`,
-    reason: `子任务「${sub.title}」内容已准备好，请确认后继续填写渠道发布页（不会自动点击发布）。`
-  }
-  nodes.push(awaitNode)
-
-  if (channels.length === 0) {
-    return nodes
-  }
-
-  if (channels.length === 1) {
-    nodes.push(buildChannelAgentNode(sub, channels[0]))
-    return nodes
-  }
-
-  // 多渠道：阶段内并行组（组内含 agent → 引擎串行推进，但任务清单分层展示）
-  const parallel: WorkflowParallelNode = {
-    id: `${sub.id}_channels`,
-    type: 'parallel',
-    title: `多渠道发布：${sub.title}`,
-    children: channels.map((id) => buildChannelAgentNode(sub, id))
-  }
-  nodes.push(parallel)
-  return nodes
+  return [buildEndToEndAgentNode(sub)]
 }
 
 /**
  * 将发布计划编译为可执行工作流定义。
- * 工作流 id 与计划 id 相同，保存/删除计划时可同步 upsert。
+ * 每个子任务一个端到端 Agent 节点（调研→创作→配图→发布），不再分多段流程。
  */
 export function compilePublishPlanToWorkflow(plan: PublishPlan): WorkflowDefinition {
   const now = Date.now()
