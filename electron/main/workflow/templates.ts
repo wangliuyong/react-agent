@@ -38,7 +38,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
   {
     id: 'tpl_publish_xhs_basic',
     title: '小红书图文发布（模板）',
-    description: '创作 → 确认 → 发布到小红书；可按此模板改主题后再运行。',
+    description: '创作 →（可选确认）→ 发布到小红书；可按此模板改主题后再运行。',
     templateKind: 'publish',
     nodes: [
       {
@@ -60,7 +60,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         type: 'agent',
         title: '发布到小红书',
         prompt:
-          '使用 xhs_publish_note 填写上一步内容；必须 autoPublish=false，停在待发布，勿自动点击发布；遵守小红书风控与去同质化要求。',
+          '使用 xhs_publish_note 填写上一步内容；传 autoPublish=true 自动点击发布；遵守小红书风控与去同质化要求。未登录时工具会暂停等人扫码。',
         toolWhitelist: ['xhs_publish_note', 'fetch_web_images', 'list_attachments', 'update_task_list']
       }
     ],

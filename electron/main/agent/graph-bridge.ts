@@ -9,7 +9,13 @@ import {
   isAIMessage
 } from '@langchain/core/messages'
 import type { BaseMessage } from '@langchain/core/messages'
-import { Command, GraphInterrupt, isGraphInterrupt } from '@langchain/langgraph'
+import {
+  Command,
+  GraphInterrupt,
+  INTERRUPT,
+  isGraphInterrupt,
+  isInterrupted
+} from '@langchain/langgraph'
 import type { AgentEvent, AgentRoleName, ChatMessage, Session, TaskItem } from '../../../shared/types'
 import { querySettings } from '../store/settings'
 import { querySession, postSession } from '../store/sessions'
@@ -211,31 +217,68 @@ function syncNewMessagesToSession(
   return messages.length
 }
 
+function queryReasonFromInterruptValue(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) return value
+  if (value && typeof value === 'object' && typeof (value as { reason?: unknown }).reason === 'string') {
+    return (value as { reason: string }).reason
+  }
+  return null
+}
+
 function extractInterruptReason(err: unknown): string | null {
   if (isGraphInterrupt(err) || err instanceof GraphInterrupt) {
     const interrupts = (err as GraphInterrupt).interrupts ?? []
     for (const item of interrupts) {
-      const v = item?.value as { reason?: string } | string | undefined
-      if (typeof v === 'string') return v
-      if (v && typeof v === 'object' && typeof v.reason === 'string') return v.reason
+      const reason = queryReasonFromInterruptValue(item?.value)
+      if (reason) return reason
     }
     return '需要用户确认后继续'
   }
   return null
 }
 
+/** 从 stream values 块中解析 __interrupt__ 原因 */
+function queryInterruptReasonFromChunk(chunk: unknown): string | null {
+  if (!isInterrupted(chunk)) return null
+  const list = (chunk as Record<string, Array<{ value?: unknown }>>)[INTERRUPT] ?? []
+  for (const item of list) {
+    const reason = queryReasonFromInterruptValue(item?.value)
+    if (reason) return reason
+  }
+  return '需要用户确认后继续'
+}
+
 function queryInterruptReasonFromState(state: {
+  values?: unknown
   tasks?: Array<{ interrupts?: Array<{ value?: unknown }> }>
 }): string | null {
+  const fromValues = queryInterruptReasonFromChunk(state.values)
+  if (fromValues) return fromValues
+
   const tasks = state.tasks ?? []
   for (const task of tasks) {
     for (const item of task.interrupts ?? []) {
-      const v = item?.value as { reason?: string } | string | undefined
-      if (typeof v === 'string') return v
-      if (v && typeof v === 'object' && typeof v.reason === 'string') return v.reason
+      const reason = queryReasonFromInterruptValue(item?.value)
+      if (reason) return reason
     }
   }
   return null
+}
+
+/**
+ * 若最后一条 AI 消息仍有未配对的 tool_calls，说明工具节点未跑完（常见于 interrupt 漏检）。
+ * 此时绝不能把步骤标为 completed，否则发布类工作流会出现假成功。
+ */
+function queryHasDanglingToolCalls(messages: BaseMessage[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (ToolMessage.isInstance(msg)) return false
+    if (isAIMessage(msg) || AIMessage.isInstance(msg)) {
+      const ai = msg as AIMessage
+      return Boolean(ai.tool_calls?.length)
+    }
+  }
+  return false
 }
 
 /**
@@ -326,6 +369,9 @@ export async function runLangGraphChat(params: {
         return
       }
 
+      /** 本轮 stream 是否因 __interrupt__ chunk 而需要 resume */
+      let needResume = false
+
       try {
         // Command 泛型与图节点联合类型不完全对齐，运行时 resume 合法
         const stream = await graph.stream(input as Parameters<typeof graph.stream>[0], {
@@ -337,6 +383,17 @@ export async function runLangGraphChat(params: {
             emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
             return
           }
+          // values 流可能直接吐出 { __interrupt__: [...] }，需在循环内识别
+          const chunkReason = queryInterruptReasonFromChunk(state)
+          if (chunkReason) {
+            await waitForGraphUserContinue(sessionId, chunkReason)
+            if (controller.signal.aborted) {
+              emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
+              return
+            }
+            needResume = true
+            break
+          }
           if (state && typeof state === 'object' && 'messages' in state) {
             const s = state as { messages: BaseMessage[]; activeAgent?: AgentRoleName }
             synced = syncNewMessagesToSession(sessionId, synced, s.messages)
@@ -344,6 +401,10 @@ export async function runLangGraphChat(params: {
               emitAgentEvent({ type: 'agent_role', sessionId, role: s.activeAgent })
             }
           }
+        }
+        if (needResume) {
+          input = new Command({ resume: true })
+          continue
         }
       } catch (streamErr) {
         const reason = extractInterruptReason(streamErr)
@@ -370,6 +431,20 @@ export async function runLangGraphChat(params: {
         }
         input = new Command({ resume: true })
         continue
+      }
+
+      const finalMessages =
+        snap.values && typeof snap.values === 'object' && 'messages' in snap.values
+          ? ((snap.values as { messages: BaseMessage[] }).messages ?? [])
+          : []
+      if (queryHasDanglingToolCalls(finalMessages)) {
+        emitAgentEvent({
+          type: 'error',
+          sessionId,
+          message: '工具调用未完成（可能登录确认被中断），请重试本轮'
+        })
+        emitAgentEvent({ type: 'done', sessionId, reason: 'error' })
+        return
       }
 
       emitAgentEvent({ type: 'done', sessionId, reason: 'end_turn' })
@@ -423,11 +498,12 @@ export async function runLangGraphStep(params: {
   persistSession(session)
   emitAgentEvent({ type: 'message', sessionId, message: userMsg })
 
+  // 任务/工作流步骤：跳过危险工具与「点发布前」确认；未登录仍会 emitAwaitUser 暂停
   const toolCtx = buildToolContext(
     sessionId,
     attachmentPaths,
     controller.signal,
-    settings.fullAccess
+    true
   )
 
   let agent
@@ -464,6 +540,7 @@ export async function runLangGraphStep(params: {
     // eslint-disable-next-line no-constant-condition
     while (true) {
       if (controller.signal.aborted) return 'aborted'
+      let needResume = false
       try {
         const stream = await agent.stream(input as Parameters<typeof agent.stream>[0], {
           ...config,
@@ -471,6 +548,13 @@ export async function runLangGraphStep(params: {
         })
         for await (const state of stream) {
           if (controller.signal.aborted) return 'aborted'
+          const chunkReason = queryInterruptReasonFromChunk(state)
+          if (chunkReason) {
+            await waitForGraphUserContinue(sessionId, chunkReason)
+            if (controller.signal.aborted) return 'aborted'
+            needResume = true
+            break
+          }
           if (state && typeof state === 'object' && 'messages' in state) {
             synced = syncNewMessagesToSession(
               sessionId,
@@ -478,6 +562,10 @@ export async function runLangGraphStep(params: {
               (state as { messages: BaseMessage[] }).messages
             )
           }
+        }
+        if (needResume) {
+          input = new Command({ resume: true })
+          continue
         }
       } catch (streamErr) {
         const reason = extractInterruptReason(streamErr)
@@ -497,6 +585,19 @@ export async function runLangGraphStep(params: {
         if (controller.signal.aborted) return 'aborted'
         input = new Command({ resume: true })
         continue
+      }
+
+      const finalMessages =
+        snap.values && typeof snap.values === 'object' && 'messages' in snap.values
+          ? ((snap.values as { messages: BaseMessage[] }).messages ?? [])
+          : []
+      if (queryHasDanglingToolCalls(finalMessages)) {
+        emitAgentEvent({
+          type: 'error',
+          sessionId,
+          message: '发布工具调用未完成（常见于抖音登录等待被当作步骤结束）。请重新执行该发布步骤。'
+        })
+        return 'error'
       }
       return 'completed'
     }

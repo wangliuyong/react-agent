@@ -1,21 +1,26 @@
 import { tool } from '@langchain/core/tools'
-import { interrupt } from '@langchain/langgraph'
 import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { JsonSchema7Type } from '@langchain/core/utils/json_schema'
 import type { AgentTool, ToolContext, ToolPermission } from './types'
 
-/** 发布类工具自带确认 UI，避免 Graph interrupt 与工具内 await 双重暂停 */
+/**
+ * 发布类工具自带登录/发布确认（工具内 emitAwaitUser），
+ * 不再在适配层额外做危险工具门禁，避免双重暂停。
+ */
 const PUBLISH_TOOLS_INLINE_CONFIRM = new Set(['xhs_publish_note', 'douyin_publish_note'])
 
 export interface AdaptToolsOptions {
   ctx: ToolContext
-  /** 是否在适配层对危险工具做 interrupt 确认（默认 true） */
+  /** 是否在适配层对危险工具做确认（默认 true）；确认走 ctx.emitAwaitUser */
   gateDangerous?: boolean
 }
 
 /**
  * 将业务 AgentTool 转为 LangChain StructuredTool。
- * 权限门与 emitAwaitUser 统一走 LangGraph interrupt，由 Bridge 映射为 await_user 事件。
+ *
+ * 重要：工具执行在 ToolNode 内可能不支持可靠的 LangGraph interrupt。
+ * 登录扫码、危险确认一律复用 Bridge 注入的 ctx.emitAwaitUser（promise 等待），
+ * 切勿在工具函数内调用 interrupt()——否则会出现「已调用工具但无结果、步骤却被标完成」的假成功。
  */
 export function adaptAgentTools(
   agentTools: AgentTool[],
@@ -36,34 +41,19 @@ export function adaptAgentTools(
           unknown
         >
 
-        // 危险工具：非 fullAccess 时先 interrupt，用户点「继续」后 resume
+        // 危险工具：非 fullAccess 时先等人确认（promise，非 interrupt）
         if (
           gateDangerous &&
           shouldGatePermission(agentTool.permission, ctx.fullAccess, agentTool.name)
         ) {
-          interrupt({
-            type: 'await_user',
-            sessionId: ctx.sessionId,
-            reason: `即将执行敏感工具「${agentTool.name}」，确认后继续`
-          })
-        }
-
-        // 工具内 emitAwaitUser（如登录扫码）同样转 interrupt
-        const bridgedCtx: ToolContext = {
-          ...ctx,
-          emitAwaitUser: async (reason: string) => {
-            interrupt({
-              type: 'await_user',
-              sessionId: ctx.sessionId,
-              reason
-            })
-          }
+          await ctx.emitAwaitUser(`即将执行敏感工具「${agentTool.name}」，确认后继续`)
         }
 
         try {
-          return await agentTool.execute(args, bridgedCtx)
+          // 直接使用 Bridge 的 emitAwaitUser，保持登录等待与「继续」按钮一致
+          return await agentTool.execute(args, ctx)
         } catch (err) {
-          // GraphInterrupt 必须向上抛，供检查点暂停；勿吞掉
+          // GraphInterrupt 必须向上抛（若未来节点级 interrupt 传入）；勿吞掉
           if (isGraphInterrupt(err)) throw err
           return `工具执行失败: ${err instanceof Error ? err.message : String(err)}`
         }

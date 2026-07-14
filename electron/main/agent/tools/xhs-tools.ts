@@ -61,7 +61,7 @@ export const xhsPublishNoteTool: AgentTool = {
     '遵守作息（0-6 点不操作）与日≤2篇/周≤10篇限制。' +
     '配图优先使用 imagePaths（通常来自 fetch_web_images）；也可传 imageSourceUrl / imageUrls 由本工具内下载。' +
     '用户本轮上传的附件仅为可选补充。' +
-    '若未登录会暂停等待扫码；非完全访问模式下点「发布」前会再次确认。',
+    '若未登录会暂停等待扫码；聊天且非完全访问模式下点「发布」前会再次确认；任务/流程执行默认直接发布。',
   permission: 'dangerous',
   parameters: {
     type: 'object',
@@ -85,7 +85,7 @@ export const xhsPublishNoteTool: AgentTool = {
       autoPublish: {
         type: 'boolean',
         description:
-          '是否自动点击发布。产品策略下会被忽略并固定为 false：只填好内容停在待发布，由用户手动发布'
+          '是否自动点击发布。任务默认 true；false 时只填好停在待发布。未登录仍会暂停等人扫码。'
       }
     },
     required: ['title', 'content']
@@ -130,8 +130,8 @@ export const xhsPublishNoteTool: AgentTool = {
       title: String(args.title ?? ''),
       content: String(args.content ?? ''),
       imagePaths,
-      // 任务/流程不自动点发布：忽略模型传入的 true
-      autoPublish: false,
+      // 未传时默认自动发布（与任务策略一致）；显式 false 才停在待发布
+      autoPublish: args.autoPublish !== false,
       fullAccess: ctx.fullAccess,
       emitAwaitUser: ctx.emitAwaitUser,
       updateTasks: ctx.updateTasks,

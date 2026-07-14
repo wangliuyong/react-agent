@@ -19,8 +19,10 @@ import {
   clickXhsConfirmDialog,
   clickXhsImageTab,
   clickXhsPublishButton,
+  dwellBeforeXhsPublish,
   keyboardSubmitXhsPublish,
   removeXhsPopoverOverlay,
+  scrollXhsPublishFooterIntoView,
   uploadXhsImages
 } from './xhs-dom'
 
@@ -212,6 +214,8 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   ])
 
   if (!autoPublish) {
+    await scrollXhsPublishFooterIntoView(page)
+    await dwellBeforeXhsPublish(page)
     setTasks([
       { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
       { id: '1', title: '打开小红书创作平台', status: 'done' },
@@ -221,20 +225,23 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     ])
     return (
       `已切换图文 TAB 并填写标题与正文，配图 ${uploadPaths.length} 张，停在待发布状态（autoPublish=false）。` +
+      `页面已拟人滚到底部并停留确认；用户可在浏览器中检查后手动点「发布」。` +
       `${warmupMsg ? `\n${warmupMsg}` : ''}` +
-      `${offPeakWarn ? `\n⚠️ ${offPeakWarn}` : ''}` +
-      `用户可在浏览器中检查后手动点「发布」。`
+      `${offPeakWarn ? `\n⚠️ ${offPeakWarn}` : ''}`
     )
   }
 
   if (!fullAccess) {
-    await emitAwaitUser('内容已填好。确认无误后点击「继续」，将触发小红书「发布」操作。')
+    // 先滚到底让用户看见发布条；真正点发布前的停留在 clickXhsPublishButton 内
+    await scrollXhsPublishFooterIntoView(page)
+    await emitAwaitUser('内容已填好，页面已滚到底部发布栏。确认无误后点击「继续」，将触发小红书「发布」操作。')
     assertNotAborted(signal)
   }
 
   await removeXhsPopoverOverlay(page)
   await humanMicroPause()
 
+  // 内部：分段滚到底 → 底栏停留约 3.5～9 秒 → 再点发布
   let published = await clickXhsPublishButton(page)
   if (!published) {
     published = await keyboardSubmitXhsPublish(page)

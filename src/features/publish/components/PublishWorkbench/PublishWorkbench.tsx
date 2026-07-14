@@ -587,7 +587,9 @@ export function PublishWorkbench(): React.ReactElement {
                             <Tag key={ch}>{queryPublishChannelLabel(ch)}</Tag>
                           ))}
                           {sub.topic ? <Tag>{sub.topic}</Tag> : null}
-                          <Tag>待确认发布</Tag>
+                          <Tag color={sub.autoPublish !== false ? 'processing' : 'default'}>
+                            {sub.autoPublish !== false ? '自动发布' : '停在待发布'}
+                          </Tag>
                         </Space>
                         <Paragraph type="secondary" className={styles.subPrompt}>
                           {sub.contentPrompt || '未填写内容说明'}
@@ -700,10 +702,18 @@ export function PublishWorkbench(): React.ReactElement {
               />
             </Form.Item>
             <Form.Item
-              label="发布方式"
-              extra="任务与流程不会自动点发布，填好后停在待发布，需你在创作者中心手动确认"
+              label="自动发布"
+              extra="开启后填好内容会自动点发布；关闭则停在待发布。未登录时仍会暂停等人扫码；流程画布上的「等待确认」节点仍会暂停。"
             >
-              <Tag>待确认发布</Tag>
+              <Switch
+                checked={subModal.draft.autoPublish !== false}
+                onChange={(checked) =>
+                  setSubModal({
+                    ...subModal,
+                    draft: { ...subModal.draft, autoPublish: checked }
+                  })
+                }
+              />
             </Form.Item>
           </Form>
         ) : null}

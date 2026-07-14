@@ -39,7 +39,7 @@ pnpm install:browser:official # 官方源兜底
 - `ensureStarted()` 并发共用 `starting` Promise，防双开抢锁
 - 启动前 `releaseBrowserProfileLock()`
 - 失败时 `launchWithRetry(maxAttempts=3)` + `isProfileLockError` 判断
-- 有头模式 + 定时截帧推 `event:browser_frame`
+- 有头模式：用户直接看 Playwright 窗口；**不要**定时 `page.screenshot`（会导致窗口闪烁）
 
 ## Profile 锁问题
 

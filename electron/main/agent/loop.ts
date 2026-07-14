@@ -482,9 +482,10 @@ export async function runAgentStep(params: {
       : allTools
   const openAiTools = toOpenAiTools(tools)
 
+  // 任务/工作流步骤：跳过危险确认与点发布前确认；未登录仍暂停扫码
   const toolCtx: ToolContext = {
     sessionId,
-    fullAccess: settings.fullAccess,
+    fullAccess: true,
     attachmentPaths,
     signal: controller.signal,
     emitAwaitUser: async (reason) => {

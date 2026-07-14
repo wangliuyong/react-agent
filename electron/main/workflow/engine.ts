@@ -206,14 +206,14 @@ async function executeToolNode(
     throw new Error(`未知工具: ${node.toolName}`)
   }
 
-  const settings = querySettings()
   const args = interpolateDeep(node.argsTemplate, context) as Record<string, unknown>
 
   emitToolStart(sessionId, node.toolName, args)
 
   const toolCtx: ToolContext = {
     sessionId,
-    fullAccess: settings.fullAccess,
+    // 工作流 tool 节点与 agent 步一致：跳过敏感确认；未登录仍暂停
+    fullAccess: true,
     attachmentPaths: [],
     emitAwaitUser: async (reason) => {
       if (onAwaitUser) await onAwaitUser()
