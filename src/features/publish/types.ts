@@ -5,6 +5,7 @@ export { buildSubTaskPrompt, buildPublishPlanPrompt } from '@shared/publish-prom
 export {
   normalizePublishPlan,
   normalizePublishPlanKind,
+  normalizePublishPlanWorkflowIds,
   normalizePublishSubTask
 } from '@shared/publish-normalize'
 export {
@@ -29,6 +30,7 @@ export function createEmptyPlan(kind: PublishPlanKind = 'normal'): PublishPlan {
     title: '',
     description: '',
     kind,
+    workflowIds: [],
     workflowId: undefined,
     subTasks: [],
     createdAt: now,

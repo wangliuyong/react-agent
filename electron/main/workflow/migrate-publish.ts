@@ -1,5 +1,8 @@
 import type { PublishPlan, WorkflowDefinition } from '../../../shared/types'
-import { normalizePublishPlanKind } from '../../../shared/publish-normalize'
+import {
+  normalizePublishPlanKind,
+  normalizePublishPlanWorkflowIds
+} from '../../../shared/publish-normalize'
 import { compilePublishPlanToWorkflow } from '../../../shared/compile-publish-workflow'
 import { queryPublishPlan } from '../store/plans'
 import {
@@ -7,16 +10,24 @@ import {
   postWorkflow,
   queryWorkflow
 } from '../store/workflows'
+import { compileWorkflowPlanToDefinition } from './compile-workflow-plan'
 
 /**
- * 将「普通」发布计划 upsert 为同 id 工作流。
- * 流程任务只引用已有工作流，不做镜像覆盖。
+ * 将发布计划 upsert 为同 id 工作流。
+ * - 普通任务：由 subTasks 编译镜像
+ * - 流程任务：将多个子流程串行组合为镜像（不修改原子流程定义）
  */
 export function syncPublishPlanWorkflow(plan: PublishPlan): WorkflowDefinition | null {
-  if (normalizePublishPlanKind(plan.kind) === 'workflow') {
+  const kind = normalizePublishPlanKind(plan.kind)
+  const compiled =
+    kind === 'workflow'
+      ? compileWorkflowPlanToDefinition(plan)
+      : compilePublishPlanToWorkflow(plan)
+
+  if (!compiled.nodes.length) {
     return null
   }
-  const compiled = compilePublishPlanToWorkflow(plan)
+
   const existing = queryWorkflow(compiled.id)
   return postWorkflow({
     ...compiled,
@@ -25,31 +36,32 @@ export function syncPublishPlanWorkflow(plan: PublishPlan): WorkflowDefinition |
 }
 
 /**
- * 删除计划时：仅移除普通任务的镜像工作流，不删除流程任务所关联的真实流程。
+ * 删除计划时仅移除计划 id 对应的组合/镜像工作流，不删除 workflowIds 里的子流程。
  */
 export function postDeletePublishPlanWorkflow(planId: string): void {
-  const plan = queryPublishPlan(planId)
-  if (plan && normalizePublishPlanKind(plan.kind) === 'workflow') {
-    return
-  }
   postDeleteWorkflow(planId)
 }
 
 /**
- * 惰性迁移：工作流缺失时从「普通」计划编译；流程任务返回关联工作流。
+ * 惰性迁移：普通缺省时从计划编译；流程任务按子流程列表重新组合。
  */
 export function queryOrMigratePublishWorkflow(planId: string): WorkflowDefinition | null {
   const plan = queryPublishPlan(planId)
-  if (plan && normalizePublishPlanKind(plan.kind) === 'workflow') {
-    const wid = plan.workflowId?.trim()
-    return wid ? queryWorkflow(wid) : null
+  if (!plan) {
+    return queryWorkflow(planId)
+  }
+
+  if (normalizePublishPlanKind(plan.kind) === 'workflow') {
+    if (!normalizePublishPlanWorkflowIds(plan).length) {
+      return queryWorkflow(planId)
+    }
+    return syncPublishPlanWorkflow(plan)
   }
 
   const existing = queryWorkflow(planId)
   if (existing && existing.nodes.length > 0) {
     return existing
   }
-  if (!plan) return existing
   if (!plan.subTasks.length) return existing
   return syncPublishPlanWorkflow(plan)
 }

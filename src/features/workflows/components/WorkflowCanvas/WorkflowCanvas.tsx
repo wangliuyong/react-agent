@@ -119,8 +119,8 @@ export function WorkflowCanvas({
   const engineNodesRef = useRef(engineNodes)
   engineNodesRef.current = engineNodes
 
-  const onEditRef = useRef<(id: string) => void>(() => {})
-  const onDeleteRef = useRef<(id: string) => void>(() => {})
+  const onEditRef = useRef<(id: string) => void>(() => { })
+  const onDeleteRef = useRef<(id: string) => void>(() => { })
 
   const initialCanvas = resolveWorkflowCanvas(engineNodes, canvasProp)
   const [rfNodes, setNodes, onNodesChangeInternal] = useNodesState<WorkflowRfNode>(
@@ -291,23 +291,23 @@ export function WorkflowCanvas({
       const exists = ns.some((n) => n.id === node.id)
       const next: WorkflowRfNode[] = exists
         ? ns.map((n) =>
-            n.id === node.id
-              ? { ...n, data: { ...n.data, leaf: node } }
-              : n
-          )
+          n.id === node.id
+            ? { ...n, data: { ...n.data, leaf: node } }
+            : n
+        )
         : [
-            ...ns,
-            {
-              id: node.id,
-              type: 'workflow',
-              position: { x: 140, y: 120 + ns.length * 40 },
-              data: {
-                leaf: node,
-                onEdit: (id) => onEditRef.current(id),
-                onDelete: (id) => onDeleteRef.current(id)
-              }
+          ...ns,
+          {
+            id: node.id,
+            type: 'workflow',
+            position: { x: 140, y: 120 + ns.length * 40 },
+            data: {
+              leaf: node,
+              onEdit: (id) => onEditRef.current(id),
+              onDelete: (id) => onDeleteRef.current(id)
             }
-          ]
+          }
+        ]
       queueMicrotask(() => emitChange(next, rfEdges))
       return next
     })
