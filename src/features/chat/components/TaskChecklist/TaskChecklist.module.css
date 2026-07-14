@@ -1,18 +1,228 @@
 /* ── 浮动任务清单：豆包极简 + 时间轴进度 ── */
 
-.card {
+/* 定位外壳：面板与吸附圆球共用坐标 */
+.root {
   position: absolute;
-  width: 288px;
   z-index: 10;
+  touch-action: none;
+}
+
+.rootDragging {
+  z-index: 20;
+}
+
+.rootMorphToOrb .orb {
+  animation: orbSnapIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.rootMorphToPanel .card {
+  animation: panelExpandIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes orbSnapIn {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.35);
+    filter: blur(2px);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.08);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0.72;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes panelExpandIn {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.55);
+    transform-origin: center center;
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+/* ── 边缘吸附圆球 ── */
+.orb {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.55), transparent 42%),
+    linear-gradient(145deg, var(--db-primary-muted), var(--db-bg-content));
+  box-shadow:
+    0 8px 28px var(--db-primary-shadow),
+    0 0 0 1px var(--db-primary-border-md) inset;
+  opacity: 0.72;
+  transition:
+    opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s ease;
+  overflow: visible;
+  user-select: none;
+}
+
+.orb:hover,
+.orb:focus-visible,
+.rootDragging .orb {
+  opacity: 1;
+  outline: none;
+  transform: scale(1.06);
+  box-shadow:
+    0 12px 36px var(--db-primary-shadow),
+    0 0 0 1.5px var(--db-primary-border-active) inset;
+}
+
+.rootDragging .orb {
+  cursor: grabbing;
+  opacity: 1;
+}
+
+/* 进度环：用 conic-gradient 显示完成比例 */
+.orbRing {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--db-primary) calc(var(--orb-progress, 0) * 1%),
+    var(--db-border-light) 0
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  pointer-events: none;
+}
+
+.orbCore {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--db-bg-content) 92%, transparent);
+  border: 1px solid var(--db-primary-border-md);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+}
+
+.orbCount {
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--db-primary);
+  line-height: 1;
+}
+
+.orbSpinner {
+  font-size: 14px;
+  color: var(--db-primary);
+}
+
+.orbHint {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--db-primary), var(--db-primary-grad-mid));
+  box-shadow: 0 2px 8px var(--db-primary-shadow);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.orbRunning .orbRing {
+  animation: orbPulse 1.6s ease-in-out infinite;
+}
+
+.orbDone .orbCount {
+  color: var(--db-primary);
+}
+
+.orbDone .orbRing {
+  background: conic-gradient(var(--db-primary) 100%, var(--db-primary) 0);
+}
+
+@keyframes orbPulse {
+  0%,
+  100% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  50% {
+    filter: brightness(1.12);
+    transform: scale(1.04);
+  }
+}
+
+/* 贴边微偏：让圆球更有「吸附」感 */
+.orbEdge_left {
+  transform-origin: left center;
+}
+
+.orbEdge_right {
+  transform-origin: right center;
+}
+
+.orbEdge_top {
+  transform-origin: center top;
+}
+
+.orbEdge_bottom {
+  transform-origin: center bottom;
+}
+
+.card {
+  width: 288px;
   border-radius: var(--db-radius-lg) !important;
   border: 1px solid var(--db-border) !important;
-  background: var(--db-bg-content) !important;
+  background: color-mix(in srgb, var(--db-bg-content) 88%, transparent) !important;
   box-shadow:
     var(--db-shadow-lg),
     0 0 0 1px rgba(255, 255, 255, 0.6) inset !important;
+  /* 默认半透明，不遮挡对话；悬停/聚焦/拖动时回满不透明 */
+  opacity: 0.55;
+  transition:
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.32s ease,
+    box-shadow 0.32s ease,
+    border-color 0.32s ease;
   animation: panelEnter 0.38s cubic-bezier(0.22, 1, 0.36, 1);
-  touch-action: none;
   overflow: hidden;
+}
+
+.card:hover,
+.card:focus-within,
+.cardOpaque {
+  opacity: 1;
+  background: var(--db-bg-content) !important;
+  border-color: var(--db-primary-border-active) !important;
+  box-shadow:
+    0 10px 32px var(--db-primary-shadow),
+    0 0 0 1px rgba(255, 255, 255, 0.65) inset !important;
 }
 
 /* 顶部品牌色渐变条 */
@@ -39,7 +249,8 @@
     transform: translateX(16px) translateY(-4px) scale(0.98);
   }
   to {
-    opacity: 1;
+    /* 与默认半透明态对齐，避免入场结束后再跳到 0.55 */
+    opacity: 0.55;
     transform: translateX(0) translateY(0) scale(1);
   }
 }
