@@ -318,9 +318,7 @@ export function WorkflowCanvas({
   return (
     <div className={styles.wrap}>
       <div className={styles.toolbar}>
-        <span className={styles.hint}>
-          拖拽移动节点；从下方锚点拉线到下一节点。一节点多条出线 = 并行（分支需汇合或各自结束）。
-        </span>
+        <span className={styles.hint}>双击节点可编辑 · 多条出线表示并行分支</span>
         <Dropdown menu={{ items: addMenu }}>
           <Button type="primary" size="small" icon={<PlusOutlined />}>
             添加节点

@@ -1,7 +1,7 @@
 import type { WorkflowCanvas as WorkflowCanvasModel, WorkflowDefinition } from '@shared/types'
 import { useWorkflowsStore } from '../../hooks/useWorkflowsStore'
 import { WorkflowCard } from '../WorkflowCard'
-import { WorkflowEditDrawer } from '../WorkflowEditDrawer'
+import { WorkflowDetailModal } from '../WorkflowDetailModal'
 import { WorkflowCanvasDrawer } from '../WorkflowCanvasDrawer'
 import { useSessionStore } from '@/features/chat'
 import { useAppStore } from '@/stores/app-store'
@@ -30,7 +30,7 @@ function sortWorkflows(list: WorkflowDefinition[], sort: WorkflowSort): Workflow
 }
 
 /**
- * 流程市场页：卡片网格（对齐技能市场）+ 点击打开抽屉维护画布。
+ * 流程市场页：卡片网格（对齐技能市场）+ 点击打开详情弹窗，画布独立抽屉打开。
  */
 export function WorkflowsPage(): React.ReactElement {
   const workflows = useWorkflowsStore((s) => s.workflows)
@@ -50,11 +50,10 @@ export function WorkflowsPage(): React.ReactElement {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<WorkflowSort>('updated_desc')
 
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
   const [canvasDrawerOpen, setCanvasDrawerOpen] = useState(false)
   const [draft, setDraft] = useState<WorkflowDefinition | null>(null)
   const [saving, setSaving] = useState(false)
-  const [runningId, setRunningId] = useState<string | null>(null)
 
   useEffect(() => {
     void hydrate()
@@ -79,15 +78,16 @@ export function WorkflowsPage(): React.ReactElement {
       : undefined
   })
 
-  const openDrawer = (id: string): void => {
+  /** 点击卡片：打开流程详情弹窗（对齐技能市场） */
+  const openDetail = (id: string): void => {
     const wf = workflows.find((w) => w.id === id)
     if (!wf) return
     setDraft(cloneDraft(wf))
-    setDrawerOpen(true)
+    setDetailOpen(true)
   }
 
-  const closeDrawer = (): void => {
-    setDrawerOpen(false)
+  const closeDetail = (): void => {
+    setDetailOpen(false)
     setCanvasDrawerOpen(false)
     setDraft(null)
   }
@@ -120,8 +120,8 @@ export function WorkflowsPage(): React.ReactElement {
     try {
       const created = await createDraft()
       setDraft(cloneDraft(created))
-      setDrawerOpen(true)
-      message.success('已创建，可在抽屉中编排')
+      setDetailOpen(true)
+      message.success('已创建，可在弹窗中完善信息并编排画布')
     } catch (err) {
       message.error(err instanceof Error ? err.message : '创建失败')
     }
@@ -148,7 +148,7 @@ export function WorkflowsPage(): React.ReactElement {
   const handleDelete = async (id: string): Promise<void> => {
     try {
       await removeWorkflow(id)
-      if (draft?.id === id) closeDrawer()
+      if (draft?.id === id) closeDetail()
       message.success('已删除')
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败')
@@ -159,7 +159,6 @@ export function WorkflowsPage(): React.ReactElement {
     const id = workflowId ?? draft?.id
     if (!id) return
 
-    setRunningId(id)
     setSaving(true)
     try {
       let targetId = id
@@ -193,7 +192,6 @@ export function WorkflowsPage(): React.ReactElement {
       message.error(err instanceof Error ? err.message : '启动失败')
     } finally {
       setSaving(false)
-      setRunningId(null)
     }
   }
 
@@ -202,7 +200,7 @@ export function WorkflowsPage(): React.ReactElement {
       <header className={styles.header}>
         <div className={styles.headerMain}>
           <div className={styles.headerIcon}>
-            <AppstoreOutlined />
+            <ApartmentOutlined />
           </div>
           <div>
             <div className={styles.titleRow}>
@@ -212,7 +210,7 @@ export function WorkflowsPage(): React.ReactElement {
               <span className={styles.countBadge}>{workflows.length}</span>
             </div>
             <Text type="secondary" className={styles.desc}>
-              卡片浏览流程，点击进入抽屉拖拽连线编排
+              卡片浏览流程，点击查看详情；在画布中拖拽连线编排并运行
             </Text>
           </div>
         </div>
@@ -282,31 +280,24 @@ export function WorkflowsPage(): React.ReactElement {
           ) : (
             <div className={styles.grid}>
               {filtered.map((wf, index) => (
-                <WorkflowCard
-                  key={wf.id}
-                  workflow={wf}
-                  index={index}
-                  running={running && runningId === wf.id}
-                  onOpen={openDrawer}
-                  onRun={(id) => void handleRun(id)}
-                  onDelete={(id) => void handleDelete(id)}
-                />
+                <WorkflowCard key={wf.id} workflow={wf} index={index} onOpen={openDetail} />
               ))}
             </div>
           )}
         </Spin>
       </div>
 
-      <WorkflowEditDrawer
-        open={drawerOpen}
+      <WorkflowDetailModal
+        open={detailOpen}
         draft={draft}
         saving={saving}
         running={running}
-        onClose={closeDrawer}
+        onClose={closeDetail}
         onPatch={patchDraft}
         onOpenCanvas={openCanvasDrawer}
         onSave={() => void handleSave()}
         onRun={() => void handleRun()}
+        onDelete={(id) => void handleDelete(id)}
       />
 
       <WorkflowCanvasDrawer

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { usePublishStore } from '../../hooks/usePublishStore'
 import {
   createEmptyPlan,
@@ -21,7 +22,17 @@ interface PlanFormValues {
   description: string
 }
 
-/** 发布计划表单：新建/编辑共用，确定前必须通过必填校验 */
+function matchPlanQuery(plan: PublishPlan, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return (
+    plan.title.toLowerCase().includes(q) ||
+    plan.description.toLowerCase().includes(q) ||
+    plan.id.toLowerCase().includes(q)
+  )
+}
+
+/** 发布计划表单：新建/编辑共用 */
 function PlanEditModal({
   open,
   mode,
@@ -49,7 +60,7 @@ function PlanEditModal({
         description: values.description.trim()
       })
     } catch {
-      // 校验未通过，保持弹窗打开
+      // 校验未通过
     } finally {
       setSubmitting(false)
     }
@@ -94,11 +105,9 @@ function PlanEditModal({
   )
 }
 
-/** 发布工作台：计划编辑；执行进度在主聊天窗口查看 */
+/** 发布工作台：对齐技能市场 — 计划卡片 + 详情弹窗编排子任务 */
 export function PublishWorkbench(): React.ReactElement {
   const plans = usePublishStore((s) => s.plans)
-  const activePlanId = usePublishStore((s) => s.activePlanId)
-  const setActive = usePublishStore((s) => s.setActive)
   const savePlan = usePublishStore((s) => s.savePlan)
   const removePlan = usePublishStore((s) => s.removePlan)
   const addDemoPlan = usePublishStore((s) => s.addDemoPlan)
@@ -112,31 +121,42 @@ export function PublishWorkbench(): React.ReactElement {
     [channels]
   )
 
+  const [search, setSearch] = useState('')
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailPlanId, setDetailPlanId] = useState<string | null>(null)
+
   const [planModal, setPlanModal] = useState<{
     mode: 'create' | 'edit'
     plan: PublishPlan
   } | null>(null)
-  /** 子任务弹窗：create 为草稿，确认后才写入 plan.subTasks */
   const [subModal, setSubModal] = useState<{
     mode: 'create' | 'edit'
     draft: PublishSubTask
   } | null>(null)
 
-  const active = useMemo(() => {
-    const plan = plans.find((p) => p.id === activePlanId) ?? null
-    return plan ? normalizePublishPlan(plan) : null
-  }, [plans, activePlanId])
+  const filtered = useMemo(
+    () => plans.filter((p) => matchPlanQuery(p, search)),
+    [plans, search]
+  )
 
-  /** 从当前计划中移除指定子任务 */
+  const detailPlan = useMemo(() => {
+    const plan = plans.find((p) => p.id === detailPlanId) ?? null
+    return plan ? normalizePublishPlan(plan) : null
+  }, [plans, detailPlanId])
+
+  const openDetail = (id: string): void => {
+    setDetailPlanId(id)
+    setDetailOpen(true)
+  }
+
   const removeSubTask = async (subId: string): Promise<void> => {
-    if (!active) return
+    if (!detailPlan) return
     const next = {
-      ...active,
-      subTasks: active.subTasks.filter((s) => s.id !== subId),
+      ...detailPlan,
+      subTasks: detailPlan.subTasks.filter((s) => s.id !== subId),
       updatedAt: Date.now()
     }
     await savePlan(next)
-    // 若正在编辑被删子任务，关闭弹窗
     if (subModal?.draft.id === subId) setSubModal(null)
     message.success('已删除子任务')
   }
@@ -147,7 +167,6 @@ export function PublishWorkbench(): React.ReactElement {
       return
     }
     try {
-      // 先落盘以同步镜像工作流，再交给编排引擎（非拼超长 prompt）
       await savePlan(plan)
       const { sessionId } = await postRunWorkflow(plan.id)
       await hydrateSessions()
@@ -166,17 +185,19 @@ export function PublishWorkbench(): React.ReactElement {
           <div className={styles.headerIcon}>
             <SendOutlined />
           </div>
-          <div className={styles.headerContent}>
-            <Title level={3} className={styles.headerTitle}>
-              发布工作台
-            </Title>
-            <div className={styles.headerDesc}>多账号 / 多渠道 / 流程编排执行</div>
-            <Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 0, fontSize: 12 }}>
-              计划保存后同步为工作流；执行由编排引擎驱动，进度在主聊天窗口查看
-            </Paragraph>
+          <div>
+            <div className={styles.titleRow}>
+              <Title level={3} className={styles.headerTitle}>
+                发布
+              </Title>
+              <span className={styles.countBadge}>{plans.length}</span>
+            </div>
+            <Text type="secondary" className={styles.desc}>
+              多渠道发布计划；保存后同步工作流，运行进度在主聊天查看
+            </Text>
           </div>
         </div>
-        <Space>
+        <Space wrap>
           <Button
             onClick={async () => {
               await addDemoPlan()
@@ -189,77 +210,143 @@ export function PublishWorkbench(): React.ReactElement {
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => {
-              // 仅打开弹窗草稿，校验通过后再落盘
               setPlanModal({ mode: 'create', plan: createEmptyPlan() })
             }}
           >
-            新建发布计划
+            新建计划
           </Button>
         </Space>
       </header>
 
-      <div className={styles.body}>
-        <aside className={styles.sidebar}>
-          {plans.length === 0 ? (
-            <Empty description="暂无计划" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-          ) : (
-            plans.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={styles.planItem}
-                data-active={p.id === activePlanId}
-                onClick={() => setActive(p.id)}
-              >
-                <div className={styles.planTitle}>{p.title}</div>
-                <div className={styles.planMeta}>{p.subTasks.length} 个子任务</div>
-              </button>
-            ))
-          )}
-        </aside>
+      <div className={styles.toolbar}>
+        <span className={styles.resultCount}>共 {filtered.length} 项</span>
+        <div className={styles.toolbarRight}>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="搜索计划..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={styles.searchInput}
+          />
+        </div>
+      </div>
 
-        <main className={styles.main}>
-          {!active ? (
-            <Empty description="选择或新建一个发布计划" />
-          ) : (
-            <>
-              <div className={styles.planHeader}>
-                <div>
-                  <Title level={5} style={{ margin: 0 }}>
-                    {active.title}
-                  </Title>
-                  <Text type="secondary">
-                    {active.description || '未填写说明'} · {active.subTasks.length} 个子任务
-                  </Text>
+      <div className={styles.body}>
+        {filtered.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={plans.length === 0 ? '暂无发布计划' : '暂无匹配的计划'}
+            className={styles.empty}
+          >
+            {plans.length === 0 ? (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setPlanModal({ mode: 'create', plan: createEmptyPlan() })}
+              >
+                新建计划
+              </Button>
+            ) : null}
+          </Empty>
+        ) : (
+          <div className={styles.grid}>
+            {filtered.map((plan, index) => (
+              <Card
+                key={plan.id}
+                variant="borderless"
+                hoverable
+                className={styles.card}
+                style={{ '--card-index': index } as CSSProperties}
+                onClick={() => openDetail(plan.id)}
+              >
+                <div className={styles.cardHead}>
+                  <div className={styles.cardTitleRow}>
+                    <span className={styles.cardTitle}>{plan.title}</span>
+                    <Tag>{plan.subTasks.length} 子任务</Tag>
+                  </div>
+                  <p className={styles.cardDesc}>
+                    {plan.description?.trim() || '暂无说明，点击管理子任务与渠道。'}
+                  </p>
                 </div>
-                <Space>
-                  <Button type="link" size='small' onClick={() => setPlanModal({ mode: 'edit', plan: { ...active } })}>
-                    编辑
-                  </Button>
-                  <Button
-                    type="link"
-                    size='small'
-                    // icon={<PlayCircleOutlined />}
-                    onClick={() => void runPlan(active)}
-                  >
-                    运行
-                  </Button>
-                  <Button
-                    danger
-                    type="link"
-                    size='small'
-                    onClick={async () => {
-                      await removePlan(active.id)
-                      message.success('已删除')
-                    }}
-                  >
+                <div className={styles.cardFooter}>
+                  <span className={styles.cardAuthor}>@发布计划</span>
+                  <span className={styles.cardUsage}>
+                    {new Date(plan.updatedAt).toLocaleString('zh-CN', {
+                      month: 'numeric',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Modal
+        title={detailPlan?.title ?? '计划详情'}
+        open={detailOpen}
+        onCancel={() => {
+          setDetailOpen(false)
+          setSubModal(null)
+        }}
+        footer={null}
+        width={800}
+        destroyOnHidden
+        className={styles.detailModal}
+      >
+        {!detailPlan ? (
+          <Empty description="未找到计划详情" />
+        ) : (
+          <div className={styles.detailBody}>
+            <div className={styles.detailHeader}>
+              <div>
+                <code className={styles.detailId}>{detailPlan.id}</code>
+                <div className={styles.detailTags}>
+                  <Tag color="processing">{detailPlan.subTasks.length} 个子任务</Tag>
+                </div>
+              </div>
+              <Space wrap>
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => setPlanModal({ mode: 'edit', plan: { ...detailPlan } })}
+                >
+                  编辑
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<PlayCircleOutlined />}
+                  onClick={() => void runPlan(detailPlan)}
+                >
+                  运行
+                </Button>
+                <Popconfirm
+                  title="确定删除该发布计划？"
+                  onConfirm={async () => {
+                    await removePlan(detailPlan.id)
+                    setDetailOpen(false)
+                    setDetailPlanId(null)
+                    message.success('已删除')
+                  }}
+                >
+                  <Button danger icon={<DeleteOutlined />}>
                     删除
                   </Button>
-                </Space>
-              </div>
+                </Popconfirm>
+              </Space>
+            </div>
 
+            {detailPlan.description?.trim() ? (
+              <p className={styles.description}>{detailPlan.description}</p>
+            ) : null}
+
+            <div>
+              <h3 className={styles.sectionLabel}>子任务</h3>
               <div className={styles.subList}>
-                {active.subTasks.map((sub, index) => (
+                {detailPlan.subTasks.map((sub, index) => (
                   <div key={sub.id} className={styles.subCard}>
                     <div className={styles.subIndex}>{index + 1}</div>
                     <div className={styles.subBody}>
@@ -270,7 +357,10 @@ export function PublishWorkbench(): React.ReactElement {
                             type="link"
                             size="small"
                             onClick={() =>
-                              setSubModal({ mode: 'edit', draft: normalizePublishSubTask(sub) })
+                              setSubModal({
+                                mode: 'edit',
+                                draft: normalizePublishSubTask(sub)
+                              })
                             }
                           >
                             编辑
@@ -302,17 +392,16 @@ export function PublishWorkbench(): React.ReactElement {
                   block
                   icon={<PlusOutlined />}
                   onClick={() => {
-                    // 仅打开草稿弹窗，确认后再落盘
                     setSubModal({ mode: 'create', draft: createEmptySubTask() })
                   }}
                 >
                   添加子任务
                 </Button>
               </div>
-            </>
-          )}
-        </main>
-      </div>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <PlanEditModal
         open={Boolean(planModal)}
@@ -323,16 +412,19 @@ export function PublishWorkbench(): React.ReactElement {
           const isCreate = planModal?.mode === 'create'
           await savePlan(plan)
           setPlanModal(null)
+          if (isCreate) {
+            openDetail(plan.id)
+          }
           message.success(isCreate ? '已创建发布计划' : '已保存')
         }}
       />
 
       <Modal
         title={subModal?.mode === 'create' ? '新建子任务' : '编辑子任务'}
-        open={Boolean(subModal) && Boolean(active)}
+        open={Boolean(subModal) && Boolean(detailPlan)}
         onCancel={() => setSubModal(null)}
         onOk={async () => {
-          if (!active || !subModal) return
+          if (!detailPlan || !subModal) return
           const { mode, draft } = subModal
           if (!draft.channels.length) {
             message.warning('请至少选择一个发布渠道')
@@ -340,19 +432,19 @@ export function PublishWorkbench(): React.ReactElement {
           }
           const subTasks =
             mode === 'create'
-              ? [...active.subTasks, draft]
-              : active.subTasks.map((s) => (s.id === draft.id ? draft : s))
-          const next = {
-            ...active,
+              ? [...detailPlan.subTasks, draft]
+              : detailPlan.subTasks.map((s) => (s.id === draft.id ? draft : s))
+          await savePlan({
+            ...detailPlan,
             subTasks,
             updatedAt: Date.now()
-          }
-          await savePlan(next)
+          })
           setSubModal(null)
           message.success(mode === 'create' ? '已添加子任务' : '已保存')
         }}
         okText={subModal?.mode === 'create' ? '添加' : '保存'}
         destroyOnHidden
+        zIndex={1100}
       >
         {subModal ? (
           <Form layout="vertical">
@@ -368,8 +460,8 @@ export function PublishWorkbench(): React.ReactElement {
               <Select
                 mode="multiple"
                 value={subModal.draft.channels}
-                onChange={(channels: PublishChannelId[]) =>
-                  setSubModal({ ...subModal, draft: { ...subModal.draft, channels } })
+                onChange={(chs: PublishChannelId[]) =>
+                  setSubModal({ ...subModal, draft: { ...subModal.draft, channels: chs } })
                 }
                 placeholder="选择发布渠道，可多选"
                 options={enabledChannels.map((c) => ({

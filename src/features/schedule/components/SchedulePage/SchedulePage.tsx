@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { ScheduledTask, ScheduleActionType, ScheduleRepeat } from '@shared/types'
 import {
@@ -15,7 +16,7 @@ import { useSettingsStore } from '@/features/settings'
 import { useAppStore } from '@/stores/app-store'
 import styles from './SchedulePage.module.css'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 interface TaskFormValues {
   title: string
@@ -41,6 +42,8 @@ interface ScheduleStats {
 
 /** 卡片展示用任务状态 */
 type TaskDisplayStatus = 'running' | 'executing' | 'paused' | 'completed'
+
+type ScheduleFilter = 'all' | TaskDisplayStatus
 
 /** 将表单值合并回定时任务实体 */
 function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): ScheduledTask {
@@ -304,6 +307,7 @@ function TaskEditModal({
 /** 单条任务卡片 */
 function TaskCard({
   task,
+  index,
   planTitle,
   modelLabel,
   onToggle,
@@ -313,7 +317,7 @@ function TaskCard({
   onDelete
 }: {
   task: ScheduledTask
-  /** 发布计划标题或工作流标题（展示用） */
+  index: number
   planTitle: string
   modelLabel: string
   onToggle: (enabled: boolean) => void
@@ -326,7 +330,6 @@ function TaskCard({
   const trigger = formatTriggerMethod(task)
   const isExecuting = displayStatus === 'executing'
 
-  /** 卡片正文：优先说明，否则展示指令摘要 */
   const bodyText =
     task.description?.trim() ||
     (task.actionType === 'custom_prompt'
@@ -336,7 +339,6 @@ function TaskCard({
         : `关联发布计划：${planTitle}`) ||
     '暂无说明'
 
-  /** 执行动作列 */
   const actionMain =
     task.actionType === 'publish_plan'
       ? '发布计划'
@@ -350,21 +352,16 @@ function TaskCard({
       : planTitle
 
   return (
-    <article className={styles.taskCard}>
+    <article
+      className={styles.taskCard}
+      style={{ '--card-index': index } as CSSProperties}
+    >
       <div className={styles.taskCardHeader}>
         <div className={styles.taskCardTitleRow}>
-          <span className={styles.taskCardIcon}>
-            <ClockCircleOutlined />
-          </span>
           <span className={styles.taskCardTitle}>{task.title || '未命名任务'}</span>
-        </div>
-        <div className={styles.taskCardStatusCol}>
           <span className={styles.statusBadge} data-status={displayStatus}>
             {resolveStatusLabel(displayStatus)}
           </span>
-          {task.lastRunStatus === 'success' ? (
-            <span className={styles.lastSuccess}>上次成功</span>
-          ) : null}
         </div>
       </div>
 
@@ -388,6 +385,13 @@ function TaskCard({
           ) : null}
         </div>
         <div className={styles.infoCell}>
+          <span className={styles.infoLabel}>执行动作</span>
+          <span className={styles.infoValue}>{actionMain}</span>
+          <span className={styles.infoSub} title={actionSub}>
+            {actionSub}
+          </span>
+        </div>
+        <div className={styles.infoCell}>
           <span className={styles.infoLabel}>执行次数</span>
           <span className={styles.infoValue}>{formatRunCount(task)}</span>
           {task.lastRunAt ? (
@@ -395,13 +399,6 @@ function TaskCard({
               上次 {new Date(task.lastRunAt).toLocaleString('zh-CN')}
             </span>
           ) : null}
-        </div>
-        <div className={styles.infoCell}>
-          <span className={styles.infoLabel}>执行动作</span>
-          <span className={styles.infoValue}>{actionMain}</span>
-          <span className={styles.infoSub} title={actionSub}>
-            {actionSub}
-          </span>
         </div>
       </div>
 
@@ -479,8 +476,23 @@ export function SchedulePage(): React.ReactElement {
     task: ScheduledTask
   } | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [filter, setFilter] = useState<ScheduleFilter>('all')
+  const [search, setSearch] = useState('')
 
   const stats = useMemo(() => computeScheduleStats(tasks), [tasks])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return tasks.filter((task) => {
+      if (filter !== 'all' && resolveTaskDisplayStatus(task) !== filter) return false
+      if (!q) return true
+      return (
+        task.title.toLowerCase().includes(q) ||
+        task.description.toLowerCase().includes(q) ||
+        (task.customPrompt?.toLowerCase().includes(q) ?? false)
+      )
+    })
+  }, [tasks, filter, search])
 
   const modelLabel = useMemo(() => {
     const model = settings.model?.trim()
@@ -547,33 +559,27 @@ export function SchedulePage(): React.ReactElement {
           <div className={styles.headerIcon}>
             <ClockCircleOutlined />
           </div>
-          <Title level={3} className={styles.headerTitle}>
-            定时任务
-          </Title>
-        </div>
-
-        <div className={styles.headerActions}>
-          <div className={styles.statsRow}>
-            <span className={styles.statItem} data-kind="running">
-              运行中 <strong>{stats.running}</strong>
-            </span>
-            <span className={styles.statItem} data-kind="executing">
-              执行中 <strong>{stats.executing}</strong>
-            </span>
-            <span className={styles.statItem} data-kind="paused">
-              已暂停 <strong>{stats.paused}</strong>
-            </span>
-            <span className={styles.statItem} data-kind="completed">
-              已完成 <strong>{stats.completed}</strong>
-            </span>
+          <div>
+            <div className={styles.titleRow}>
+              <Title level={3} className={styles.headerTitle}>
+                定时任务
+              </Title>
+              <span className={styles.countBadge}>{tasks.length}</span>
+            </div>
+            <Text type="secondary" className={styles.desc}>
+              到点执行发布计划、工作流或自定义指令；运行中 {stats.running} · 执行中{' '}
+              {stats.executing}
+            </Text>
           </div>
-          <Tooltip title="刷新任务列表">
-            <Button
-              icon={<ReloadOutlined spin={refreshing} />}
-              onClick={() => void handleRefresh()}
-              loading={refreshing}
-            />
-          </Tooltip>
+        </div>
+        <Space wrap>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => void handleRefresh()}
+            loading={refreshing}
+          >
+            刷新
+          </Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -583,20 +589,60 @@ export function SchedulePage(): React.ReactElement {
           >
             添加任务
           </Button>
-        </div>
+        </Space>
       </header>
 
+      <div className={styles.toolbar}>
+        <Segmented
+          value={filter}
+          onChange={(v) => setFilter(v as ScheduleFilter)}
+          options={[
+            { label: '全部', value: 'all' },
+            { label: '运行中', value: 'running' },
+            { label: '执行中', value: 'executing' },
+            { label: '已暂停', value: 'paused' },
+            { label: '已完成', value: 'completed' }
+          ]}
+        />
+        <div className={styles.toolbarRight}>
+          <span className={styles.resultCount}>{filtered.length} 项</span>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="搜索任务..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={styles.searchInput}
+          />
+        </div>
+      </div>
+
       <div className={styles.body}>
-        {tasks.length === 0 ? (
-          <div className={styles.emptyWrap}>
-            <Empty description="暂无定时任务，点击右上角添加" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-          </div>
+        {filtered.length === 0 ? (
+          <Empty
+            description={tasks.length === 0 ? '暂无定时任务' : '暂无匹配的任务'}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            className={styles.empty}
+          >
+            {tasks.length === 0 ? (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  setTaskModal({ mode: 'create', task: createEmptyScheduledTask() })
+                }}
+              >
+                添加任务
+              </Button>
+            ) : null}
+          </Empty>
         ) : (
           <div className={styles.taskList}>
-            {tasks.map((task) => (
+            {filtered.map((task, index) => (
               <TaskCard
                 key={task.id}
                 task={task}
+                index={index}
                 planTitle={resolveActionTitle(task)}
                 modelLabel={modelLabel}
                 onToggle={(enabled) => void toggleEnabled(task.id, enabled)}
