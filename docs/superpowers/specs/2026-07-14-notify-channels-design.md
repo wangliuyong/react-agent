@@ -1,7 +1,8 @@
 # 通知渠道设计（发布渠道 / 通知渠道二分）
 
 > 日期：2026-07-14  
-> 状态：待审阅  
+> 状态：已确认  
+
 > 相关：`shared/publish-channels.ts`、`src/features/channels/`、`shared/compile-publish-workflow.ts`
 
 ## 背景与目标
