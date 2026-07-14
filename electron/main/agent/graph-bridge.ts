@@ -329,6 +329,7 @@ export async function runLangGraphChat(params: {
   }
 
   const history = sessionToLcMessages(querySession(sessionId)!)
+  // 当前 user 已写入 session；prior 为不含本轮 human 的历史（供 checkpoint 冷启动回填）
   const prior = history.slice(0, -1)
   const human = new HumanMessage(
     attachmentPaths.length > 0
@@ -342,18 +343,33 @@ export async function runLangGraphChat(params: {
     signal: controller.signal
   }
 
-  let synced = 0
+  /**
+   * MemorySaver 按 thread_id 保留上轮 messages。若本轮再传入完整 prior，
+   * messagesStateReducer 会追加到 checkpoint → 历史翻倍，UI 同步也会重复落盘。
+   * 有 checkpoint 时只增量传入本轮 human；无 checkpoint（进程重启）再回填 prior。
+   */
+  const checkpointSnap = await graph.getState(config)
+  const checkpointMessages =
+    checkpointSnap.values &&
+    typeof checkpointSnap.values === 'object' &&
+    'messages' in checkpointSnap.values
+      ? ((checkpointSnap.values as { messages: BaseMessage[] }).messages ?? [])
+      : []
+  const hasCheckpoint = checkpointMessages.length > 0
+  // 已在 session / checkpoint 中的消息不再经 sync 落盘；从该下标起才是本轮增量
+  let synced = hasCheckpoint ? checkpointMessages.length : prior.length
+
   // Command resume 与首轮 state 共用流入口
   let input:
     | {
-        messages: BaseMessage[]
-        sessionId: string
-        attachmentPaths: string[]
-        activeAgent: AgentRoleName
-        nextAgent: string
-      }
+      messages: BaseMessage[]
+      sessionId: string
+      attachmentPaths: string[]
+      activeAgent: AgentRoleName
+      nextAgent: string
+    }
     | Command = {
-    messages: [...prior, human],
+    messages: hasCheckpoint ? [human] : [...prior, human],
     sessionId,
     attachmentPaths,
     activeAgent: 'supervisor' as AgentRoleName,
