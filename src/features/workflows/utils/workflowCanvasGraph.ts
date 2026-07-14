@@ -7,8 +7,8 @@ import type {
 } from '@shared/types'
 import { isLeafNode } from '../types'
 
-const COL_GAP = 220
-const ROW_GAP = 100
+const COL_GAP = 110
+const ROW_GAP = 50
 
 /** 从引擎 nodes 展开画布用的叶子节点（parallel 拆成子叶） */
 export function flattenWorkflowLeaves(nodes: WorkflowNode[]): WorkflowLeafNode[] {
