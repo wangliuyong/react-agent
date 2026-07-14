@@ -100,8 +100,9 @@ export function registerIpcHandlers(): void {
     return saved
   })
   ipcMain.handle(IpcChannels.postDeletePublishPlan, (_e, id: string) => {
-    postDeletePublishPlan(id)
+    // 先按分类决定是否删镜像工作流（需读盘），再删计划文件
     postDeletePublishPlanWorkflow(id)
+    postDeletePublishPlan(id)
   })
 
   ipcMain.handle(IpcChannels.queryScheduledTasks, () => queryScheduledTasks())

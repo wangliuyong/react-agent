@@ -1,8 +1,12 @@
-import type { PublishPlan, PublishSubTask } from '@shared/types'
+import type { PublishPlan, PublishPlanKind, PublishSubTask } from '@shared/types'
 import type { PublishChannelId } from '@shared/publish-channels'
 
 export { buildSubTaskPrompt, buildPublishPlanPrompt } from '@shared/publish-prompt'
-export { normalizePublishPlan, normalizePublishSubTask } from '@shared/publish-normalize'
+export {
+  normalizePublishPlan,
+  normalizePublishPlanKind,
+  normalizePublishSubTask
+} from '@shared/publish-normalize'
 export {
   PUBLISH_CHANNELS,
   queryEnabledPublishChannels,
@@ -13,12 +17,19 @@ export {
 } from '@shared/publish-channels'
 export type { PublishChannelId } from '@shared/publish-channels'
 
-export function createEmptyPlan(): PublishPlan {
+/** 发布任务分类展示文案 */
+export function queryPublishPlanKindLabel(kind: PublishPlanKind | undefined): string {
+  return kind === 'workflow' ? '流程任务' : '普通任务'
+}
+
+export function createEmptyPlan(kind: PublishPlanKind = 'normal'): PublishPlan {
   const now = Date.now()
   return {
     id: crypto.randomUUID(),
     title: '',
     description: '',
+    kind,
+    workflowId: undefined,
     subTasks: [],
     createdAt: now,
     updatedAt: now

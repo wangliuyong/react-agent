@@ -201,10 +201,21 @@ export interface PublishSubTask {
   contentPrompt: string
 }
 
+/** 发布任务分类：普通=子任务编排；流程=关联已有工作流 */
+export type PublishPlanKind = 'normal' | 'workflow'
+
 export interface PublishPlan {
   id: string
   title: string
   description: string
+  /**
+   * 任务分类。缺省视为 normal（兼容旧数据）。
+   * - normal：用 subTasks 编排，保存时镜像为同 id 工作流
+   * - workflow：关联已有流程，运行/定时任务走 workflowId
+   */
+  kind: PublishPlanKind
+  /** kind===workflow 时关联的工作流 id */
+  workflowId?: string
   subTasks: PublishSubTask[]
   createdAt: number
   updatedAt: number
