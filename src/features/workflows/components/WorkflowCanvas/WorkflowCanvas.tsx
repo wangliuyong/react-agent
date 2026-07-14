@@ -70,8 +70,8 @@ function toRfEdges(canvas: WorkflowCanvasModel): Edge[] {
     source: e.source,
     target: e.target,
     animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-    style: { stroke: 'var(--db-primary)', strokeWidth: 1.5 }
+    markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
+    style: { stroke: 'var(--db-primary)', strokeWidth: 1 }
   }))
 }
 
@@ -100,8 +100,8 @@ function queryCanvasFromRf(
 function queryEdgeStyle(): Partial<Edge> {
   return {
     animated: true,
-    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-    style: { stroke: 'var(--db-primary)', strokeWidth: 1.5 }
+    markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
+    style: { stroke: 'var(--db-primary)', strokeWidth: 1 }
   }
 }
 
