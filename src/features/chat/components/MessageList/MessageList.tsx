@@ -72,6 +72,7 @@ export function MessageList({
               key={t.id}
               className={[
                 styles.taskTag,
+                t.parentId && styles.taskTagChild,
                 t.status === 'done' && styles.taskTagDone,
                 t.status === 'running' && styles.taskTagRunning,
                 t.status === 'failed' && styles.taskTagFailed,
@@ -81,7 +82,7 @@ export function MessageList({
                 .join(' ')}
             >
               {t.status === 'done' ? '✓ ' : t.status === 'running' ? '… ' : ''}
-              {t.title}
+              {t.parentId ? `↳ ${t.title}` : t.title}
             </span>
           ))}
         </div>

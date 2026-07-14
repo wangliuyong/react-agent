@@ -1,6 +1,5 @@
 import type { ScheduledTask, Session } from '../../../shared/types'
 import { IpcChannels } from '../../../shared/types'
-import { buildPublishPlanPrompt } from '../../../shared/publish-prompt'
 import { computeNextRunAt } from '../../../shared/schedule-utils'
 import { queryPublishPlan } from '../store/plans'
 import { postSession } from '../store/sessions'
@@ -9,7 +8,10 @@ import {
   queryScheduledTask,
   queryScheduledTasks
 } from '../store/schedules'
+import { queryWorkflow } from '../store/workflows'
 import { runAgentChat } from '../agent/loop'
+import { postRunWorkflow } from '../workflow/engine'
+import { queryOrMigratePublishWorkflow } from '../workflow/migrate-publish'
 import { getMainWindow } from '../window'
 import {
   isScheduleTaskRunning,
@@ -43,20 +45,48 @@ function createScheduleSession(task: ScheduledTask): Session {
   }
 }
 
-/** 根据任务配置构建 Agent 指令 */
-function buildTaskPrompt(task: ScheduledTask): string | null {
-  if (task.actionType === 'custom_prompt') {
-    const prompt = task.customPrompt?.trim()
-    return prompt || null
+function markTaskFailed(task: ScheduledTask): ScheduledTask {
+  const failed: ScheduledTask = {
+    ...task,
+    lastRunAt: Date.now(),
+    lastRunStatus: 'failed',
+    updatedAt: Date.now()
   }
-  if (!task.publishPlanId) return null
-  const plan = queryPublishPlan(task.publishPlanId)
-  if (!plan) return null
-  return buildPublishPlanPrompt(plan)
+  if (task.repeat === 'once') {
+    failed.enabled = false
+    failed.nextRunAt = undefined
+  } else {
+    failed.nextRunAt = computeNextRunAt({ ...task, enabled: true }) ?? undefined
+  }
+  const saved = postScheduledTask(failed)
+  emitScheduleUpdate()
+  return saved
 }
 
 /**
- * 触发单个定时任务：创建会话并异步跑 Agent。
+ * 解析定时任务应对应的工作流 id。
+ * publish_plan → 计划镜像工作流；workflow → 显式 workflowId。
+ */
+function resolveWorkflowId(task: ScheduledTask): string | null {
+  if (task.actionType === 'workflow') {
+    const id = task.workflowId?.trim()
+    if (!id) return null
+    return queryWorkflow(id) ? id : null
+  }
+  if (task.actionType === 'publish_plan') {
+    if (!task.publishPlanId) return null
+    // 确认计划仍在，再惰性迁移/获取镜像工作流
+    if (!queryPublishPlan(task.publishPlanId)) return null
+    const wf = queryOrMigratePublishWorkflow(task.publishPlanId)
+    return wf?.id ?? null
+  }
+  return null
+}
+
+/**
+ * 触发单个定时任务。
+ * - publish_plan / workflow：编排引擎
+ * - custom_prompt：单次 ReAct（兼容旧行为）
  * manual=true 时跳过 nextRunAt 校验（立即执行按钮）。
  */
 export async function triggerScheduledTask(
@@ -68,24 +98,34 @@ export async function triggerScheduledTask(
   if (!manual && !task.enabled) return task
   if (isScheduleTaskRunning(taskId)) return task
 
-  const prompt = buildTaskPrompt(task)
-  if (!prompt) {
-    const failed: ScheduledTask = {
+  if (task.actionType === 'custom_prompt') {
+    const prompt = task.customPrompt?.trim()
+    if (!prompt) return markTaskFailed(task)
+
+    markScheduleTaskRunning(taskId)
+    const session = createScheduleSession(task)
+    postSession(session)
+    registerScheduleSession(session.id, taskId)
+
+    const running: ScheduledTask = {
       ...task,
       lastRunAt: Date.now(),
-      lastRunStatus: 'failed',
+      lastRunStatus: 'running',
+      lastSessionId: session.id,
       updatedAt: Date.now()
     }
-    if (task.repeat === 'once') {
-      failed.enabled = false
-      failed.nextRunAt = undefined
-    } else {
-      failed.nextRunAt = computeNextRunAt({ ...task, enabled: true }) ?? undefined
-    }
-    const saved = postScheduledTask(failed)
+    postScheduledTask(running)
     emitScheduleUpdate()
-    return saved
+
+    void runAgentChat({
+      sessionId: session.id,
+      content: `[定时任务自动触发]\n\n${prompt}`
+    })
+    return running
   }
+
+  const workflowId = resolveWorkflowId(task)
+  if (!workflowId) return markTaskFailed(task)
 
   markScheduleTaskRunning(taskId)
   const session = createScheduleSession(task)
@@ -102,10 +142,11 @@ export async function triggerScheduledTask(
   postScheduledTask(running)
   emitScheduleUpdate()
 
-  void runAgentChat({
-    sessionId: session.id,
-    content: `[定时任务自动触发]\n\n${prompt}`
-  })
+  try {
+    await postRunWorkflow(workflowId, { session })
+  } catch {
+    return markTaskFailed({ ...running, lastRunStatus: 'failed' })
+  }
 
   return running
 }

@@ -170,6 +170,11 @@
   background: linear-gradient(180deg, var(--db-primary-line) 0%, var(--db-border) 100%);
 }
 
+/* 并行组子步骤：相对父节点缩进 */
+.taskRowChild {
+  padding-left: 18px;
+}
+
 /* ── 状态指示器 ── */
 .statusIcon {
   position: relative;

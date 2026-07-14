@@ -4,5 +4,6 @@ import type { SessionType } from '@shared/types'
 export const SESSION_TYPE_ICONS: Record<SessionType, React.ReactNode> = {
   chat: <MessageOutlined />,
   publish: <CloudUploadOutlined />,
-  schedule: <ClockCircleOutlined />
+  schedule: <ClockCircleOutlined />,
+  workflow: <AppstoreOutlined />
 }

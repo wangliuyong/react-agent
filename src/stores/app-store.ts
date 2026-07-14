@@ -1,7 +1,15 @@
 import { create } from 'zustand'
 
-/** 主内容区视图：聊天 / 发布工作台 / 设置 / 技能 / 规则 / 渠道 / 定时 */
-export type AppView = 'chat' | 'publish' | 'settings' | 'skills' | 'rules' | 'channels' | 'schedule'
+/** 主内容区视图：聊天 / 发布工作台 / 设置 / 技能 / 规则 / 渠道 / 定时 / 流程 */
+export type AppView =
+  | 'chat'
+  | 'publish'
+  | 'settings'
+  | 'skills'
+  | 'rules'
+  | 'channels'
+  | 'schedule'
+  | 'workflows'
 
 interface AppState {
   view: AppView

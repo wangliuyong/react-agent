@@ -9,6 +9,7 @@ import {
 import { useScheduleStore } from '../../hooks/useScheduleStore'
 import { createEmptyScheduledTask } from '../../types'
 import { usePublishStore } from '@/features/publish'
+import { useWorkflowsStore } from '@/features/workflows'
 import { useSessionStore } from '@/features/chat'
 import { useSettingsStore } from '@/features/settings'
 import { useAppStore } from '@/stores/app-store'
@@ -25,6 +26,7 @@ interface TaskFormValues {
   timeOfDay?: Dayjs
   actionType: ScheduleActionType
   publishPlanId?: string
+  workflowId?: string
   customPrompt?: string
   enabled: boolean
 }
@@ -52,6 +54,7 @@ function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): Sched
     timeOfDay: values.repeat !== 'once' ? (values.timeOfDay?.format('HH:mm') ?? '09:00') : base.timeOfDay,
     actionType: values.actionType,
     publishPlanId: values.actionType === 'publish_plan' ? values.publishPlanId : undefined,
+    workflowId: values.actionType === 'workflow' ? values.workflowId : undefined,
     customPrompt: values.actionType === 'custom_prompt' ? values.customPrompt?.trim() : undefined,
     enabled: values.enabled
   }
@@ -131,6 +134,7 @@ function TaskEditModal({
   mode,
   initialTask,
   plans,
+  workflows,
   onCancel,
   onSubmit
 }: {
@@ -138,6 +142,7 @@ function TaskEditModal({
   mode: 'create' | 'edit'
   initialTask: ScheduledTask | null
   plans: Array<{ id: string; title: string; subTasks: unknown[] }>
+  workflows: Array<{ id: string; title: string; nodes: unknown[] }>
   onCancel: () => void
   onSubmit: (task: ScheduledTask) => Promise<void>
 }): React.ReactElement {
@@ -180,6 +185,7 @@ function TaskEditModal({
             timeOfDay: dayjs(initialTask.timeOfDay, 'HH:mm'),
             actionType: initialTask.actionType,
             publishPlanId: initialTask.publishPlanId,
+            workflowId: initialTask.workflowId,
             customPrompt: initialTask.customPrompt,
             enabled: initialTask.enabled
           })
@@ -237,10 +243,10 @@ function TaskEditModal({
           </>
         )}
         <Form.Item label="执行动作" name="actionType" rules={[{ required: true, message: '请选择执行动作' }]}>
-          <Segmented
-            block
+          <Select
             options={[
-              { value: 'publish_plan', label: '发布计划' },
+              { value: 'publish_plan', label: '发布计划（编排引擎）' },
+              { value: 'workflow', label: '工作流' },
               { value: 'custom_prompt', label: '自定义指令' }
             ]}
           />
@@ -259,7 +265,23 @@ function TaskEditModal({
               }))}
             />
           </Form.Item>
-        ) : (
+        ) : null}
+        {actionType === 'workflow' ? (
+          <Form.Item
+            label="关联工作流"
+            name="workflowId"
+            rules={[{ required: true, message: '请选择工作流' }]}
+          >
+            <Select
+              placeholder="选择流程"
+              options={workflows.map((w) => ({
+                value: w.id,
+                label: `${w.title}（${w.nodes.length} 步）`
+              }))}
+            />
+          </Form.Item>
+        ) : null}
+        {actionType === 'custom_prompt' ? (
           <Form.Item
             label="Agent 指令"
             name="customPrompt"
@@ -270,7 +292,7 @@ function TaskEditModal({
           >
             <Input.TextArea rows={5} placeholder="到点时发送给 Agent 的完整指令…" />
           </Form.Item>
-        )}
+        ) : null}
         <Form.Item label="启用" name="enabled" valuePropName="checked">
           <Switch />
         </Form.Item>
@@ -291,6 +313,7 @@ function TaskCard({
   onDelete
 }: {
   task: ScheduledTask
+  /** 发布计划标题或工作流标题（展示用） */
   planTitle: string
   modelLabel: string
   onToggle: (enabled: boolean) => void
@@ -308,15 +331,23 @@ function TaskCard({
     task.description?.trim() ||
     (task.actionType === 'custom_prompt'
       ? task.customPrompt?.trim()
-      : `关联发布计划：${planTitle}`) ||
+      : task.actionType === 'workflow'
+        ? `关联工作流：${planTitle}`
+        : `关联发布计划：${planTitle}`) ||
     '暂无说明'
 
   /** 执行动作列 */
-  const actionMain = task.actionType === 'publish_plan' ? '发布计划' : 'Agent 指令'
-  const actionSub =
+  const actionMain =
     task.actionType === 'publish_plan'
-      ? planTitle
-      : task.customPrompt?.slice(0, 36) + (task.customPrompt && task.customPrompt.length > 36 ? '…' : '')
+      ? '发布计划'
+      : task.actionType === 'workflow'
+        ? '工作流'
+        : 'Agent 指令'
+  const actionSub =
+    task.actionType === 'custom_prompt'
+      ? (task.customPrompt?.slice(0, 36) ?? '') +
+        (task.customPrompt && task.customPrompt.length > 36 ? '…' : '')
+      : planTitle
 
   return (
     <article className={styles.taskCard}>
@@ -435,8 +466,11 @@ export function SchedulePage(): React.ReactElement {
   const runNow = useScheduleStore((s) => s.runNow)
 
   const plans = usePublishStore((s) => s.plans)
+  const workflows = useWorkflowsStore((s) => s.workflows)
+  const hydrateWorkflows = useWorkflowsStore((s) => s.hydrate)
   const hydrateSessions = useSessionStore((s) => s.hydrate)
   const setActiveSession = useSessionStore((s) => s.setActive)
+  const beginExternalRun = useSessionStore((s) => s.beginExternalRun)
   const setView = useAppStore((s) => s.setView)
   const settings = useSettingsStore((s) => s.settings)
 
@@ -453,15 +487,29 @@ export function SchedulePage(): React.ReactElement {
     return model ? `使用模型 ${model}` : '使用当前默认模型'
   }, [settings.model])
 
-  const planTitle = useCallback(
-    (planId?: string): string => plans.find((p) => p.id === planId)?.title ?? '未选择',
-    [plans]
+  const resolveActionTitle = useCallback(
+    (task: ScheduledTask): string => {
+      if (task.actionType === 'workflow') {
+        return workflows.find((w) => w.id === task.workflowId)?.title ?? '未选择流程'
+      }
+      if (task.actionType === 'publish_plan') {
+        return plans.find((p) => p.id === task.publishPlanId)?.title ?? '未选择'
+      }
+      return '自定义指令'
+    },
+    [plans, workflows]
   )
+
+  useEffect(() => {
+    void hydrate()
+    void hydrateWorkflows()
+  }, [hydrate, hydrateWorkflows])
 
   const handleRefresh = async (): Promise<void> => {
     setRefreshing(true)
     try {
       await hydrate()
+      await hydrateWorkflows()
     } finally {
       setRefreshing(false)
     }
@@ -476,7 +524,12 @@ export function SchedulePage(): React.ReactElement {
     await hydrateSessions()
     setView('chat')
     if (result.lastSessionId) {
-      setActiveSession(result.lastSessionId)
+      // 编排引擎路径需标记 running，才能在任务清单中断
+      if (task.actionType === 'publish_plan' || task.actionType === 'workflow') {
+        beginExternalRun(result.lastSessionId)
+      } else {
+        setActiveSession(result.lastSessionId)
+      }
     }
     message.success('已在主聊天窗口开始执行')
   }
@@ -544,7 +597,7 @@ export function SchedulePage(): React.ReactElement {
               <TaskCard
                 key={task.id}
                 task={task}
-                planTitle={planTitle(task.publishPlanId)}
+                planTitle={resolveActionTitle(task)}
                 modelLabel={modelLabel}
                 onToggle={(enabled) => void toggleEnabled(task.id, enabled)}
                 onRunNow={() => void handleRunNow(task)}
@@ -567,6 +620,7 @@ export function SchedulePage(): React.ReactElement {
         mode={taskModal?.mode ?? 'create'}
         initialTask={taskModal?.task ?? null}
         plans={plans}
+        workflows={workflows}
         onCancel={() => setTaskModal(null)}
         onSubmit={async (task) => {
           const isCreate = taskModal?.mode === 'create'

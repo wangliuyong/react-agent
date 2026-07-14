@@ -1,0 +1,508 @@
+import type {
+  Session,
+  TaskItem,
+  TaskItemStatus,
+  WorkflowDefinition,
+  WorkflowLeafNode,
+  WorkflowNode,
+  WorkflowRun,
+  WorkflowRunStartResult
+} from '../../../shared/types'
+import { querySettings } from '../store/settings'
+import { postSession, querySession } from '../store/sessions'
+import { queryWorkflow } from '../store/workflows'
+import {
+  postWorkflowRun,
+  queryWorkflowRun
+} from '../store/workflow-runs'
+import { queryOrMigratePublishWorkflow } from './migrate-publish'
+import {
+  bindSessionAbort,
+  releaseSessionAbort,
+  runAgentStep,
+  waitForUserContinue
+} from '../agent/loop'
+import { getToolByName } from '../agent/tools'
+import type { ToolContext } from '../agent/tools/types'
+import { getMainWindow } from '../window'
+import { handleScheduleAgentDone } from '../schedule/agent-hook'
+import { interpolateDeep } from './interpolate'
+
+/** 同一时刻每个会话只跑一个工作流 */
+const runningBySession = new Set<string>()
+
+function emitTaskUpdate(sessionId: string, tasks: TaskItem[]): void {
+  const win = getMainWindow()
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('event:agent', { type: 'task_update', sessionId, tasks })
+  }
+}
+
+function emitDone(sessionId: string, reason: string): void {
+  const event = { type: 'done' as const, sessionId, reason }
+  const win = getMainWindow()
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('event:agent', event)
+  }
+  // 与 loop.emit 对齐：定时任务依赖 done 回写 lastRunStatus
+  handleScheduleAgentDone(event)
+}
+
+function emitError(sessionId: string, message: string): void {
+  const win = getMainWindow()
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('event:agent', { type: 'error', sessionId, message })
+  }
+}
+
+function emitToolStart(sessionId: string, toolName: string, args: unknown): void {
+  const win = getMainWindow()
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('event:agent', { type: 'tool_start', sessionId, toolName, args })
+  }
+}
+
+function emitToolResult(sessionId: string, toolName: string, result: string): void {
+  const win = getMainWindow()
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('event:agent', { type: 'tool_result', sessionId, toolName, result })
+  }
+}
+
+interface FlatTaskSpec {
+  id: string
+  title: string
+  parentId?: string
+}
+
+/** 将流程节点展开为 TaskItem 骨架（parallel 子步带 parentId） */
+function flattenTaskSpecs(nodes: WorkflowNode[]): FlatTaskSpec[] {
+  const specs: FlatTaskSpec[] = []
+  for (const node of nodes) {
+    if (node.type === 'parallel') {
+      specs.push({ id: node.id, title: node.title })
+      for (const child of node.children) {
+        specs.push({ id: child.id, title: child.title, parentId: node.id })
+      }
+    } else {
+      specs.push({ id: node.id, title: node.title })
+    }
+  }
+  return specs
+}
+
+function buildTasks(
+  specs: FlatTaskSpec[],
+  statusMap: Map<string, TaskItemStatus>
+): TaskItem[] {
+  return specs.map((s) => ({
+    id: s.id,
+    title: s.title,
+    status: statusMap.get(s.id) ?? 'pending',
+    parentId: s.parentId
+  }))
+}
+
+function persistSessionTasks(session: Session, tasks: TaskItem[]): void {
+  session.tasks = tasks
+  session.updatedAt = Date.now()
+  postSession(session)
+  emitTaskUpdate(session.id, tasks)
+}
+
+function patchRun(run: WorkflowRun, patch: Partial<WorkflowRun>): WorkflowRun {
+  return postWorkflowRun({ ...run, ...patch, updatedAt: Date.now() })
+}
+
+function createWorkflowSession(workflow: WorkflowDefinition): Session {
+  const now = Date.now()
+  return {
+    id: crypto.randomUUID(),
+    title: `[流程] ${workflow.title}`,
+    messages: [],
+    tasks: [],
+    type: 'workflow',
+    tokenUsed: 0,
+    createdAt: now,
+    updatedAt: now
+  }
+}
+
+/**
+ * 执行 tool 节点；返回合并后的 context（不强制落盘）。
+ * 并行组内多个 tool 可同时跑，由调用方统一 patchRun，避免互相覆盖 cursor/status。
+ */
+async function executeToolNode(
+  sessionId: string,
+  node: Extract<WorkflowLeafNode, { type: 'tool' }>,
+  context: Record<string, unknown>,
+  onAwaitUser?: () => Promise<void>
+): Promise<Record<string, unknown>> {
+  const tool = getToolByName(node.toolName)
+  if (!tool) {
+    throw new Error(`未知工具: ${node.toolName}`)
+  }
+
+  const settings = querySettings()
+  const args = interpolateDeep(node.argsTemplate, context) as Record<string, unknown>
+
+  emitToolStart(sessionId, node.toolName, args)
+
+  const toolCtx: ToolContext = {
+    sessionId,
+    fullAccess: settings.fullAccess,
+    attachmentPaths: [],
+    emitAwaitUser: async (reason) => {
+      if (onAwaitUser) await onAwaitUser()
+      await waitForUserContinue(sessionId, reason)
+    },
+    updateTasks: () => {
+      /* 引擎权威维护 tasks */
+    }
+  }
+
+  let result: string
+  try {
+    result = await tool.execute(args, toolCtx)
+  } catch (err) {
+    result = `工具执行失败: ${err instanceof Error ? err.message : String(err)}`
+    emitToolResult(sessionId, node.toolName, result)
+    throw new Error(result)
+  }
+
+  emitToolResult(sessionId, node.toolName, result)
+
+  const nextContext = { ...context }
+  if (node.outputKeys?.length) {
+    for (const key of node.outputKeys) {
+      nextContext[key] = result
+    }
+  } else {
+    nextContext[node.toolName] = result
+  }
+  return nextContext
+}
+
+async function executeLeafNode(
+  sessionId: string,
+  node: WorkflowLeafNode,
+  run: WorkflowRun,
+  signal: AbortSignal
+): Promise<WorkflowRun> {
+  if (signal.aborted) {
+    throw new Error('__aborted__')
+  }
+
+  run = patchRun(run, { cursorNodeId: node.id, status: 'running' })
+
+  if (node.type === 'await_user') {
+    run = patchRun(run, { status: 'awaiting_user' })
+    await waitForUserContinue(sessionId, node.reason || node.title)
+    if (signal.aborted) throw new Error('__aborted__')
+    return patchRun(run, { status: 'running' })
+  }
+
+  if (node.type === 'tool') {
+    const nextContext = await executeToolNode(sessionId, node, run.context, async () => {
+      run = patchRun(run, { status: 'awaiting_user' })
+    })
+    return patchRun(run, { context: nextContext, status: 'running' })
+  }
+
+  // agent：本步目标写进会话，跑 scoped ReAct
+  const stepResult = await runAgentStep({
+    sessionId,
+    prompt: [
+      `【工作流步骤】${node.title}`,
+      node.prompt,
+      '完成本步骤目标后直接结束本轮，不要擅自执行后续流程步骤。'
+    ]
+      .filter(Boolean)
+      .join('\n\n'),
+    toolWhitelist: node.toolWhitelist
+  })
+
+  if (stepResult === 'aborted') throw new Error('__aborted__')
+  if (stepResult === 'error' || stepResult === 'max_turns') {
+    throw new Error(
+      stepResult === 'max_turns' ? `步骤「${node.title}」达到最大轮次` : `步骤「${node.title}」执行失败`
+    )
+  }
+  return run
+}
+
+/**
+ * 推进单个顶层节点。
+ * parallel：组内若全是 tool → Promise.all 并发；含 agent/await_user 时串行
+ * （同 Session 上不能并行跑多段 ReAct，否则消息/abort 会交错）。
+ */
+async function executeTopLevelNode(
+  sessionId: string,
+  node: WorkflowNode,
+  run: WorkflowRun,
+  statusMap: Map<string, TaskItemStatus>,
+  specs: FlatTaskSpec[],
+  session: Session,
+  signal: AbortSignal
+): Promise<WorkflowRun> {
+  if (node.type !== 'parallel') {
+    statusMap.set(node.id, 'running')
+    persistSessionTasks(session, buildTasks(specs, statusMap))
+    try {
+      run = await executeLeafNode(sessionId, node, run, signal)
+      statusMap.set(node.id, 'done')
+      persistSessionTasks(session, buildTasks(specs, statusMap))
+      return run
+    } catch (e) {
+      if (e instanceof Error && e.message === '__aborted__') throw e
+      statusMap.set(node.id, 'failed')
+      persistSessionTasks(session, buildTasks(specs, statusMap))
+      throw e
+    }
+  }
+
+  statusMap.set(node.id, 'running')
+  for (const child of node.children) {
+    statusMap.set(child.id, 'pending')
+  }
+  persistSessionTasks(session, buildTasks(specs, statusMap))
+  run = patchRun(run, { cursorNodeId: node.id, status: 'running' })
+
+  const allTools =
+    node.children.length > 0 && node.children.every((c) => c.type === 'tool')
+
+  try {
+    if (allTools) {
+      for (const child of node.children) statusMap.set(child.id, 'running')
+      persistSessionTasks(session, buildTasks(specs, statusMap))
+
+      const baseContext = { ...run.context }
+      const settled = await Promise.all(
+        node.children.map(async (child) => {
+          if (signal.aborted) throw new Error('__aborted__')
+          try {
+            const nextContext = await executeToolNode(
+              sessionId,
+              child as Extract<WorkflowLeafNode, { type: 'tool' }>,
+              baseContext,
+              async () => {
+                patchRun(run, { status: 'awaiting_user' })
+              }
+            )
+            statusMap.set(child.id, 'done')
+            persistSessionTasks(session, buildTasks(specs, statusMap))
+            return { ok: true as const, context: nextContext }
+          } catch (e) {
+            statusMap.set(child.id, 'failed')
+            persistSessionTasks(session, buildTasks(specs, statusMap))
+            return { ok: false as const, error: e }
+          }
+        })
+      )
+
+      const failure = settled.find((r) => !r.ok)
+      if (failure && !failure.ok) {
+        statusMap.set(node.id, 'failed')
+        persistSessionTasks(session, buildTasks(specs, statusMap))
+        const err = failure.error
+        if (err instanceof Error && err.message === '__aborted__') throw err
+        throw err instanceof Error ? err : new Error(String(err))
+      }
+
+      let merged = { ...baseContext }
+      for (const r of settled) {
+        if (r.ok) merged = { ...merged, ...r.context }
+      }
+      statusMap.set(node.id, 'done')
+      persistSessionTasks(session, buildTasks(specs, statusMap))
+      return patchRun(run, { context: merged, status: 'running' })
+    }
+
+    // 含 agent / await：串行，保证 Session ReAct 独占
+    for (const child of node.children) {
+      statusMap.set(child.id, 'running')
+      persistSessionTasks(session, buildTasks(specs, statusMap))
+      try {
+        run = await executeLeafNode(sessionId, child, run, signal)
+        statusMap.set(child.id, 'done')
+        persistSessionTasks(session, buildTasks(specs, statusMap))
+      } catch (e) {
+        if (e instanceof Error && e.message === '__aborted__') throw e
+        statusMap.set(child.id, 'failed')
+        statusMap.set(node.id, 'failed')
+        persistSessionTasks(session, buildTasks(specs, statusMap))
+        throw e
+      }
+    }
+    statusMap.set(node.id, 'done')
+    persistSessionTasks(session, buildTasks(specs, statusMap))
+    return run
+  } catch (e) {
+    if (!(e instanceof Error && e.message === '__aborted__')) {
+      if (statusMap.get(node.id) !== 'failed') {
+        statusMap.set(node.id, 'failed')
+        persistSessionTasks(session, buildTasks(specs, statusMap))
+      }
+    }
+    throw e
+  }
+}
+
+function findResumeIndex(nodes: WorkflowNode[], cursorNodeId: string | null): number {
+  if (!cursorNodeId) return 0
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i]
+    if (n.id === cursorNodeId) return i
+    if (n.type === 'parallel' && n.children.some((c) => c.id === cursorNodeId)) {
+      return i
+    }
+  }
+  return 0
+}
+
+async function executeWorkflowRun(runId: string, fromStart: boolean): Promise<void> {
+  let run = queryWorkflowRun(runId)
+  if (!run) return
+
+  const workflow = queryWorkflow(run.workflowId)
+  if (!workflow) {
+    patchRun(run, { status: 'failed', errorMessage: '工作流定义不存在' })
+    emitError(run.sessionId, '工作流定义不存在')
+    emitDone(run.sessionId, 'error')
+    return
+  }
+
+  const sessionId = run.sessionId
+  if (runningBySession.has(sessionId)) {
+    return
+  }
+  runningBySession.add(sessionId)
+
+  const liveSession = querySession(sessionId)
+  if (!liveSession) {
+    patchRun(run, { status: 'failed', errorMessage: '会话不存在' })
+    emitError(sessionId, '会话不存在')
+    emitDone(sessionId, 'error')
+    runningBySession.delete(sessionId)
+    return
+  }
+
+  const specs = flattenTaskSpecs(workflow.nodes)
+  const statusMap = new Map<string, TaskItemStatus>()
+  for (const s of specs) {
+    // 续跑时：cursor 之前的节点视为已完成
+    statusMap.set(s.id, 'pending')
+  }
+
+  const startIndex = fromStart ? 0 : findResumeIndex(workflow.nodes, run.cursorNodeId)
+  for (let i = 0; i < startIndex; i++) {
+    const n = workflow.nodes[i]
+    statusMap.set(n.id, 'done')
+    if (n.type === 'parallel') {
+      for (const c of n.children) statusMap.set(c.id, 'done')
+    }
+  }
+  persistSessionTasks(liveSession, buildTasks(specs, statusMap))
+
+  const controller = bindSessionAbort(sessionId)
+  run = patchRun(run, { status: 'running', errorMessage: undefined })
+
+  try {
+    for (let i = startIndex; i < workflow.nodes.length; i++) {
+      if (controller.signal.aborted) {
+        throw new Error('__aborted__')
+      }
+      const node = workflow.nodes[i]
+      run = await executeTopLevelNode(
+        sessionId,
+        node,
+        run,
+        statusMap,
+        specs,
+        liveSession,
+        controller.signal
+      )
+    }
+    run = patchRun(run, { status: 'success', cursorNodeId: null })
+    emitDone(sessionId, 'workflow_success')
+  } catch (e) {
+    if (e instanceof Error && e.message === '__aborted__') {
+      patchRun(run, { status: 'aborted' })
+      emitDone(sessionId, 'aborted')
+    } else {
+      const message = e instanceof Error ? e.message : String(e)
+      patchRun(run, { status: 'failed', errorMessage: message })
+      emitError(sessionId, message)
+      emitDone(sessionId, 'error')
+    }
+  } finally {
+    releaseSessionAbort(sessionId)
+    runningBySession.delete(sessionId)
+  }
+}
+
+export interface PostRunWorkflowOptions {
+  /**
+   * 复用已创建的会话（定时任务需带 schedule 类型并 registerScheduleSession）。
+   * 未传则新建 type=workflow 会话。
+   */
+  session?: Session
+}
+
+/** 启动工作流：创建（或复用）Session + Run，异步推进节点 */
+export async function postRunWorkflow(
+  workflowId: string,
+  options?: PostRunWorkflowOptions
+): Promise<WorkflowRunStartResult> {
+  // 发布计划 id 与镜像工作流对齐：缺失时惰性从计划编译
+  const workflow =
+    queryWorkflow(workflowId) ?? queryOrMigratePublishWorkflow(workflowId)
+  if (!workflow) {
+    throw new Error('工作流不存在')
+  }
+  if (!workflow.nodes.length) {
+    throw new Error('请先为流程添加至少一个步骤')
+  }
+
+  const session = options?.session ?? createWorkflowSession(workflow)
+  if (!options?.session) {
+    postSession(session)
+  } else if (!querySession(session.id)) {
+    postSession(session)
+  }
+
+  const now = Date.now()
+  const run = postWorkflowRun({
+    id: crypto.randomUUID(),
+    workflowId: workflow.id,
+    sessionId: session.id,
+    status: 'pending',
+    cursorNodeId: null,
+    context: {},
+    createdAt: now,
+    updatedAt: now
+  })
+
+  void executeWorkflowRun(run.id, true)
+  return { run, sessionId: session.id }
+}
+
+/**
+ * 从失败/中止处继续：复用原 Session，自 cursor 所在顶层节点重试。
+ */
+export async function postResumeWorkflow(runId: string): Promise<WorkflowRunStartResult> {
+  const run = queryWorkflowRun(runId)
+  if (!run) {
+    throw new Error('运行实例不存在')
+  }
+  if (run.status === 'running' || run.status === 'awaiting_user') {
+    throw new Error('该流程正在执行中')
+  }
+  if (run.status === 'success') {
+    throw new Error('该流程已成功结束')
+  }
+
+  const next = patchRun(run, { status: 'pending', errorMessage: undefined })
+  void executeWorkflowRun(next.id, false)
+  return { run: next, sessionId: next.sessionId }
+}

@@ -14,6 +14,9 @@ export function querySessionType(
   // 定时任务会话标题带 [定时] 前缀（见 scheduler.createScheduleSession）
   if (session.title.startsWith('[定时]')) return 'schedule'
 
+  // 工作流引擎创建的会话标题带 [流程] 前缀
+  if (session.title.startsWith('[流程]')) return 'workflow'
+
   const firstUser = session.messages.find((m) => m.role === 'user')
   if (
     firstUser &&

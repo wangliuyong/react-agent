@@ -181,7 +181,24 @@ export function postAgentContinue(sessionId: string): void {
   }
 }
 
-async function waitForUserContinue(sessionId: string, reason: string): Promise<void> {
+/**
+ * 为会话绑定 AbortController（工作流引擎在整次 Run 期间持有）。
+ * 会先中止该会话上一次执行，避免双循环抢事件。
+ */
+export function bindSessionAbort(sessionId: string): AbortController {
+  postAgentAbort(sessionId)
+  const controller = new AbortController()
+  abortMap.set(sessionId, controller)
+  return controller
+}
+
+/** 释放引擎持有的 abort 句柄（不主动 abort） */
+export function releaseSessionAbort(sessionId: string): void {
+  abortMap.delete(sessionId)
+}
+
+/** 供工作流 await_user 节点与敏感工具确认复用 */
+export async function waitForUserContinue(sessionId: string, reason: string): Promise<void> {
   emit({ type: 'await_user', sessionId, reason })
   await new Promise<void>((resolve, reject) => {
     continueWaiters.set(sessionId, { resolve, reject })
@@ -388,5 +405,209 @@ export async function runAgentChat(params: {
     emit({ type: 'done', sessionId, reason: 'error' })
   } finally {
     abortMap.delete(sessionId)
+  }
+}
+
+export type AgentStepResult = 'completed' | 'aborted' | 'error' | 'max_turns'
+
+/**
+ * 工作流单步：在已有会话上追加一步目标并跑受限 ReAct。
+ * 不重置 abortMap（由引擎 bindSessionAbort 持有），步间可继续用同一 signal。
+ */
+export async function runAgentStep(params: {
+  sessionId: string
+  prompt: string
+  toolWhitelist?: string[]
+  attachmentPaths?: string[]
+}): Promise<AgentStepResult> {
+  const { sessionId, prompt, toolWhitelist, attachmentPaths = [] } = params
+  const settings = querySettings()
+  let session = querySession(sessionId)
+  if (!session) {
+    throw new Error(`会话不存在: ${sessionId}`)
+  }
+
+  let controller = abortMap.get(sessionId)
+  if (!controller || controller.signal.aborted) {
+    controller = new AbortController()
+    abortMap.set(sessionId, controller)
+  }
+
+  const userMsg = appendMessage(session, {
+    role: 'user',
+    content:
+      attachmentPaths.length > 0
+        ? `${prompt}\n\n[附件]\n${attachmentPaths.join('\n')}`
+        : prompt,
+    attachmentPaths: attachmentPaths.length > 0 ? attachmentPaths : undefined
+  })
+  persistSession(session)
+  emit({ type: 'message', sessionId, message: userMsg })
+
+  let client
+  try {
+    client = createLlmClient(settings)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    emit({ type: 'error', sessionId, message })
+    return 'error'
+  }
+
+  const allTools = getAllTools()
+  const tools =
+    toolWhitelist && toolWhitelist.length > 0
+      ? allTools.filter((t) => toolWhitelist.includes(t.name))
+      : allTools
+  const openAiTools = toOpenAiTools(tools)
+
+  const toolCtx: ToolContext = {
+    sessionId,
+    fullAccess: settings.fullAccess,
+    attachmentPaths,
+    signal: controller.signal,
+    emitAwaitUser: async (reason) => {
+      await waitForUserContinue(sessionId, reason)
+    },
+    updateTasks: (updater) => {
+      // 工作流运行时阶段结构由引擎权威维护；此处仍允许模型微调标题/状态供调试
+      const current = querySession(sessionId) ?? session
+      if (!current) return
+      current.tasks = updater(current.tasks) as TaskItem[]
+      session = current
+      persistSession(current)
+      emit({ type: 'task_update', sessionId, tasks: current.tasks })
+    }
+  }
+
+  let turns = 0
+  try {
+    while (turns < settings.maxTurns) {
+      if (controller.signal.aborted) {
+        return 'aborted'
+      }
+      turns += 1
+      session = querySession(sessionId) ?? session
+
+      const assistantId = uuidv4()
+      let assistantContent = ''
+      const placeholder: ChatMessage = {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        createdAt: Date.now()
+      }
+      session.messages.push(placeholder)
+      persistSession(session)
+      emit({ type: 'message', sessionId, message: placeholder })
+
+      const apiMessages = buildApiMessages({
+        ...session,
+        messages: session.messages.filter((m) => m.id !== assistantId)
+      })
+
+      const result = await streamChat({
+        client,
+        model: settings.model,
+        messages: apiMessages,
+        tools: openAiTools,
+        signal: controller.signal,
+        onTextDelta: (delta) => {
+          assistantContent += delta
+          emit({ type: 'text_delta', sessionId, delta })
+        }
+      })
+
+      assistantContent = result.content || assistantContent
+      session = querySession(sessionId) ?? session
+      const idx = session.messages.findIndex((m) => m.id === assistantId)
+      if (idx >= 0) {
+        session.messages[idx] = {
+          ...session.messages[idx],
+          content:
+            assistantContent ||
+            (result.toolCalls.length
+              ? `调用工具: ${result.toolCalls.map((t) => t.name).join(', ')}`
+              : '')
+        }
+      }
+      session.tokenUsed += Math.ceil((assistantContent.length + prompt.length) / 4)
+      persistSession(session)
+      if (idx >= 0) {
+        emit({ type: 'message', sessionId, message: session.messages[idx] })
+      }
+
+      if (!result.toolCalls.length) {
+        return 'completed'
+      }
+
+      const toolCallPayload = result.toolCalls.map((tc) => ({
+        id: tc.id || uuidv4(),
+        name: tc.name,
+        arguments: tc.arguments || '{}'
+      }))
+
+      const metas = pendingToolMeta.get(sessionId) ?? []
+      metas.push({ assistantMessageId: assistantId, toolCalls: toolCallPayload })
+      pendingToolMeta.set(sessionId, metas)
+
+      for (const tc of toolCallPayload) {
+        if (controller.signal.aborted) {
+          return 'aborted'
+        }
+        let args: Record<string, unknown> = {}
+        try {
+          args = JSON.parse(tc.arguments || '{}') as Record<string, unknown>
+        } catch {
+          args = {}
+        }
+
+        emit({ type: 'tool_start', sessionId, toolName: tc.name, args })
+
+        const tool = getToolByName(tc.name)
+        let toolResult: string
+        if (!tool) {
+          toolResult = `未知工具: ${tc.name}`
+        } else if (toolWhitelist?.length && !toolWhitelist.includes(tc.name)) {
+          toolResult = `工具「${tc.name}」不在本步骤白名单内`
+        } else {
+          try {
+            const publishToolsWithInlineConfirm = new Set([
+              'xhs_publish_note',
+              'douyin_publish_note'
+            ])
+            if (
+              tool.permission === 'dangerous' &&
+              !settings.fullAccess &&
+              !publishToolsWithInlineConfirm.has(tool.name)
+            ) {
+              await waitForUserContinue(sessionId, `即将执行敏感工具「${tool.name}」，确认后继续`)
+            }
+            toolResult = await tool.execute(args, toolCtx)
+          } catch (err) {
+            toolResult = `工具执行失败: ${err instanceof Error ? err.message : String(err)}`
+          }
+        }
+
+        emit({ type: 'tool_result', sessionId, toolName: tc.name, result: toolResult })
+
+        session = querySession(sessionId) ?? session
+        const toolMsg = appendMessage(session, {
+          role: 'tool',
+          content: toolResult,
+          toolName: tc.name,
+          toolCallId: tc.id
+        })
+        persistSession(session)
+        emit({ type: 'message', sessionId, message: toolMsg })
+      }
+    }
+    return 'max_turns'
+  } catch (e) {
+    if (controller.signal.aborted) {
+      return 'aborted'
+    }
+    const message = e instanceof Error ? e.message : String(e)
+    emit({ type: 'error', sessionId, message })
+    return 'error'
   }
 }
