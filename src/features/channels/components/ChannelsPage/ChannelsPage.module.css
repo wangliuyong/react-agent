@@ -1,4 +1,4 @@
-/* 渠道页 — 对齐技能市场：顶栏 + 筛选 + 卡片网格 + 详情弹窗 */
+/* 渠道页 — 对齐技能市场：顶栏 + 双 Segmented 筛选 + 卡片网格 + 详情 */
 
 .page {
   display: flex;
@@ -20,6 +20,7 @@
   opacity: 0.9;
 }
 
+/* ── 顶栏 ── */
 .header {
   position: relative;
   z-index: 1;
@@ -84,6 +85,7 @@
   font-size: 13px;
 }
 
+/* ── 筛选栏 ── */
 .toolbar {
   position: relative;
   z-index: 1;
@@ -114,6 +116,7 @@
   width: 200px;
 }
 
+/* ── 主体网格 ── */
 .body {
   position: relative;
   z-index: 1;
@@ -132,15 +135,15 @@
   margin-top: 48px;
 }
 
+/* ── 渠道卡片 ── */
 .card {
   border: 1px solid var(--db-border-light) !important;
   border-radius: var(--db-radius-lg) !important;
   background: var(--db-bg-content) !important;
   cursor: pointer;
   transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   animation: cardIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: calc(var(--card-index, 0) * 36ms);
 }
@@ -156,7 +159,6 @@
 .card:hover {
   border-color: var(--db-primary-border-active) !important;
   box-shadow: 0 4px 20px var(--db-primary-shadow);
-  transform: translateY(-2px);
 }
 
 .cardDisabled {
@@ -173,9 +175,20 @@
 
 .cardTitleRow {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.cardAvatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
 }
 
 .cardTitle {
@@ -221,6 +234,129 @@
   color: var(--db-text-tertiary);
 }
 
+/* 渠道品牌色点缀（克制，仅头像色块） */
+.tone_xhs {
+  background: rgba(255, 36, 66, 0.12);
+  color: #ff2442;
+}
+
+.tone_douyin {
+  background: rgba(22, 24, 35, 0.08);
+  color: #161823;
+}
+
+.tone_wechat {
+  background: rgba(7, 193, 96, 0.12);
+  color: #07c160;
+}
+
+.tone_feishu {
+  background: rgba(51, 112, 255, 0.12);
+  color: #3370ff;
+}
+
+.tone_qq {
+  background: rgba(18, 183, 245, 0.12);
+  color: #12b7f5;
+}
+
+.tone_default {
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+}
+
+/* 状态标签 — 对齐技能页 tagDraft */
+.tagSuccess,
+.tagWarn,
+.tagDanger,
+.tagMuted,
+.tagActive,
+.tagNotify,
+.tagBuiltin {
+  margin: 0 !important;
+  flex-shrink: 0;
+  border: none !important;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+  line-height: 20px !important;
+  padding: 0 7px !important;
+}
+
+.tagSuccess {
+  background: rgba(0, 181, 120, 0.12) !important;
+  color: var(--db-success) !important;
+}
+
+.tagWarn {
+  background: rgba(250, 173, 20, 0.12) !important;
+  color: var(--db-warning-text-alt) !important;
+}
+
+.tagDanger {
+  background: rgba(245, 63, 63, 0.12) !important;
+  color: var(--db-danger) !important;
+}
+
+.tagMuted {
+  background: var(--db-hover) !important;
+  color: var(--db-text-secondary) !important;
+}
+
+.tagActive {
+  background: var(--db-primary-muted) !important;
+  color: var(--db-primary) !important;
+}
+
+.tagNotify {
+  background: rgba(14, 184, 166, 0.12) !important;
+  color: #0d9488 !important;
+}
+
+.tagBuiltin {
+  background: var(--db-primary-muted) !important;
+  color: var(--db-primary) !important;
+}
+
+/* ── 底部说明条 ── */
+.tipPanel {
+  position: relative;
+  margin-top: 20px;
+  padding: 14px 16px 14px 18px;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid var(--db-primary-border);
+}
+
+.tipPanel::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--db-primary);
+}
+
+.tipTitle {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--db-text);
+  margin-bottom: 6px;
+}
+
+.tipText {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--db-text-secondary);
+}
+
+.tipPanel > .tipText:last-child {
+  margin-bottom: 0;
+}
+
+/* ── 详情弹窗 ── */
 .detailModal :global(.ant-modal-body) {
   max-height: 70vh;
   overflow: auto;
@@ -241,6 +377,24 @@
   flex-wrap: wrap;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--db-border-light);
+}
+
+.detailIdentity {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.detailAvatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
 }
 
 .detailId {
@@ -310,6 +464,10 @@
   display: flex;
   gap: 12px;
   font-size: 13px;
+  padding: 10px 12px;
+  border-radius: var(--db-radius-md);
+  background: var(--db-bg);
+  border: 1px solid var(--db-border-light);
 }
 
 .metaLabel {
@@ -323,11 +481,6 @@
   word-break: break-all;
 }
 
-.alertCard {
-  margin-top: 20px;
-  border-radius: var(--db-radius-md);
-}
-
 @keyframes cardIn {
   from {
     opacity: 0;
@@ -336,5 +489,11 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
   }
 }
