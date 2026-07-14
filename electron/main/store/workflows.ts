@@ -4,6 +4,7 @@ import type {
   WorkflowAwaitNode,
   WorkflowAgentNode,
   WorkflowCanvas,
+  WorkflowConditionNode,
   WorkflowDefinition,
   WorkflowLeafNode,
   WorkflowNode,
@@ -65,7 +66,48 @@ function normalizeLeaf(
   }
 }
 
+function normalizeCondition(raw: WorkflowConditionNode): WorkflowConditionNode {
+  const cases = Array.isArray(raw.cases)
+    ? raw.cases
+        .filter((c) => c && String(c.key || '').trim())
+        .map((c) => ({
+          key: String(c.key).trim(),
+          label: c.label != null ? String(c.label) : undefined,
+          nodes: Array.isArray(c.nodes)
+            ? c.nodes
+                .filter(
+                  (n): n is WorkflowLeafNode =>
+                    n != null &&
+                    (n.type === 'agent' || n.type === 'tool' || n.type === 'await_user')
+                )
+                .map(normalizeLeaf)
+            : []
+        }))
+    : []
+  return {
+    id: String(raw.id || '').trim() || crypto.randomUUID(),
+    type: 'condition',
+    title: String(raw.title || '').trim() || '条件分支',
+    mode: raw.mode === 'agent' ? 'agent' : 'expression',
+    when: raw.when && typeof raw.when === 'object' ? { ...raw.when } : undefined,
+    prompt: raw.prompt != null ? String(raw.prompt) : undefined,
+    toolWhitelist: Array.isArray(raw.toolWhitelist)
+      ? raw.toolWhitelist.map(String)
+      : undefined,
+    cases: cases.length
+      ? cases
+      : [
+          { key: 'true', label: '是', nodes: [] },
+          { key: 'false', label: '否', nodes: [] }
+        ],
+    defaultKey: raw.defaultKey != null ? String(raw.defaultKey) : undefined
+  }
+}
+
 function normalizeNode(raw: WorkflowNode): WorkflowNode {
+  if (raw.type === 'condition') {
+    return normalizeCondition(raw)
+  }
   if (raw.type === 'parallel') {
     const children = Array.isArray(raw.children)
       ? raw.children
@@ -103,7 +145,10 @@ function normalizeCanvas(raw: WorkflowCanvas | undefined): WorkflowCanvas | unde
         .map((e) => ({
           id: String(e.id || `e_${e.source}_${e.target}`),
           source: String(e.source),
-          target: String(e.target)
+          target: String(e.target),
+          ...(e.branchKey != null && String(e.branchKey).trim()
+            ? { branchKey: String(e.branchKey).trim() }
+            : {})
         }))
     : []
   if (!edges.length && !Object.keys(positions).length) return undefined

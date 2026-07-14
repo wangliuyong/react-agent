@@ -198,6 +198,12 @@
   color: var(--db-danger);
 }
 
+.iconSkipped {
+  font-size: 15px;
+  color: var(--db-text-secondary);
+  opacity: 0.75;
+}
+
 .iconRunning {
   font-size: 8px;
   color: var(--db-primary);
@@ -262,6 +268,15 @@
   color: var(--db-danger);
 }
 
+.taskTitleSkipped {
+  color: var(--db-text-secondary);
+  opacity: 0.7;
+}
+
+.taskRowSkipped {
+  opacity: 0.85;
+}
+
 .taskBadge {
   display: inline-flex;
   align-self: flex-start;
@@ -282,6 +297,11 @@
 .badgeFailed {
   background: rgba(245, 63, 63, 0.08);
   color: var(--db-danger);
+}
+
+.badgeSkipped {
+  background: var(--db-hover);
+  color: var(--db-text-secondary);
 }
 
 @keyframes badgePulse {
