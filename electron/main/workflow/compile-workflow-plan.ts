@@ -1,5 +1,6 @@
 import type {
   PublishPlan,
+  WorkflowConditionNode,
   WorkflowDefinition,
   WorkflowLeafNode,
   WorkflowNode,
@@ -21,6 +22,17 @@ function remapNode(node: WorkflowNode, prefix: string): WorkflowNode {
       children: node.children.map((c) => remapLeaf(c, prefix))
     }
     return parallel
+  }
+  if (node.type === 'condition') {
+    const condition: WorkflowConditionNode = {
+      ...node,
+      id: `${prefix}__${node.id}`,
+      cases: node.cases.map((arm) => ({
+        ...arm,
+        nodes: arm.nodes.map((c) => remapLeaf(c, prefix))
+      }))
+    }
+    return condition
   }
   return remapLeaf(node, prefix)
 }

@@ -2,12 +2,14 @@ import type {
   Session,
   TaskItem,
   TaskItemStatus,
+  WorkflowConditionNode,
   WorkflowDefinition,
   WorkflowLeafNode,
   WorkflowNode,
   WorkflowRun,
   WorkflowRunStartResult
 } from '../../../shared/types'
+import { queryConditionCaseKey } from '../../../shared/evaluate-workflow-condition'
 import { querySettings } from '../store/settings'
 import { postSession, querySession } from '../store/sessions'
 import { queryWorkflow } from '../store/workflows'
@@ -75,7 +77,7 @@ interface FlatTaskSpec {
   parentId?: string
 }
 
-/** 将流程节点展开为 TaskItem 骨架（parallel 子步带 parentId） */
+/** 将流程节点展开为 TaskItem 骨架（parallel / condition 子步带 parentId） */
 function flattenTaskSpecs(nodes: WorkflowNode[]): FlatTaskSpec[] {
   const specs: FlatTaskSpec[] = []
   for (const node of nodes) {
@@ -83,6 +85,13 @@ function flattenTaskSpecs(nodes: WorkflowNode[]): FlatTaskSpec[] {
       specs.push({ id: node.id, title: node.title })
       for (const child of node.children) {
         specs.push({ id: child.id, title: child.title, parentId: node.id })
+      }
+    } else if (node.type === 'condition') {
+      specs.push({ id: node.id, title: node.title })
+      for (const arm of node.cases) {
+        for (const child of arm.nodes) {
+          specs.push({ id: child.id, title: child.title, parentId: node.id })
+        }
       }
     } else {
       specs.push({ id: node.id, title: node.title })
@@ -231,10 +240,144 @@ async function executeLeafNode(
   return run
 }
 
+/** 从 Agent 回复文本中解析分支 key */
+function parseAgentBranchKey(text: string, keys: string[]): string {
+  const trimmed = text.trim()
+  try {
+    const parsed = JSON.parse(trimmed) as { key?: unknown }
+    if (typeof parsed?.key === 'string' && parsed.key.trim()) {
+      return parsed.key.trim()
+    }
+  } catch {
+    /* 非纯 JSON，继续兜底 */
+  }
+  const m = trimmed.match(/"key"\s*:\s*"([^"]+)"/)
+  if (m?.[1]) return m[1].trim()
+  if (keys.includes(trimmed)) return trimmed
+  for (const k of keys) {
+    if (trimmed === k || trimmed.endsWith(k)) return k
+  }
+  return trimmed
+}
+
+/**
+ * Agent 选路：受限 ReAct，尽量不给工具（whitelist 指向不存在的名字）。
+ * 要求模型只输出 {"key":"..."}。
+ */
+async function queryAgentBranchKey(
+  sessionId: string,
+  node: WorkflowConditionNode,
+  context: Record<string, unknown>,
+  signal: AbortSignal
+): Promise<string> {
+  if (signal.aborted) throw new Error('__aborted__')
+  const keys = node.cases.map((c) => c.key)
+  const whitelist =
+    node.toolWhitelist && node.toolWhitelist.length > 0
+      ? node.toolWhitelist
+      : ['__workflow_condition_no_tool__']
+
+  const stepResult = await runAgentStep({
+    sessionId,
+    prompt: [
+      `【条件分支】${node.title}`,
+      node.prompt?.trim() || '根据上下文选择唯一分支。',
+      `可选 key：${keys.join(', ')}`,
+      '你必须只输出一行 JSON：{"key":"<上述某一个 key>"}，不要输出其它说明，不要调用工具。',
+      `当前 context JSON：${JSON.stringify(context)}`
+    ].join('\n\n'),
+    toolWhitelist: whitelist
+  })
+
+  if (stepResult === 'aborted') throw new Error('__aborted__')
+  if (stepResult === 'error' || stepResult === 'max_turns') {
+    throw new Error(
+      stepResult === 'max_turns'
+        ? `条件「${node.title}」Agent 选路达到最大轮次`
+        : `条件「${node.title}」Agent 选路失败`
+    )
+  }
+
+  const sess = querySession(sessionId)
+  const lastAssistant = [...(sess?.messages ?? [])]
+    .reverse()
+    .find((m) => m.role === 'assistant' && m.content?.trim())
+  return parseAgentBranchKey(lastAssistant?.content ?? '', keys)
+}
+
+async function executeConditionNode(
+  sessionId: string,
+  node: WorkflowConditionNode,
+  run: WorkflowRun,
+  statusMap: Map<string, TaskItemStatus>,
+  specs: FlatTaskSpec[],
+  session: Session,
+  signal: AbortSignal
+): Promise<WorkflowRun> {
+  statusMap.set(node.id, 'running')
+  for (const arm of node.cases) {
+    for (const child of arm.nodes) statusMap.set(child.id, 'pending')
+  }
+  persistSessionTasks(session, buildTasks(specs, statusMap))
+
+  let selectedKey: string
+  if (node.mode === 'agent') {
+    const rawKey = await queryAgentBranchKey(sessionId, node, run.context, signal)
+    const picked = queryConditionCaseKey(node, run.context, rawKey)
+    if ('error' in picked) throw new Error(picked.error)
+    selectedKey = picked.key
+  } else {
+    const picked = queryConditionCaseKey(node, run.context)
+    if ('error' in picked) throw new Error(picked.error)
+    selectedKey = picked.key
+  }
+
+  const prevBranch =
+    (run.context.__branchKeys as Record<string, string> | undefined) ?? {}
+  run = patchRun(run, {
+    context: {
+      ...run.context,
+      __branchKeys: { ...prevBranch, [node.id]: selectedKey }
+    },
+    cursorNodeId: node.id,
+    status: 'running'
+  })
+
+  const chosen = node.cases.find((c) => c.key === selectedKey)
+  if (!chosen) throw new Error(`条件分支无 case: ${selectedKey}`)
+
+  for (const arm of node.cases) {
+    if (arm.key === selectedKey) continue
+    for (const child of arm.nodes) statusMap.set(child.id, 'skipped')
+  }
+  persistSessionTasks(session, buildTasks(specs, statusMap))
+
+  for (const child of chosen.nodes) {
+    statusMap.set(child.id, 'running')
+    persistSessionTasks(session, buildTasks(specs, statusMap))
+    try {
+      run = await executeLeafNode(sessionId, child, run, signal)
+      statusMap.set(child.id, 'done')
+      persistSessionTasks(session, buildTasks(specs, statusMap))
+    } catch (e) {
+      if (e instanceof Error && e.message === '__aborted__') throw e
+      statusMap.set(child.id, 'failed')
+      statusMap.set(node.id, 'failed')
+      persistSessionTasks(session, buildTasks(specs, statusMap))
+      throw e
+    }
+  }
+
+  statusMap.set(node.id, 'done')
+  persistSessionTasks(session, buildTasks(specs, statusMap))
+  return run
+}
+
 /**
  * 推进单个顶层节点。
  * parallel：组内若全是 tool → Promise.all 并发；含 agent/await_user 时串行
  * （同 Session 上不能并行跑多段 ReAct，否则消息/abort 会交错）。
+ * condition：XOR 只跑选中支路，其余标 skipped。
  */
 async function executeTopLevelNode(
   sessionId: string,
@@ -245,6 +388,27 @@ async function executeTopLevelNode(
   session: Session,
   signal: AbortSignal
 ): Promise<WorkflowRun> {
+  if (node.type === 'condition') {
+    try {
+      return await executeConditionNode(
+        sessionId,
+        node,
+        run,
+        statusMap,
+        specs,
+        session,
+        signal
+      )
+    } catch (e) {
+      if (e instanceof Error && e.message === '__aborted__') throw e
+      if (statusMap.get(node.id) !== 'failed') {
+        statusMap.set(node.id, 'failed')
+        persistSessionTasks(session, buildTasks(specs, statusMap))
+      }
+      throw e
+    }
+  }
+
   if (node.type !== 'parallel') {
     statusMap.set(node.id, 'running')
     persistSessionTasks(session, buildTasks(specs, statusMap))
@@ -356,6 +520,12 @@ function findResumeIndex(nodes: WorkflowNode[], cursorNodeId: string | null): nu
     if (n.type === 'parallel' && n.children.some((c) => c.id === cursorNodeId)) {
       return i
     }
+    if (
+      n.type === 'condition' &&
+      n.cases.some((arm) => arm.nodes.some((c) => c.id === cursorNodeId))
+    ) {
+      return i
+    }
   }
   return 0
 }
@@ -400,6 +570,12 @@ async function executeWorkflowRun(runId: string, fromStart: boolean): Promise<vo
     statusMap.set(n.id, 'done')
     if (n.type === 'parallel') {
       for (const c of n.children) statusMap.set(c.id, 'done')
+    }
+    if (n.type === 'condition') {
+      // 续跑无法精确还原当时选中的支路，统一标 done（与 parallel 同粒度粗恢复）
+      for (const arm of n.cases) {
+        for (const c of arm.nodes) statusMap.set(c.id, 'done')
+      }
     }
   }
   persistSessionTasks(liveSession, buildTasks(specs, statusMap))

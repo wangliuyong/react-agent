@@ -33,8 +33,8 @@ export interface PublishXhsParams {
   emitAwaitUser: (reason: string) => Promise<void>
   updateTasks: (
     updater: (
-      tasks: Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' }>
-    ) => Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' }>
+      tasks: Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' | 'skipped' }>
+    ) => Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' | 'skipped' }>
   ) => void
   signal?: AbortSignal
 }
@@ -64,7 +64,7 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   const offPeakWarn = queryXhsOffPeakPublishWarning()
 
   const setTasks = (
-    items: Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' }>
+    items: Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' | 'skipped' }>
   ) => updateTasks(() => items)
 
   setTasks([

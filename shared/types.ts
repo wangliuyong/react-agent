@@ -154,15 +154,15 @@ export interface ChatMessage {
 }
 
 /** 任务清单项（对齐截图「任务清单」） */
-export type TaskItemStatus = 'pending' | 'running' | 'done' | 'failed'
+export type TaskItemStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped'
 
 export interface TaskItem {
   id: string
   title: string
   status: TaskItemStatus
   /**
-   * 并行组父节点 id。
-   * 有值时 UI 可缩进展示；编排引擎用其表达 parallel 子步与阶段的关系。
+   * parallel / condition 子步的父节点 id。
+   * 有值时 UI 可缩进展示；编排引擎用其表达组内子步与阶段的关系。
    */
   parentId?: string
 }
@@ -438,14 +438,55 @@ export interface WorkflowParallelNode {
   children: Array<WorkflowAgentNode | WorkflowToolNode | WorkflowAwaitNode>
 }
 
+/** 条件判定模式：表达式（表单/短表达式）或 Agent 选路 */
+export type WorkflowConditionMode = 'expression' | 'agent'
+
+/**
+ * 表单条件；填写 expression 时优先用短表达式（覆盖 form 字段）。
+ * 白名单求值见 shared/evaluate-workflow-condition.ts。
+ */
+export interface WorkflowConditionWhen {
+  expression?: string
+  contextKey?: string
+  op?: 'eq' | 'neq' | 'truthy' | 'falsy'
+  value?: string | number | boolean
+}
+
+/** 条件支路：key 对应画布边 branchKey；nodes 由画布拓扑编译填入 */
+export interface WorkflowConditionCase {
+  key: string
+  label?: string
+  nodes: WorkflowLeafNode[]
+}
+
+/**
+ * 条件分支（XOR）：求值或 Agent 选出一个 case.key，只执行该支路，其余 skipped。
+ * 与 parallel（AND）互斥；画布出边须带 branchKey。
+ */
+export interface WorkflowConditionNode {
+  id: string
+  type: 'condition'
+  title: string
+  mode: WorkflowConditionMode
+  when?: WorkflowConditionWhen
+  /** agent 模式：提示模型只输出某个 case.key */
+  prompt?: string
+  toolWhitelist?: string[]
+  cases: WorkflowConditionCase[]
+  /** 无匹配时走的 case.key */
+  defaultKey?: string
+}
+
 export type WorkflowLeafNode = WorkflowAgentNode | WorkflowToolNode | WorkflowAwaitNode
-export type WorkflowNode = WorkflowLeafNode | WorkflowParallelNode
+export type WorkflowNode = WorkflowLeafNode | WorkflowParallelNode | WorkflowConditionNode
 
 /** 画布连线（拖拽可视化编排） */
 export interface WorkflowCanvasEdge {
   id: string
   source: string
   target: string
+  /** 从 condition 节点出发时必填，对应 case.key；无此字段的多出线仍为 parallel */
+  branchKey?: string
 }
 
 /**

@@ -22,6 +22,9 @@ function queryNodeSummary(node: WorkflowNode): string {
   if (node.type === 'await_user') {
     return node.reason || '等待用户确认'
   }
+  if (node.type === 'condition') {
+    return `${node.mode === 'agent' ? 'Agent 选路' : '表达式'} · ${node.cases.length} 路`
+  }
   return `${node.children.length} 个子步骤`
 }
 

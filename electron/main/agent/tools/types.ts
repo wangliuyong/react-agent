@@ -1,4 +1,5 @@
 import type OpenAI from 'openai'
+import type { TaskItem } from '../../../../shared/types'
 
 /** 工具权限级别：敏感操作需用户确认或完全访问模式 */
 export type ToolPermission = 'safe' | 'sensitive' | 'dangerous'
@@ -10,12 +11,8 @@ export interface ToolContext {
   attachmentPaths: string[]
   /** 向 UI 推送 await_user 等事件 */
   emitAwaitUser: (reason: string) => Promise<void>
-  /** 更新任务清单 */
-  updateTasks: (
-    updater: (
-      tasks: Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' }>
-    ) => Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' }>
-  ) => void
+  /** 更新任务清单（含 workflow skipped） */
+  updateTasks: (updater: (tasks: TaskItem[]) => TaskItem[]) => void
   signal?: AbortSignal
 }
 

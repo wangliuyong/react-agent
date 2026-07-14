@@ -19,8 +19,8 @@ export interface PublishDouyinParams {
   emitAwaitUser: (reason: string) => Promise<void>
   updateTasks: (
     updater: (
-      tasks: Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' }>
-    ) => Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' }>
+      tasks: Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' | 'skipped' }>
+    ) => Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' | 'skipped' }>
   ) => void
   signal?: AbortSignal
 }
@@ -29,7 +29,7 @@ function assertNotAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw new Error('用户已中止')
 }
 
-type TaskItem = { id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' }
+type TaskItem = { id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' | 'skipped' }
 
 /**
  * 抖音图文发布：全程拟人鼠标/键盘，适配创作者中心上传页。

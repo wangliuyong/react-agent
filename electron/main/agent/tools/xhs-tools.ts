@@ -156,7 +156,10 @@ export const updateTaskListTool: AgentTool = {
           properties: {
             id: { type: 'string' },
             title: { type: 'string' },
-            status: { type: 'string', enum: ['pending', 'running', 'done', 'failed'] }
+            status: {
+              type: 'string',
+              enum: ['pending', 'running', 'done', 'failed', 'skipped']
+            }
           },
           required: ['id', 'title', 'status']
         }
@@ -168,7 +171,7 @@ export const updateTaskListTool: AgentTool = {
     const tasks = (args.tasks as Array<{
       id: string
       title: string
-      status: 'pending' | 'running' | 'done' | 'failed'
+      status: 'pending' | 'running' | 'done' | 'failed' | 'skipped'
     }>) ?? []
     ctx.updateTasks(() => tasks)
     return `任务清单已更新，共 ${tasks.length} 项`

@@ -91,6 +91,9 @@ function TaskStatusIcon({ status }: { status: TaskItemStatus }): React.ReactElem
   if (status === 'failed') {
     return <CloseCircleFilled className={styles.iconFailed} />
   }
+  if (status === 'skipped') {
+    return <MinusCircleOutlined className={styles.iconSkipped} />
+  }
   if (status === 'running') {
     return (
       <>
@@ -108,7 +111,8 @@ function queryTaskTitleClass(status: TaskItemStatus): string {
     styles.taskTitle,
     status === 'done' && styles.taskTitleDone,
     status === 'running' && styles.taskTitleRunning,
-    status === 'failed' && styles.taskTitleFailed
+    status === 'failed' && styles.taskTitleFailed,
+    status === 'skipped' && styles.taskTitleSkipped
   ]
     .filter(Boolean)
     .join(' ')
@@ -118,7 +122,8 @@ function queryTaskTitleClass(status: TaskItemStatus): string {
 function queryTaskRowClass(status: TaskItemStatus): string {
   return [
     styles.taskRow,
-    status === 'done' && styles.taskRowDone
+    status === 'done' && styles.taskRowDone,
+    status === 'skipped' && styles.taskRowSkipped
   ]
     .filter(Boolean)
     .join(' ')
@@ -295,6 +300,9 @@ export function TaskChecklist({
               ) : null}
               {item.status === 'failed' ? (
                 <span className={`${styles.taskBadge} ${styles.badgeFailed}`}>失败</span>
+              ) : null}
+              {item.status === 'skipped' ? (
+                <span className={`${styles.taskBadge} ${styles.badgeSkipped}`}>已跳过</span>
               ) : null}
             </div>
           </li>

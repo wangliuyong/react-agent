@@ -1,6 +1,7 @@
 import type {
   WorkflowAgentNode,
   WorkflowAwaitNode,
+  WorkflowConditionNode,
   WorkflowDefinition,
   WorkflowLeafNode,
   WorkflowNode,
@@ -62,12 +63,33 @@ export function createParallelNode(partial?: Partial<WorkflowParallelNode>): Wor
   }
 }
 
-export function createEmptyNode(
-  type: WorkflowNode['type']
-): WorkflowNode {
+/** 默认 If/Else（true/false）；cases.nodes 由画布编译填入 */
+export function createConditionNode(
+  partial?: Partial<WorkflowConditionNode>
+): WorkflowConditionNode {
+  return {
+    id: crypto.randomUUID(),
+    type: 'condition',
+    title: partial?.title ?? '条件分支',
+    mode: partial?.mode ?? 'expression',
+    when: partial?.when ?? { contextKey: '', op: 'truthy' },
+    prompt: partial?.prompt,
+    toolWhitelist: partial?.toolWhitelist,
+    cases: partial?.cases?.length
+      ? partial.cases.map((c) => ({ ...c, nodes: c.nodes ? [...c.nodes] : [] }))
+      : [
+          { key: 'true', label: '是', nodes: [] },
+          { key: 'false', label: '否', nodes: [] }
+        ],
+    defaultKey: partial?.defaultKey
+  }
+}
+
+export function createEmptyNode(type: WorkflowNode['type']): WorkflowNode {
   if (type === 'tool') return createToolNode()
   if (type === 'await_user') return createAwaitNode()
   if (type === 'parallel') return createParallelNode()
+  if (type === 'condition') return createConditionNode()
   return createAgentNode()
 }
 
@@ -77,7 +99,8 @@ export function queryNodeTypeLabel(type: WorkflowNode['type']): string {
     agent: 'Agent',
     tool: '工具',
     await_user: '确认',
-    parallel: '并行组'
+    parallel: '并行组',
+    condition: '条件分支'
   }
   return map[type]
 }
