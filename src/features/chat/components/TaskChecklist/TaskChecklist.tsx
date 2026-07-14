@@ -132,6 +132,7 @@ function queryTaskRowClass(status: TaskItemStatus): string {
 /**
  * 浮动任务清单：默认固定于聊天页右上角，可拖动，不随消息区滚动。
  * 拖动仅通过标题栏触发，避免与列表内容交互冲突。
+ * 支持标题栏折叠/展开任务列表与操作区，默认展开。
  */
 const { Text } = Typography
 
@@ -148,8 +149,25 @@ export function TaskChecklist({
   const cardRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<Position>(() => loadSavedPosition() ?? { x: 0, y: DEFAULT_TOP })
   const [dragging, setDragging] = useState(false)
+  /** 任务列表展开状态：默认展开 */
+  const [expanded, setExpanded] = useState(true)
   /** 指针按下时，记录指针相对卡片左上角的偏移 */
   const dragOffsetRef = useRef<Position>({ x: 0, y: 0 })
+
+  /** 切换折叠/展开；阻止事件冒泡以免触发标题栏拖动 */
+  const handleToggleExpand = useCallback((event: { stopPropagation: () => void; preventDefault: () => void }) => {
+    event.stopPropagation()
+    event.preventDefault()
+    setExpanded((prev) => !prev)
+  }, [])
+
+  /** 折叠/展开后卡片高度变化，重新限制在父容器可视范围内 */
+  useEffect(() => {
+    const cardEl = cardRef.current
+    const parentEl = cardEl?.offsetParent as HTMLElement | null
+    if (!cardEl || !parentEl) return
+    setPosition((prev) => clampPosition(prev, cardEl, parentEl))
+  }, [expanded])
 
   /** 任务进度统计：已完成 / 总数 / 进度百分比 */
   const progress = useMemo(() => {
@@ -260,11 +278,28 @@ export function TaskChecklist({
           <div className={styles.headerMain}>
             <div className={styles.headerRow}>
               <span className={styles.headerTitle}>任务清单</span>
-              <span
-                className={`${styles.headerMeta} ${progress.done === progress.total ? styles.headerMetaDone : ''}`}
-              >
-                {progress.done}/{progress.total}
-              </span>
+              <div className={styles.headerActions}>
+                <span
+                  className={`${styles.headerMeta} ${progress.done === progress.total ? styles.headerMetaDone : ''}`}
+                >
+                  {progress.done}/{progress.total}
+                </span>
+                {/* 折叠/展开按钮：点击不触发拖动 */}
+                <button
+                  type="button"
+                  className={styles.collapseBtn}
+                  aria-label={expanded ? '折叠任务清单' : '展开任务清单'}
+                  aria-expanded={expanded}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={handleToggleExpand}
+                >
+                  {expanded ? (
+                    <UpOutlined className={styles.collapseIcon} />
+                  ) : (
+                    <DownOutlined className={styles.collapseIcon} />
+                  )}
+                </button>
+              </div>
             </div>
             <div className={styles.progressTrack} aria-hidden>
               <div
@@ -275,93 +310,97 @@ export function TaskChecklist({
           </div>
         </div>
       }
-      className={styles.card}
+      className={`${styles.card} ${expanded ? '' : styles.cardCollapsed}`}
       style={{ left: position.x, top: position.y }}
     >
-      <ul className={styles.taskList}>
-        {tasks.map((item, index) => (
-          <li
-            key={item.id}
-            className={[
-              queryTaskRowClass(item.status),
-              item.parentId ? styles.taskRowChild : ''
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            style={{ '--task-index': index } as CSSProperties}
-          >
-            <span className={styles.statusIcon}>
-              <TaskStatusIcon status={item.status} />
-            </span>
-            <div className={styles.taskContent}>
-              <span className={queryTaskTitleClass(item.status)}>{item.title}</span>
-              {item.status === 'running' ? (
-                <span className={`${styles.taskBadge} ${styles.badgeRunning}`}>执行中</span>
-              ) : null}
-              {item.status === 'failed' ? (
-                <span className={`${styles.taskBadge} ${styles.badgeFailed}`}>失败</span>
-              ) : null}
-              {item.status === 'skipped' ? (
-                <span className={`${styles.taskBadge} ${styles.badgeSkipped}`}>已跳过</span>
-              ) : null}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {expanded ? (
+        <>
+          <ul className={styles.taskList}>
+            {tasks.map((item, index) => (
+              <li
+                key={item.id}
+                className={[
+                  queryTaskRowClass(item.status),
+                  item.parentId ? styles.taskRowChild : ''
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                style={{ '--task-index': index } as CSSProperties}
+              >
+                <span className={styles.statusIcon}>
+                  <TaskStatusIcon status={item.status} />
+                </span>
+                <div className={styles.taskContent}>
+                  <span className={queryTaskTitleClass(item.status)}>{item.title}</span>
+                  {item.status === 'running' ? (
+                    <span className={`${styles.taskBadge} ${styles.badgeRunning}`}>执行中</span>
+                  ) : null}
+                  {item.status === 'failed' ? (
+                    <span className={`${styles.taskBadge} ${styles.badgeFailed}`}>失败</span>
+                  ) : null}
+                  {item.status === 'skipped' ? (
+                    <span className={`${styles.taskBadge} ${styles.badgeSkipped}`}>已跳过</span>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
 
-      {showActionBar ? (
-        <div
-          className={styles.actionBar}
-          /* 操作按钮不参与标题栏拖动 */
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          {awaitUserReason ? (
-            <>
-              <Text className={styles.awaitReason} ellipsis={{ tooltip: awaitUserReason }}>
-                {awaitUserReason}
-              </Text>
-              <Button
-                type="primary"
-                size="small"
-                icon={<PlayCircleOutlined />}
-                className={styles.actionBtn}
-                onClick={onContinue}
-              >
-                继续
-              </Button>
-            </>
-          ) : canResume ? (
-            <>
-              <Text type="secondary" className={styles.runningHint}>
-                任务已中断，可继续执行
-              </Text>
-              <Button
-                type="primary"
-                size="small"
-                icon={<PlayCircleOutlined />}
-                className={styles.actionBtn}
-                onClick={onResume}
-              >
-                继续
-              </Button>
-            </>
-          ) : (
-            <>
-              <Text type="secondary" className={styles.runningHint}>
-                {hasRunningTask ? '任务执行中…' : 'Agent 处理中…'}
-              </Text>
-              <Button
-                danger
-                size="small"
-                icon={<PauseCircleOutlined />}
-                className={styles.actionBtn}
-                onClick={onAbort}
-              >
-                中断
-              </Button>
-            </>
-          )}
-        </div>
+          {showActionBar ? (
+            <div
+              className={styles.actionBar}
+              /* 操作按钮不参与标题栏拖动 */
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              {awaitUserReason ? (
+                <>
+                  <Text className={styles.awaitReason} ellipsis={{ tooltip: awaitUserReason }}>
+                    {awaitUserReason}
+                  </Text>
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<PlayCircleOutlined />}
+                    className={styles.actionBtn}
+                    onClick={onContinue}
+                  >
+                    继续
+                  </Button>
+                </>
+              ) : canResume ? (
+                <>
+                  <Text type="secondary" className={styles.runningHint}>
+                    任务已中断，可继续执行
+                  </Text>
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<PlayCircleOutlined />}
+                    className={styles.actionBtn}
+                    onClick={onResume}
+                  >
+                    继续
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Text type="secondary" className={styles.runningHint}>
+                    {hasRunningTask ? '任务执行中…' : 'Agent 处理中…'}
+                  </Text>
+                  <Button
+                    danger
+                    size="small"
+                    icon={<PauseCircleOutlined />}
+                    className={styles.actionBtn}
+                    onClick={onAbort}
+                  >
+                    中断
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : null}
+        </>
       ) : null}
     </Card>
   )
