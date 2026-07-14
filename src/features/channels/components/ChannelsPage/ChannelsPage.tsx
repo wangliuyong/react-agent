@@ -219,6 +219,12 @@ export function ChannelsPage(): React.ReactElement {
         message.error('渠道 id 仅允许小写字母、数字、连字符和下划线')
         return Promise.reject(new Error('validation'))
       }
+      // 为什么：飞书必须有 Webhook；缺省会导致「保存成功但测试发送失败」
+      const webhookUrl = values.notifyConfig?.webhookUrl?.trim()
+      if (kind === 'notify' && normalizedId === 'feishu' && !webhookUrl) {
+        message.error('请填写飞书 Webhook URL')
+        return Promise.reject(new Error('validation'))
+      }
       await saveChannel({
         ...values,
         id: normalizedId,
@@ -230,9 +236,9 @@ export function ChannelsPage(): React.ReactElement {
         notifyConfig:
           kind === 'notify'
             ? {
-              webhookUrl: values.notifyConfig?.webhookUrl?.trim() || undefined,
-              secret: values.notifyConfig?.secret?.trim() || undefined
-            }
+                webhookUrl: webhookUrl || undefined,
+                secret: values.notifyConfig?.secret?.trim() || undefined
+              }
             : undefined,
         loginCheckUrl: values.loginCheckUrl?.trim() || undefined,
         agentHint: (values.agentHint ?? '').trim(),
@@ -313,7 +319,7 @@ export function ChannelsPage(): React.ReactElement {
     try {
       const result = await postNotifyChannelTest(channelId)
       if (result.ok) {
-        message.success('测试消息已发送')
+        message.success('测试消息已发送，请到飞书群查看')
       } else {
         message.error(result.error)
       }
@@ -329,7 +335,9 @@ export function ChannelsPage(): React.ReactElement {
     ? normalizeChannelKind(detailChannel.kind) === 'notify'
     : false
   const detailVisual = detailChannel ? channelVisual(detailChannel.id) : null
-  const formIsNotify = normalizeChannelKind(editKind ?? kindTab) === 'notify'
+  // 为什么：弹窗刚挂载时 useWatch 可能尚未就绪，优先用 editDraft.kind，避免误判为发布渠道而卸掉 Webhook 表单项
+  const formIsNotify =
+    normalizeChannelKind(editKind ?? editDraft?.kind ?? kindTab) === 'notify'
 
   return (
     <div className={styles.page}>
@@ -742,13 +750,27 @@ export function ChannelsPage(): React.ReactElement {
                   name={['notifyConfig', 'webhookUrl']}
                   label="Webhook URL"
                   tooltip="飞书自定义机器人地址；仅本地保存"
+                  rules={[
+                    {
+                      validator: async (_, value) => {
+                        const id = String(form.getFieldValue('id') || editDraft?.id || '')
+                        const trimmed = String(value ?? '').trim()
+                        if (id === 'feishu' && !trimmed) {
+                          throw new Error('请填写飞书 Webhook URL')
+                        }
+                        if (trimmed && !/^https:\/\//i.test(trimmed)) {
+                          throw new Error('Webhook 须以 https:// 开头')
+                        }
+                      }
+                    }
+                  ]}
                 >
-                  <Input.Password placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." />
+                  <Input placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." />
                 </Form.Item>
                 <Form.Item
                   name={['notifyConfig', 'secret']}
                   label="签名密钥"
-                  tooltip="若机器人启用了签名校验则填写"
+                  tooltip="若机器人启用了签名校验则填写；若启用了自定义关键词，测试文案需包含该词"
                 >
                   <Input.Password placeholder="可选" />
                 </Form.Item>

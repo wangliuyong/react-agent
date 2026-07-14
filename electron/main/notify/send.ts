@@ -2,6 +2,7 @@ import {
   normalizeChannelKind,
   queryPublishChannelMeta
 } from '../../../shared/publish-channels'
+import { queryPublishChannels } from '../store/channels'
 import { postFeishuWebhookText } from './feishu'
 
 export type NotifySendResult = { ok: true } | { ok: false; error: string }
@@ -15,6 +16,8 @@ export async function postNotifyMessage(args: {
   title?: string
   content: string
 }): Promise<NotifySendResult> {
+  // 为什么：发送前强制从磁盘刷新注册表，避免 UI 刚保存后 registry 仍是空 Webhook
+  queryPublishChannels()
   const meta = queryPublishChannelMeta(args.channelId)
   if (normalizeChannelKind(meta.kind) !== 'notify') {
     return { ok: false, error: `渠道 ${args.channelId} 不是通知渠道` }
@@ -27,7 +30,7 @@ export async function postNotifyMessage(args: {
   }
   const webhookUrl = meta.notifyConfig?.webhookUrl?.trim()
   if (!webhookUrl) {
-    return { ok: false, error: '飞书 Webhook 未配置，请先在渠道页填写' }
+    return { ok: false, error: '飞书 Webhook 未配置，请先在渠道页填写并保存' }
   }
   const text = args.title?.trim()
     ? `${args.title.trim()}\n${args.content}`
