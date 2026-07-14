@@ -61,7 +61,19 @@ import {
   postAgentRule,
   postDeleteAgentRule
 } from './store/rules'
+import {
+  queryWorkflows,
+  queryWorkflow,
+  postWorkflow,
+  postDeleteWorkflow
+} from './store/workflows'
+import { postRunWorkflow, postResumeWorkflow } from './workflow/engine'
+import {
+  postDeletePublishPlanWorkflow,
+  syncPublishPlanWorkflow
+} from './workflow/migrate-publish'
 import type { PublishChannelUpsertInput } from '../../shared/publish-channels'
+import type { WorkflowDefinition } from '../../shared/types'
 
 /** 注册全部 IPC；读 query* / 写 post* */
 export function registerIpcHandlers(): void {
@@ -77,10 +89,20 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannels.queryPublishPlans, () => queryPublishPlans())
   ipcMain.handle(IpcChannels.queryPublishPlan, (_e, id: string) => queryPublishPlan(id))
-  ipcMain.handle(IpcChannels.postPublishPlan, (_e, plan: PublishPlan) => postPublishPlan(plan))
-  ipcMain.handle(IpcChannels.postDeletePublishPlan, (_e, id: string) =>
+  ipcMain.handle(IpcChannels.postPublishPlan, (_e, plan: PublishPlan) => {
+    const saved = postPublishPlan(plan)
+    // 与编排引擎镜像同步（不放 store/plans，避免与 migrate-publish 循环依赖）
+    try {
+      syncPublishPlanWorkflow(saved)
+    } catch {
+      /* 执行时会惰性迁移 */
+    }
+    return saved
+  })
+  ipcMain.handle(IpcChannels.postDeletePublishPlan, (_e, id: string) => {
     postDeletePublishPlan(id)
-  )
+    postDeletePublishPlanWorkflow(id)
+  })
 
   ipcMain.handle(IpcChannels.queryScheduledTasks, () => queryScheduledTasks())
   ipcMain.handle(IpcChannels.queryScheduledTask, (_e, id: string) => queryScheduledTask(id))
@@ -169,4 +191,17 @@ export function registerIpcHandlers(): void {
     postAgentRule(input)
   )
   ipcMain.handle(IpcChannels.postDeleteAgentRule, (_e, id: string) => postDeleteAgentRule(id))
+
+  ipcMain.handle(IpcChannels.queryWorkflows, () => queryWorkflows())
+  ipcMain.handle(IpcChannels.queryWorkflow, (_e, id: string) => queryWorkflow(id))
+  ipcMain.handle(IpcChannels.postWorkflow, (_e, workflow: WorkflowDefinition) =>
+    postWorkflow(workflow)
+  )
+  ipcMain.handle(IpcChannels.postDeleteWorkflow, (_e, id: string) => postDeleteWorkflow(id))
+  ipcMain.handle(IpcChannels.postRunWorkflow, async (_e, workflowId: string) =>
+    postRunWorkflow(workflowId)
+  )
+  ipcMain.handle(IpcChannels.postResumeWorkflow, async (_e, runId: string) =>
+    postResumeWorkflow(runId)
+  )
 }

@@ -18,7 +18,8 @@ import type {
   SkillUpsertInput,
   SkillImportPreview,
   PublishChannelMeta,
-  PublishChannelUpsertInput
+  PublishChannelUpsertInput,
+  WorkflowDefinition
 } from '../../shared/types'
 
 /** Preload：向渲染进程暴露安全 API 面 */
@@ -90,6 +91,16 @@ const api: ElectronApi = {
   postAgentRule: (input: AgentRuleUpsertInput) =>
     ipcRenderer.invoke(IpcChannels.postAgentRule, input),
   postDeleteAgentRule: (id: string) => ipcRenderer.invoke(IpcChannels.postDeleteAgentRule, id),
+
+  queryWorkflows: () => ipcRenderer.invoke(IpcChannels.queryWorkflows),
+  queryWorkflow: (id: string) => ipcRenderer.invoke(IpcChannels.queryWorkflow, id),
+  postWorkflow: (workflow: WorkflowDefinition) =>
+    ipcRenderer.invoke(IpcChannels.postWorkflow, workflow),
+  postDeleteWorkflow: (id: string) => ipcRenderer.invoke(IpcChannels.postDeleteWorkflow, id),
+  postRunWorkflow: (workflowId: string) =>
+    ipcRenderer.invoke(IpcChannels.postRunWorkflow, workflowId),
+  postResumeWorkflow: (runId: string) =>
+    ipcRenderer.invoke(IpcChannels.postResumeWorkflow, runId),
 
   onAgentEvent: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, data: AgentEvent): void => {

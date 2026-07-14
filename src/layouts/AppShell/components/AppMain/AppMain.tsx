@@ -6,6 +6,7 @@ import { SchedulePage } from '@/features/schedule'
 import { SettingsPage } from '@/features/settings'
 import { SkillsPage } from '@/features/skills'
 import { RulesPage } from '@/features/rules'
+import { WorkflowsPage } from '@/features/workflows'
 import { queryNavItem } from '../../config/nav-items'
 import { PlaceholderView } from './PlaceholderView'
 import styles from './AppMain.module.css'
@@ -28,6 +29,7 @@ export function AppMain({ view }: AppMainProps): React.ReactElement {
         {view === 'skills' && <SkillsPage />}
         {view === 'channels' && <ChannelsPage />}
         {view === 'rules' && <RulesPage />}
+        {view === 'workflows' && <WorkflowsPage />}
         {placeholderNav?.placeholder && (
           <PlaceholderView icon={placeholderNav.icon} label={placeholderNav.label} />
         )}

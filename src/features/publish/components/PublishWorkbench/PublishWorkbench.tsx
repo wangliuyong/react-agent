@@ -1,6 +1,5 @@
 import { usePublishStore } from '../../hooks/usePublishStore'
 import {
-  buildPublishPlanPrompt,
   createEmptyPlan,
   createEmptySubTask,
   normalizePublishSubTask,
@@ -12,6 +11,7 @@ import type { PublishPlan, PublishSubTask } from '@shared/types'
 import type { PublishChannelId } from '@shared/publish-channels'
 import { useSessionStore } from '@/features/chat'
 import { useAppStore } from '@/stores/app-store'
+import { postRunWorkflow } from '@/features/workflows'
 import styles from './PublishWorkbench.module.css'
 
 const { Title, Text, Paragraph } = Typography
@@ -103,8 +103,8 @@ export function PublishWorkbench(): React.ReactElement {
   const removePlan = usePublishStore((s) => s.removePlan)
   const addDemoPlan = usePublishStore((s) => s.addDemoPlan)
 
-  const createSession = useSessionStore((s) => s.createSession)
-  const sendMessage = useSessionStore((s) => s.sendMessage)
+  const beginExternalRun = useSessionStore((s) => s.beginExternalRun)
+  const hydrateSessions = useSessionStore((s) => s.hydrate)
   const setView = useAppStore((s) => s.setView)
   const channels = useChannelsStore((s) => s.channels)
   const enabledChannels = useMemo(
@@ -146,12 +146,17 @@ export function PublishWorkbench(): React.ReactElement {
       message.warning('请先添加子任务')
       return
     }
-    await createSession('publish')
-    setView('chat')
-    // 串行：把所有子任务合成一条指令，由 Agent 按清单执行（渠道由 buildPublishPlanPrompt 路由）
-    const prompt = buildPublishPlanPrompt(plan)
-    await sendMessage(prompt)
-    message.success('已在主聊天窗口开始执行')
+    try {
+      // 先落盘以同步镜像工作流，再交给编排引擎（非拼超长 prompt）
+      await savePlan(plan)
+      const { sessionId } = await postRunWorkflow(plan.id)
+      await hydrateSessions()
+      beginExternalRun(sessionId)
+      setView('chat')
+      message.success('已按流程编排在主聊天窗口执行')
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '启动发布失败')
+    }
   }
 
   return (
@@ -165,9 +170,9 @@ export function PublishWorkbench(): React.ReactElement {
             <Title level={3} className={styles.headerTitle}>
               发布工作台
             </Title>
-            <div className={styles.headerDesc}>多账号 / 多渠道 / 串行执行</div>
+            <div className={styles.headerDesc}>多账号 / 多渠道 / 流程编排执行</div>
             <Paragraph type="secondary" style={{ marginTop: 4, marginBottom: 0, fontSize: 12 }}>
-              发布计划只负责编辑，执行进度在主聊天窗口查看
+              计划保存后同步为工作流；执行由编排引擎驱动，进度在主聊天窗口查看
             </Paragraph>
           </div>
         </div>

@@ -6,7 +6,10 @@ import {
   queryPublishChannelMeta
 } from './publish-channels'
 
-/** 将子任务转为发给 Agent 的自然语言指令（主进程定时任务与渲染进程发布工作台共用） */
+/**
+ * @deprecated 发布执行已切到编排引擎（compilePublishPlanToWorkflow）。
+ * 仅保留供调试/兼容旧调用；新代码请勿再依赖本函数驱动执行。
+ */
 export function buildSubTaskPrompt(sub: PublishSubTask): string {
   const channelIds = normalizePublishSubTaskChannels(sub.channels)
   const channelLabels = queryPublishChannelLabels(channelIds)
@@ -43,7 +46,10 @@ export function buildSubTaskPrompt(sub: PublishSubTask): string {
     .join('\n')
 }
 
-/** 将发布计划转为串行执行的 Agent 指令 */
+/**
+ * @deprecated 请改用 shared/compile-publish-workflow + postRunWorkflow。
+ * 调度器与发布工作台主路径已不再调用本函数。
+ */
 export function buildPublishPlanPrompt(plan: PublishPlan): string {
   if (!plan.subTasks.length) {
     return `发布计划「${plan.title}」暂无子任务，请先在工作台添加子任务。`

@@ -6,9 +6,10 @@ import { usePublishStore } from '@/features/publish'
 import { useScheduleStore } from '@/features/schedule'
 import { useChannelsStore } from '@/features/channels'
 import { useRulesStore } from '@/features/rules'
+import { useWorkflowsStore } from '@/features/workflows'
 
 /**
- * 根编排：启动时拉取设置 / 会话 / 发布计划 / 定时任务 / 规则，并订阅 Agent 与调度事件。
+ * 根编排：启动时拉取设置 / 会话 / 发布计划 / 定时任务 / 规则 / 流程，并订阅 Agent 与调度事件。
  * 业务 UI 下沉到 features，App 只做装配。
  */
 export default function App(): React.ReactElement {
@@ -20,6 +21,7 @@ export default function App(): React.ReactElement {
   const hydrateSchedules = useScheduleStore((s) => s.hydrate)
   const hydrateChannels = useChannelsStore((s) => s.hydrate)
   const hydrateRules = useRulesStore((s) => s.hydrate)
+  const hydrateWorkflows = useWorkflowsStore((s) => s.hydrate)
   const bindScheduleUpdates = useScheduleStore((s) => s.bindScheduleUpdates)
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export default function App(): React.ReactElement {
     void hydrateSchedules()
     void hydrateChannels()
     void hydrateRules()
+    void hydrateWorkflows()
     const unsubAgent = bindAgentEvents()
     const unsubSchedule = bindScheduleUpdates()
     return () => {
@@ -42,6 +45,7 @@ export default function App(): React.ReactElement {
     hydrateSchedules,
     hydrateChannels,
     hydrateRules,
+    hydrateWorkflows,
     bindAgentEvents,
     bindScheduleUpdates
   ])

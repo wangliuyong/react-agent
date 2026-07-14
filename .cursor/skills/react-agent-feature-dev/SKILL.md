@@ -120,6 +120,24 @@ pnpm dev         # 手动验证交互（如删除确认、编辑态清理）
 3. 不「顺手重构」无关模块
 4. 新 IPC 才改 preload/main；纯 UI 嵌套操作通常只改组件 + 已有 `savePlan`
 
+## 工作流编排（Workflow）
+
+统一底座：`WorkflowDefinition` + 主进程 `electron/main/workflow/engine.ts`。
+
+| 能力 | 路径 |
+|------|------|
+| 类型 / IPC | `shared/types.ts`、`IpcChannels.queryWorkflows` / `postRunWorkflow` |
+| 定义持久化 | `electron/main/store/workflows.ts`（含预置模板合并） |
+| 发布计划 → 流程 | `shared/compile-publish-workflow.ts` + `migrate-publish.ts`（计划 id = 工作流 id） |
+| UI | `src/features/workflows/`（卡片网格对齐技能市场 → 点击开 **Drawer** 维护；内含 MetaForm + WorkflowCanvas） |
+| 图编译 | `utils/workflowCanvasGraph.ts`：canvas edges → 引擎 `nodes`（fan-out = parallel） |
+
+**编辑**：`@xyflow/react` 画布拖拽 + 锚点连线；`WorkflowDefinition.canvas` 存坐标与边。
+
+**执行入口**：发布工作台与定时 `publish_plan`/`workflow` 均 `postRunWorkflow`；勿再拼 `buildPublishPlanPrompt` 驱动主路径。
+
+**parallel**：画布一源多出边编译为 parallel；执行时子节点全 `tool` → `Promise.all`，含 `agent`/`await_user` → 串行。
+
 ## 任务完成后沉淀
 
 若本次实现验证了**新的可复用模式**（新 feature 结构、新 IPC 约定、新 Agent 工具链），在本 skill 目录追加：

@@ -30,6 +30,11 @@ interface SessionState {
   continueRun: () => Promise<void>
   /** 中断后从任务清单未完成的步骤重新拉起 Agent */
   resumeRun: () => Promise<void>
+  /**
+   * 外部编排（工作流引擎）拉起会话时标记执行中，
+   * 以便任务清单展示「中断」且不经过 sendMessage。
+   */
+  beginExternalRun: (sessionId: string) => void
   bindAgentEvents: () => () => void
   getActiveSession: () => Session | null
 }
@@ -142,6 +147,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     await get().sendMessage(content)
   },
 
+  beginExternalRun: (sessionId) => {
+    set({
+      activeSessionId: sessionId,
+      running: true,
+      awaitUserReason: null,
+      canResume: false,
+      streamingText: '',
+      activeToolName: null
+    })
+  },
+
   bindAgentEvents: () => {
     return window.api.onAgentEvent((event: AgentEvent) => {
       const activeId = get().activeSessionId
@@ -195,11 +211,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
 
       if (event.type === 'task_update') {
+        const tasks = event.tasks as TaskItem[]
+        const hasRunningTask = tasks.some((t) => t.status === 'running')
         set((state) => ({
           sessions: patchSession(state.sessions, event.sessionId, (session) => ({
             ...session,
-            tasks: event.tasks as TaskItem[]
-          }))
+            tasks
+          })),
+          // 工作流引擎推进步骤时同步「执行中」，确保清单可中断
+          ...(event.sessionId === activeId && hasRunningTask
+            ? { running: true, canResume: false }
+            : {})
         }))
         return
       }

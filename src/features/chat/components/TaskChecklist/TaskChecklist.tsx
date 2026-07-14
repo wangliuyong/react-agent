@@ -277,7 +277,12 @@ export function TaskChecklist({
         {tasks.map((item, index) => (
           <li
             key={item.id}
-            className={queryTaskRowClass(item.status)}
+            className={[
+              queryTaskRowClass(item.status),
+              item.parentId ? styles.taskRowChild : ''
+            ]
+              .filter(Boolean)
+              .join(' ')}
             style={{ '--task-index': index } as CSSProperties}
           >
             <span className={styles.statusIcon}>

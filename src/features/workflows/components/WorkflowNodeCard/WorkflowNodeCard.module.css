@@ -1,0 +1,64 @@
+.card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-md);
+  background: var(--db-bg-elevated, var(--db-bg-content));
+}
+
+.head {
+  min-width: 0;
+  flex: 1;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.index {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--db-primary);
+  background: var(--db-primary-muted);
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--db-text);
+}
+
+.summary {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.children {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+.childTag {
+  margin-left: 6px;
+}
+
+.actions {
+  flex-shrink: 0;
+}

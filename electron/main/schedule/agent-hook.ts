@@ -43,7 +43,11 @@ export function handleScheduleAgentDone(event: AgentEvent): void {
   const task = queryScheduledTask(taskId)
   if (!task) return
 
-  const success = event.reason === 'end_turn' || event.reason === 'max_turns'
+  // workflow_success：编排引擎整流程成功；end_turn/max_turns：单次 ReAct
+  const success =
+    event.reason === 'end_turn' ||
+    event.reason === 'max_turns' ||
+    event.reason === 'workflow_success'
   const next: ScheduledTask = {
     ...task,
     lastRunStatus: success ? 'success' : 'failed',

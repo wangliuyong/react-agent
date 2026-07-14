@@ -4,6 +4,7 @@ import type { NavItem } from '../types'
 export const NAV_ITEMS: NavItem[] = [
   { key: 'skills', label: '技能市场', icon: <ThunderboltOutlined /> },
   { key: 'rules', label: '规则', icon: <UnorderedListOutlined /> },
+  { key: 'workflows', label: '流程', icon: <AppstoreOutlined /> },
   { key: 'channels', label: '渠道', icon: <ApiOutlined /> },
   { key: 'publish', label: '发布', icon: <CloudUploadOutlined /> },
   { key: 'schedule', label: '定时任务', icon: <ClockCircleOutlined /> }

@@ -56,6 +56,13 @@ export const IpcChannels = {
   queryAgentRules: 'query:agent-rules',
   postAgentRule: 'post:agent-rule',
   postDeleteAgentRule: 'post:agent-rule:delete',
+  // 工作流编排
+  queryWorkflows: 'query:workflows',
+  queryWorkflow: 'query:workflow',
+  postWorkflow: 'post:workflow',
+  postDeleteWorkflow: 'post:workflow:delete',
+  postRunWorkflow: 'post:workflow:run',
+  postResumeWorkflow: 'post:workflow:resume',
   // 事件推送（main → renderer）
   onAgentEvent: 'event:agent',
   onBrowserFrame: 'event:browser-frame',
@@ -153,10 +160,15 @@ export interface TaskItem {
   id: string
   title: string
   status: TaskItemStatus
+  /**
+   * 并行组父节点 id。
+   * 有值时 UI 可缩进展示；编排引擎用其表达 parallel 子步与阶段的关系。
+   */
+  parentId?: string
 }
 
 /** 会话来源类型：决定侧边栏历史列表图标与归类 */
-export type SessionType = 'chat' | 'publish' | 'schedule'
+export type SessionType = 'chat' | 'publish' | 'schedule' | 'workflow'
 
 export interface Session {
   id: string
@@ -205,11 +217,11 @@ export type ScheduleRepeat = 'once' | 'daily' | 'weekly'
 export type ScheduleRunStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped'
 
 /** 定时任务触发后的动作类型 */
-export type ScheduleActionType = 'publish_plan' | 'custom_prompt'
+export type ScheduleActionType = 'publish_plan' | 'custom_prompt' | 'workflow'
 
 /**
- * 定时任务：主进程调度器到点自动创建会话并调用 Agent。
- * 与发布工作台共用发布计划 prompt 构建逻辑。
+ * 定时任务：主进程调度器到点创建会话并执行。
+ * publish_plan / workflow 走编排引擎；custom_prompt 仍走单次 ReAct。
  */
 export interface ScheduledTask {
   id: string
@@ -225,8 +237,10 @@ export interface ScheduledTask {
   /** once 时执行的 Unix 毫秒时间戳 */
   runAt?: number
   actionType: ScheduleActionType
-  /** 关联发布计划 id */
+  /** 关联发布计划 id（与镜像工作流 id 相同） */
   publishPlanId?: string
+  /** 关联通用工作流 id */
+  workflowId?: string
   /** 自定义 Agent 指令 */
   customPrompt?: string
   lastRunAt?: number
@@ -365,6 +379,109 @@ export interface AgentRuleUpsertInput {
   enabled: boolean
 }
 
+/** 工作流模板种类：通用流程 vs 发布流水线 */
+export type WorkflowTemplateKind = 'generic' | 'publish'
+
+/** Agent 子任务节点：走受限 ReAct */
+export interface WorkflowAgentNode {
+  id: string
+  type: 'agent'
+  title: string
+  prompt: string
+  /** 空/缺省 = 使用全部工具 */
+  toolWhitelist?: string[]
+  outputKeys?: string[]
+}
+
+/** 确定性工具节点：参数支持 {{contextKey}} 插值 */
+export interface WorkflowToolNode {
+  id: string
+  type: 'tool'
+  title: string
+  toolName: string
+  argsTemplate: Record<string, unknown>
+  outputKeys?: string[]
+}
+
+/** 人工确认节点：复用 await_user / continue */
+export interface WorkflowAwaitNode {
+  id: string
+  type: 'await_user'
+  title: string
+  reason: string
+}
+
+/**
+ * 并行组：组间串行，组内叶子并行（P0 引擎可先串行展开 children）。
+ * children 仅允许 agent / tool / await_user。
+ */
+export interface WorkflowParallelNode {
+  id: string
+  type: 'parallel'
+  title: string
+  children: Array<WorkflowAgentNode | WorkflowToolNode | WorkflowAwaitNode>
+}
+
+export type WorkflowLeafNode = WorkflowAgentNode | WorkflowToolNode | WorkflowAwaitNode
+export type WorkflowNode = WorkflowLeafNode | WorkflowParallelNode
+
+/** 画布连线（拖拽可视化编排） */
+export interface WorkflowCanvasEdge {
+  id: string
+  source: string
+  target: string
+}
+
+/**
+ * 画布布局：节点坐标 + 连线。
+ * 编辑以画布为准，保存时编译回 nodes 供引擎执行。
+ */
+export interface WorkflowCanvas {
+  positions: Record<string, { x: number; y: number }>
+  edges: WorkflowCanvasEdge[]
+}
+
+/** 可编辑、可复用的流程定义 */
+export interface WorkflowDefinition {
+  id: string
+  title: string
+  description: string
+  templateKind: WorkflowTemplateKind
+  nodes: WorkflowNode[]
+  /** 拖拽连线画布；缺省时由 nodes 线性/并行结构推导 */
+  canvas?: WorkflowCanvas
+  createdAt: number
+  updatedAt: number
+}
+
+export type WorkflowRunStatus =
+  | 'pending'
+  | 'running'
+  | 'awaiting_user'
+  | 'success'
+  | 'failed'
+  | 'aborted'
+
+/** 一次工作流执行实例，绑定 Session 并驱动 TaskItem 进度 */
+export interface WorkflowRun {
+  id: string
+  workflowId: string
+  sessionId: string
+  status: WorkflowRunStatus
+  /** 当前节点 id；parallel 内可为子节点 id */
+  cursorNodeId: string | null
+  context: Record<string, unknown>
+  errorMessage?: string
+  createdAt: number
+  updatedAt: number
+}
+
+/** 启动工作流后的返回：便于前端跳转聊天会话 */
+export interface WorkflowRunStartResult {
+  run: WorkflowRun
+  sessionId: string
+}
+
 /** Preload 暴露给 window.api 的类型 */
 export interface ElectronApi {
   querySettings: () => Promise<AppSettings>
@@ -408,6 +525,12 @@ export interface ElectronApi {
   queryAgentRules: () => Promise<AgentRule[]>
   postAgentRule: (input: AgentRuleUpsertInput) => Promise<AgentRule>
   postDeleteAgentRule: (id: string) => Promise<void>
+  queryWorkflows: () => Promise<WorkflowDefinition[]>
+  queryWorkflow: (id: string) => Promise<WorkflowDefinition | null>
+  postWorkflow: (workflow: WorkflowDefinition) => Promise<WorkflowDefinition>
+  postDeleteWorkflow: (id: string) => Promise<void>
+  postRunWorkflow: (workflowId: string) => Promise<WorkflowRunStartResult>
+  postResumeWorkflow: (runId: string) => Promise<WorkflowRunStartResult>
   onAgentEvent: (cb: (event: AgentEvent) => void) => () => void
   onBrowserFrame: (cb: (frame: BrowserFramePayload) => void) => () => void
   onScheduleUpdate: (cb: (tasks: ScheduledTask[]) => void) => () => void
