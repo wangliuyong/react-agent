@@ -253,7 +253,7 @@ export function ChannelsPage(): React.ReactElement {
                 <Card
                   key={channel.id}
                   className={`${styles.card} ${isDisabled ? styles.cardDisabled : ''}`}
-                  bordered={false}
+                  variant="borderless"
                 >
                   <div className={styles.cardHead}>
                     <div className={styles.cardHeadRow}>
@@ -379,7 +379,7 @@ export function ChannelsPage(): React.ReactElement {
         onCancel={() => setEditOpen(false)}
         onOk={() => void handleSave()}
         confirmLoading={saving}
-        destroyOnClose
+        destroyOnHidden
         width={560}
       >
         <Form form={form} layout="vertical" preserve={false}>
@@ -435,3 +435,4 @@ export function ChannelsPage(): React.ReactElement {
     </div>
   )
 }
+

@@ -168,7 +168,7 @@ function TaskEditModal({
       confirmLoading={submitting}
       okText={mode === 'create' ? '创建' : '保存'}
       width={560}
-      destroyOnClose
+      destroyOnHidden
       afterOpenChange={(visible) => {
         if (visible && initialTask) {
           form.setFieldsValue({

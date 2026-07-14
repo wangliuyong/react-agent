@@ -446,7 +446,7 @@ export function SkillsPage(): React.ReactElement {
             ) : (
               <div className={styles.grid}>
                 {filteredTemplates.map((template) => (
-                  <Card key={template.id} bordered={false} className={styles.card}>
+                  <Card key={template.id} variant="borderless" className={styles.card}>
                     <div className={styles.cardHead}>
                       <div className={styles.cardTitleRow}>
                         <span className={styles.cardTitle}>{template.name}</span>
@@ -489,7 +489,7 @@ export function SkillsPage(): React.ReactElement {
               {filteredSkills.map((skill) => (
                 <Card
                   key={skill.id}
-                  bordered={false}
+                  variant="borderless"
                   className={styles.card}
                   hoverable
                   onClick={() => void openSkillDetail(skill.id)}
@@ -523,7 +523,7 @@ export function SkillsPage(): React.ReactElement {
         onCancel={() => setDetailOpen(false)}
         footer={null}
         width={760}
-        destroyOnClose
+        destroyOnHidden
         className={styles.detailModal}
       >
         <Spin spinning={detailLoading}>
@@ -596,7 +596,7 @@ export function SkillsPage(): React.ReactElement {
         onOk={handleSave}
         confirmLoading={saving}
         width={720}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" initialValues={editDraft ?? undefined}>
           <Form.Item
@@ -655,7 +655,7 @@ export function SkillsPage(): React.ReactElement {
         onCancel={() => setTemplateOpen(false)}
         footer={null}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         {templateLoading ? (
           <div className={styles.loading}>
@@ -716,7 +716,7 @@ export function SkillsPage(): React.ReactElement {
         okButtonProps={{ disabled: importPreviewing }}
         cancelButtonProps={{ disabled: importBusy }}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         <Spin spinning={importBusy} tip={importLoadingTip}>
           <div className={styles.importModalBody}>

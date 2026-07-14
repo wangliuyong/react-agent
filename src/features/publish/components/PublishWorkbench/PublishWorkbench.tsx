@@ -63,7 +63,7 @@ function PlanEditModal({
       onOk={() => void handleOk()}
       confirmLoading={submitting}
       okText={mode === 'create' ? '创建' : '保存'}
-      destroyOnClose
+      destroyOnHidden
       afterOpenChange={(visible) => {
         if (visible && initialPlan) {
           form.setFieldsValue({
@@ -347,7 +347,7 @@ export function PublishWorkbench(): React.ReactElement {
           message.success(mode === 'create' ? '已添加子任务' : '已保存')
         }}
         okText={subModal?.mode === 'create' ? '添加' : '保存'}
-        destroyOnClose
+        destroyOnHidden
       >
         {subModal ? (
           <Form layout="vertical">
