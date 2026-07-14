@@ -230,9 +230,9 @@ export function ChannelsPage(): React.ReactElement {
         notifyConfig:
           kind === 'notify'
             ? {
-                webhookUrl: values.notifyConfig?.webhookUrl?.trim() || undefined,
-                secret: values.notifyConfig?.secret?.trim() || undefined
-              }
+              webhookUrl: values.notifyConfig?.webhookUrl?.trim() || undefined,
+              secret: values.notifyConfig?.secret?.trim() || undefined
+            }
             : undefined,
         loginCheckUrl: values.loginCheckUrl?.trim() || undefined,
         agentHint: (values.agentHint ?? '').trim(),
@@ -548,11 +548,11 @@ export function ChannelsPage(): React.ReactElement {
                       ? renderNotifyConfigTag(detailChannel)
                       : detailChannel.enabled
                         ? (
-                            <Tag className={styles.tagActive}>已接入</Tag>
-                          )
+                          <Tag className={styles.tagActive}>已接入</Tag>
+                        )
                         : (
-                            <Tag className={styles.tagMuted}>预留</Tag>
-                          )}
+                          <Tag className={styles.tagMuted}>预留</Tag>
+                        )}
                     {!detailIsNotify ? renderLoginTag(detailStatus?.state) : null}
                   </div>
                 </div>
