@@ -2,6 +2,7 @@ import type { ScheduledTask, Session } from '../../../shared/types'
 import { IpcChannels } from '../../../shared/types'
 import { computeNextRunAt } from '../../../shared/schedule-utils'
 import { queryPublishPlan } from '../store/plans'
+import { queryPublishPlanRunnableWorkflowId } from '../workflow/migrate-publish'
 import { postSession } from '../store/sessions'
 import {
   postScheduledTask,
@@ -11,7 +12,6 @@ import {
 import { queryWorkflow } from '../store/workflows'
 import { runAgentChat } from '../agent/loop'
 import { postRunWorkflow } from '../workflow/engine'
-import { queryOrMigratePublishWorkflow } from '../workflow/migrate-publish'
 import { getMainWindow } from '../window'
 import {
   isScheduleTaskRunning,
@@ -75,10 +75,9 @@ function resolveWorkflowId(task: ScheduledTask): string | null {
   }
   if (task.actionType === 'publish_plan') {
     if (!task.publishPlanId) return null
-    // 确认计划仍在，再惰性迁移/获取镜像工作流
+    // 确认计划仍在；普通→镜像工作流，流程→关联 workflowId
     if (!queryPublishPlan(task.publishPlanId)) return null
-    const wf = queryOrMigratePublishWorkflow(task.publishPlanId)
-    return wf?.id ?? null
+    return queryPublishPlanRunnableWorkflowId(task.publishPlanId)
   }
   return null
 }

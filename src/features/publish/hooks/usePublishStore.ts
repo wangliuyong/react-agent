@@ -69,6 +69,7 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     const plan = createEmptyPlan()
     plan.title = '多渠道发布任务'
     plan.description = '单任务多渠道 + 分渠道串行示例'
+    plan.kind = 'normal'
     plan.subTasks = [
       createEmptySubTask({
         title: '人工智能 · 小红书 + 抖音',
