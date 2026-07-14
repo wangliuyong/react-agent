@@ -4,6 +4,8 @@ import type {
   SkillTemplate,
   SkillUpsertInput
 } from '@shared/types'
+import { parseSkillImportJson } from '@shared/skill-import-json'
+import { queryProjectSkillDetail } from '../../api'
 import { useSkillsStore } from '../../hooks/useSkillsStore'
 import { SkillMarkdown } from '../SkillMarkdown'
 import { isValidSkillId, skillDetailToInput, slugifySkillId } from '../../types'
@@ -90,6 +92,7 @@ export function SkillsPage(): React.ReactElement {
   const installTemplate = useSkillsStore((s) => s.installTemplate)
   const previewImport = useSkillsStore((s) => s.previewImport)
   const importFromUrl = useSkillsStore((s) => s.importFromUrl)
+  const importFromJson = useSkillsStore((s) => s.importFromJson)
 
   const [tab, setTab] = useState<SkillTab>('active')
   const [scope, setScope] = useState<SkillScope>('all')
@@ -113,8 +116,12 @@ export function SkillsPage(): React.ReactElement {
   const [importUrl, setImportUrl] = useState('')
   const [importTargetId, setImportTargetId] = useState('')
   const [importPreview, setImportPreview] = useState<SkillImportPreview | null>(null)
+  /** 本地 JSON 解析结果；URL JSON 导入时为 null（确认时由主进程再拉取） */
+  const [importJsonDrafts, setImportJsonDrafts] = useState<SkillUpsertInput[] | null>(null)
   const [importPreviewing, setImportPreviewing] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const importFileInputRef = useRef<HTMLInputElement>(null)
 
   const [form] = Form.useForm<SkillUpsertInput>()
 
@@ -265,17 +272,58 @@ export function SkillsPage(): React.ReactElement {
     setImportUrl('')
     setImportTargetId('')
     setImportPreview(null)
+    setImportJsonDrafts(null)
     setImportOpen(true)
+  }
+
+  /** 从本地 .json 文件预览（解析后暂存在 importJsonDrafts） */
+  const handleImportJsonFile = async (file: File): Promise<void> => {
+    setImportPreviewing(true)
+    setImportPreview(null)
+    setImportJsonDrafts(null)
+    try {
+      const text = await file.text()
+      const items = parseSkillImportJson(text)
+      const first = items[0]
+      setImportJsonDrafts(items)
+      setImportUrl('')
+      setImportTargetId(first.id)
+      setImportPreview({
+        url: '',
+        method: 'json',
+        skillMdUrl: file.name,
+        suggestedId: first.id,
+        name: items.length === 1 ? first.name : `${items.length} 个技能`,
+        description:
+          items.length === 1 ? first.description : items.map((s) => s.name).join('、'),
+        hasExamples: items.some((s) => Boolean(s.examplesContent?.trim())),
+        reasoning: `本地文件「${file.name}」`,
+        jsonItems: items.map((s) => ({
+          id: s.id,
+          name: s.name,
+          description: s.description,
+          hasExamples: Boolean(s.examplesContent?.trim())
+        }))
+      })
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'JSON 解析失败')
+    } finally {
+      setImportPreviewing(false)
+      if (importFileInputRef.current) {
+        importFileInputRef.current.value = ''
+      }
+    }
   }
 
   const handleImportPreview = async (): Promise<void> => {
     const url = importUrl.trim()
     if (!url) {
-      message.warning('请输入技能链接')
+      message.warning('请输入技能链接，或选择本地 JSON 文件')
       return
     }
     setImportPreviewing(true)
     setImportPreview(null)
+    setImportJsonDrafts(null)
     try {
       const preview = await previewImport(url)
       setImportPreview(preview)
@@ -288,22 +336,41 @@ export function SkillsPage(): React.ReactElement {
   }
 
   const handleImportConfirm = async (): Promise<void> => {
-    const url = importUrl.trim()
+    const jsonCount = importJsonDrafts?.length ?? importPreview?.jsonItems?.length ?? 0
+    const isJsonMulti = importPreview?.method === 'json' && jsonCount > 1
     const normalizedId = slugifySkillId(
       importTargetId.trim() || importPreview?.suggestedId || ''
     )
-    if (!url) {
-      message.warning('请输入技能链接')
+
+    if (!importJsonDrafts && !importUrl.trim()) {
+      message.warning('请输入技能链接，或选择本地 JSON 文件')
       return Promise.reject(new Error('validation'))
     }
-    if (!normalizedId || !isValidSkillId(normalizedId)) {
+    if (!isJsonMulti && (!normalizedId || !isValidSkillId(normalizedId))) {
       message.error('目标 id 格式无效，请使用小写字母、数字和连字符')
       return Promise.reject(new Error('validation'))
     }
+
     setImporting(true)
     try {
-      await importFromUrl(url, normalizedId)
-      message.success(`已导入技能「${importPreview?.name ?? normalizedId}」`)
+      if (importJsonDrafts) {
+        await importFromJson(
+          importJsonDrafts,
+          isJsonMulti ? undefined : normalizedId
+        )
+        message.success(
+          importJsonDrafts.length === 1
+            ? `已导入技能「${importPreview?.name ?? normalizedId}」`
+            : `已导入 ${importJsonDrafts.length} 个技能`
+        )
+      } else {
+        await importFromUrl(importUrl.trim(), isJsonMulti ? undefined : normalizedId)
+        message.success(
+          importPreview?.method === 'json' && (importPreview.jsonItems?.length ?? 0) > 1
+            ? `已导入 ${importPreview.jsonItems?.length} 个技能`
+            : `已导入技能「${importPreview?.name ?? normalizedId}」`
+        )
+      }
       setImportOpen(false)
       setTab('mine')
     } catch (err) {
@@ -314,35 +381,57 @@ export function SkillsPage(): React.ReactElement {
     }
   }
 
-  /** 导出当前项目技能摘要为 JSON 文件 */
-  const handleExport = (): void => {
-    const payload = skills.map(({ id, name, description, enabled, hasExamples, updatedAt, isBuiltin }) => ({
-      id,
-      name,
-      description,
-      enabled,
-      hasExamples,
-      updatedAt,
-      isBuiltin
-    }))
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `skills-export-${Date.now()}.json`
-    anchor.click()
-    URL.revokeObjectURL(url)
-    message.success('技能列表已导出')
+  /** 导出完整技能 JSON（含 content，可再导入） */
+  const handleExport = async (): Promise<void> => {
+    if (skills.length === 0) {
+      message.warning('暂无技能可导出')
+      return
+    }
+    setExporting(true)
+    try {
+      const details = await Promise.all(skills.map((s) => queryProjectSkillDetail(s.id)))
+      const payload = details
+        .filter((d): d is NonNullable<typeof d> => Boolean(d))
+        .map((d) => ({
+          id: d.id,
+          name: d.name,
+          description: d.description,
+          content: d.content,
+          examplesContent: d.examplesContent
+        }))
+      if (payload.length === 0) {
+        message.error('未能读取技能正文')
+        return
+      }
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json'
+      })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `skills-export-${Date.now()}.json`
+      anchor.click()
+      URL.revokeObjectURL(url)
+      message.success(`已导出 ${payload.length} 个技能（完整 JSON）`)
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '导出失败')
+    } finally {
+      setExporting(false)
+    }
   }
 
   const importBusy = importing || importPreviewing
+  const importJsonMulti =
+    importPreview?.method === 'json' && (importPreview.jsonItems?.length ?? 0) > 1
   const importLoadingTip = importing
     ? importPreview?.method === 'git_clone'
       ? '正在 git clone 并安装技能，请稍候…'
       : importPreview?.method === 'http_download'
         ? '正在下载并安装技能，请稍候…'
-        : '正在导入技能，请稍候…'
-    : '正在分析链接并预览远程技能…'
+        : importPreview?.method === 'json'
+          ? '正在写入 JSON 技能，请稍候…'
+          : '正在导入技能，请稍候…'
+    : '正在分析并预览技能…'
 
   return (
     <div className={styles.page}>
@@ -368,7 +457,7 @@ export function SkillsPage(): React.ReactElement {
           <Button icon={<ImportOutlined />} onClick={openImportModal}>
             导入
           </Button>
-          <Button icon={<ExportOutlined />} onClick={handleExport}>
+          <Button icon={<ExportOutlined />} loading={exporting} onClick={() => void handleExport()}>
             导出
           </Button>
           <Button icon={<DollarOutlined />} onClick={() => void openTemplateModal()}>
@@ -725,9 +814,9 @@ export function SkillsPage(): React.ReactElement {
         )}
       </Modal>
 
-      {/* 链接导入 */}
+      {/* 链接 / JSON 导入 */}
       <Modal
-        title="从链接导入"
+        title="导入技能"
         open={importOpen}
         onCancel={() => setImportOpen(false)}
         onOk={handleImportConfirm}
@@ -735,7 +824,7 @@ export function SkillsPage(): React.ReactElement {
         confirmLoading={importing}
         closable={!importBusy}
         maskClosable={!importBusy}
-        okButtonProps={{ disabled: importPreviewing }}
+        okButtonProps={{ disabled: importPreviewing || !importPreview }}
         cancelButtonProps={{ disabled: importBusy }}
         width={640}
         destroyOnHidden
@@ -743,17 +832,40 @@ export function SkillsPage(): React.ReactElement {
         <Spin spinning={importBusy} tip={importLoadingTip}>
           <div className={styles.importModalBody}>
             <p className={styles.modalHint}>
-              支持 Git 仓库链接与 HTTP 直链。大模型会判断使用 <code>git clone</code>{' '}
-              还是直接下载；Git 仓库将完整复制技能目录（含附属文件）。
+              支持 Git / HTTP 直链，以及技能 JSON（本地文件或以 <code>.json</code> 结尾的
+              URL）。JSON 可为单个对象或数组，字段含{' '}
+              <code>id / name / description / content</code>。
             </p>
+
+            <input
+              ref={importFileInputRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) void handleImportJsonFile(file)
+              }}
+            />
+            <Space wrap style={{ marginBottom: 16 }}>
+              <Button
+                icon={<ImportOutlined />}
+                disabled={importBusy}
+                onClick={() => importFileInputRef.current?.click()}
+              >
+                选择 JSON 文件
+              </Button>
+            </Space>
+
             <Space.Compact style={{ width: '100%', marginBottom: 16 }}>
               <Input
-                placeholder="https://github.com/white0dew/XiaohongshuSkills"
+                placeholder="Git / SKILL.md 链接，或 https://…/skills.json"
                 value={importUrl}
                 disabled={importBusy}
                 onChange={(e) => {
                   setImportUrl(e.target.value)
                   setImportPreview(null)
+                  setImportJsonDrafts(null)
                 }}
                 onPressEnter={() => void handleImportPreview()}
               />
@@ -773,14 +885,36 @@ export function SkillsPage(): React.ReactElement {
                   <p className={styles.importPreviewDesc}>{importPreview.description}</p>
                 ) : null}
                 <Space wrap size={4}>
-                  <Tag color={importPreview.method === 'git_clone' ? DB_THEME.primary : 'default'}>
-                    {importPreview.method === 'git_clone' ? 'Git Clone' : 'HTTP 下载'}
+                  <Tag
+                    color={
+                      importPreview.method === 'git_clone'
+                        ? DB_THEME.primary
+                        : importPreview.method === 'json'
+                          ? 'processing'
+                          : 'default'
+                    }
+                  >
+                    {importPreview.method === 'git_clone'
+                      ? 'Git Clone'
+                      : importPreview.method === 'json'
+                        ? 'JSON'
+                        : 'HTTP 下载'}
                   </Tag>
                   {importPreview.hasExamples ? <Tag>含示例</Tag> : null}
-                  <Tag color="success">远程可用</Tag>
+                  <Tag color="success">可导入</Tag>
                 </Space>
                 {importPreview.reasoning ? (
                   <p className={styles.importReasoning}>{importPreview.reasoning}</p>
+                ) : null}
+                {importPreview.jsonItems && importPreview.jsonItems.length > 0 ? (
+                  <ul className={styles.importJsonList}>
+                    {importPreview.jsonItems.map((item) => (
+                      <li key={item.id}>
+                        <code>{item.id}</code> · {item.name}
+                        {item.hasExamples ? '（含示例）' : ''}
+                      </li>
+                    ))}
+                  </ul>
                 ) : null}
               </Card>
             ) : null}
@@ -788,12 +922,16 @@ export function SkillsPage(): React.ReactElement {
             <Form layout="vertical" style={{ marginTop: 16 }}>
               <Form.Item
                 label="目标 ID（安装目录名）"
-                extra="仅小写字母、数字、连字符；与 .cursor/skills/<id> 对应"
-                required
+                extra={
+                  importJsonMulti
+                    ? '多条 JSON 将使用各自的 id，此项不生效'
+                    : '仅小写字母、数字、连字符；与 .cursor/skills/<id> 对应'
+                }
+                required={!importJsonMulti}
               >
                 <Input
                   value={importTargetId}
-                  disabled={importBusy}
+                  disabled={importBusy || importJsonMulti}
                   onChange={(e) => setImportTargetId(slugifySkillId(e.target.value))}
                   placeholder="my-skill"
                 />

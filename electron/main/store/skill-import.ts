@@ -11,13 +11,20 @@ import {
 } from 'fs'
 import { join } from 'path'
 import { promisify } from 'util'
-import type { ProjectSkillDetail, SkillImportMethod, SkillImportPreview } from '../../../shared/types'
+import type { ProjectSkillDetail, SkillImportMethod, SkillImportPreview, SkillUpsertInput } from '../../../shared/types'
+import {
+  isLikelySkillJsonUrl,
+  isValidSkillImportId,
+  parseSkillImportJson,
+  slugifySkillImportId
+} from '../../../shared/skill-import-json'
 import { createLlmClient } from '../agent/llm'
 import { getSkillImportTempDir } from './paths'
 import { querySettings } from './settings'
 import {
   getSkillsDir,
   parseSkillMarkdown,
+  postProjectSkill,
   queryProjectSkillDetail,
   validateSkillId
 } from './skills'
@@ -365,7 +372,7 @@ async function fetchRemoteText(url: string): Promise<string> {
     const res = await fetch(url, {
       signal: controller.signal,
       headers: {
-        Accept: 'text/plain, text/markdown, */*',
+        Accept: 'application/json, text/plain, text/markdown, */*',
         'User-Agent': 'react-agent-skill-import/1.0'
       }
     })
@@ -869,14 +876,24 @@ async function readSkillMarkdownForPreview(plan: SkillImportPlan): Promise<{
 
 /**
  * 预览远程技能（不写盘），供 UI 展示建议 id、导入方式与元信息。
+ * JSON 链接优先：直接拉取并 parse，不走 LLM / SKILL.md 流程。
  */
 export async function querySkillImportPreview(url: string): Promise<SkillImportPreview> {
-  const plan = await querySkillImportPlan(url)
+  const trimmed = url.trim()
+  if (!trimmed) {
+    throw new Error('请输入技能链接')
+  }
+
+  if (isLikelySkillJsonUrl(trimmed)) {
+    return previewJsonImportFromUrl(trimmed)
+  }
+
+  const plan = await querySkillImportPlan(trimmed)
   const { skillMdRef, raw, hasExamples } = await readSkillMarkdownForPreview(plan)
   const { name, description } = parseSkillMarkdown(raw)
 
   return {
-    url: url.trim(),
+    url: trimmed,
     method: plan.method,
     skillMdUrl: skillMdRef,
     suggestedId: plan.suggestedId,
@@ -888,16 +905,86 @@ export async function querySkillImportPreview(url: string): Promise<SkillImportP
 }
 
 /**
- * 从链接导入技能：Git 仓库执行 git clone，其他链接 HTTP 下载。
- * 导入方式由大模型判断（失败时规则兜底）。
+ * 从链接导入技能：JSON / Git clone / HTTP 下载。
+ * 导入方式由 URL 特征或大模型判断（失败时规则兜底）。
  */
 export async function postImportSkillFromUrl(
   url: string,
   targetId?: string
 ): Promise<ProjectSkillDetail> {
-  const plan = await querySkillImportPlan(url)
+  const trimmed = url.trim()
+  if (!trimmed) {
+    throw new Error('请输入技能链接')
+  }
+
+  if (isLikelySkillJsonUrl(trimmed)) {
+    const text = await fetchRemoteText(trimmed)
+    const items = parseSkillImportJson(text)
+    return postImportSkillsFromJson(items, targetId)
+  }
+
+  const plan = await querySkillImportPlan(trimmed)
   if (plan.method === 'git_clone') {
     return importSkillViaGitClone(plan, targetId)
   }
   return importSkillViaHttpDownload(plan, targetId)
+}
+
+/** 拉取 JSON URL 并生成预览（不写盘） */
+async function previewJsonImportFromUrl(url: string): Promise<SkillImportPreview> {
+  const text = await fetchRemoteText(url)
+  const items = parseSkillImportJson(text)
+  const first = items[0]
+  return {
+    url,
+    method: 'json',
+    skillMdUrl: url,
+    suggestedId: first.id,
+    name: items.length === 1 ? first.name : `${items.length} 个技能`,
+    description:
+      items.length === 1
+        ? first.description
+        : items.map((s) => s.name).join('、'),
+    hasExamples: items.some((s) => Boolean(s.examplesContent?.trim())),
+    reasoning: '识别为技能 JSON，将按条写入 .cursor/skills',
+    jsonItems: items.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      hasExamples: Boolean(s.examplesContent?.trim())
+    }))
+  }
+}
+
+/**
+ * 将解析后的技能列表写入本地；单条时可覆盖目标 id。
+ * 返回最后写入的那条详情，便于 UI 刷新选中态。
+ */
+export function postImportSkillsFromJson(
+  items: SkillUpsertInput[],
+  targetId?: string
+): ProjectSkillDetail {
+  if (items.length === 0) {
+    throw new Error('没有可导入的技能')
+  }
+
+  const normalizedTarget = targetId?.trim() ? slugifySkillImportId(targetId.trim()) : ''
+  if (normalizedTarget && !isValidSkillImportId(normalizedTarget)) {
+    throw new Error('目标 id 格式无效，请使用小写字母、数字和连字符')
+  }
+
+  // 为什么：多条 JSON 各自保留 id；仅单条时允许「目标 ID」覆盖目录名
+  const toWrite =
+    items.length === 1 && normalizedTarget
+      ? [{ ...items[0], id: normalizedTarget }]
+      : items
+
+  let last: ProjectSkillDetail | null = null
+  for (const input of toWrite) {
+    last = postProjectSkill(input)
+  }
+  if (!last) {
+    throw new Error('导入失败：未写入任何技能')
+  }
+  return last
 }
