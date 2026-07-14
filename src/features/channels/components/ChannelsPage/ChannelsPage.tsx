@@ -249,7 +249,7 @@ export function ChannelsPage(): React.ReactElement {
       setEditOpen(false)
       setEditDraft(null)
     } catch (err) {
-      // Ant Design 校验失败是普通对象，不是 Error，静默拦截避免 Modal uncaught
+      // Ant Design 校验失败是普通对象，不是 Error，静默拦截避免抽屉内 uncaught
       if (err instanceof Error && err.message && err.message !== 'validation') {
         message.error(err.message)
       }
@@ -257,6 +257,13 @@ export function ChannelsPage(): React.ReactElement {
     } finally {
       setSaving(false)
     }
+  }
+
+  /** 关闭新建/编辑抽屉；保存中禁止关闭以防中断写入 */
+  const closeEditDrawer = (): void => {
+    if (saving) return
+    setEditOpen(false)
+    setEditDraft(null)
   }
 
   const handleDelete = async (id: string): Promise<void> => {
@@ -677,23 +684,28 @@ export function ChannelsPage(): React.ReactElement {
         )}
       </Modal>
 
-      <Modal
+      {/* 新建 / 编辑：右侧抽屉（可从详情 Modal 叠开，故抬高 zIndex；对齐技能市场） */}
+      <Drawer
         title={editMode === 'create' ? '新增渠道' : '编辑渠道'}
+        placement="right"
+        width="69vw"
         open={editOpen}
-        onCancel={() => {
-          if (saving) return
-          setEditOpen(false)
-          setEditDraft(null)
-        }}
-        onOk={handleSave}
-        confirmLoading={saving}
-        okButtonProps={{ loading: saving }}
-        cancelButtonProps={{ disabled: saving }}
+        onClose={closeEditDrawer}
         maskClosable={!saving}
         closable={!saving}
         destroyOnHidden
-        width={560}
-        className={styles.editModal}
+        zIndex={1200}
+        className={styles.editDrawer}
+        footer={
+          <div className={styles.editDrawerFooter}>
+            <Button disabled={saving} onClick={closeEditDrawer}>
+              取消
+            </Button>
+            <Button type="primary" loading={saving} onClick={() => void handleSave()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         <Spin spinning={saving} tip="保存中…">
           <Form
@@ -809,7 +821,7 @@ export function ChannelsPage(): React.ReactElement {
             </Form.Item>
           </Form>
         </Spin>
-      </Modal>
+      </Drawer>
     </div>
   )
 }

@@ -356,12 +356,45 @@
   margin-bottom: 0;
 }
 
-/* ── 详情 / 编辑弹窗：限制高度，表单过长可滚动 ── */
-.detailModal :global(.ant-modal-body),
-.editModal :global(.ant-modal-body) {
+/* ── 详情弹窗：限制高度，内容过长可滚动 ── */
+.detailModal :global(.ant-modal-body) {
   max-height: 70vh;
   overflow: auto;
   padding-top: 8px;
+}
+
+/* ── 新建 / 编辑抽屉（气质对齐技能市场） ── */
+.editDrawer :global(.ant-drawer-content) {
+  background: var(--db-bg);
+}
+
+.editDrawer :global(.ant-drawer-header) {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+.editDrawer :global(.ant-drawer-title) {
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--db-text);
+  letter-spacing: -0.01em;
+}
+
+.editDrawer :global(.ant-drawer-body) {
+  padding: 20px 24px 24px;
+}
+
+.editDrawer :global(.ant-drawer-footer) {
+  padding: 12px 24px;
+  border-top: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+.editDrawerFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .detailBody {
