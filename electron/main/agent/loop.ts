@@ -10,6 +10,16 @@ import { getMainWindow } from '../window'
 import { queryEnabledSkillPrompt } from '../store/skills'
 import { queryEnabledRulePrompt } from '../store/rules'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
+import {
+  bindGraphSessionAbort,
+  getGraphAbortSignal,
+  postGraphAbort,
+  postGraphContinue,
+  releaseGraphSessionAbort,
+  runLangGraphChat,
+  runLangGraphStep,
+  waitForGraphUserContinue
+} from './graph-bridge'
 
 const BASE_SYSTEM_PROMPT = `你是跨平台桌面 AI 发布助手「灵犀」，擅长通过工具完成内容创作与多渠道发布自动化。
 
@@ -58,10 +68,13 @@ function buildSystemPrompt(): string {
   return parts.join('\n\n')
 }
 
-/** 每个会话一个 AbortController，支持停止 */
+/**
+ * legacy ReAct 本地 abort 备份（与 graph-bridge 同步写入）。
+ * 新路径以 graph-bridge 为准。
+ */
 const abortMap = new Map<string, AbortController>()
 
-/** await_user 时挂起，continue 时 resolve */
+/** legacy await_user waiter（waitForUserContinue 已委托 Bridge，此处仅兼容旧引用） */
 const continueWaiters = new Map<string, { resolve: () => void; reject: (e: Error) => void }>()
 
 /**
@@ -164,6 +177,8 @@ function buildApiMessages(session: Session): ChatCompletionMessageParam[] {
 }
 
 export function postAgentAbort(sessionId: string): void {
+  // LangGraph 与 legacy 共用中止语义
+  postGraphAbort(sessionId)
   abortMap.get(sessionId)?.abort()
   abortMap.delete(sessionId)
   const waiter = continueWaiters.get(sessionId)
@@ -174,6 +189,7 @@ export function postAgentAbort(sessionId: string): void {
 }
 
 export function postAgentContinue(sessionId: string): void {
+  postGraphContinue(sessionId)
   const waiter = continueWaiters.get(sessionId)
   if (waiter) {
     waiter.resolve()
@@ -186,23 +202,19 @@ export function postAgentContinue(sessionId: string): void {
  * 会先中止该会话上一次执行，避免双循环抢事件。
  */
 export function bindSessionAbort(sessionId: string): AbortController {
-  postAgentAbort(sessionId)
-  const controller = new AbortController()
-  abortMap.set(sessionId, controller)
-  return controller
+  return bindGraphSessionAbort(sessionId)
 }
 
 /** 释放引擎持有的 abort 句柄（不主动 abort） */
 export function releaseSessionAbort(sessionId: string): void {
+  releaseGraphSessionAbort(sessionId)
   abortMap.delete(sessionId)
 }
 
 /** 供工作流 await_user 节点与敏感工具确认复用 */
 export async function waitForUserContinue(sessionId: string, reason: string): Promise<void> {
-  emit({ type: 'await_user', sessionId, reason })
-  await new Promise<void>((resolve, reject) => {
-    continueWaiters.set(sessionId, { resolve, reject })
-  })
+  // 优先走 Bridge 的 waiter（与 LangGraph interrupt resume 共用）
+  await waitForGraphUserContinue(sessionId, reason)
 }
 
 /**
@@ -214,15 +226,20 @@ export async function runAgentChat(params: {
   content: string
   attachmentPaths?: string[]
 }): Promise<void> {
-  const { sessionId, content, attachmentPaths = [] } = params
   const settings = querySettings()
+  // 默认 LangGraph 编排；设置中可回滚 legacy ReAct
+  if (settings.agentRuntime !== 'legacy') {
+    await runLangGraphChat(params)
+    return
+  }
+
+  const { sessionId, content, attachmentPaths = [] } = params
   let session = querySession(sessionId)
   if (!session) {
     throw new Error(`会话不存在: ${sessionId}`)
   }
 
-  postAgentAbort(sessionId)
-  const controller = new AbortController()
+  const controller = bindGraphSessionAbort(sessionId)
   abortMap.set(sessionId, controller)
 
   const userMsg = appendMessage(session, {
@@ -420,16 +437,21 @@ export async function runAgentStep(params: {
   toolWhitelist?: string[]
   attachmentPaths?: string[]
 }): Promise<AgentStepResult> {
-  const { sessionId, prompt, toolWhitelist, attachmentPaths = [] } = params
   const settings = querySettings()
+  if (settings.agentRuntime !== 'legacy') {
+    return runLangGraphStep(params)
+  }
+
+  const { sessionId, prompt, toolWhitelist, attachmentPaths = [] } = params
   let session = querySession(sessionId)
   if (!session) {
     throw new Error(`会话不存在: ${sessionId}`)
   }
 
   let controller = abortMap.get(sessionId)
-  if (!controller || controller.signal.aborted) {
-    controller = new AbortController()
+  const existingSignal = getGraphAbortSignal(sessionId)
+  if (!controller || controller.signal.aborted || !existingSignal || existingSignal.aborted) {
+    controller = bindGraphSessionAbort(sessionId)
     abortMap.set(sessionId, controller)
   }
 

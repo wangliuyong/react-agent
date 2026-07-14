@@ -1,12 +1,12 @@
 ---
 name: react-agent-agent-tools
 description: >-
-  React Agent 的 Agent 工具注册、ReAct 循环与 SYSTEM_PROMPT 修改。
+  React Agent 的 Agent 工具注册、LangGraph 编排与角色提示修改。
   在 react-agent 中新增/修改/删除 Agent 工具、调整工具权限、
-  更新 loop 行为或 LLM 系统提示时使用。
+  更新多智能体角色或 LLM 系统提示时使用。
 ---
 
-# Agent 工具与 ReAct 循环
+# Agent 工具与 LangGraph 编排
 
 ## 核心文件
 
@@ -14,15 +14,21 @@ description: >-
 |------|------|
 | `electron/main/agent/tools/index.ts` | **工具注册表**，新增工具只在此 append |
 | `electron/main/agent/tools/types.ts` | `AgentTool`、`ToolContext`、`ToolPermission` |
-| `electron/main/agent/loop.ts` | ReAct 循环 + `SYSTEM_PROMPT` |
-| `electron/main/agent/llm.ts` | DashScope OpenAI 兼容客户端 |
+| `electron/main/agent/tools/langchain-adapter.ts` | `AgentTool` → LangChain `tool()` + `interrupt` 权限门 |
+| `electron/main/agent/graph-bridge.ts` | stream → `AgentEvent`、abort / continue |
+| `electron/main/agent/graph/chat-graph.ts` | Supervisor + general / researcher / writer / publisher |
+| `electron/main/agent/graph/prompts.ts` | 各角色 system prompt |
+| `electron/main/agent/graph/role-tools.ts` | 角色工具白名单 |
+| `electron/main/agent/loop.ts` | 入口：`agentRuntime=langgraph`（默认）或 `legacy` |
+| `electron/main/workflow/compile-to-langgraph.ts` | 工作流 Definition → StateGraph |
 
 ## 新增工具（固定流程）
 
 1. 在 `electron/main/agent/tools/<domain>-tools.ts` 定义 `AgentTool`
-2. 在 `tools/index.ts` 的 `getAllTools()` **末尾追加**（不改 loop）
-3. 若需浏览器能力，调用 `electron/main/browser/` 服务，不在 tool 内直接 launch Playwright
-4. 跑 `pnpm typecheck`
+2. 在 `tools/index.ts` 的 `getAllTools()` **末尾追加**（不改 Bridge / 图）
+3. 若角色需要该工具，更新 `graph/role-tools.ts` 白名单
+4. 若需浏览器能力，调用 `electron/main/browser/` 服务
+5. 跑 `pnpm typecheck`
 
 ### AgentTool 模板
 
@@ -38,7 +44,7 @@ export const myTool: AgentTool = {
   },
   async execute(args, ctx) {
     // ctx.sessionId, ctx.fullAccess, ctx.attachmentPaths
-    // ctx.emitAwaitUser(reason) — 暂停等人（登录/确认）
+    // ctx.emitAwaitUser(reason) — LangGraph 下转为 interrupt
     // ctx.updateTasks(updater) — 更新任务清单
     // ctx.signal — AbortSignal
     return '给模型的字符串结果'
@@ -46,47 +52,40 @@ export const myTool: AgentTool = {
 }
 ```
 
-## 权限级别
+## 权限与中断
 
 | 级别 | 行为 |
 |------|------|
 | `safe` | 直接执行 |
 | `sensitive` | 非 fullAccess 时可能需确认 |
-| `dangerous` | 发布/删除等，默认需确认 |
+| `dangerous` | 适配层 `interrupt`；发布工具可走工具内确认 |
 
-`fullAccess` 来自设置页，经 `ToolContext` 传入。
+`await_user` / 登录暂停 → LangGraph `interrupt` → UI `await_user` → `postAgentContinue` → `Command({ resume })`。
 
-## SYSTEM_PROMPT 修改
+设置项 `agentRuntime: 'langgraph' | 'legacy'` 可回滚自研 ReAct。
 
-在 `loop.ts` 的 `SYSTEM_PROMPT` 字符串中修改。注意：
+## 角色提示修改
 
-- 工作流步骤与工具名保持一致（如 `fetch_web_images` → `xhs_publish_note`）
-- 强调「不要编造已发布成功，以工具返回为准」
-- 配图优先网页抓取，用户上传为可选
-- 交互通过工具完成，不建议脚本改 DOM
+在 `graph/prompts.ts` 的 `ROLE_PROMPTS` / `BASE_CAPABILITY` 中修改。注意：
 
-## 现有工具清单
+- 工作流步骤与工具名保持一致
+- 不要编造已发布成功，以工具返回为准
+- 配图优先网页抓取
 
-**文件**：`list_attachments`、`read_file`、`write_file`  
-**任务**：`update_task_list`  
-**配图**：`fetch_web_images`  
-**浏览器原子**：`browser_navigate`、`browser_snapshot`、`browser_click`、`browser_type`、`browser_upload`、`browser_wait`  
-**业务**：`xhs_publish_note`
+## 编排要点
 
-## ReAct 循环要点
-
-- 模型产出 `tool_calls` → 主进程 `getToolByName` 执行 → 结果回灌
-- `await_user` 挂起，`continueAgent` IPC 恢复
-- 每会话一个 `AbortController`，支持停止
-- 事件经 `event:agent` 推送到渲染进程
+- 聊天：Supervisor 路由 → `general`（问答）或 `researcher→writer→publisher`
+- 工作流：`compile-to-langgraph` 按顶层节点 advance；agent 步走 ReAct 子图
+- 事件经 `event:agent` 推送到渲染进程（含可选 `agent_role`）
 
 ## 验证
 
 ```bash
 pnpm typecheck
-pnpm dev   # 聊天窗口发指令，观察 tool_start / tool_result 事件
+pnpm dev   # 聊天问答 / 发布管线；观察 tool_* 与 await_user
 ```
 
 ## 沉淀
 
 新工具模式写入 [examples.md](examples.md)。
+设计详见 `docs/superpowers/specs/2026-07-14-langgraph-orchestration-design.md`。

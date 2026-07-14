@@ -71,6 +71,9 @@ export const IpcChannels = {
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 
+/** Agent 运行时：langgraph 为默认；legacy 保留自研 ReAct 回滚 */
+export type AgentRuntime = 'langgraph' | 'legacy'
+
 /** 应用设置（本地 JSON 缓存） */
 export interface AppSettings {
   /** 阿里云百炼 API Key */
@@ -83,6 +86,11 @@ export interface AppSettings {
   fullAccess: boolean
   /** Agent 最大工具轮次 */
   maxTurns: number
+  /**
+   * Agent 编排实现。
+   * langgraph：LangChain + LangGraph；legacy：自研 loop.ts ReAct（迁移期回滚）。
+   */
+  agentRuntime: AgentRuntime
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -90,7 +98,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   model: 'qwen-plus',
   fullAccess: false,
-  maxTurns: 40
+  maxTurns: 40,
+  agentRuntime: 'langgraph'
 }
 
 /** 百炼常用模型选项（聊天与设置页共用） */
@@ -269,6 +278,14 @@ export interface ScheduledTask {
 }
 
 /** Agent 流式事件（主进程推送到渲染进程） */
+/** 多智能体当前角色（可选，供 UI 状态文案） */
+export type AgentRoleName =
+  | 'supervisor'
+  | 'general'
+  | 'researcher'
+  | 'writer'
+  | 'publisher'
+
 export type AgentEvent =
   | { type: 'text_delta'; sessionId: string; delta: string }
   | { type: 'message'; sessionId: string; message: ChatMessage }
@@ -279,6 +296,7 @@ export type AgentEvent =
   | { type: 'browser_open'; sessionId: string; url: string }
   | { type: 'done'; sessionId: string; reason: string }
   | { type: 'error'; sessionId: string; message: string }
+  | { type: 'agent_role'; sessionId: string; role: AgentRoleName }
 
 export interface BrowserStatus {
   running: boolean
