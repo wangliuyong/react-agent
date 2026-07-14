@@ -60,7 +60,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         type: 'agent',
         title: '发布到小红书',
         prompt:
-          '使用 xhs_publish_note 发布上一步内容；autoPublish=true；遵守小红书风控与去同质化要求。',
+          '使用 xhs_publish_note 填写上一步内容；必须 autoPublish=false，停在待发布，勿自动点击发布；遵守小红书风控与去同质化要求。',
         toolWhitelist: ['xhs_publish_note', 'fetch_web_images', 'list_attachments', 'update_task_list']
       }
     ],

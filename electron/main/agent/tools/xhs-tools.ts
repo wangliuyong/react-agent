@@ -84,7 +84,8 @@ export const xhsPublishNoteTool: AgentTool = {
       },
       autoPublish: {
         type: 'boolean',
-        description: '是否自动点击发布。false 时只填好内容停在待发布'
+        description:
+          '是否自动点击发布。产品策略下会被忽略并固定为 false：只填好内容停在待发布，由用户手动发布'
       }
     },
     required: ['title', 'content']
@@ -129,7 +130,8 @@ export const xhsPublishNoteTool: AgentTool = {
       title: String(args.title ?? ''),
       content: String(args.content ?? ''),
       imagePaths,
-      autoPublish: Boolean(args.autoPublish),
+      // 任务/流程不自动点发布：忽略模型传入的 true
+      autoPublish: false,
       fullAccess: ctx.fullAccess,
       emitAwaitUser: ctx.emitAwaitUser,
       updateTasks: ctx.updateTasks,

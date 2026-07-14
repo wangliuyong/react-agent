@@ -56,7 +56,8 @@ function buildChannelAgentNode(sub: PublishSubTask, channelId: string): Workflow
       `将上一步创作的内容发布到「${label}」。`,
       `任务标题：${sub.title}`,
       sub.topic ? `主题：${sub.topic}` : '',
-      `自动发布：${sub.autoPublish ? '是（填好后直接发布）' : '否（填好停在待发布，若已确认则发布）'}`,
+      // 产品策略：流程/任务执行不自动点发布，一律停在待发布
+      '调用发布工具时必须 autoPublish=false，只填好内容停在待发布，勿自动点击发布。',
       titleHint,
       meta.agentHint,
       `必须使用工具 ${meta.publishTool} 完成；不要改发到其他渠道。`
@@ -71,15 +72,14 @@ function buildSubTaskNodes(sub: PublishSubTask): WorkflowNode[] {
   const nodes: WorkflowNode[] = [buildCreateAgentNode(sub)]
   const channels = normalizePublishSubTaskChannels(sub.channels)
 
-  if (!sub.autoPublish) {
-    const awaitNode: WorkflowAwaitNode = {
-      id: `${sub.id}_confirm`,
-      type: 'await_user',
-      title: `确认发布：${sub.title}`,
-      reason: `子任务「${sub.title}」内容已准备好，请确认后继续发布。`
-    }
-    nodes.push(awaitNode)
+  // 始终在发布前暂停，避免任务/流程无人确认就执行到终态
+  const awaitNode: WorkflowAwaitNode = {
+    id: `${sub.id}_confirm`,
+    type: 'await_user',
+    title: `确认发布：${sub.title}`,
+    reason: `子任务「${sub.title}」内容已准备好，请确认后继续填写渠道发布页（不会自动点击发布）。`
   }
+  nodes.push(awaitNode)
 
   if (channels.length === 0) {
     return nodes

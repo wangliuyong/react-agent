@@ -42,7 +42,7 @@ export function createEmptySubTask(partial?: Partial<PublishSubTask>): PublishSu
     title: '新子任务',
     channels: ['xhs'],
     topic: '',
-    autoPublish: true,
+    autoPublish: false,
     contentPrompt: '',
     ...partial
   }

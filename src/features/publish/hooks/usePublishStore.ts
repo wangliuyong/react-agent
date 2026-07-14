@@ -75,7 +75,7 @@ export const usePublishStore = create<PublishState>((set, get) => ({
         title: '人工智能 · 小红书 + 抖音',
         channels: ['xhs', 'douyin'],
         topic: '人工智能',
-        autoPublish: true,
+        autoPublish: false,
         contentPrompt:
           '内容主题：搜罗昨日 ai 最新热门新闻。配图：从相关新闻来源网页用 fetch_web_images 抓取封面图（本地上传可选）。确认点：如果需要登录。'
       }),
@@ -83,7 +83,7 @@ export const usePublishStore = create<PublishState>((set, get) => ({
         title: '体育 · 小红书',
         channels: ['xhs'],
         topic: '体育',
-        autoPublish: true,
+        autoPublish: false,
         contentPrompt:
           '内容主题：搜罗昨日最新 nba 信息、交易、球星评论等。配图：从相关新闻来源网页抓取（本地上传可选）。确认点：如果需要登录。'
       })
