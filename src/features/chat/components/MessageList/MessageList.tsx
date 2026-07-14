@@ -45,9 +45,9 @@ export function MessageList({
   const lastAssistant = [...visible].reverse().find((m) => m.role === 'assistant')
   const trailingPlaceholderId =
     running &&
-    phase !== 'idle' &&
-    lastAssistant?.role === 'assistant' &&
-    !lastAssistant.content.trim()
+      phase !== 'idle' &&
+      lastAssistant?.role === 'assistant' &&
+      !lastAssistant.content.trim()
       ? lastAssistant.id
       : null
 
@@ -126,7 +126,7 @@ export function MessageList({
         }
         return (
           <div key={m.id} className={`${styles.row} ${styles.rowAssistant}`}>
-            <span className={styles.label}>Agent</span>
+            <span className={styles.label}>灵犀</span>
             <div className={styles.assistantCard}>
               <AssistantBody content={m.content} />
             </div>
@@ -136,7 +136,7 @@ export function MessageList({
 
       {streamingText ? (
         <div className={`${styles.row} ${styles.rowAssistant}`}>
-          <span className={styles.label}>Agent</span>
+          <span className={styles.label}>灵犀</span>
           <div className={`${styles.assistantCard} ${styles.assistantCardStreaming}`}>
             <AssistantBody content={streamingText} streaming />
           </div>
@@ -145,7 +145,7 @@ export function MessageList({
 
       {showPending ? (
         <div className={`${styles.row} ${styles.rowAssistant}`}>
-          <span className={styles.label}>Agent</span>
+          <span className={styles.label}>灵犀</span>
           <div className={styles.pendingWrap}>
             {phase === 'tool' && activeToolName ? (
               <div className={styles.toolRunning}>
