@@ -3,6 +3,7 @@ import { IpcChannels } from '../../shared/types'
 import type {
   AgentChatRequest,
   AgentEvent,
+  AgentRuleUpsertInput,
   AppSettings,
   BrowserFramePayload,
   ChannelLoginStatus,
@@ -84,6 +85,11 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.postImportSkillFromUrl, url, targetId),
   queryLocalImageDataUrl: (filePath: string) =>
     ipcRenderer.invoke(IpcChannels.queryLocalImageDataUrl, filePath),
+
+  queryAgentRules: () => ipcRenderer.invoke(IpcChannels.queryAgentRules),
+  postAgentRule: (input: AgentRuleUpsertInput) =>
+    ipcRenderer.invoke(IpcChannels.postAgentRule, input),
+  postDeleteAgentRule: (id: string) => ipcRenderer.invoke(IpcChannels.postDeleteAgentRule, id),
 
   onAgentEvent: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, data: AgentEvent): void => {

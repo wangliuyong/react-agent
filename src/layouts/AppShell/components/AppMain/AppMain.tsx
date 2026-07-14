@@ -5,6 +5,7 @@ import { PublishWorkbench } from '@/features/publish'
 import { SchedulePage } from '@/features/schedule'
 import { SettingsPage } from '@/features/settings'
 import { SkillsPage } from '@/features/skills'
+import { RulesPage } from '@/features/rules'
 import { queryNavItem } from '../../config/nav-items'
 import { PlaceholderView } from './PlaceholderView'
 import styles from './AppMain.module.css'
@@ -26,6 +27,7 @@ export function AppMain({ view }: AppMainProps): React.ReactElement {
         {view === 'settings' && <SettingsPage />}
         {view === 'skills' && <SkillsPage />}
         {view === 'channels' && <ChannelsPage />}
+        {view === 'rules' && <RulesPage />}
         {placeholderNav?.placeholder && (
           <PlaceholderView icon={placeholderNav.icon} label={placeholderNav.label} />
         )}

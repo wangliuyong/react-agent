@@ -1,7 +1,16 @@
 import { ipcMain } from 'electron'
 import { rmSync, existsSync } from 'fs'
 import { IpcChannels } from '../../shared/types'
-import type { AgentChatRequest, AppSettings, PublishPlan, ScheduledTask, Session, SkillStates, SkillUpsertInput } from '../../shared/types'
+import type {
+  AgentChatRequest,
+  AgentRuleUpsertInput,
+  AppSettings,
+  PublishPlan,
+  ScheduledTask,
+  Session,
+  SkillStates,
+  SkillUpsertInput
+} from '../../shared/types'
 import { querySettings, postSettings } from './store/settings'
 import {
   querySessions,
@@ -47,6 +56,11 @@ import {
   postDeletePublishChannel,
   postInitPublishChannels
 } from './store/channels'
+import {
+  queryAgentRules,
+  postAgentRule,
+  postDeleteAgentRule
+} from './store/rules'
 import type { PublishChannelUpsertInput } from '../../shared/publish-channels'
 
 /** 注册全部 IPC；读 query* / 写 post* */
@@ -149,4 +163,10 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.queryLocalImageDataUrl, (_e, filePath: string) =>
     queryLocalImageDataUrl(filePath)
   )
+
+  ipcMain.handle(IpcChannels.queryAgentRules, () => queryAgentRules())
+  ipcMain.handle(IpcChannels.postAgentRule, (_e, input: AgentRuleUpsertInput) =>
+    postAgentRule(input)
+  )
+  ipcMain.handle(IpcChannels.postDeleteAgentRule, (_e, id: string) => postDeleteAgentRule(id))
 }

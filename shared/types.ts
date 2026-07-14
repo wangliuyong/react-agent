@@ -52,6 +52,10 @@ export const IpcChannels = {
   querySkillImportPreview: 'query:skill-import-preview',
   postImportSkillFromUrl: 'post:skill-import-from-url',
   queryLocalImageDataUrl: 'query:local-image-data-url',
+  // Agent 用户规则（持久指令，注入 SYSTEM_PROMPT）
+  queryAgentRules: 'query:agent-rules',
+  postAgentRule: 'post:agent-rule',
+  postDeleteAgentRule: 'post:agent-rule:delete',
   // 事件推送（main → renderer）
   onAgentEvent: 'event:agent',
   onBrowserFrame: 'event:browser-frame',
@@ -337,6 +341,30 @@ export interface ProjectSkillDetail extends ProjectSkill {
 /** 技能启用状态：skillId → { enabled } */
 export type SkillStates = Record<string, { enabled: boolean }>
 
+/**
+ * Agent 用户规则：Always Apply 的持久指令。
+ * 与技能分工——规则偏用户偏好/长期约束，技能偏可安装流程知识。
+ */
+export interface AgentRule {
+  id: string
+  name: string
+  description: string
+  /** Markdown 正文，启用时注入 SYSTEM_PROMPT */
+  content: string
+  enabled: boolean
+  createdAt: number
+  updatedAt: number
+}
+
+/** 规则写入 DTO（不含时间戳，由主进程填充） */
+export interface AgentRuleUpsertInput {
+  id: string
+  name: string
+  description: string
+  content: string
+  enabled: boolean
+}
+
 /** Preload 暴露给 window.api 的类型 */
 export interface ElectronApi {
   querySettings: () => Promise<AppSettings>
@@ -377,6 +405,9 @@ export interface ElectronApi {
   querySkillImportPreview: (url: string) => Promise<SkillImportPreview>
   postImportSkillFromUrl: (url: string, targetId?: string) => Promise<ProjectSkillDetail>
   queryLocalImageDataUrl: (filePath: string) => Promise<string | null>
+  queryAgentRules: () => Promise<AgentRule[]>
+  postAgentRule: (input: AgentRuleUpsertInput) => Promise<AgentRule>
+  postDeleteAgentRule: (id: string) => Promise<void>
   onAgentEvent: (cb: (event: AgentEvent) => void) => () => void
   onBrowserFrame: (cb: (frame: BrowserFramePayload) => void) => () => void
   onScheduleUpdate: (cb: (tasks: ScheduledTask[]) => void) => () => void

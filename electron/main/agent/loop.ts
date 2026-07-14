@@ -8,6 +8,7 @@ import { getAllTools, getToolByName } from './tools'
 import { toOpenAiTools, type ToolContext } from './tools/types'
 import { getMainWindow } from '../window'
 import { queryEnabledSkillPrompt } from '../store/skills'
+import { queryEnabledRulePrompt } from '../store/rules'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
 
 const BASE_SYSTEM_PROMPT = `你是跨平台桌面 AI 发布助手「灵犀」，擅长通过工具完成内容创作与多渠道发布自动化。
@@ -39,15 +40,22 @@ const BASE_SYSTEM_PROMPT = `你是跨平台桌面 AI 发布助手「灵犀」，
 - 配图：优先 fetch_web_images；发布前工具会对图片做轻量裁剪/缩放处理，仍建议结合原创素材
 - 互动：若未来做评论/私信，须针对笔记内容生成不同回复，延迟≥5秒，禁止秒回与统一话术`
 
-/** 基础提示 + 用户启用的项目技能（.cursor/skills） */
+/**
+ * 基础提示 + 用户规则（Always Apply）+ 项目技能。
+ * 规则优先于技能：长期偏好/约束应覆盖技能中的一般性说明。
+ */
 function buildSystemPrompt(): string {
+  const ruleBlock = queryEnabledRulePrompt()
   const skillBlock = queryEnabledSkillPrompt()
-  if (!skillBlock) return BASE_SYSTEM_PROMPT
-  return `${BASE_SYSTEM_PROMPT}
+  const parts = [BASE_SYSTEM_PROMPT]
 
-## 项目技能（开发规范与领域知识，请优先遵循）
-
-${skillBlock}`
+  if (ruleBlock) {
+    parts.push(`## 用户规则（必须优先遵循）\n\n${ruleBlock}`)
+  }
+  if (skillBlock) {
+    parts.push(`## 项目技能（开发规范与领域知识，请优先遵循）\n\n${skillBlock}`)
+  }
+  return parts.join('\n\n')
 }
 
 /** 每个会话一个 AbortController，支持停止 */
