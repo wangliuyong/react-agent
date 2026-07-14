@@ -1,9 +1,26 @@
-import type { PublishChannelMeta, PublishChannelUpsertInput } from '@shared/publish-channels'
+import type {
+  ChannelKind,
+  PublishChannelMeta,
+  PublishChannelUpsertInput
+} from '@shared/publish-channels'
 
-/** 新建渠道表单默认值 */
-export function createEmptyChannel(): PublishChannelUpsertInput {
+/** 新建渠道表单默认值；kind 由当前 Tab 决定，创建后不可改 */
+export function createEmptyChannel(kind: ChannelKind = 'publish'): PublishChannelUpsertInput {
+  if (kind === 'notify') {
+    return {
+      id: '',
+      kind: 'notify',
+      label: '',
+      description: '',
+      enabled: true,
+      notifyTool: 'notify_message',
+      notifyConfig: { webhookUrl: '', secret: '' },
+      agentHint: '使用 notify_message 发送；勿在对话中暴露 webhook。'
+    }
+  }
   return {
     id: '',
+    kind: 'publish',
     label: '',
     description: '',
     enabled: true,
@@ -35,12 +52,18 @@ export function isValidChannelId(id: string): boolean {
 export function channelMetaToInput(meta: PublishChannelMeta): PublishChannelUpsertInput {
   return {
     id: meta.id,
+    kind: meta.kind === 'notify' ? 'notify' : 'publish',
     label: meta.label,
     description: meta.description,
     enabled: meta.enabled,
     publishTool: meta.publishTool,
     titleMaxLength: meta.titleMaxLength,
     loginCheckUrl: meta.loginCheckUrl ?? '',
+    notifyTool: meta.notifyTool,
+    notifyConfig: {
+      webhookUrl: meta.notifyConfig?.webhookUrl ?? '',
+      secret: meta.notifyConfig?.secret ?? ''
+    },
     agentHint: meta.agentHint
   }
 }

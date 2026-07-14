@@ -32,6 +32,7 @@ export function createEmptyPlan(kind: PublishPlanKind = 'normal'): PublishPlan {
     kind,
     workflowIds: [],
     workflowId: undefined,
+    notifyChannels: [],
     subTasks: [],
     createdAt: now,
     updatedAt: now
@@ -43,6 +44,7 @@ export function createEmptySubTask(partial?: Partial<PublishSubTask>): PublishSu
     id: crypto.randomUUID(),
     title: '新子任务',
     channels: ['xhs'],
+    notifyChannels: [],
     topic: '',
     autoPublish: true,
     contentPrompt: '',

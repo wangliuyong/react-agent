@@ -9,7 +9,7 @@ import {
   queryPublishChannelLabel,
   queryPublishPlanKindLabel
 } from '../../types'
-import { useChannelsStore, queryEnabledChannelsFromStore } from '@/features/channels'
+import { useChannelsStore, queryEnabledPublishChannelsFromStore, queryEnabledNotifyChannelsFromStore } from '@/features/channels'
 import { useWorkflowsStore } from '@/features/workflows'
 import type { PublishPlan, PublishPlanKind, PublishSubTask } from '@shared/types'
 import type { PublishChannelId } from '@shared/publish-channels'
@@ -29,6 +29,8 @@ interface PlanFormValues {
   kind: PublishPlanKind
   /** 有序子流程 id 列表 */
   workflowIds: string[]
+  /** 计划结束后汇总通知 */
+  notifyChannels: PublishChannelId[]
 }
 
 function matchPlanQuery(plan: PublishPlan, query: string): boolean {
@@ -47,6 +49,7 @@ function PlanEditModal({
   mode,
   initialPlan,
   workflows,
+  notifyChannelOptions,
   onCancel,
   onSubmit
 }: {
@@ -54,6 +57,7 @@ function PlanEditModal({
   mode: 'create' | 'edit'
   initialPlan: PublishPlan | null
   workflows: Array<{ id: string; title: string; nodes: unknown[] }>
+  notifyChannelOptions: Array<{ value: string; label: string }>
   onCancel: () => void
   onSubmit: (plan: PublishPlan) => Promise<void>
 }): React.ReactElement {
@@ -76,7 +80,8 @@ function PlanEditModal({
       title: initialPlan.title,
       description: initialPlan.description,
       kind: initialPlan.kind ?? 'normal',
-      workflowIds: normalizePublishPlanWorkflowIds(initialPlan)
+      workflowIds: normalizePublishPlanWorkflowIds(initialPlan),
+      notifyChannels: initialPlan.notifyChannels ?? []
     })
   }, [open, initialPlan, form])
 
@@ -93,6 +98,7 @@ function PlanEditModal({
         kind: nextKind,
         workflowIds: nextKind === 'workflow' ? values.workflowIds ?? [] : [],
         workflowId: undefined,
+        notifyChannels: values.notifyChannels ?? [],
         // 切到流程任务时清空子任务，避免与关联流程混淆
         subTasks: nextKind === 'workflow' ? [] : initialPlan.subTasks
       })
@@ -168,6 +174,18 @@ function PlanEditModal({
             <Text type="secondary">普通任务通过子任务配置渠道与内容说明</Text>
           </Form.Item>
         ) : null}
+        <Form.Item
+          label="计划结束通知"
+          name="notifyChannels"
+          extra="全部子任务结束后汇总通知；需在渠道页配置飞书 Webhook 后可选"
+        >
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="可选，选择通知渠道"
+            options={notifyChannelOptions}
+          />
+        </Form.Item>
         <Form.Item label="说明" name="description">
           <Input.TextArea rows={3} placeholder="可选，补充用途说明" maxLength={200} showCount />
         </Form.Item>
@@ -191,8 +209,16 @@ export function PublishWorkbench(): React.ReactElement {
   const setView = useAppStore((s) => s.setView)
   const channels = useChannelsStore((s) => s.channels)
   const enabledChannels = useMemo(
-    () => queryEnabledChannelsFromStore(channels),
+    () => queryEnabledPublishChannelsFromStore(channels),
     [channels]
+  )
+  const enabledNotifyChannels = useMemo(
+    () => queryEnabledNotifyChannelsFromStore(channels),
+    [channels]
+  )
+  const notifyChannelOptions = useMemo(
+    () => enabledNotifyChannels.map((c) => ({ value: c.id, label: c.label })),
+    [enabledNotifyChannels]
   )
 
   const [kindFilter, setKindFilter] = useState<PlanKindFilter>('all')
@@ -455,6 +481,11 @@ export function PublishWorkbench(): React.ReactElement {
                   ) : (
                     <Tag color="processing">{detailPlan.subTasks.length} 个子任务</Tag>
                   )}
+                  {(detailPlan.notifyChannels ?? []).map((ch) => (
+                    <Tag key={`plan-notify-${ch}`} color="cyan">
+                      通知·{queryPublishChannelLabel(ch)}
+                    </Tag>
+                  ))}
                 </div>
               </div>
               <Space wrap>
@@ -586,6 +617,11 @@ export function PublishWorkbench(): React.ReactElement {
                           {sub.channels.map((ch) => (
                             <Tag key={ch}>{queryPublishChannelLabel(ch)}</Tag>
                           ))}
+                          {(sub.notifyChannels ?? []).map((ch) => (
+                            <Tag key={`notify-${ch}`} color="cyan">
+                              通知·{queryPublishChannelLabel(ch)}
+                            </Tag>
+                          ))}
                           {sub.topic ? <Tag>{sub.topic}</Tag> : null}
                           <Tag color={sub.autoPublish !== false ? 'processing' : 'default'}>
                             {sub.autoPublish !== false ? '自动发布' : '停在待发布'}
@@ -618,6 +654,7 @@ export function PublishWorkbench(): React.ReactElement {
         mode={planModal?.mode ?? 'create'}
         initialPlan={planModal?.plan ?? null}
         workflows={workflows}
+        notifyChannelOptions={notifyChannelOptions}
         onCancel={() => setPlanModal(null)}
         onSubmit={async (plan) => {
           const isCreate = planModal?.mode === 'create'
@@ -667,7 +704,7 @@ export function PublishWorkbench(): React.ReactElement {
                 }
               />
             </Form.Item>
-            <Form.Item label="渠道" required>
+            <Form.Item label="发布渠道" required>
               <Select
                 mode="multiple"
                 value={subModal.draft.channels}
@@ -679,6 +716,24 @@ export function PublishWorkbench(): React.ReactElement {
                   value: c.id,
                   label: c.label
                 }))}
+              />
+            </Form.Item>
+            <Form.Item
+              label="本任务结束通知"
+              extra="可选；在本子任务发布完成后额外通知，与计划结束通知可叠加"
+            >
+              <Select
+                mode="multiple"
+                allowClear
+                value={subModal.draft.notifyChannels ?? []}
+                onChange={(chs: PublishChannelId[]) =>
+                  setSubModal({
+                    ...subModal,
+                    draft: { ...subModal.draft, notifyChannels: chs }
+                  })
+                }
+                placeholder="可选，选择通知渠道"
+                options={notifyChannelOptions}
               />
             </Form.Item>
             <Form.Item label="主题">

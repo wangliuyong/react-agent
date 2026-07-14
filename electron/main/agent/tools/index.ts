@@ -10,6 +10,7 @@ import {
 import { xhsPublishNoteTool, updateTaskListTool, fetchWebImagesTool } from './xhs-tools'
 import { douyinPublishNoteTool } from './douyin-tools'
 import { fetchHotTopicsTool } from './hot-topics'
+import { notifyMessageTool } from './notify-tools'
 import type { AgentTool } from './types'
 
 /** 注册全部工具；新增能力只在此追加，不改 Loop */
@@ -28,7 +29,8 @@ export function getAllTools(): AgentTool[] {
     browserUploadTool,
     browserWaitTool,
     xhsPublishNoteTool,
-    douyinPublishNoteTool
+    douyinPublishNoteTool,
+    notifyMessageTool
   ]
 }
 

@@ -2,7 +2,9 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import {
   DEFAULT_PUBLISH_CHANNELS,
+  normalizeChannelKind,
   setPublishChannelRegistry,
+  type ChannelKind,
   type PublishChannelMeta,
   type PublishChannelUpsertInput
 } from '../../../shared/publish-channels'
@@ -22,7 +24,7 @@ export function validateChannelId(id: string): void {
 /**
  * 将磁盘数据与内置默认渠道合并：
  * - 以默认配置为底，保留用户对内置渠道的自定义修改
- * - 新版本新增的内置渠道自动补入
+ * - 新版本新增的内置渠道（如飞书通知）自动补入
  */
 function mergeWithDefaults(stored: PublishChannelMeta[]): PublishChannelMeta[] {
   const byId = new Map(stored.map((c) => [c.id, c]))
@@ -36,6 +38,7 @@ function mergeWithDefaults(stored: PublishChannelMeta[]): PublishChannelMeta[] {
       byId.set(def.id, {
         ...def,
         ...existing,
+        kind: normalizeChannelKind(existing.kind ?? def.kind),
         isBuiltin: true,
         updatedAt: existing.updatedAt ?? Date.now()
       })
@@ -48,6 +51,10 @@ function mergeWithDefaults(stored: PublishChannelMeta[]): PublishChannelMeta[] {
 function sortChannels(channels: PublishChannelMeta[]): PublishChannelMeta[] {
   return [...channels].sort((a, b) => {
     if (a.isBuiltin !== b.isBuiltin) return a.isBuiltin ? -1 : 1
+    const kindOrder = (k: ChannelKind) => (k === 'publish' ? 0 : 1)
+    const ka = kindOrder(normalizeChannelKind(a.kind))
+    const kb = kindOrder(normalizeChannelKind(b.kind))
+    if (ka !== kb) return ka - kb
     return a.label.localeCompare(b.label, 'zh-CN')
   })
 }
@@ -62,16 +69,27 @@ function channelsEqual(a: PublishChannelMeta[], b: PublishChannelMeta[]): boolea
 }
 
 function normalizeChannel(raw: PublishChannelMeta): PublishChannelMeta {
+  const kind = normalizeChannelKind((raw as { kind?: unknown }).kind)
   return {
     ...raw,
     id: raw.id.trim(),
+    kind,
     label: raw.label.trim(),
     description: raw.description.trim(),
-    publishTool: raw.publishTool.trim(),
+    // 为什么：旧数据只有 publishTool；notify 渠道不得 trim 空串导致写盘失败
+    publishTool: raw.publishTool?.trim() || undefined,
+    notifyTool: raw.notifyTool?.trim() || (kind === 'notify' ? 'notify_message' : undefined),
+    notifyConfig:
+      kind === 'notify'
+        ? {
+            webhookUrl: raw.notifyConfig?.webhookUrl?.trim() || undefined,
+            secret: raw.notifyConfig?.secret?.trim() || undefined
+          }
+        : undefined,
     loginCheckUrl: raw.loginCheckUrl?.trim() || undefined,
     titleMaxLength:
       raw.titleMaxLength != null && raw.titleMaxLength > 0 ? raw.titleMaxLength : undefined,
-    agentHint: raw.agentHint.trim(),
+    agentHint: (raw.agentHint ?? '').trim(),
     isBuiltin: raw.isBuiltin ?? DEFAULT_PUBLISH_CHANNELS.some((d) => d.id === raw.id),
     updatedAt: raw.updatedAt ?? Date.now()
   }
@@ -115,7 +133,7 @@ export function initPublishChannelRegistry(): void {
   readChannelsFromDisk()
 }
 
-/** 读：全部发布渠道 */
+/** 读：全部渠道（发布 + 通知） */
 export function queryPublishChannels(): PublishChannelMeta[] {
   return readChannelsFromDisk()
 }
@@ -132,25 +150,38 @@ export function postInitPublishChannels(): PublishChannelMeta[] {
   return writeChannels(mergeWithDefaults(custom))
 }
 
-/** 写：新增或更新渠道（内置渠道不可改 id） */
+/** 写：新增或更新渠道（内置渠道不可改 id；创建后不可改 kind） */
 export function postPublishChannel(input: PublishChannelUpsertInput): PublishChannelMeta {
   validateChannelId(input.id)
   const channels = readChannelsFromDisk()
   const now = Date.now()
   const existing = channels.find((c) => c.id === input.id)
   const isBuiltin = existing?.isBuiltin ?? DEFAULT_PUBLISH_CHANNELS.some((d) => d.id === input.id)
+  const kind = normalizeChannelKind(input.kind)
 
   if (!input.label.trim()) throw new Error('渠道名称不能为空')
-  if (!input.publishTool.trim()) throw new Error('发布工具名不能为空')
+  if (kind === 'publish') {
+    if (!input.publishTool?.trim()) throw new Error('发布工具名不能为空')
+  } else if (!input.notifyTool?.trim()) {
+    throw new Error('通知工具名不能为空')
+  }
+
+  // 为什么：类型变更会破坏工作台绑定与工具路由，创建后锁定
+  if (existing && normalizeChannelKind(existing.kind) !== kind) {
+    throw new Error('渠道类型创建后不可修改')
+  }
 
   const next: PublishChannelMeta = normalizeChannel({
     id: input.id,
+    kind,
     label: input.label,
     description: input.description,
     enabled: input.enabled,
     publishTool: input.publishTool,
     titleMaxLength: input.titleMaxLength,
     loginCheckUrl: input.loginCheckUrl,
+    notifyTool: input.notifyTool,
+    notifyConfig: input.notifyConfig,
     agentHint: input.agentHint,
     isBuiltin,
     updatedAt: now

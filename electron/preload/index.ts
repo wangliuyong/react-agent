@@ -63,6 +63,8 @@ const api: ElectronApi = {
   postDeletePublishChannel: (id: string) =>
     ipcRenderer.invoke(IpcChannels.postDeletePublishChannel, id),
   postInitPublishChannels: () => ipcRenderer.invoke(IpcChannels.postInitPublishChannels),
+  postNotifyChannelTest: (channelId: string) =>
+    ipcRenderer.invoke(IpcChannels.postNotifyChannelTest, channelId),
 
   queryChannelLoginStatuses: () => ipcRenderer.invoke(IpcChannels.queryChannelLoginStatuses),
   postChannelOpenLogin: (channelId: string) =>

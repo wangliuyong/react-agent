@@ -38,6 +38,8 @@ export const IpcChannels = {
   postPublishChannel: 'post:publish-channel',
   postDeletePublishChannel: 'post:publish-channel:delete',
   postInitPublishChannels: 'post:publish-channels:init',
+  /** 通知渠道测试发送（飞书 Webhook 等） */
+  postNotifyChannelTest: 'post:notify-channel:test',
   // 发布渠道登录态
   queryChannelLoginStatuses: 'query:channel-login-statuses',
   postChannelOpenLogin: 'post:channel:open-login',
@@ -202,6 +204,11 @@ export interface PublishSubTask {
   title: string
   /** 发布渠道 id 列表，同一子任务可同时发布到多个渠道，见 shared/publish-channels.ts */
   channels: PublishChannelId[]
+  /**
+   * 本子任务结束后额外通知的渠道 id；空数组/缺省表示仅跟随计划级 notifyChannels。
+   * 与 channels（发布）分离，避免混选通知渠道。
+   */
+  notifyChannels?: PublishChannelId[]
   /** 主题标签 */
   topic: string
   /** 是否自动发布 */
@@ -230,6 +237,11 @@ export interface PublishPlan {
   workflowIds: string[]
   /** @deprecated 请用 workflowIds；仅兼容旧数据 */
   workflowId?: string
+  /**
+   * 计划全部子任务结束后汇总通知的渠道 id。
+   * 与子任务 notifyChannels 独立：可叠加。
+   */
+  notifyChannels?: PublishChannelId[]
   subTasks: PublishSubTask[]
   createdAt: number
   updatedAt: number
@@ -611,6 +623,10 @@ export interface ElectronApi {
   postPublishChannel: (input: PublishChannelUpsertInput) => Promise<PublishChannelMeta>
   postDeletePublishChannel: (id: string) => Promise<void>
   postInitPublishChannels: () => Promise<PublishChannelMeta[]>
+  /** 通知渠道测试发送；ok=false 时带 error，不抛错便于 UI 展示 */
+  postNotifyChannelTest: (
+    channelId: string
+  ) => Promise<{ ok: true } | { ok: false; error: string }>
   queryChannelLoginStatuses: () => Promise<ChannelLoginStatus[]>
   postChannelOpenLogin: (channelId: string) => Promise<BrowserStatus>
   queryProjectSkills: () => Promise<ProjectSkill[]>

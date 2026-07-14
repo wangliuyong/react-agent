@@ -1,6 +1,7 @@
 import type { Page } from 'playwright'
 import {
   getPublishChannels,
+  normalizeChannelKind,
   queryPublishChannelMeta,
   type PublishChannelId
 } from '../../../shared/publish-channels'
@@ -78,10 +79,11 @@ export async function queryChannelLoginStatus(
   }
 }
 
-/** 批量检测全部渠道的登录态（按注册表顺序串行执行，避免并发抢浏览器） */
+/** 批量检测发布渠道的登录态（通知渠道无需登录；串行避免并发抢浏览器） */
 export async function queryAllChannelLoginStatuses(): Promise<ChannelLoginStatus[]> {
   const results: ChannelLoginStatus[] = []
   for (const channel of getPublishChannels()) {
+    if (normalizeChannelKind(channel.kind) !== 'publish') continue
     results.push(await queryChannelLoginStatus(channel.id))
   }
   return results

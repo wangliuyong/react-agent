@@ -5,6 +5,7 @@ import type {
   PublishPlan,
   PublishSubTask
 } from './types'
+import { normalizeNotifyChannelIds } from './publish-normalize'
 import {
   normalizePublishSubTaskChannels,
   queryPublishChannelLabel,
@@ -39,11 +40,14 @@ function buildEndToEndAgentNode(sub: PublishSubTask): WorkflowAgentNode {
       `#### ${label}`,
       titleHint,
       meta.agentHint,
-      `必须使用工具 ${meta.publishTool} 完成该渠道发布。`
+      meta.publishTool ? `必须使用工具 ${meta.publishTool} 完成该渠道发布。` : ''
     ]
       .filter(Boolean)
       .join('\n')
   })
+
+  const notifyIds = normalizeNotifyChannelIds(sub.notifyChannels)
+  const notifyLabels = notifyIds.map((id) => queryPublishChannelLabel(id)).join('、')
 
   const toolWhitelist = Array.from(
     new Set([
@@ -51,9 +55,20 @@ function buildEndToEndAgentNode(sub: PublishSubTask): WorkflowAgentNode {
       'fetch_web_images',
       'list_attachments',
       'update_task_list',
-      ...channels.map((id) => queryPublishChannelMeta(id).publishTool)
+      ...channels
+        .map((id) => queryPublishChannelMeta(id).publishTool)
+        .filter((t): t is string => Boolean(t)),
+      ...(notifyIds.length > 0 ? (['notify_message'] as const) : [])
     ])
   )
+
+  const notifyHint =
+    notifyIds.length > 0
+      ? [
+          `发布完成后，依次调用 notify_message，channelId 分别为：${notifyIds.join('、')}（${notifyLabels}），`,
+          'content 简要说明本子任务各渠道发布结果。通知失败可忽略，不要因此判定任务失败。'
+        ].join('')
+      : ''
 
   return {
     id: `${sub.id}_run`,
@@ -70,6 +85,7 @@ function buildEndToEndAgentNode(sub: PublishSubTask): WorkflowAgentNode {
       '配图：必须调用 fetch_web_images（传入 pageUrl 或 imageUrls）拿到本地绝对路径后再发布；不要只给「建议来源」而不下载。',
       publishHint,
       ...channelBlocks,
+      notifyHint,
       '不要拆成多轮「只创作不发布」；本步结束前应完成全部目标渠道的发布工具调用。'
     ]
       .filter(Boolean)
@@ -82,13 +98,34 @@ function buildSubTaskNodes(sub: PublishSubTask): WorkflowNode[] {
   return [buildEndToEndAgentNode(sub)]
 }
 
+/** 计划级汇总通知节点：全部子任务跑完后调用 */
+function buildPlanNotifyNode(plan: PublishPlan): WorkflowAgentNode {
+  const ids = normalizeNotifyChannelIds(plan.notifyChannels)
+  const labels = ids.map((id) => queryPublishChannelLabel(id)).join('、')
+  return {
+    id: `${plan.id}_notify_summary`,
+    type: 'agent',
+    title: '计划结果通知',
+    prompt: [
+      `请汇总整个发布计划「${plan.title}」的执行结果（成功/失败要点），`,
+      `调用 notify_message 通知到：${labels}（channelId: ${ids.join(', ')}）。`,
+      '若某渠道通知失败，说明原因即可，不要重试超过 1 次。'
+    ].join('\n'),
+    toolWhitelist: ['notify_message']
+  }
+}
+
 /**
  * 将发布计划编译为可执行工作流定义。
- * 每个子任务一个端到端 Agent 节点（调研→创作→配图→发布），不再分多段流程。
+ * 每个子任务一个端到端 Agent 节点（调研→创作→配图→发布），末尾可追加计划级通知。
  */
 export function compilePublishPlanToWorkflow(plan: PublishPlan): WorkflowDefinition {
   const now = Date.now()
   const nodes = plan.subTasks.flatMap((sub) => buildSubTaskNodes(sub))
+  const planNotifyIds = normalizeNotifyChannelIds(plan.notifyChannels)
+  if (planNotifyIds.length > 0) {
+    nodes.push(buildPlanNotifyNode(plan))
+  }
   return {
     id: queryPublishWorkflowId(plan.id),
     title: plan.title,
