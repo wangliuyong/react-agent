@@ -20,14 +20,43 @@ export function normalizePublishPlanKind(kind: unknown): PublishPlanKind {
   return kind === 'workflow' ? 'workflow' : 'normal'
 }
 
-/** 归一化发布计划：子任务 + 分类字段 */
+/**
+ * 归一化流程任务的子流程 id 列表：优先 workflowIds，兼容旧 workflowId。
+ * 去重并保持首次出现顺序。
+ */
+export function normalizePublishPlanWorkflowIds(plan: {
+  workflowIds?: unknown
+  workflowId?: unknown
+}): string[] {
+  const fromArray = Array.isArray(plan.workflowIds)
+    ? plan.workflowIds.map((id) => String(id ?? '').trim()).filter(Boolean)
+    : []
+  const fromLegacy =
+    typeof plan.workflowId === 'string' && plan.workflowId.trim()
+      ? [plan.workflowId.trim()]
+      : []
+  const merged = fromArray.length > 0 ? fromArray : fromLegacy
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const id of merged) {
+    if (seen.has(id)) continue
+    seen.add(id)
+    result.push(id)
+  }
+  return result
+}
+
+/** 归一化发布计划：子任务 + 分类 + 子流程列表 */
 export function normalizePublishPlan(plan: PublishPlan): PublishPlan {
   const kind = normalizePublishPlanKind(plan.kind)
+  const workflowIds =
+    kind === 'workflow' ? normalizePublishPlanWorkflowIds(plan) : []
   return {
     ...plan,
     kind,
-    workflowId:
-      kind === 'workflow' ? (plan.workflowId?.trim() || undefined) : undefined,
+    workflowIds,
+    // 写盘时去掉单字段，避免与数组分叉
+    workflowId: undefined,
     subTasks: plan.subTasks.map((sub) =>
       normalizePublishSubTask(sub as PublishSubTask & { channel?: unknown })
     )

@@ -1,50 +1,46 @@
+/* 流程画布抽屉 — 结构与气质对齐技能市场详情弹窗 */
+
 .drawer :global(.ant-drawer-content) {
   background: var(--db-bg);
 }
 
-.drawerHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 18px 24px;
+.drawer :global(.ant-drawer-header) {
+  padding: 16px 24px;
   border-bottom: 1px solid var(--db-border-light);
   background: var(--db-bg-content);
-  flex-shrink: 0;
 }
 
-.headerMain {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  min-width: 0;
-  flex: 1;
+.drawer :global(.ant-drawer-header-title) {
+  flex-direction: row-reverse;
+  gap: 12px;
 }
 
-.headerIcon {
-  width: 44px;
-  height: 44px;
+.drawer :global(.ant-drawer-close) {
+  margin-inline-end: 0;
+  width: 32px;
+  height: 32px;
   border-radius: var(--db-radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--db-primary-muted);
-  color: var(--db-primary);
-  font-size: 20px;
-  flex-shrink: 0;
+  color: var(--db-text-secondary);
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
 }
 
-.headerText {
-  min-width: 0;
+.drawer :global(.ant-drawer-close:hover) {
+  color: var(--db-text);
+  background: var(--db-hover);
+}
+
+.drawer :global(.ant-drawer-title) {
   flex: 1;
+  min-width: 0;
 }
 
 .titleRow {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .drawerTitle {
@@ -68,29 +64,150 @@
   color: var(--db-on-primary);
   font-size: 12px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
-.workflowName {
-  margin: 6px 0 0;
-  font-size: 14px;
-  font-weight: 500;
+.detailBody {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px 24px;
+  overflow: hidden;
+}
+
+.detailBody::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 45% at 0% 0%, var(--db-primary-muted), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, var(--db-primary-subtle), transparent 55%);
+  opacity: 0.55;
+}
+
+.detailHeader {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--db-border-light);
+  flex-shrink: 0;
+}
+
+.headerMeta {
+  min-width: 0;
+  flex: 1;
+}
+
+.detailId {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--db-hover);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
   color: var(--db-text-secondary);
-  line-height: 1.4;
+}
+
+.detailTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.nameTag {
+  max-width: 280px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 42vw;
 }
 
-.drawerHint {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--db-text-tertiary);
-  line-height: 1.5;
-}
-
-.headerActions {
+.description {
+  position: relative;
+  z-index: 1;
+  padding: 14px 16px 14px 18px;
+  margin: 0;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid var(--db-primary-border);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--db-text);
   flex-shrink: 0;
+}
+
+.description::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--db-primary);
+}
+
+.canvasPanel {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--db-radius-md);
+  border: 1px solid var(--db-primary-border);
+  background: var(--db-bg-content);
+  overflow: hidden;
+}
+
+.canvasPanelHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--db-border-light);
+  flex-shrink: 0;
+}
+
+.canvasPanelIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--db-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.canvasPanelText {
+  min-width: 0;
+  flex: 1;
+}
+
+.canvasPanelTitle {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--db-text);
+}
+
+.canvasPanelDesc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+  line-height: 1.45;
 }
 
 .drawerBody {
@@ -99,17 +216,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 16px 20px 20px;
+  padding: 12px;
   overflow: hidden;
-}
-
-.drawerBody::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 55% 40% at 0% 0%, var(--db-primary-muted), transparent 55%),
-    radial-gradient(ellipse 40% 35% at 100% 100%, var(--db-primary-subtle), transparent 50%);
-  opacity: 0.55;
+  background: var(--db-bg);
 }

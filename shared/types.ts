@@ -211,10 +211,15 @@ export interface PublishPlan {
   /**
    * 任务分类。缺省视为 normal（兼容旧数据）。
    * - normal：用 subTasks 编排，保存时镜像为同 id 工作流
-   * - workflow：关联已有流程，运行/定时任务走 workflowId
+   * - workflow：关联一个或多个子流程（workflowIds），保存时编译为串行组合工作流
    */
   kind: PublishPlanKind
-  /** kind===workflow 时关联的工作流 id */
+  /**
+   * kind===workflow 时关联的子流程 id 列表（有序，依次执行）。
+   * 兼容旧字段 workflowId：读盘时归一化进本数组。
+   */
+  workflowIds: string[]
+  /** @deprecated 请用 workflowIds；仅兼容旧数据 */
   workflowId?: string
   subTasks: PublishSubTask[]
   createdAt: number

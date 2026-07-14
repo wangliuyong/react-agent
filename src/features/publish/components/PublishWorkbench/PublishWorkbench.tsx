@@ -5,6 +5,7 @@ import {
   createEmptySubTask,
   normalizePublishSubTask,
   normalizePublishPlan,
+  normalizePublishPlanWorkflowIds,
   queryPublishChannelLabel,
   queryPublishPlanKindLabel
 } from '../../types'
@@ -26,7 +27,8 @@ interface PlanFormValues {
   title: string
   description: string
   kind: PublishPlanKind
-  workflowId?: string
+  /** 有序子流程 id 列表 */
+  workflowIds: string[]
 }
 
 function matchPlanQuery(plan: PublishPlan, query: string): boolean {
@@ -57,7 +59,26 @@ function PlanEditModal({
 }): React.ReactElement {
   const [form] = Form.useForm<PlanFormValues>()
   const [submitting, setSubmitting] = useState(false)
-  const kind = Form.useWatch('kind', form)
+  /** 打开瞬间先用计划分类，避免子流程字段首帧未挂载导致回显丢失 */
+  const kind =
+    Form.useWatch('kind', form) ?? initialPlan?.kind ?? ('normal' as PublishPlanKind)
+
+  /**
+   * 用 open + initialPlan 回填（与 WorkflowNodeEditModal 一致）。
+   * 不用 afterOpenChange：动画时机下条件字段尚未挂载时 setFieldsValue 会丢 workflowIds。
+   */
+  useEffect(() => {
+    if (!open || !initialPlan) {
+      if (!open) form.resetFields()
+      return
+    }
+    form.setFieldsValue({
+      title: initialPlan.title,
+      description: initialPlan.description,
+      kind: initialPlan.kind ?? 'normal',
+      workflowIds: normalizePublishPlanWorkflowIds(initialPlan)
+    })
+  }, [open, initialPlan, form])
 
   const handleOk = async (): Promise<void> => {
     if (!initialPlan) return
@@ -70,7 +91,8 @@ function PlanEditModal({
         title: values.title.trim(),
         description: values.description.trim(),
         kind: nextKind,
-        workflowId: nextKind === 'workflow' ? values.workflowId : undefined,
+        workflowIds: nextKind === 'workflow' ? values.workflowIds ?? [] : [],
+        workflowId: undefined,
         // 切到流程任务时清空子任务，避免与关联流程混淆
         subTasks: nextKind === 'workflow' ? [] : initialPlan.subTasks
       })
@@ -90,20 +112,8 @@ function PlanEditModal({
       confirmLoading={submitting}
       okText={mode === 'create' ? '创建' : '保存'}
       destroyOnHidden
-      afterOpenChange={(visible) => {
-        if (visible && initialPlan) {
-          form.setFieldsValue({
-            title: initialPlan.title,
-            description: initialPlan.description,
-            kind: initialPlan.kind ?? 'normal',
-            workflowId: initialPlan.workflowId
-          })
-        } else {
-          form.resetFields()
-        }
-      }}
     >
-      <Form form={form} layout="vertical" preserve={false}>
+      <Form form={form} layout="vertical">
         <Form.Item
           label="标题"
           name="title"
@@ -123,26 +133,41 @@ function PlanEditModal({
             ]}
           />
         </Form.Item>
-        {kind === 'workflow' ? (
-          <Form.Item
-            label="关联流程"
-            name="workflowId"
-            rules={[{ required: true, message: '请选择要执行的流程' }]}
-            extra="运行与定时调度将直接执行所选流程画布"
-          >
-            <Select
-              placeholder="选择流程"
-              options={workflows.map((w) => ({
-                value: w.id,
-                label: `${w.title}（${w.nodes.length} 步）`
-              }))}
-            />
-          </Form.Item>
-        ) : (
+        {/* 子流程字段始终挂载，用 hidden 切换可见，避免条件卸载丢失回显值 */}
+        <Form.Item
+          label="子流程"
+          name="workflowIds"
+          hidden={kind !== 'workflow'}
+          rules={
+            kind === 'workflow'
+              ? [
+                  {
+                    validator: (_, value: string[]) =>
+                      Array.isArray(value) && value.length > 0
+                        ? Promise.resolve()
+                        : Promise.reject(new Error('请至少选择一个子流程'))
+                  }
+                ]
+              : undefined
+          }
+          extra="可多选；运行时按选择顺序串行执行，子流程之间会暂停确认"
+        >
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="选择一个或多个流程（顺序即执行顺序）"
+            optionFilterProp="label"
+            options={workflows.map((w) => ({
+              value: w.id,
+              label: `${w.title}（${w.nodes.length} 步）`
+            }))}
+          />
+        </Form.Item>
+        {kind !== 'workflow' ? (
           <Form.Item extra="保存后由子任务自动镜像为可执行流程">
             <Text type="secondary">普通任务通过子任务配置渠道与内容说明</Text>
           </Form.Item>
-        )}
+        ) : null}
         <Form.Item label="说明" name="description">
           <Input.TextArea rows={3} placeholder="可选，补充用途说明" maxLength={200} showCount />
         </Form.Item>
@@ -201,9 +226,20 @@ export function PublishWorkbench(): React.ReactElement {
     return plan ? normalizePublishPlan(plan) : null
   }, [plans, detailPlanId])
 
-  const linkedWorkflow = useMemo(() => {
-    if (!detailPlan || detailPlan.kind !== 'workflow' || !detailPlan.workflowId) return null
-    return workflows.find((w) => w.id === detailPlan.workflowId) ?? null
+  const linkedWorkflows = useMemo(() => {
+    if (!detailPlan || detailPlan.kind !== 'workflow') return []
+    return normalizePublishPlanWorkflowIds(detailPlan).map((id, index) => {
+      const wf = workflows.find((w) => w.id === id)
+      return {
+        id,
+        index,
+        title: wf?.title ?? `未知流程（${id.slice(0, 8)}…）`,
+        description: wf?.description ?? '',
+        stepCount: wf?.nodes.length ?? 0,
+        templateKind: wf?.templateKind,
+        missing: !wf
+      }
+    })
   }, [detailPlan, workflows])
 
   const openDetail = (id: string): void => {
@@ -223,30 +259,40 @@ export function PublishWorkbench(): React.ReactElement {
     message.success('已删除子任务')
   }
 
+  /** 从流程任务中移除某一个子流程引用 */
+  const removeLinkedWorkflow = async (workflowId: string): Promise<void> => {
+    if (!detailPlan || detailPlan.kind !== 'workflow') return
+    const nextIds = normalizePublishPlanWorkflowIds(detailPlan).filter((id) => id !== workflowId)
+    await savePlan({
+      ...detailPlan,
+      workflowIds: nextIds,
+      updatedAt: Date.now()
+    })
+    message.success('已移除子流程')
+  }
+
   const runPlan = async (plan: PublishPlan): Promise<void> => {
     const kind = plan.kind ?? 'normal'
     try {
       await savePlan(plan)
-      let workflowId: string
       if (kind === 'workflow') {
-        if (!plan.workflowId) {
-          message.warning('请先关联流程')
+        if (!normalizePublishPlanWorkflowIds(plan).length) {
+          message.warning('请先关联至少一个子流程')
           return
         }
-        workflowId = plan.workflowId
-      } else {
-        if (!plan.subTasks.length) {
-          message.warning('请先添加子任务')
-          return
-        }
-        workflowId = plan.id
+      } else if (!plan.subTasks.length) {
+        message.warning('请先添加子任务')
+        return
       }
-      const { sessionId } = await postRunWorkflow(workflowId)
+      // 普通 / 流程任务均以计划 id 运行（保存时已同步组合或镜像工作流）
+      const { sessionId } = await postRunWorkflow(plan.id)
       await hydrateSessions()
       beginExternalRun(sessionId)
       setView('chat')
       message.success(
-        kind === 'workflow' ? '已按关联流程在主聊天窗口执行' : '已按子任务编排在主聊天窗口执行'
+        kind === 'workflow'
+          ? '已按子流程顺序在主聊天窗口执行'
+          : '已按子任务编排在主聊天窗口执行'
       )
     } catch (err) {
       message.error(err instanceof Error ? err.message : '启动发布失败')
@@ -268,7 +314,7 @@ export function PublishWorkbench(): React.ReactElement {
               <span className={styles.countBadge}>{plans.length}</span>
             </div>
             <Text type="secondary" className={styles.desc}>
-              普通任务用子任务编排；流程任务关联画布流程后一键运行
+              普通任务用子任务编排；流程任务可挂多个子流程并按序执行
             </Text>
           </div>
         </div>
@@ -368,9 +414,7 @@ export function PublishWorkbench(): React.ReactElement {
                     </span>
                     <span className={styles.cardUsage}>
                       {kind === 'workflow'
-                        ? plan.workflowId
-                          ? '已关联流程'
-                          : '未关联流程'
+                        ? `${normalizePublishPlanWorkflowIds(plan).length} 个子流程`
                         : `${plan.subTasks.length} 子任务`}
                     </span>
                   </div>
@@ -407,7 +451,7 @@ export function PublishWorkbench(): React.ReactElement {
                     <Tag>普通任务</Tag>
                   )}
                   {detailPlan.kind === 'workflow' ? (
-                    <Tag>{linkedWorkflow ? linkedWorkflow.title : '未关联流程'}</Tag>
+                    <Tag color="processing">{linkedWorkflows.length} 个子流程</Tag>
                   ) : (
                     <Tag color="processing">{detailPlan.subTasks.length} 个子任务</Tag>
                   )}
@@ -416,7 +460,9 @@ export function PublishWorkbench(): React.ReactElement {
               <Space wrap>
                 <Button
                   icon={<EditOutlined />}
-                  onClick={() => setPlanModal({ mode: 'edit', plan: { ...detailPlan } })}
+                  onClick={() =>
+                    setPlanModal({ mode: 'edit', plan: normalizePublishPlan(detailPlan) })
+                  }
                 >
                   编辑
                 </Button>
@@ -449,32 +495,58 @@ export function PublishWorkbench(): React.ReactElement {
 
             {detailPlan.kind === 'workflow' ? (
               <div>
-                <h3 className={styles.sectionLabel}>关联流程</h3>
-                {linkedWorkflow ? (
-                  <div className={styles.subCard}>
-                    <div className={styles.subIndex}>
-                      <ApartmentOutlined />
-                    </div>
-                    <div className={styles.subBody}>
-                      <div className={styles.subTitleRow}>
-                        <span className={styles.subTitle}>{linkedWorkflow.title}</span>
-                      </div>
-                      <Space size={6} wrap>
-                        <Tag>{linkedWorkflow.nodes.length} 步</Tag>
-                        <Tag>
-                          {linkedWorkflow.templateKind === 'publish' ? '发布模板' : '通用'}
-                        </Tag>
-                      </Space>
-                      <Paragraph type="secondary" className={styles.subPrompt}>
-                        {linkedWorkflow.description || '无流程说明'}
-                      </Paragraph>
-                    </div>
-                  </div>
-                ) : (
+                <h3 className={styles.sectionLabel}>子流程（按序执行）</h3>
+                {linkedWorkflows.length === 0 ? (
                   <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="尚未关联流程，请点击编辑选择"
+                    description="尚未关联子流程，请点击编辑多选"
                   />
+                ) : (
+                  <div className={styles.subList}>
+                    {linkedWorkflows.map((item) => (
+                      <div key={item.id} className={styles.subCard}>
+                        <div className={styles.subIndex}>{item.index + 1}</div>
+                        <div className={styles.subBody}>
+                          <div className={styles.subTitleRow}>
+                            <span className={styles.subTitle}>{item.title}</span>
+                            <Popconfirm
+                              title="从本任务移除此子流程？"
+                              description="不会删除流程本身，仅取消关联"
+                              onConfirm={() => void removeLinkedWorkflow(item.id)}
+                            >
+                              <Button type="link" size="small" danger>
+                                移除
+                              </Button>
+                            </Popconfirm>
+                          </div>
+                          <Space size={6} wrap>
+                            {item.missing ? <Tag color="error">流程不存在</Tag> : null}
+                            <Tag>{item.stepCount} 步</Tag>
+                            {item.templateKind ? (
+                              <Tag>
+                                {item.templateKind === 'publish' ? '发布模板' : '通用'}
+                              </Tag>
+                            ) : null}
+                          </Space>
+                          <Paragraph type="secondary" className={styles.subPrompt}>
+                            {item.description || '无流程说明'}
+                          </Paragraph>
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      block
+                      icon={<EditOutlined />}
+                      onClick={() =>
+                        setPlanModal({
+                          mode: 'edit',
+                          plan: normalizePublishPlan(detailPlan)
+                        })
+                      }
+                    >
+                      编辑子流程列表
+                    </Button>
+                  </div>
                 )}
               </div>
             ) : (
