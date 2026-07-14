@@ -1,21 +1,30 @@
 .node {
-  min-width: 180px;
-  max-width: 240px;
-  padding: 10px 12px;
-  border-radius: var(--db-radius-md);
+  min-width: 196px;
+  max-width: 248px;
+  padding: 12px 12px 8px;
+  border-radius: var(--db-radius-lg);
   border: 1px solid var(--db-border-light);
   background: var(--db-bg-content);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 10px rgba(28, 31, 35, 0.05);
   cursor: grab;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
 .node:active {
   cursor: grabbing;
 }
 
+.node:hover {
+  border-color: var(--db-primary-border-active);
+  box-shadow: 0 4px 16px var(--db-primary-shadow);
+}
+
 .selected {
   border-color: var(--db-primary);
-  box-shadow: 0 0 0 2px var(--db-primary-muted);
+  box-shadow: 0 0 0 2px var(--db-primary-muted), 0 4px 16px var(--db-primary-shadow);
 }
 
 .agent {
@@ -23,27 +32,33 @@
 }
 
 .tool {
-  border-left: 3px solid #36cfc9;
+  border-left: 3px solid #14b8a6;
 }
 
 .await_user {
-  border-left: 3px solid #faad14;
+  border-left: 3px solid var(--db-warning);
 }
 
 .head {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  min-width: 0;
 }
 
 .tag {
   margin: 0 !important;
+  flex-shrink: 0;
   font-size: 11px !important;
   line-height: 18px !important;
+  border-radius: 6px !important;
+  border: none !important;
 }
 
 .title {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   font-weight: 650;
   color: var(--db-text);
@@ -55,10 +70,11 @@
 .summary {
   font-size: 11px;
   color: var(--db-text-secondary);
-  line-height: 1.4;
+  line-height: 1.45;
   word-break: break-word;
-  max-height: 2.8em;
+  max-height: 2.9em;
   overflow: hidden;
+  min-height: 1.45em;
 }
 
 .actions {
@@ -66,11 +82,18 @@
   display: flex;
   justify-content: flex-end;
   gap: 0;
+  opacity: 0.72;
+  transition: opacity 0.15s ease;
+}
+
+.node:hover .actions,
+.selected .actions {
+  opacity: 1;
 }
 
 .handle {
-  width: 8px !important;
-  height: 8px !important;
+  width: 9px !important;
+  height: 9px !important;
   background: var(--db-primary) !important;
   border: 2px solid var(--db-bg-content) !important;
 }

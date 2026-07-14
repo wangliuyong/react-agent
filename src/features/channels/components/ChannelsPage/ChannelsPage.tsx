@@ -1,6 +1,7 @@
+import type { CSSProperties } from 'react'
 import type { PublishChannelUpsertInput } from '@shared/publish-channels'
 import { queryPublishChannelMeta } from '@shared/publish-channels'
-import type { ChannelLoginState, ChannelLoginStatus } from '@shared/types'
+import type { ChannelLoginState, ChannelLoginStatus, PublishChannelMeta } from '@shared/types'
 import type { PublishChannelId } from '@shared/publish-channels'
 import {
   postBrowserClearProfile,
@@ -17,9 +18,10 @@ import {
 import { DB_THEME } from '@/styles/theme-tokens'
 import styles from './ChannelsPage.module.css'
 
-const { Title, Paragraph, Text } = Typography
+const { Title, Text } = Typography
 
-/** 将登录态映射为 Tag 颜色与文案 */
+type ChannelFilter = 'all' | 'enabled' | 'reserved'
+
 function renderLoginTag(state: ChannelLoginState | undefined): React.ReactElement {
   switch (state) {
     case 'logged_in':
@@ -55,7 +57,26 @@ function renderLoginTag(state: ChannelLoginState | undefined): React.ReactElemen
   }
 }
 
-/** 渠道管理：展示发布渠道元数据、登录态检测、Profile 维护与 CRUD */
+function matchChannelQuery(channel: PublishChannelMeta, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return (
+    channel.label.toLowerCase().includes(q) ||
+    channel.description.toLowerCase().includes(q) ||
+    channel.id.toLowerCase().includes(q) ||
+    channel.publishTool.toLowerCase().includes(q)
+  )
+}
+
+function loginFooterLabel(state: ChannelLoginState | undefined): string {
+  if (state === 'logged_in') return '已登录'
+  if (state === 'logged_out') return '未登录'
+  if (state === 'unsupported') return '即将上线'
+  if (state === 'error') return '检测失败'
+  return '未检测'
+}
+
+/** 渠道管理：对齐技能市场 — 卡片浏览 + 详情弹窗 */
 export function ChannelsPage(): React.ReactElement {
   const channels = useChannelsStore((s) => s.channels)
   const channelsLoading = useChannelsStore((s) => s.loading)
@@ -64,11 +85,17 @@ export function ChannelsPage(): React.ReactElement {
   const removeChannel = useChannelsStore((s) => s.removeChannel)
   const initBuiltinChannels = useChannelsStore((s) => s.initBuiltinChannels)
 
+  const [filter, setFilter] = useState<ChannelFilter>('all')
+  const [search, setSearch] = useState('')
+
   const [statusMap, setStatusMap] = useState<Record<string, ChannelLoginStatus>>({})
   const [checking, setChecking] = useState(false)
   const [openingId, setOpeningId] = useState<PublishChannelId | null>(null)
   const [clearing, setClearing] = useState(false)
   const [initializing, setInitializing] = useState(false)
+
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailChannel, setDetailChannel] = useState<PublishChannelMeta | null>(null)
 
   const [editOpen, setEditOpen] = useState(false)
   const [editMode, setEditMode] = useState<'create' | 'update'>('create')
@@ -79,7 +106,6 @@ export function ChannelsPage(): React.ReactElement {
     void hydrate()
   }, [hydrate])
 
-  /** 拉取全部渠道登录态并写入 map */
   const refreshStatuses = useCallback(async (): Promise<void> => {
     setChecking(true)
     try {
@@ -103,6 +129,19 @@ export function ChannelsPage(): React.ReactElement {
     [channels, statusMap]
   )
 
+  const filtered = useMemo(() => {
+    let list = channels
+    if (filter === 'enabled') list = list.filter((c) => c.enabled)
+    if (filter === 'reserved') list = list.filter((c) => !c.enabled)
+    return list.filter((c) => matchChannelQuery(c, search))
+  }, [channels, filter, search])
+
+  useEffect(() => {
+    if (!detailChannel) return
+    const next = channels.find((c) => c.id === detailChannel.id)
+    if (next) setDetailChannel(next)
+  }, [channels, detailChannel?.id])
+
   const openCreate = (): void => {
     const draft = createEmptyChannel()
     setEditMode('create')
@@ -110,12 +149,15 @@ export function ChannelsPage(): React.ReactElement {
     setEditOpen(true)
   }
 
-  const openEdit = (channelId: PublishChannelId): void => {
-    const meta = channels.find((c) => c.id === channelId)
-    if (!meta) return
+  const openEdit = (channel: PublishChannelMeta): void => {
     setEditMode('update')
-    form.setFieldsValue(channelMetaToInput(meta))
+    form.setFieldsValue(channelMetaToInput(channel))
     setEditOpen(true)
+  }
+
+  const openDetail = (channel: PublishChannelMeta): void => {
+    setDetailChannel(channel)
+    setDetailOpen(true)
   }
 
   const handleSave = async (): Promise<void> => {
@@ -154,6 +196,10 @@ export function ChannelsPage(): React.ReactElement {
     try {
       await removeChannel(id)
       message.success('渠道已删除')
+      if (detailChannel?.id === id) {
+        setDetailOpen(false)
+        setDetailChannel(null)
+      }
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败')
     }
@@ -188,7 +234,6 @@ export function ChannelsPage(): React.ReactElement {
     }
   }
 
-  /** 恢复小红书/抖音/视频号为默认配置，自定义渠道保留 */
   const handleInitBuiltin = async (): Promise<void> => {
     setInitializing(true)
     try {
@@ -202,6 +247,8 @@ export function ChannelsPage(): React.ReactElement {
     }
   }
 
+  const detailStatus = detailChannel ? statusMap[detailChannel.id] : undefined
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -210,16 +257,18 @@ export function ChannelsPage(): React.ReactElement {
             <ApiOutlined />
           </div>
           <div>
-            <Title level={3} className={styles.title}>
-              渠道
-            </Title>
-            <Paragraph className={styles.desc}>
-              管理发布渠道连接与登录态。已接入 {enabledCount} 个渠道，当前已登录 {loggedInCount}{' '}
-              个。所有渠道共用本机浏览器 Profile，Cookie 保存在 userData。
-            </Paragraph>
+            <div className={styles.titleRow}>
+              <Title level={3} className={styles.title}>
+                渠道
+              </Title>
+              <span className={styles.countBadge}>{channels.length}</span>
+            </div>
+            <Text type="secondary" className={styles.desc}>
+              已接入 {enabledCount} 个 · 已登录 {loggedInCount} 个；共用本机浏览器 Profile
+            </Text>
           </div>
         </div>
-        <Space>
+        <Space wrap>
           <Popconfirm
             title="初始化内置渠道？"
             description="将恢复小红书、抖音、视频号为默认配置，自定义渠道不受影响。"
@@ -227,122 +276,97 @@ export function ChannelsPage(): React.ReactElement {
             okText="初始化"
             cancelText="取消"
           >
-            <Button loading={initializing}>初始化内置渠道</Button>
+            <Button loading={initializing}>初始化内置</Button>
           </Popconfirm>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            新增渠道
-          </Button>
           <Button
             icon={<ReloadOutlined />}
             loading={checking}
             onClick={() => void refreshStatuses()}
           >
-            检测全部登录态
+            检测登录态
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新增渠道
           </Button>
         </Space>
       </header>
 
+      <div className={styles.toolbar}>
+        <Segmented
+          value={filter}
+          onChange={(v) => setFilter(v as ChannelFilter)}
+          options={[
+            { label: '全部', value: 'all' },
+            { label: '已接入', value: 'enabled' },
+            { label: '预留', value: 'reserved' }
+          ]}
+        />
+        <div className={styles.toolbarRight}>
+          <span className={styles.resultCount}>{filtered.length} 项</span>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="搜索渠道..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={styles.searchInput}
+          />
+        </div>
+      </div>
+
       <div className={styles.body}>
         <Spin spinning={(channelsLoading || checking) && channels.length === 0}>
-          <div className={styles.grid}>
-            {channels.map((channel) => {
-              const status = statusMap[channel.id]
-              const isDisabled = !channel.enabled
-
-              return (
-                <Card
-                  key={channel.id}
-                  className={`${styles.card} ${isDisabled ? styles.cardDisabled : ''}`}
-                  variant="borderless"
-                >
-                  <div className={styles.cardHead}>
-                    <div className={styles.cardHeadRow}>
-                      <span className={styles.channelName}>{channel.label}</span>
-                      {channel.isBuiltin && <Tag color={DB_THEME.primary}>内置</Tag>}
-                      {channel.enabled ? (
-                        <Tag color="processing">已接入</Tag>
-                      ) : (
-                        <Tag>预留</Tag>
-                      )}
-                      {renderLoginTag(status?.state)}
-                    </div>
-                    <div className={styles.channelDesc}>{channel.description}</div>
-                  </div>
-
-                  <div className={styles.metaList}>
-                    <div className={styles.metaRow}>
-                      <span className={styles.metaLabel}>渠道 ID</span>
-                      <span className={styles.metaValue}>{channel.id}</span>
-                    </div>
-                    <div className={styles.metaRow}>
-                      <span className={styles.metaLabel}>发布工具</span>
-                      <span className={styles.metaValue}>{channel.publishTool}</span>
-                    </div>
-                    {channel.titleMaxLength != null && (
-                      <div className={styles.metaRow}>
-                        <span className={styles.metaLabel}>标题上限</span>
-                        <span className={styles.metaValue}>{channel.titleMaxLength} 字</span>
+          {filtered.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={channels.length === 0 ? '暂无渠道' : '暂无匹配的渠道'}
+              className={styles.empty}
+            >
+              {channels.length === 0 ? (
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                  新增渠道
+                </Button>
+              ) : null}
+            </Empty>
+          ) : (
+            <div className={styles.grid}>
+              {filtered.map((channel, index) => {
+                const status = statusMap[channel.id]
+                return (
+                  <Card
+                    key={channel.id}
+                    variant="borderless"
+                    hoverable
+                    className={`${styles.card} ${channel.enabled ? '' : styles.cardDisabled}`}
+                    style={{ '--card-index': index } as CSSProperties}
+                    onClick={() => openDetail(channel)}
+                  >
+                    <div className={styles.cardHead}>
+                      <div className={styles.cardTitleRow}>
+                        <span className={styles.cardTitle}>{channel.label}</span>
+                        {channel.enabled ? (
+                          <Tag color="processing">已接入</Tag>
+                        ) : (
+                          <Tag>预留</Tag>
+                        )}
                       </div>
-                    )}
-                    {status?.message && (
-                      <div className={styles.metaRow}>
-                        <span className={styles.metaLabel}>状态说明</span>
-                        <Tooltip title={status.message}>
-                          <span className={`${styles.metaValue} ${styles.metaValueEllipsis}`}>
-                            {status.message}
-                          </span>
-                        </Tooltip>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className={styles.actions}>
-                    <Button
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => openEdit(channel.id)}
-                    >
-                      编辑
-                    </Button>
-                    {!channel.isBuiltin && (
-                      <Popconfirm
-                        title="确定删除该渠道？"
-                        description="删除后发布计划若引用该渠道，将回退为小红书。"
-                        onConfirm={() => void handleDelete(channel.id)}
-                        okText="删除"
-                        cancelText="取消"
-                        okButtonProps={{ danger: true }}
-                      >
-                        <Button size="small" danger icon={<DeleteOutlined />}>
-                          删除
-                        </Button>
-                      </Popconfirm>
-                    )}
-                    {channel.enabled && (
-                      <>
-                        <Button
-                          size="small"
-                          icon={<LoginOutlined />}
-                          loading={openingId === channel.id}
-                          onClick={() => void handleOpenLogin(channel.id)}
-                        >
-                          打开登录页
-                        </Button>
-                        <Button
-                          size="small"
-                          icon={<ReloadOutlined />}
-                          loading={checking}
-                          onClick={() => void refreshStatuses()}
-                        >
-                          检测登录
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
+                      <p className={styles.cardDesc}>
+                        {channel.description?.trim() || '暂无描述，点击查看登录与配置。'}
+                      </p>
+                    </div>
+                    <div className={styles.cardFooter}>
+                      <span className={styles.cardAuthor}>
+                        {channel.isBuiltin ? '@平台' : '@自定义'}
+                      </span>
+                      <span className={styles.cardUsage}>
+                        {loginFooterLabel(status?.state)}
+                      </span>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </Spin>
 
         <Alert
@@ -353,8 +377,7 @@ export function ChannelsPage(): React.ReactElement {
           description={
             <Space direction="vertical">
               <Text>
-                各渠道共用同一个 Playwright 浏览器 Profile。若登录异常、Cookie 冲突或提示 browser
-                has been closed，可清除后重新扫码。
+                各渠道共用同一个 Playwright 浏览器 Profile。若登录异常或 Cookie 冲突，可清除后重新扫码。
               </Text>
               <Popconfirm
                 title="确定清除全部渠道登录态？"
@@ -372,6 +395,114 @@ export function ChannelsPage(): React.ReactElement {
           }
         />
       </div>
+
+      <Modal
+        title={detailChannel?.label ?? '渠道详情'}
+        open={detailOpen}
+        onCancel={() => setDetailOpen(false)}
+        footer={null}
+        width={760}
+        destroyOnHidden
+        className={styles.detailModal}
+      >
+        {!detailChannel ? (
+          <Empty description="未找到渠道详情" />
+        ) : (
+          <div className={styles.detailBody}>
+            <div className={styles.detailHeader}>
+              <div>
+                <code className={styles.detailId}>{detailChannel.id}</code>
+                <div className={styles.detailTags}>
+                  {detailChannel.isBuiltin ? (
+                    <Tag color={DB_THEME.primary}>内置</Tag>
+                  ) : null}
+                  {detailChannel.enabled ? (
+                    <Tag color="processing">已接入</Tag>
+                  ) : (
+                    <Tag>预留</Tag>
+                  )}
+                  {renderLoginTag(detailStatus?.state)}
+                </div>
+              </div>
+              <Space wrap>
+                <Button icon={<EditOutlined />} onClick={() => openEdit(detailChannel)}>
+                  编辑
+                </Button>
+                {!detailChannel.isBuiltin ? (
+                  <Popconfirm
+                    title="确定删除该渠道？"
+                    description="删除后发布计划若引用该渠道，将回退为小红书。"
+                    onConfirm={() => void handleDelete(detailChannel.id)}
+                    okText="删除"
+                    cancelText="取消"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Button danger icon={<DeleteOutlined />}>
+                      删除
+                    </Button>
+                  </Popconfirm>
+                ) : null}
+                {detailChannel.enabled ? (
+                  <>
+                    <Button
+                      icon={<LoginOutlined />}
+                      loading={openingId === detailChannel.id}
+                      onClick={() => void handleOpenLogin(detailChannel.id)}
+                    >
+                      打开登录页
+                    </Button>
+                    <Button
+                      icon={<ReloadOutlined />}
+                      loading={checking}
+                      onClick={() => void refreshStatuses()}
+                    >
+                      检测登录
+                    </Button>
+                  </>
+                ) : null}
+              </Space>
+            </div>
+
+            {detailChannel.description?.trim() ? (
+              <p className={styles.description}>{detailChannel.description}</p>
+            ) : null}
+
+            <div>
+              <h3 className={styles.sectionLabel}>配置信息</h3>
+              <div className={styles.metaList}>
+                <div className={styles.metaRow}>
+                  <span className={styles.metaLabel}>发布工具</span>
+                  <span className={styles.metaValue}>{detailChannel.publishTool}</span>
+                </div>
+                {detailChannel.titleMaxLength != null ? (
+                  <div className={styles.metaRow}>
+                    <span className={styles.metaLabel}>标题上限</span>
+                    <span className={styles.metaValue}>{detailChannel.titleMaxLength} 字</span>
+                  </div>
+                ) : null}
+                {detailChannel.loginCheckUrl ? (
+                  <div className={styles.metaRow}>
+                    <span className={styles.metaLabel}>创作者中心</span>
+                    <span className={styles.metaValue}>{detailChannel.loginCheckUrl}</span>
+                  </div>
+                ) : null}
+                {detailStatus?.message ? (
+                  <div className={styles.metaRow}>
+                    <span className={styles.metaLabel}>状态说明</span>
+                    <span className={styles.metaValue}>{detailStatus.message}</span>
+                  </div>
+                ) : null}
+                {detailChannel.agentHint ? (
+                  <div className={styles.metaRow}>
+                    <span className={styles.metaLabel}>Agent 说明</span>
+                    <span className={styles.metaValue}>{detailChannel.agentHint}</span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         title={editMode === 'create' ? '新增渠道' : '编辑渠道'}
@@ -435,4 +566,3 @@ export function ChannelsPage(): React.ReactElement {
     </div>
   )
 }
-

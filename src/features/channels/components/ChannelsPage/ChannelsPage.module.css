@@ -1,3 +1,5 @@
+/* 渠道页 — 对齐技能市场：顶栏 + 筛选 + 卡片网格 + 详情弹窗 */
+
 .page {
   display: flex;
   flex-direction: column;
@@ -28,6 +30,7 @@
   padding: 22px 28px;
   border-bottom: 1px solid var(--db-border-light);
   background: var(--db-bg-content);
+  flex-wrap: wrap;
 }
 
 .headerMain {
@@ -48,6 +51,12 @@
   font-size: 20px;
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .title {
   margin: 0 !important;
   font-size: 18px !important;
@@ -55,10 +64,54 @@
   color: var(--db-text) !important;
 }
 
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--db-radius-pill);
+  background: var(--db-primary);
+  color: var(--db-on-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .desc {
-  margin: 4px 0 0 !important;
+  display: block;
+  margin-top: 4px;
   font-size: 13px;
+}
+
+.toolbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.resultCount {
+  font-size: 12px;
   color: var(--db-text-secondary);
+  white-space: nowrap;
+}
+
+.searchInput {
+  width: 200px;
 }
 
 .body {
@@ -71,109 +124,217 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
 }
 
+.empty {
+  margin-top: 48px;
+}
+
 .card {
-  border: 1px solid var(--db-border-light);
-  border-radius: var(--db-radius-lg);
-  background: var(--db-bg-content);
-  display: flex;
-  flex-direction: column;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid var(--db-border-light) !important;
+  border-radius: var(--db-radius-lg) !important;
+  background: var(--db-bg-content) !important;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+  animation: cardIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--card-index, 0) * 36ms);
 }
 
 .card :global(.ant-card-body) {
-  padding: 16px;
+  padding: 16px !important;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  min-height: 148px;
 }
 
 .card:hover {
-  border-color: var(--db-primary-border-hover);
+  border-color: var(--db-primary-border-active) !important;
   box-shadow: 0 4px 20px var(--db-primary-shadow);
+  transform: translateY(-2px);
 }
 
 .cardDisabled {
-  opacity: 0.72;
+  opacity: 0.78;
 }
 
 .cardHead {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-/* 标题 + 渠道状态 + 登录状态同一行 */
-.cardHeadRow {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
   min-width: 0;
 }
 
-.channelName {
+.cardTitleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cardTitle {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 650;
   color: var(--db-text);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.channelDesc {
+.cardDesc {
+  margin: 0;
   font-size: 13px;
   line-height: 1.55;
   color: var(--db-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--db-border-light);
+}
+
+.cardAuthor {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+.cardUsage {
+  font-size: 12px;
+  color: var(--db-text-tertiary);
+}
+
+.detailModal :global(.ant-modal-body) {
+  max-height: 70vh;
+  overflow: auto;
+  padding-top: 8px;
+}
+
+.detailBody {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detailHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--db-border-light);
+}
+
+.detailId {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--db-hover);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+.detailTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.description {
+  position: relative;
+  padding: 14px 16px 14px 18px;
+  margin: 0;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid var(--db-primary-border);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--db-text);
+}
+
+.description::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--db-primary);
+}
+
+.sectionLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--db-text-secondary);
+}
+
+.sectionLabel::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--db-border-light);
 }
 
 .metaList {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--db-text-secondary);
+  gap: 10px;
 }
 
 .metaRow {
   display: flex;
-  gap: 8px;
+  gap: 12px;
+  font-size: 13px;
 }
 
 .metaLabel {
   flex-shrink: 0;
+  width: 88px;
   color: var(--db-text-tertiary);
 }
 
 .metaValue {
-  color: var(--db-text-secondary);
+  color: var(--db-text);
   word-break: break-all;
-}
-
-/* 状态说明：单行省略，完整内容通过 Tooltip 展示 */
-.metaValueEllipsis {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  word-break: normal;
-  cursor: default;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: auto;
 }
 
 .alertCard {
   margin-top: 20px;
   border-radius: var(--db-radius-md);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -1,3 +1,5 @@
+/* 流程卡片 — 与技能市场卡片同构：标题/描述/页脚元信息 */
+
 .card {
   border: 1px solid var(--db-border-light) !important;
   border-radius: var(--db-radius-lg) !important;
@@ -7,8 +9,8 @@
     border-color 0.18s ease,
     box-shadow 0.18s ease,
     transform 0.18s ease;
-  animation: cardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--card-index, 0) * 40ms);
+  animation: cardIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--card-index, 0) * 36ms);
 }
 
 .card :global(.ant-card-body) {
@@ -53,13 +55,21 @@
   overflow: hidden;
 }
 
+.kindTag {
+  margin: 0 !important;
+  flex-shrink: 0;
+  font-size: 11px !important;
+  border-radius: 6px !important;
+  line-height: 20px !important;
+}
+
 .cardDesc {
   margin: 0;
   font-size: 13px;
   line-height: 1.55;
   color: var(--db-text-secondary);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -73,15 +83,21 @@
   border-top: 1px solid var(--db-border-light);
 }
 
-.cardMeta {
+.cardAuthor {
   font-size: 12px;
   color: var(--db-text-secondary);
+}
+
+.cardUsage {
+  font-size: 12px;
+  color: var(--db-text-tertiary);
+  white-space: nowrap;
 }
 
 @keyframes cardIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;

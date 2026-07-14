@@ -17,7 +17,7 @@ interface WorkflowCanvasDrawerProps {
   onRun: () => void
 }
 
-/** 流程画布专用抽屉（宽度 80vw），与基本信息抽屉分离 */
+/** 流程画布专用抽屉（宽度 80vw），顶栏气质对齐技能页 */
 export function WorkflowCanvasDrawer({
   open,
   draft,
@@ -38,6 +38,8 @@ export function WorkflowCanvasDrawer({
       open={open}
       onClose={onClose}
       destroyOnHidden
+      // 详情为 Modal(z≈1000) 时，画布需更高层级才能盖住并交互
+      zIndex={1200}
       className={styles.drawer}
       styles={{
         body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' },
@@ -49,7 +51,7 @@ export function WorkflowCanvasDrawer({
           <div className={styles.drawerHeader}>
             <div className={styles.headerMain}>
               <div className={styles.headerIcon}>
-                <AppstoreOutlined />
+                <NodeIndexOutlined />
               </div>
               <div className={styles.headerText}>
                 <div className={styles.titleRow}>

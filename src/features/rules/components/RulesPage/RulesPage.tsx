@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { AgentRule, AgentRuleUpsertInput } from '@shared/types'
 import { SkillMarkdown } from '@/features/skills/components/SkillMarkdown'
 import { useRulesStore } from '../../hooks/useRulesStore'
@@ -9,9 +10,27 @@ import {
 } from '../../types'
 import styles from './RulesPage.module.css'
 
-const { Title, Paragraph, Text } = Typography
+const { Title, Text } = Typography
 
-/** 规则管理：CRUD + 启用开关；已启用规则在对话时注入 Agent SYSTEM_PROMPT */
+type RuleFilter = 'all' | 'enabled' | 'disabled'
+
+function matchRuleQuery(rule: AgentRule, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return (
+    rule.name.toLowerCase().includes(q) ||
+    rule.description.toLowerCase().includes(q) ||
+    rule.id.toLowerCase().includes(q) ||
+    rule.content.toLowerCase().includes(q)
+  )
+}
+
+function RuleStatusTag({ enabled }: { enabled: boolean }): React.ReactElement {
+  if (!enabled) return <Tag className={styles.tagDraft}>未启用</Tag>
+  return <Tag color="success">已启用</Tag>
+}
+
+/** 规则管理：对齐技能市场 — 卡片浏览 + 详情弹窗 + CRUD */
 export function RulesPage(): React.ReactElement {
   const rules = useRulesStore((s) => s.rules)
   const loading = useRulesStore((s) => s.loading)
@@ -20,11 +39,15 @@ export function RulesPage(): React.ReactElement {
   const removeRule = useRulesStore((s) => s.removeRule)
   const toggleEnabled = useRulesStore((s) => s.toggleEnabled)
 
+  const [filter, setFilter] = useState<RuleFilter>('all')
+  const [search, setSearch] = useState('')
+
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailRule, setDetailRule] = useState<AgentRule | null>(null)
+
   const [editOpen, setEditOpen] = useState(false)
   const [editMode, setEditMode] = useState<'create' | 'update'>('create')
   const [saving, setSaving] = useState(false)
-  const [previewOpen, setPreviewOpen] = useState(false)
-  const [previewRule, setPreviewRule] = useState<AgentRule | null>(null)
   const [form] = Form.useForm<AgentRuleUpsertInput>()
 
   useEffect(() => {
@@ -33,6 +56,13 @@ export function RulesPage(): React.ReactElement {
 
   const enabledCount = useMemo(() => rules.filter((r) => r.enabled).length, [rules])
 
+  const filtered = useMemo(() => {
+    let list = rules
+    if (filter === 'enabled') list = list.filter((r) => r.enabled)
+    if (filter === 'disabled') list = list.filter((r) => !r.enabled)
+    return list.filter((r) => matchRuleQuery(r, search))
+  }, [rules, filter, search])
+
   const openCreate = (): void => {
     const draft = createEmptyRule()
     setEditMode('create')
@@ -40,17 +70,15 @@ export function RulesPage(): React.ReactElement {
     setEditOpen(true)
   }
 
-  const openEdit = (id: string): void => {
-    const rule = rules.find((r) => r.id === id)
-    if (!rule) return
+  const openEdit = (rule: AgentRule): void => {
     setEditMode('update')
     form.setFieldsValue(ruleToInput(rule))
     setEditOpen(true)
   }
 
-  const openPreview = (rule: AgentRule): void => {
-    setPreviewRule(rule)
-    setPreviewOpen(true)
+  const openDetail = (rule: AgentRule): void => {
+    setDetailRule(rule)
+    setDetailOpen(true)
   }
 
   const handleSave = async (): Promise<void> => {
@@ -63,7 +91,7 @@ export function RulesPage(): React.ReactElement {
         return Promise.reject(new Error('validation'))
       }
       setSaving(true)
-      await saveRule({
+      const saved = await saveRule({
         id: normalizedId,
         name: values.name.trim(),
         description: (values.description ?? '').trim(),
@@ -72,6 +100,7 @@ export function RulesPage(): React.ReactElement {
       })
       message.success(editMode === 'create' ? '规则已创建' : '规则已更新')
       setEditOpen(false)
+      if (detailRule?.id === saved.id) setDetailRule(saved)
     } catch (err) {
       if (err instanceof Error && err.message && err.message !== 'validation') {
         message.error(err.message)
@@ -86,9 +115,9 @@ export function RulesPage(): React.ReactElement {
     try {
       await removeRule(id)
       message.success('规则已删除')
-      if (previewRule?.id === id) {
-        setPreviewOpen(false)
-        setPreviewRule(null)
+      if (detailRule?.id === id) {
+        setDetailOpen(false)
+        setDetailRule(null)
       }
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败')
@@ -99,10 +128,20 @@ export function RulesPage(): React.ReactElement {
     try {
       await toggleEnabled(id, enabled)
       message.success(enabled ? '已启用，将注入 Agent' : '已禁用')
+      if (detailRule?.id === id) {
+        setDetailRule((prev) => (prev ? { ...prev, enabled } : prev))
+      }
     } catch (err) {
       message.error(err instanceof Error ? err.message : '更新失败')
     }
   }
+
+  // 列表变更后同步详情对象
+  useEffect(() => {
+    if (!detailRule) return
+    const next = rules.find((r) => r.id === detailRule.id)
+    if (next) setDetailRule(next)
+  }, [rules, detailRule?.id])
 
   return (
     <div className={styles.page}>
@@ -112,97 +151,95 @@ export function RulesPage(): React.ReactElement {
             <UnorderedListOutlined />
           </div>
           <div>
-            <Title level={3} className={styles.title}>
-              规则
-            </Title>
-            <Paragraph className={styles.desc}>
-              管理 Agent 持久指令（Always Apply）。已启用 {enabledCount} 条，对话时优先于技能注入系统提示。
-            </Paragraph>
+            <div className={styles.titleRow}>
+              <Title level={3} className={styles.title}>
+                规则
+              </Title>
+              <span className={styles.countBadge}>{rules.length}</span>
+            </div>
+            <Text type="secondary" className={styles.desc}>
+              Always Apply 持久指令；已启用 {enabledCount} 条，对话时优先于技能注入系统提示
+            </Text>
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          新建规则
-        </Button>
+        <Space wrap>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={async () => {
+              await hydrate()
+              message.success('已刷新')
+            }}
+          >
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新建规则
+          </Button>
+        </Space>
       </header>
+
+      <div className={styles.toolbar}>
+        <Segmented
+          value={filter}
+          onChange={(v) => setFilter(v as RuleFilter)}
+          options={[
+            { label: '全部', value: 'all' },
+            { label: '已启用', value: 'enabled' },
+            { label: '未启用', value: 'disabled' }
+          ]}
+        />
+        <div className={styles.toolbarRight}>
+          <span className={styles.resultCount}>{filtered.length} 项</span>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="搜索规则..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={styles.searchInput}
+          />
+        </div>
+      </div>
 
       <div className={styles.body}>
         <Spin spinning={loading && rules.length === 0}>
-          {rules.length === 0 && !loading ? (
-            <div className={styles.emptyWrap}>
-              <Empty
-                description="暂无规则。新建一条，例如「回复始终使用简体中文」或发布风格约束。"
-              >
+          {filtered.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={rules.length === 0 ? '暂无规则' : '暂无匹配的规则'}
+              className={styles.empty}
+            >
+              {rules.length === 0 ? (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                   新建规则
                 </Button>
-              </Empty>
-            </div>
+              ) : null}
+            </Empty>
           ) : (
             <div className={styles.grid}>
-              {rules.map((rule) => (
+              {filtered.map((rule, index) => (
                 <Card
                   key={rule.id}
-                  className={`${styles.card} ${rule.enabled ? '' : styles.cardDisabled}`}
                   variant="borderless"
+                  hoverable
+                  className={`${styles.card} ${rule.enabled ? '' : styles.cardDisabled}`}
+                  style={{ '--card-index': index } as CSSProperties}
+                  onClick={() => openDetail(rule)}
                 >
                   <div className={styles.cardHead}>
-                    <div className={styles.cardHeadRow}>
-                      <span className={styles.ruleName}>{rule.name}</span>
-                      {rule.enabled ? (
-                        <Tag color="success">已启用</Tag>
-                      ) : (
-                        <Tag>未启用</Tag>
-                      )}
+                    <div className={styles.cardTitleRow}>
+                      <span className={styles.cardTitle}>{rule.name}</span>
+                      <RuleStatusTag enabled={rule.enabled} />
                     </div>
-                    <div className={styles.ruleDesc}>
-                      {rule.description || '（无简介）'}
-                    </div>
+                    <p className={styles.cardDesc}>
+                      {rule.description?.trim() || '暂无简介，点击查看正文与启用状态。'}
+                    </p>
                   </div>
-
-                  <div className={styles.metaList}>
-                    <div className={styles.metaRow}>
-                      <span className={styles.metaLabel}>规则 ID</span>
-                      <span className={styles.metaValue}>{rule.id}</span>
-                    </div>
-                    <div className={styles.metaRow}>
-                      <span className={styles.metaLabel}>注入 Agent</span>
-                      <Switch
-                        size="small"
-                        checked={rule.enabled}
-                        checkedChildren="开"
-                        unCheckedChildren="关"
-                        onChange={(checked) => void handleToggle(rule.id, checked)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className={styles.actions}>
-                    <Button
-                      size="small"
-                      icon={<EyeOutlined />}
-                      onClick={() => openPreview(rule)}
-                    >
-                      预览
-                    </Button>
-                    <Button
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => openEdit(rule.id)}
-                    >
-                      编辑
-                    </Button>
-                    <Popconfirm
-                      title="确定删除该规则？"
-                      description="删除后对话将不再注入此指令。"
-                      onConfirm={() => void handleDelete(rule.id)}
-                      okText="删除"
-                      cancelText="取消"
-                      okButtonProps={{ danger: true }}
-                    >
-                      <Button size="small" danger icon={<DeleteOutlined />}>
-                        删除
-                      </Button>
-                    </Popconfirm>
+                  <div className={styles.cardFooter}>
+                    <span className={styles.cardAuthor}>@{rule.id}</span>
+                    <span className={styles.cardUsage}>
+                      {rule.enabled ? '注入 Agent' : '未注入'}
+                    </span>
                   </div>
                 </Card>
               ))}
@@ -210,6 +247,67 @@ export function RulesPage(): React.ReactElement {
           )}
         </Spin>
       </div>
+
+      <Modal
+        title={detailRule?.name ?? '规则详情'}
+        open={detailOpen}
+        onCancel={() => setDetailOpen(false)}
+        footer={null}
+        width={760}
+        destroyOnHidden
+        className={styles.detailModal}
+      >
+        {!detailRule ? (
+          <Empty description="未找到规则详情" />
+        ) : (
+          <div className={styles.detailBody}>
+            <div className={styles.detailHeader}>
+              <div>
+                <code className={styles.detailId}>{detailRule.id}</code>
+                <div className={styles.detailTags}>
+                  <RuleStatusTag enabled={detailRule.enabled} />
+                </div>
+              </div>
+              <Space wrap>
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => openEdit(detailRule)}
+                >
+                  编辑
+                </Button>
+                <Popconfirm
+                  title="确定删除该规则？"
+                  description="删除后对话将不再注入此指令。"
+                  onConfirm={() => void handleDelete(detailRule.id)}
+                  okText="删除"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button danger icon={<DeleteOutlined />}>
+                    删除
+                  </Button>
+                </Popconfirm>
+                <div className={styles.injectToggle}>
+                  <span className={styles.injectLabel}>注入 Agent</span>
+                  <Switch
+                    checked={detailRule.enabled}
+                    onChange={(v) => void handleToggle(detailRule.id, v)}
+                  />
+                </div>
+              </Space>
+            </div>
+
+            {detailRule.description?.trim() ? (
+              <p className={styles.description}>{detailRule.description}</p>
+            ) : null}
+
+            <div>
+              <h3 className={styles.sectionLabel}>规则正文</h3>
+              <SkillMarkdown source={detailRule.content} />
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         title={editMode === 'create' ? '新建规则' : '编辑规则'}
@@ -255,32 +353,11 @@ export function RulesPage(): React.ReactElement {
           >
             <Input.TextArea
               rows={10}
-              placeholder="用自然语言写清约束，例如：所有回复必须使用简体中文；发布前先确认标题字数。"
+              placeholder="用自然语言写清约束，例如：所有回复必须使用简体中文。"
             />
           </Form.Item>
         </Form>
       </Modal>
-
-      <Drawer
-        title={previewRule?.name ?? '规则预览'}
-        open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        width={520}
-        destroyOnHidden
-      >
-        {previewRule && (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <div>
-              <Text type="secondary">简介</Text>
-              <div>{previewRule.description || '（无）'}</div>
-            </div>
-            <div>
-              <Text type="secondary">正文</Text>
-              <SkillMarkdown source={previewRule.content} />
-            </div>
-          </Space>
-        )}
-      </Drawer>
     </div>
   )
 }
