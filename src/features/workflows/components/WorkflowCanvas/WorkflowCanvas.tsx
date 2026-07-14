@@ -1,4 +1,12 @@
 import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState
+} from 'react'
+import {
   ReactFlow,
   Background,
   Controls,
@@ -14,7 +22,6 @@ import {
   MarkerType
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import type { MenuProps } from 'antd'
 import type {
   WorkflowCanvas as WorkflowCanvasModel,
   WorkflowLeafNode,
@@ -32,6 +39,15 @@ import styles from './WorkflowCanvas.module.css'
 
 const nodeTypes = { workflow: WorkflowFlowNode } as NodeTypes
 
+/** 画布可新增的叶子节点类型 */
+export type WorkflowCanvasLeafType = WorkflowLeafNode['type']
+
+/** 供父级（画布编辑区头部）调用的命令式 API */
+export interface WorkflowCanvasHandle {
+  /** 向画布追加指定类型的叶子节点 */
+  addLeafByType: (type: WorkflowCanvasLeafType) => void
+}
+
 interface WorkflowCanvasProps {
   /** 切换流程时重挂载画布，避免编辑过程被父级回写打断 */
   workflowId: string
@@ -40,7 +56,7 @@ interface WorkflowCanvasProps {
   onChange: (next: { nodes: WorkflowNode[]; canvas: WorkflowCanvasModel }) => void
   /** 画布编辑区是否处于浏览器全屏（用于浮层挂载） */
   isFullscreen?: boolean
-  /** 全屏容器：仅全屏时将 Dropdown/Modal 挂到此节点内 */
+  /** 全屏容器：仅全屏时将 Modal 挂到此节点内 */
   fullscreenContainer?: HTMLElement | null
 }
 
@@ -108,267 +124,253 @@ function queryEdgeStyle(): Partial<Edge> {
 /**
  * 流程画布：拖拽节点 + 从锚点拉线连接。
  * 一源多目标编译为 parallel；保存坐标与边到 workflow.canvas。
+ * 「添加节点」由外层画布编辑区头部触发，通过 ref.addLeafByType 调用。
  */
-export function WorkflowCanvas({
-  workflowId,
-  nodes: engineNodes,
-  canvas: canvasProp,
-  onChange,
-  isFullscreen = false,
-  fullscreenContainer = null
-}: WorkflowCanvasProps): React.ReactElement {
-  const [editOpen, setEditOpen] = useState(false)
-  const [editingLeaf, setEditingLeaf] = useState<WorkflowLeafNode | null>(null)
-  const [graphError, setGraphError] = useState<string | null>(null)
-
-  const engineNodesRef = useRef(engineNodes)
-  engineNodesRef.current = engineNodes
-
-  const onEditRef = useRef<(id: string) => void>(() => { })
-  const onDeleteRef = useRef<(id: string) => void>(() => { })
-
-  const initialCanvas = resolveWorkflowCanvas(engineNodes, canvasProp)
-  const [rfNodes, setNodes, onNodesChangeInternal] = useNodesState<WorkflowRfNode>(
-    toRfNodes(flattenWorkflowLeaves(engineNodes), initialCanvas, {
-      onEdit: (id) => onEditRef.current(id),
-      onDelete: (id) => onDeleteRef.current(id)
-    })
-  )
-  const [rfEdges, setEdges, onEdgesChangeInternal] = useEdgesState(toRfEdges(initialCanvas))
-
-  const emitChange = useCallback(
-    (nextNodes: WorkflowRfNode[], nextEdges: Edge[]) => {
-      const leaves = queryLeavesFromRf(nextNodes)
-      const canvas = queryCanvasFromRf(nextNodes, nextEdges)
-      const applied = applyCanvasToDefinition(leaves, canvas)
-      if (applied.error) {
-        setGraphError(applied.error)
-        onChange({ nodes: engineNodesRef.current, canvas })
-        return
-      }
-      setGraphError(null)
-      onChange({ nodes: applied.nodes, canvas: applied.canvas })
+export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasProps>(
+  function WorkflowCanvas(
+    {
+      workflowId,
+      nodes: engineNodes,
+      canvas: canvasProp,
+      onChange,
+      isFullscreen = false,
+      fullscreenContainer = null
     },
-    [onChange]
-  )
+    ref
+  ): React.ReactElement {
+    const [editOpen, setEditOpen] = useState(false)
+    const [editingLeaf, setEditingLeaf] = useState<WorkflowLeafNode | null>(null)
+    const [graphError, setGraphError] = useState<string | null>(null)
 
-  onEditRef.current = (id: string) => {
-    const leaf =
-      queryLeavesFromRf(rfNodes).find((l) => l.id === id) ??
-      flattenWorkflowLeaves(engineNodesRef.current).find((l) => l.id === id) ??
-      null
-    setEditingLeaf(leaf)
-    setEditOpen(true)
-  }
+    const engineNodesRef = useRef(engineNodes)
+    engineNodesRef.current = engineNodes
 
-  onDeleteRef.current = (id: string) => {
-    setNodes((prev) => {
-      const nextNodes = prev.filter((n) => n.id !== id)
-      setEdges((eds) => {
-        const nextEdges = eds.filter((e) => e.source !== id && e.target !== id)
-        queueMicrotask(() => emitChange(nextNodes, nextEdges))
-        return nextEdges
-      })
-      return nextNodes
-    })
-  }
+    const onEditRef = useRef<(id: string) => void>(() => {})
+    const onDeleteRef = useRef<(id: string) => void>(() => {})
 
-  /** 仅切换流程定义时重置；编辑中的 canvas 回写不触发重载 */
-  useEffect(() => {
-    const canvas = resolveWorkflowCanvas(engineNodes, canvasProp)
-    const leaves = flattenWorkflowLeaves(engineNodes)
-    setNodes(
-      toRfNodes(leaves, canvas, {
+    const initialCanvas = resolveWorkflowCanvas(engineNodes, canvasProp)
+    const [rfNodes, setNodes, onNodesChangeInternal] = useNodesState<WorkflowRfNode>(
+      toRfNodes(flattenWorkflowLeaves(engineNodes), initialCanvas, {
         onEdit: (id) => onEditRef.current(id),
         onDelete: (id) => onDeleteRef.current(id)
       })
     )
-    setEdges(toRfEdges(canvas))
-    setGraphError(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflowId])
+    const [rfEdges, setEdges, onEdgesChangeInternal] = useEdgesState(toRfEdges(initialCanvas))
 
-  const onNodesChange: OnNodesChange<WorkflowRfNode> = useCallback(
-    (changes) => {
-      onNodesChangeInternal(changes)
-      const shouldPersist = changes.some(
-        (c) =>
-          (c.type === 'position' && 'dragging' in c && c.dragging === false) ||
-          c.type === 'remove'
+    const emitChange = useCallback(
+      (nextNodes: WorkflowRfNode[], nextEdges: Edge[]) => {
+        const leaves = queryLeavesFromRf(nextNodes)
+        const canvas = queryCanvasFromRf(nextNodes, nextEdges)
+        const applied = applyCanvasToDefinition(leaves, canvas)
+        if (applied.error) {
+          setGraphError(applied.error)
+          onChange({ nodes: engineNodesRef.current, canvas })
+          return
+        }
+        setGraphError(null)
+        onChange({ nodes: applied.nodes, canvas: applied.canvas })
+      },
+      [onChange]
+    )
+
+    onEditRef.current = (id: string) => {
+      const leaf =
+        queryLeavesFromRf(rfNodes).find((l) => l.id === id) ??
+        flattenWorkflowLeaves(engineNodesRef.current).find((l) => l.id === id) ??
+        null
+      setEditingLeaf(leaf)
+      setEditOpen(true)
+    }
+
+    onDeleteRef.current = (id: string) => {
+      setNodes((prev) => {
+        const nextNodes = prev.filter((n) => n.id !== id)
+        setEdges((eds) => {
+          const nextEdges = eds.filter((e) => e.source !== id && e.target !== id)
+          queueMicrotask(() => emitChange(nextNodes, nextEdges))
+          return nextEdges
+        })
+        return nextNodes
+      })
+    }
+
+    /** 仅切换流程定义时重置；编辑中的 canvas 回写不触发重载 */
+    useEffect(() => {
+      const canvas = resolveWorkflowCanvas(engineNodes, canvasProp)
+      const leaves = flattenWorkflowLeaves(engineNodes)
+      setNodes(
+        toRfNodes(leaves, canvas, {
+          onEdit: (id) => onEditRef.current(id),
+          onDelete: (id) => onDeleteRef.current(id)
+        })
       )
-      if (!shouldPersist) return
-      queueMicrotask(() => {
-        setNodes((ns) => {
-          setEdges((es) => {
-            emitChange(ns, es)
-            return es
-          })
-          return ns
-        })
-      })
-    },
-    [onNodesChangeInternal, emitChange, setNodes, setEdges]
-  )
+      setEdges(toRfEdges(canvas))
+      setGraphError(null)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workflowId])
 
-  const onEdgesChange: OnEdgesChange = useCallback(
-    (changes) => {
-      onEdgesChangeInternal(changes)
-      if (!changes.some((c) => c.type === 'remove' || c.type === 'add')) return
-      queueMicrotask(() => {
-        setNodes((ns) => {
-          setEdges((es) => {
-            emitChange(ns, es)
-            return es
-          })
-          return ns
-        })
-      })
-    },
-    [onEdgesChangeInternal, emitChange, setNodes, setEdges]
-  )
-
-  const onConnect: OnConnect = useCallback(
-    (connection: Connection) => {
-      setEdges((eds) => {
-        const next = addEdge(
-          {
-            ...connection,
-            id: `e_${connection.source}_${connection.target}_${Date.now()}`,
-            ...queryEdgeStyle()
-          },
-          eds
+    const onNodesChange: OnNodesChange<WorkflowRfNode> = useCallback(
+      (changes) => {
+        onNodesChangeInternal(changes)
+        const shouldPersist = changes.some(
+          (c) =>
+            (c.type === 'position' && 'dragging' in c && c.dragging === false) ||
+            c.type === 'remove'
         )
+        if (!shouldPersist) return
         queueMicrotask(() => {
           setNodes((ns) => {
-            emitChange(ns, next)
+            setEdges((es) => {
+              emitChange(ns, es)
+              return es
+            })
             return ns
           })
         })
+      },
+      [onNodesChangeInternal, emitChange, setNodes, setEdges]
+    )
+
+    const onEdgesChange: OnEdgesChange = useCallback(
+      (changes) => {
+        onEdgesChangeInternal(changes)
+        if (!changes.some((c) => c.type === 'remove' || c.type === 'add')) return
+        queueMicrotask(() => {
+          setNodes((ns) => {
+            setEdges((es) => {
+              emitChange(ns, es)
+              return es
+            })
+            return ns
+          })
+        })
+      },
+      [onEdgesChangeInternal, emitChange, setNodes, setEdges]
+    )
+
+    const onConnect: OnConnect = useCallback(
+      (connection: Connection) => {
+        setEdges((eds) => {
+          const next = addEdge(
+            {
+              ...connection,
+              id: `e_${connection.source}_${connection.target}_${Date.now()}`,
+              ...queryEdgeStyle()
+            },
+            eds
+          )
+          queueMicrotask(() => {
+            setNodes((ns) => {
+              emitChange(ns, next)
+              return ns
+            })
+          })
+          return next
+        })
+      },
+      [setEdges, setNodes, emitChange]
+    )
+
+    const addLeaf = useCallback(
+      (leaf: WorkflowLeafNode): void => {
+        const offset = rfNodes.length
+        const rfNode: WorkflowRfNode = {
+          id: leaf.id,
+          type: 'workflow',
+          position: { x: 120 + (offset % 3) * 48, y: 100 + offset * 40 },
+          data: {
+            leaf,
+            onEdit: (id) => onEditRef.current(id),
+            onDelete: (id) => onDeleteRef.current(id)
+          }
+        }
+        setNodes((ns) => {
+          const next = [...ns, rfNode]
+          queueMicrotask(() => emitChange(next, rfEdges))
+          return next
+        })
+      },
+      [rfNodes.length, rfEdges, setNodes, emitChange]
+    )
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        addLeafByType: (type) => {
+          addLeaf(createEmptyNode(type) as WorkflowLeafNode)
+        }
+      }),
+      [addLeaf]
+    )
+
+    const handleEditOk = (node: WorkflowNode): void => {
+      if (node.type === 'parallel') {
+        message.error('画布只用叶子节点；并行请从一个节点连出多条线')
+        return
+      }
+      setNodes((ns) => {
+        const exists = ns.some((n) => n.id === node.id)
+        const next: WorkflowRfNode[] = exists
+          ? ns.map((n) =>
+              n.id === node.id
+                ? { ...n, data: { ...n.data, leaf: node } }
+                : n
+            )
+          : [
+              ...ns,
+              {
+                id: node.id,
+                type: 'workflow',
+                position: { x: 140, y: 120 + ns.length * 40 },
+                data: {
+                  leaf: node,
+                  onEdit: (id) => onEditRef.current(id),
+                  onDelete: (id) => onDeleteRef.current(id)
+                }
+              }
+            ]
+        queueMicrotask(() => emitChange(next, rfEdges))
         return next
       })
-    },
-    [setEdges, setNodes, emitChange]
-  )
-
-  const addLeaf = (leaf: WorkflowLeafNode): void => {
-    const offset = rfNodes.length
-    const rfNode: WorkflowRfNode = {
-      id: leaf.id,
-      type: 'workflow',
-      position: { x: 120 + (offset % 3) * 48, y: 100 + offset * 40 },
-      data: {
-        leaf,
-        onEdit: (id) => onEditRef.current(id),
-        onDelete: (id) => onDeleteRef.current(id)
-      }
+      setEditOpen(false)
+      setEditingLeaf(null)
     }
-    setNodes((ns) => {
-      const next = [...ns, rfNode]
-      queueMicrotask(() => emitChange(next, rfEdges))
-      return next
-    })
-  }
 
-  const addMenu: MenuProps['items'] = [
-    {
-      key: 'agent',
-      label: 'Agent 步骤',
-      onClick: () => addLeaf(createEmptyNode('agent') as WorkflowLeafNode)
-    },
-    {
-      key: 'tool',
-      label: '工具步骤',
-      onClick: () => addLeaf(createEmptyNode('tool') as WorkflowLeafNode)
-    },
-    {
-      key: 'await_user',
-      label: '等待确认',
-      onClick: () => addLeaf(createEmptyNode('await_user') as WorkflowLeafNode)
-    }
-  ]
+    return (
+      <div className={styles.wrap}>
+        {graphError ? (
+          <div className={styles.errorBar}>连线未完成编译：{graphError}</div>
+        ) : null}
+        <div className={styles.canvas}>
+          <ReactFlow
+            nodes={rfNodes}
+            edges={rfEdges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            fitView
+            deleteKeyCode={['Backspace', 'Delete']}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background gap={16} size={1} />
+            <Controls />
+          </ReactFlow>
+        </div>
 
-  const handleEditOk = (node: WorkflowNode): void => {
-    if (node.type === 'parallel') {
-      message.error('画布只用叶子节点；并行请从一个节点连出多条线')
-      return
-    }
-    setNodes((ns) => {
-      const exists = ns.some((n) => n.id === node.id)
-      const next: WorkflowRfNode[] = exists
-        ? ns.map((n) =>
-          n.id === node.id
-            ? { ...n, data: { ...n.data, leaf: node } }
-            : n
-        )
-        : [
-          ...ns,
-          {
-            id: node.id,
-            type: 'workflow',
-            position: { x: 140, y: 120 + ns.length * 40 },
-            data: {
-              leaf: node,
-              onEdit: (id) => onEditRef.current(id),
-              onDelete: (id) => onDeleteRef.current(id)
-            }
-          }
-        ]
-      queueMicrotask(() => emitChange(next, rfEdges))
-      return next
-    })
-    setEditOpen(false)
-    setEditingLeaf(null)
-  }
-
-  return (
-    <div className={styles.wrap}>
-      <div className={styles.toolbar}>
-        <span className={styles.hint}>双击节点可编辑 · 多条出线表示并行分支</span>
-        <Dropdown
-          menu={{ items: addMenu }}
-          getPopupContainer={
-            isFullscreen && fullscreenContainer
-              ? () => fullscreenContainer
-              : undefined
-          }
-        >
-          <Button type="primary" size="small" icon={<PlusOutlined />}>
-            添加节点
-          </Button>
-        </Dropdown>
+        <WorkflowNodeEditModal
+          open={editOpen}
+          node={editingLeaf}
+          leafOnly
+          isFullscreen={isFullscreen}
+          fullscreenContainer={fullscreenContainer}
+          onCancel={() => {
+            setEditOpen(false)
+            setEditingLeaf(null)
+          }}
+          onOk={handleEditOk}
+        />
       </div>
-      {graphError ? (
-        <div className={styles.errorBar}>连线未完成编译：{graphError}</div>
-      ) : null}
-      <div className={styles.canvas}>
-        <ReactFlow
-          nodes={rfNodes}
-          edges={rfEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          fitView
-          deleteKeyCode={['Backspace', 'Delete']}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background gap={16} size={1} />
-          <Controls />
-        </ReactFlow>
-      </div>
-
-      <WorkflowNodeEditModal
-        open={editOpen}
-        node={editingLeaf}
-        leafOnly
-        isFullscreen={isFullscreen}
-        fullscreenContainer={fullscreenContainer}
-        onCancel={() => {
-          setEditOpen(false)
-          setEditingLeaf(null)
-        }}
-        onOk={handleEditOk}
-      />
-    </div>
-  )
-}
+    )
+  }
+)
