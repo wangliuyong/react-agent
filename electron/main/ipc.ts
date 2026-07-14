@@ -154,6 +154,14 @@ export function registerIpcHandlers(): void {
     postDeletePublishChannel(id)
   )
   ipcMain.handle(IpcChannels.postInitPublishChannels, () => postInitPublishChannels())
+  ipcMain.handle(IpcChannels.postNotifyChannelTest, async (_e, channelId: string) => {
+    const { postNotifyMessage } = await import('./notify/send')
+    return postNotifyMessage({
+      channelId: String(channelId),
+      title: '灵犀通知测试',
+      content: '这是一条来自渠道页的测试消息。'
+    })
+  })
 
   ipcMain.handle(IpcChannels.queryChannelLoginStatuses, () => queryAllChannelLoginStatuses())
   ipcMain.handle(IpcChannels.postChannelOpenLogin, async (_e, channelId: string) =>

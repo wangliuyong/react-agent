@@ -18,6 +18,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
   publisher: [
     'xhs_publish_note',
     'douyin_publish_note',
+    'notify_message',
     'browser_navigate',
     'browser_snapshot',
     'browser_click',

@@ -18,9 +18,16 @@ export async function postDeletePublishChannel(id: string): Promise<void> {
   return window.api.postDeletePublishChannel(id)
 }
 
-/** 写：初始化/恢复内置渠道（小红书、抖音、视频号） */
+/** 写：初始化/恢复内置渠道（小红书、抖音、飞书等） */
 export async function postInitPublishChannels(): Promise<PublishChannelMeta[]> {
   return window.api.postInitPublishChannels()
+}
+
+/** 写：测试发送通知渠道消息 */
+export async function postNotifyChannelTest(
+  channelId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return window.api.postNotifyChannelTest(channelId)
 }
 
 /** 读：检测全部发布渠道的登录态 */

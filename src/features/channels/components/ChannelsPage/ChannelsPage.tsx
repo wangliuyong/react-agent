@@ -1,11 +1,16 @@
 import type { CSSProperties } from 'react'
-import type { PublishChannelUpsertInput } from '@shared/publish-channels'
-import { queryPublishChannelMeta } from '@shared/publish-channels'
+import type { ChannelKind, PublishChannelUpsertInput } from '@shared/publish-channels'
+import {
+  isNotifyChannelConfigured,
+  normalizeChannelKind,
+  queryPublishChannelMeta
+} from '@shared/publish-channels'
 import type { ChannelLoginState, ChannelLoginStatus, PublishChannelMeta } from '@shared/types'
 import type { PublishChannelId } from '@shared/publish-channels'
 import {
   postBrowserClearProfile,
   postChannelOpenLogin,
+  postNotifyChannelTest,
   queryChannelLoginStatuses
 } from '../../api'
 import { useChannelsStore } from '../../hooks/useChannelsStore'
@@ -57,6 +62,25 @@ function renderLoginTag(state: ChannelLoginState | undefined): React.ReactElemen
   }
 }
 
+/** 通知渠道配置状态徽标 */
+function renderNotifyConfigTag(channel: PublishChannelMeta): React.ReactElement {
+  if (!channel.enabled || channel.id === 'wechat_notify' || channel.id === 'qq_notify') {
+    return <Tag>即将上线</Tag>
+  }
+  if (isNotifyChannelConfigured(channel)) {
+    return (
+      <Tag icon={<CheckCircleOutlined />} color="success">
+        已配置
+      </Tag>
+    )
+  }
+  return (
+    <Tag icon={<CloseCircleOutlined />} color="warning">
+      未配置
+    </Tag>
+  )
+}
+
 function matchChannelQuery(channel: PublishChannelMeta, query: string): boolean {
   const q = query.trim().toLowerCase()
   if (!q) return true
@@ -64,7 +88,8 @@ function matchChannelQuery(channel: PublishChannelMeta, query: string): boolean 
     channel.label.toLowerCase().includes(q) ||
     channel.description.toLowerCase().includes(q) ||
     channel.id.toLowerCase().includes(q) ||
-    channel.publishTool.toLowerCase().includes(q)
+    (channel.publishTool ?? '').toLowerCase().includes(q) ||
+    (channel.notifyTool ?? '').toLowerCase().includes(q)
   )
 }
 
@@ -76,7 +101,14 @@ function loginFooterLabel(state: ChannelLoginState | undefined): string {
   return '未检测'
 }
 
-/** 渠道管理：对齐技能市场 — 卡片浏览 + 详情弹窗 */
+function notifyFooterLabel(channel: PublishChannelMeta): string {
+  if (!channel.enabled || channel.id === 'wechat_notify' || channel.id === 'qq_notify') {
+    return '即将上线'
+  }
+  return isNotifyChannelConfigured(channel) ? '已配置' : '未配置'
+}
+
+/** 渠道管理：对齐技能市场 — Tab 分发布/通知 + 卡片浏览 */
 export function ChannelsPage(): React.ReactElement {
   const channels = useChannelsStore((s) => s.channels)
   const channelsLoading = useChannelsStore((s) => s.loading)
@@ -85,6 +117,7 @@ export function ChannelsPage(): React.ReactElement {
   const removeChannel = useChannelsStore((s) => s.removeChannel)
   const initBuiltinChannels = useChannelsStore((s) => s.initBuiltinChannels)
 
+  const [kindTab, setKindTab] = useState<ChannelKind>('publish')
   const [filter, setFilter] = useState<ChannelFilter>('all')
   const [search, setSearch] = useState('')
 
@@ -93,6 +126,7 @@ export function ChannelsPage(): React.ReactElement {
   const [openingId, setOpeningId] = useState<PublishChannelId | null>(null)
   const [clearing, setClearing] = useState(false)
   const [initializing, setInitializing] = useState(false)
+  const [testingId, setTestingId] = useState<string | null>(null)
 
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailChannel, setDetailChannel] = useState<PublishChannelMeta | null>(null)
@@ -101,6 +135,7 @@ export function ChannelsPage(): React.ReactElement {
   const [editMode, setEditMode] = useState<'create' | 'update'>('create')
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm<PublishChannelUpsertInput>()
+  const editKind = Form.useWatch('kind', form) as ChannelKind | undefined
 
   useEffect(() => {
     void hydrate()
@@ -122,19 +157,35 @@ export function ChannelsPage(): React.ReactElement {
     }
   }, [])
 
-  const enabledCount = useMemo(() => channels.filter((c) => c.enabled).length, [channels])
+  useEffect(() => {
+    void refreshStatuses()
+  }, [refreshStatuses])
 
+  const tabChannels = useMemo(
+    () => channels.filter((c) => normalizeChannelKind(c.kind) === kindTab),
+    [channels, kindTab]
+  )
+
+  const enabledCount = useMemo(
+    () => tabChannels.filter((c) => c.enabled).length,
+    [tabChannels]
+  )
   const loggedInCount = useMemo(
-    () => channels.filter((c) => c.enabled && statusMap[c.id]?.state === 'logged_in').length,
-    [channels, statusMap]
+    () =>
+      tabChannels.filter((c) => statusMap[c.id]?.state === 'logged_in').length,
+    [tabChannels, statusMap]
+  )
+  const configuredNotifyCount = useMemo(
+    () => tabChannels.filter((c) => isNotifyChannelConfigured(c)).length,
+    [tabChannels]
   )
 
   const filtered = useMemo(() => {
-    let list = channels
+    let list = tabChannels
     if (filter === 'enabled') list = list.filter((c) => c.enabled)
     if (filter === 'reserved') list = list.filter((c) => !c.enabled)
     return list.filter((c) => matchChannelQuery(c, search))
-  }, [channels, filter, search])
+  }, [tabChannels, filter, search])
 
   useEffect(() => {
     if (!detailChannel) return
@@ -143,7 +194,7 @@ export function ChannelsPage(): React.ReactElement {
   }, [channels, detailChannel?.id])
 
   const openCreate = (): void => {
-    const draft = createEmptyChannel()
+    const draft = createEmptyChannel(kindTab)
     setEditMode('create')
     form.setFieldsValue(draft)
     setEditOpen(true)
@@ -163,6 +214,7 @@ export function ChannelsPage(): React.ReactElement {
   const handleSave = async (): Promise<void> => {
     try {
       const values = await form.validateFields()
+      const kind = normalizeChannelKind(values.kind ?? kindTab)
       const normalizedId =
         editMode === 'create' ? slugifyChannelId(values.id || values.label) : values.id.trim()
       if (!isValidChannelId(normalizedId)) {
@@ -173,9 +225,18 @@ export function ChannelsPage(): React.ReactElement {
       await saveChannel({
         ...values,
         id: normalizedId,
+        kind,
         label: values.label.trim(),
         description: values.description.trim(),
-        publishTool: values.publishTool.trim(),
+        publishTool: values.publishTool?.trim() || undefined,
+        notifyTool: values.notifyTool?.trim() || (kind === 'notify' ? 'notify_message' : undefined),
+        notifyConfig:
+          kind === 'notify'
+            ? {
+                webhookUrl: values.notifyConfig?.webhookUrl?.trim() || undefined,
+                secret: values.notifyConfig?.secret?.trim() || undefined
+              }
+            : undefined,
         loginCheckUrl: values.loginCheckUrl?.trim() || undefined,
         agentHint: values.agentHint.trim(),
         titleMaxLength: values.titleMaxLength ?? undefined
@@ -238,7 +299,7 @@ export function ChannelsPage(): React.ReactElement {
     setInitializing(true)
     try {
       await initBuiltinChannels()
-      message.success('已初始化内置渠道（小红书、抖音、视频号）')
+      message.success('已初始化内置渠道（含飞书等通知渠道）')
       void refreshStatuses()
     } catch (err) {
       message.error(err instanceof Error ? err.message : '初始化失败')
@@ -247,7 +308,27 @@ export function ChannelsPage(): React.ReactElement {
     }
   }
 
+  const handleTestNotify = async (channelId: string): Promise<void> => {
+    setTestingId(channelId)
+    try {
+      const result = await postNotifyChannelTest(channelId)
+      if (result.ok) {
+        message.success('测试消息已发送')
+      } else {
+        message.error(result.error)
+      }
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '测试发送失败')
+    } finally {
+      setTestingId(null)
+    }
+  }
+
   const detailStatus = detailChannel ? statusMap[detailChannel.id] : undefined
+  const detailIsNotify = detailChannel
+    ? normalizeChannelKind(detailChannel.kind) === 'notify'
+    : false
+  const formIsNotify = normalizeChannelKind(editKind ?? kindTab) === 'notify'
 
   return (
     <div className={styles.page}>
@@ -261,35 +342,52 @@ export function ChannelsPage(): React.ReactElement {
               <Title level={3} className={styles.title}>
                 渠道
               </Title>
-              <span className={styles.countBadge}>{channels.length}</span>
+              <span className={styles.countBadge}>{tabChannels.length}</span>
             </div>
             <Text type="secondary" className={styles.desc}>
-              已接入 {enabledCount} 个 · 已登录 {loggedInCount} 个；共用本机浏览器 Profile
+              {kindTab === 'publish'
+                ? `已接入 ${enabledCount} 个 · 已登录 ${loggedInCount} 个；共用本机浏览器 Profile`
+                : `已接入 ${enabledCount} 个 · 已配置 ${configuredNotifyCount} 个；Webhook 仅存本机`}
             </Text>
           </div>
         </div>
         <Space wrap>
           <Popconfirm
             title="初始化内置渠道？"
-            description="将恢复小红书、抖音、视频号为默认配置，自定义渠道不受影响。"
+            description="将恢复小红书、抖音、视频号、飞书等为默认配置，自定义渠道不受影响。"
             onConfirm={() => void handleInitBuiltin()}
             okText="初始化"
             cancelText="取消"
           >
             <Button loading={initializing}>初始化内置</Button>
           </Popconfirm>
-          <Button
-            icon={<ReloadOutlined />}
-            loading={checking}
-            onClick={() => void refreshStatuses()}
-          >
-            检测登录态
-          </Button>
+          {kindTab === 'publish' ? (
+            <Button
+              icon={<ReloadOutlined />}
+              loading={checking}
+              onClick={() => void refreshStatuses()}
+            >
+              检测登录态
+            </Button>
+          ) : null}
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             新增渠道
           </Button>
         </Space>
       </header>
+
+      <Tabs
+        activeKey={kindTab}
+        onChange={(k) => {
+          setKindTab(k as ChannelKind)
+          setFilter('all')
+          setSearch('')
+        }}
+        items={[
+          { key: 'publish', label: '发布渠道' },
+          { key: 'notify', label: '通知渠道' }
+        ]}
+      />
 
       <div className={styles.toolbar}>
         <Segmented
@@ -319,10 +417,10 @@ export function ChannelsPage(): React.ReactElement {
           {filtered.length === 0 ? (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={channels.length === 0 ? '暂无渠道' : '暂无匹配的渠道'}
+              description={tabChannels.length === 0 ? '暂无渠道' : '暂无匹配的渠道'}
               className={styles.empty}
             >
-              {channels.length === 0 ? (
+              {tabChannels.length === 0 ? (
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                   新增渠道
                 </Button>
@@ -331,6 +429,7 @@ export function ChannelsPage(): React.ReactElement {
           ) : (
             <div className={styles.grid}>
               {filtered.map((channel, index) => {
+                const isNotify = normalizeChannelKind(channel.kind) === 'notify'
                 const status = statusMap[channel.id]
                 return (
                   <Card
@@ -344,14 +443,16 @@ export function ChannelsPage(): React.ReactElement {
                     <div className={styles.cardHead}>
                       <div className={styles.cardTitleRow}>
                         <span className={styles.cardTitle}>{channel.label}</span>
-                        {channel.enabled ? (
+                        {isNotify ? (
+                          renderNotifyConfigTag(channel)
+                        ) : channel.enabled ? (
                           <Tag color="processing">已接入</Tag>
                         ) : (
                           <Tag>预留</Tag>
                         )}
                       </div>
                       <p className={styles.cardDesc}>
-                        {channel.description?.trim() || '暂无描述，点击查看登录与配置。'}
+                        {channel.description?.trim() || '暂无描述，点击查看配置。'}
                       </p>
                     </div>
                     <div className={styles.cardFooter}>
@@ -359,7 +460,9 @@ export function ChannelsPage(): React.ReactElement {
                         {channel.isBuiltin ? '@平台' : '@自定义'}
                       </span>
                       <span className={styles.cardUsage}>
-                        {loginFooterLabel(status?.state)}
+                        {isNotify
+                          ? notifyFooterLabel(channel)
+                          : loginFooterLabel(status?.state)}
                       </span>
                     </div>
                   </Card>
@@ -369,31 +472,42 @@ export function ChannelsPage(): React.ReactElement {
           )}
         </Spin>
 
-        <Alert
-          className={styles.alertCard}
-          type="info"
-          showIcon
-          message="浏览器登录态"
-          description={
-            <Space direction="vertical">
-              <Text>
-                各渠道共用同一个 Playwright 浏览器 Profile。若登录异常或 Cookie 冲突，可清除后重新扫码。
-              </Text>
-              <Popconfirm
-                title="确定清除全部渠道登录态？"
-                description="将删除本机 browser-profile 目录，所有渠道需重新登录。"
-                onConfirm={() => void handleClearProfile()}
-                okText="清除"
-                cancelText="取消"
-                okButtonProps={{ danger: true }}
-              >
-                <Button danger loading={clearing}>
-                  清除全部登录态
-                </Button>
-              </Popconfirm>
-            </Space>
-          }
-        />
+        {kindTab === 'publish' ? (
+          <Alert
+            className={styles.alertCard}
+            type="info"
+            showIcon
+            message="浏览器登录态"
+            description={
+              <Space direction="vertical">
+                <Text>
+                  各发布渠道共用同一个 Playwright 浏览器 Profile。若登录异常或 Cookie
+                  冲突，可清除后重新扫码。
+                </Text>
+                <Popconfirm
+                  title="确定清除全部渠道登录态？"
+                  description="将删除本机 browser-profile 目录，所有渠道需重新登录。"
+                  onConfirm={() => void handleClearProfile()}
+                  okText="清除"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button danger loading={clearing}>
+                    清除全部登录态
+                  </Button>
+                </Popconfirm>
+              </Space>
+            }
+          />
+        ) : (
+          <Alert
+            className={styles.alertCard}
+            type="info"
+            showIcon
+            message="通知渠道"
+            description="飞书使用自定义机器人 Webhook；Webhook 与签名密钥仅保存在本机，不会发给 Agent。"
+          />
+        )}
       </div>
 
       <Modal
@@ -416,18 +530,34 @@ export function ChannelsPage(): React.ReactElement {
                   {detailChannel.isBuiltin ? (
                     <Tag color={DB_THEME.primary}>内置</Tag>
                   ) : null}
-                  {detailChannel.enabled ? (
-                    <Tag color="processing">已接入</Tag>
-                  ) : (
-                    <Tag>预留</Tag>
-                  )}
-                  {renderLoginTag(detailStatus?.state)}
+                  <Tag color={detailIsNotify ? 'cyan' : 'processing'}>
+                    {detailIsNotify ? '通知' : '发布'}
+                  </Tag>
+                  {detailIsNotify
+                    ? renderNotifyConfigTag(detailChannel)
+                    : detailChannel.enabled
+                      ? (
+                          <Tag color="processing">已接入</Tag>
+                        )
+                      : (
+                          <Tag>预留</Tag>
+                        )}
+                  {!detailIsNotify ? renderLoginTag(detailStatus?.state) : null}
                 </div>
               </div>
               <Space wrap>
                 <Button icon={<EditOutlined />} onClick={() => openEdit(detailChannel)}>
                   编辑
                 </Button>
+                {detailIsNotify && detailChannel.id === 'feishu' ? (
+                  <Button
+                    icon={<SendOutlined />}
+                    loading={testingId === detailChannel.id}
+                    onClick={() => void handleTestNotify(detailChannel.id)}
+                  >
+                    测试发送
+                  </Button>
+                ) : null}
                 {!detailChannel.isBuiltin ? (
                   <Popconfirm
                     title="确定删除该渠道？"
@@ -442,7 +572,7 @@ export function ChannelsPage(): React.ReactElement {
                     </Button>
                   </Popconfirm>
                 ) : null}
-                {detailChannel.enabled ? (
+                {!detailIsNotify && detailChannel.enabled ? (
                   <>
                     <Button
                       icon={<LoginOutlined />}
@@ -470,28 +600,51 @@ export function ChannelsPage(): React.ReactElement {
             <div>
               <h3 className={styles.sectionLabel}>配置信息</h3>
               <div className={styles.metaList}>
-                <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>发布工具</span>
-                  <span className={styles.metaValue}>{detailChannel.publishTool}</span>
-                </div>
-                {detailChannel.titleMaxLength != null ? (
-                  <div className={styles.metaRow}>
-                    <span className={styles.metaLabel}>标题上限</span>
-                    <span className={styles.metaValue}>{detailChannel.titleMaxLength} 字</span>
-                  </div>
-                ) : null}
-                {detailChannel.loginCheckUrl ? (
-                  <div className={styles.metaRow}>
-                    <span className={styles.metaLabel}>创作者中心</span>
-                    <span className={styles.metaValue}>{detailChannel.loginCheckUrl}</span>
-                  </div>
-                ) : null}
-                {detailStatus?.message ? (
-                  <div className={styles.metaRow}>
-                    <span className={styles.metaLabel}>状态说明</span>
-                    <span className={styles.metaValue}>{detailStatus.message}</span>
-                  </div>
-                ) : null}
+                {detailIsNotify ? (
+                  <>
+                    <div className={styles.metaRow}>
+                      <span className={styles.metaLabel}>通知工具</span>
+                      <span className={styles.metaValue}>
+                        {detailChannel.notifyTool ?? 'notify_message'}
+                      </span>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <span className={styles.metaLabel}>Webhook</span>
+                      <span className={styles.metaValue}>
+                        {detailChannel.notifyConfig?.webhookUrl ? '已配置' : '未配置'}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.metaRow}>
+                      <span className={styles.metaLabel}>发布工具</span>
+                      <span className={styles.metaValue}>
+                        {detailChannel.publishTool ?? '—'}
+                      </span>
+                    </div>
+                    {detailChannel.titleMaxLength != null ? (
+                      <div className={styles.metaRow}>
+                        <span className={styles.metaLabel}>标题上限</span>
+                        <span className={styles.metaValue}>
+                          {detailChannel.titleMaxLength} 字
+                        </span>
+                      </div>
+                    ) : null}
+                    {detailChannel.loginCheckUrl ? (
+                      <div className={styles.metaRow}>
+                        <span className={styles.metaLabel}>创作者中心</span>
+                        <span className={styles.metaValue}>{detailChannel.loginCheckUrl}</span>
+                      </div>
+                    ) : null}
+                    {detailStatus?.message ? (
+                      <div className={styles.metaRow}>
+                        <span className={styles.metaLabel}>状态说明</span>
+                        <span className={styles.metaValue}>{detailStatus.message}</span>
+                      </div>
+                    ) : null}
+                  </>
+                )}
                 {detailChannel.agentHint ? (
                   <div className={styles.metaRow}>
                     <span className={styles.metaLabel}>Agent 说明</span>
@@ -514,25 +667,36 @@ export function ChannelsPage(): React.ReactElement {
         width={560}
       >
         <Form form={form} layout="vertical" preserve={false}>
+          <Form.Item name="kind" hidden>
+            <Input />
+          </Form.Item>
           {editMode === 'create' ? (
             <Form.Item
               name="id"
               label="渠道 ID"
               tooltip="留空则根据名称自动生成；仅小写字母、数字、连字符与下划线"
             >
-              <Input placeholder="例如 bilibili" />
+              <Input placeholder={formIsNotify ? '例如 feishu_team' : '例如 bilibili'} />
             </Form.Item>
           ) : (
             <Form.Item label="渠道 ID">
               <Input value={form.getFieldValue('id')} disabled />
             </Form.Item>
           )}
+          <Form.Item label="类型">
+            <Tag color={formIsNotify ? 'cyan' : 'processing'}>
+              {formIsNotify ? '通知渠道' : '发布渠道'}
+            </Tag>
+            <Text type="secondary" style={{ marginLeft: 8 }}>
+              创建后不可修改
+            </Text>
+          </Form.Item>
           <Form.Item
             name="label"
             label="渠道名称"
             rules={[{ required: true, message: '请输入渠道名称' }]}
           >
-            <Input placeholder="例如 B站" />
+            <Input placeholder={formIsNotify ? '例如 飞书运营群' : '例如 B站'} />
           </Form.Item>
           <Form.Item name="description" label="简介">
             <Input.TextArea rows={2} placeholder="渠道页展示的说明" />
@@ -540,26 +704,57 @@ export function ChannelsPage(): React.ReactElement {
           <Form.Item name="enabled" label="已接入" valuePropName="checked">
             <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
-          <Form.Item
-            name="publishTool"
-            label="Agent 发布工具名"
-            rules={[{ required: true, message: '请输入发布工具名' }]}
-            tooltip="snake_case，如 xhs_publish_note；需在后端实现对应工具"
-          >
-            <Input placeholder="例如 bilibili_publish_note" />
-          </Form.Item>
-          <Form.Item name="titleMaxLength" label="标题字数上限">
-            <InputNumber min={1} max={200} placeholder="可选" style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="loginCheckUrl" label="创作者中心地址">
-            <Input placeholder="登录检测与打开登录页时使用，可选" />
-          </Form.Item>
+          {formIsNotify ? (
+            <>
+              <Form.Item name="notifyTool" label="通知工具名" initialValue="notify_message">
+                <Input disabled />
+              </Form.Item>
+              <Form.Item
+                name={['notifyConfig', 'webhookUrl']}
+                label="Webhook URL"
+                tooltip="飞书自定义机器人地址；仅本地保存"
+              >
+                <Input.Password placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." />
+              </Form.Item>
+              <Form.Item
+                name={['notifyConfig', 'secret']}
+                label="签名密钥"
+                tooltip="若机器人启用了签名校验则填写"
+              >
+                <Input.Password placeholder="可选" />
+              </Form.Item>
+            </>
+          ) : (
+            <>
+              <Form.Item
+                name="publishTool"
+                label="Agent 发布工具名"
+                rules={[{ required: true, message: '请输入发布工具名' }]}
+                tooltip="snake_case，如 xhs_publish_note；需在后端实现对应工具"
+              >
+                <Input placeholder="例如 bilibili_publish_note" />
+              </Form.Item>
+              <Form.Item name="titleMaxLength" label="标题字数上限">
+                <InputNumber min={1} max={200} placeholder="可选" style={{ width: '100%' }} />
+              </Form.Item>
+              <Form.Item name="loginCheckUrl" label="创作者中心地址">
+                <Input placeholder="登录检测与打开登录页时使用，可选" />
+              </Form.Item>
+            </>
+          )}
           <Form.Item
             name="agentHint"
             label="Agent 补充说明"
             rules={[{ required: true, message: '请填写 Agent 说明' }]}
           >
-            <Input.TextArea rows={4} placeholder="发布该渠道时的工具用法与注意事项" />
+            <Input.TextArea
+              rows={4}
+              placeholder={
+                formIsNotify
+                  ? '通知该渠道时的用法与注意事项'
+                  : '发布该渠道时的工具用法与注意事项'
+              }
+            />
           </Form.Item>
         </Form>
       </Modal>

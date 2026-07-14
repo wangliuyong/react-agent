@@ -1,5 +1,10 @@
 import { create } from 'zustand'
-import type { PublishChannelMeta, PublishChannelUpsertInput } from '@shared/publish-channels'
+import {
+  isNotifyChannelConfigured,
+  normalizeChannelKind,
+  type PublishChannelMeta,
+  type PublishChannelUpsertInput
+} from '@shared/publish-channels'
 import {
   postDeletePublishChannel,
   postInitPublishChannels,
@@ -39,7 +44,7 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
     }
   },
 
-  createChannelDraft: () => createEmptyChannel(),
+  createChannelDraft: () => createEmptyChannel('publish'),
 
   saveChannel: async (input) => {
     const saved = await postPublishChannel(input)
@@ -68,9 +73,28 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
   }
 }))
 
-/** 已启用渠道（工作台 Select 用） */
+/** 已启用发布渠道（工作台 Select 用） */
+export function queryEnabledPublishChannelsFromStore(
+  channels: PublishChannelMeta[]
+): PublishChannelMeta[] {
+  return channels.filter((c) => normalizeChannelKind(c.kind) === 'publish' && c.enabled)
+}
+
+/** 已启用且已配置的通知渠道（工作台 Select 用） */
+export function queryEnabledNotifyChannelsFromStore(
+  channels: PublishChannelMeta[]
+): PublishChannelMeta[] {
+  return channels.filter(
+    (c) =>
+      normalizeChannelKind(c.kind) === 'notify' &&
+      c.enabled &&
+      isNotifyChannelConfigured(c)
+  )
+}
+
+/** @deprecated 请使用 queryEnabledPublishChannelsFromStore */
 export function queryEnabledChannelsFromStore(
   channels: PublishChannelMeta[]
 ): PublishChannelMeta[] {
-  return channels.filter((c) => c.enabled)
+  return queryEnabledPublishChannelsFromStore(channels)
 }
