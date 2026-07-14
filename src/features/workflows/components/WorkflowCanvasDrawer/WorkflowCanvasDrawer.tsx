@@ -1,8 +1,13 @@
 import { useRef } from 'react'
+import type { MenuProps } from 'antd'
 import type { WorkflowCanvas as WorkflowCanvasModel, WorkflowDefinition } from '@shared/types'
 import { DB_THEME } from '@/styles/theme-tokens'
 import { useElementFullscreen } from '@/hooks/useElementFullscreen'
-import { WorkflowCanvas } from '../WorkflowCanvas'
+import {
+  WorkflowCanvas,
+  type WorkflowCanvasHandle,
+  type WorkflowCanvasLeafType
+} from '../WorkflowCanvas'
 import { flattenWorkflowLeaves } from '../../utils/workflowCanvasGraph'
 import styles from './WorkflowCanvasDrawer.module.css'
 
@@ -20,6 +25,13 @@ interface WorkflowCanvasDrawerProps {
   onRun: () => void
 }
 
+/** 画布编辑区头部「添加节点」菜单项 */
+const ADD_NODE_MENU_TYPES: { key: WorkflowCanvasLeafType; label: string }[] = [
+  { key: 'agent', label: 'Agent 步骤' },
+  { key: 'tool', label: '工具步骤' },
+  { key: 'await_user', label: '等待确认' }
+]
+
 /** 流程画布抽屉：信息架构对齐技能市场详情弹窗，顶栏展示关闭图标 */
 export function WorkflowCanvasDrawer({
   open,
@@ -32,6 +44,7 @@ export function WorkflowCanvasDrawer({
   onRun
 }: WorkflowCanvasDrawerProps): React.ReactElement {
   const canvasPanelRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<WorkflowCanvasHandle>(null)
   const { isFullscreen, toggleFullscreen, exitFullscreen } =
     useElementFullscreen(canvasPanelRef)
 
@@ -46,6 +59,13 @@ export function WorkflowCanvasDrawer({
     }
     onClose()
   }
+
+  /** 通过画布命令式 API 追加叶子节点 */
+  const addMenu: MenuProps['items'] = ADD_NODE_MENU_TYPES.map(({ key, label }) => ({
+    key,
+    label,
+    onClick: () => canvasRef.current?.addLeafByType(key)
+  }))
 
   return (
     <Drawer
@@ -106,7 +126,7 @@ export function WorkflowCanvasDrawer({
           </div>
 
           <p className={styles.description}>
-            拖拽节点、从锚点拉线编排步骤；一源多出线表示并行分支。
+            拖拽节点、从锚点拉线编排步骤；一源多出线表示并行分支。双击节点可编辑。
           </p>
 
           <div className={styles.canvasPanel} ref={canvasPanelRef}>
@@ -123,6 +143,18 @@ export function WorkflowCanvasDrawer({
                 </div>
               </div>
               <div className={styles.canvasPanelActions}>
+                <Dropdown
+                  menu={{ items: addMenu }}
+                  getPopupContainer={
+                    isFullscreen && canvasPanelRef.current
+                      ? () => canvasPanelRef.current as HTMLElement
+                      : undefined
+                  }
+                >
+                  <Button type="primary" size="small" icon={<PlusOutlined />}>
+                    添加节点
+                  </Button>
+                </Dropdown>
                 <Button
                   type="text"
                   className={styles.fullscreenBtn}
@@ -135,6 +167,7 @@ export function WorkflowCanvasDrawer({
             </div>
             <div className={styles.drawerBody}>
               <WorkflowCanvas
+                ref={canvasRef}
                 workflowId={draft.id}
                 nodes={draft.nodes}
                 canvas={draft.canvas}
