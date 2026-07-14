@@ -2,7 +2,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   addEdge,
   useEdgesState,
   useNodesState,
@@ -342,7 +341,6 @@ export function WorkflowCanvas({
         >
           <Background gap={16} size={1} />
           <Controls />
-          <MiniMap pannable zoomable />
         </ReactFlow>
       </div>
 

@@ -65,13 +65,6 @@
   background: var(--db-hover);
 }
 
-.canvas :global(.react-flow__minimap) {
-  background: var(--db-bg-content);
-  border: 1px solid var(--db-border-light);
-  border-radius: var(--db-radius-md);
-  overflow: hidden;
-}
-
 .canvas :global(.react-flow__edge-path) {
   stroke-linecap: round;
 }
