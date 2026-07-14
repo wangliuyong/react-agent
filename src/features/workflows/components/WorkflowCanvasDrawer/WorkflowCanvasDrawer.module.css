@@ -210,6 +210,35 @@
   line-height: 1.45;
 }
 
+.canvasPanelActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.fullscreenBtn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--db-text-secondary);
+  border-radius: var(--db-radius-md);
+}
+
+.fullscreenBtn:hover {
+  color: var(--db-text) !important;
+  background: var(--db-hover) !important;
+}
+
+.canvasPanel:fullscreen {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  border: none;
+  background: var(--db-bg-content);
+}
+
 .drawerBody {
   position: relative;
   flex: 1;
