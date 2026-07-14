@@ -356,8 +356,9 @@
   margin-bottom: 0;
 }
 
-/* ── 详情弹窗 ── */
-.detailModal :global(.ant-modal-body) {
+/* ── 详情 / 编辑弹窗：限制高度，表单过长可滚动 ── */
+.detailModal :global(.ant-modal-body),
+.editModal :global(.ant-modal-body) {
   max-height: 70vh;
   overflow: auto;
   padding-top: 8px;

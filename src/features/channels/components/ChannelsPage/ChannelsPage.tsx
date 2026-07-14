@@ -125,6 +125,8 @@ export function ChannelsPage(): React.ReactElement {
 
   const [editOpen, setEditOpen] = useState(false)
   const [editMode, setEditMode] = useState<'create' | 'update'>('create')
+  /** 弹窗 initialValues；destroyOnHidden 时需在挂载前备好，不能依赖提前 setFieldsValue */
+  const [editDraft, setEditDraft] = useState<PublishChannelUpsertInput | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm<PublishChannelUpsertInput>()
   const editKind = Form.useWatch('kind', form) as ChannelKind | undefined
@@ -133,6 +135,7 @@ export function ChannelsPage(): React.ReactElement {
     void hydrate()
   }, [hydrate])
 
+  // 为什么：不在进入页面时自动检测（会启浏览器、耗时长）；仅由「检测登录态」按钮触发
   const refreshStatuses = useCallback(async (): Promise<void> => {
     setChecking(true)
     try {
@@ -148,10 +151,6 @@ export function ChannelsPage(): React.ReactElement {
       setChecking(false)
     }
   }, [])
-
-  useEffect(() => {
-    void refreshStatuses()
-  }, [refreshStatuses])
 
   const tabChannels = useMemo(
     () => channels.filter((c) => normalizeChannelKind(c.kind) === kindTab),
@@ -188,13 +187,14 @@ export function ChannelsPage(): React.ReactElement {
   const openCreate = (): void => {
     const draft = createEmptyChannel(kindTab)
     setEditMode('create')
-    form.setFieldsValue(draft)
+    setEditDraft(draft)
     setEditOpen(true)
   }
 
   const openEdit = (channel: PublishChannelMeta): void => {
+    const draft = channelMetaToInput(channel)
     setEditMode('update')
-    form.setFieldsValue(channelMetaToInput(channel))
+    setEditDraft(draft)
     setEditOpen(true)
   }
 
@@ -204,22 +204,27 @@ export function ChannelsPage(): React.ReactElement {
   }
 
   const handleSave = async (): Promise<void> => {
+    setSaving(true)
     try {
       const values = await form.validateFields()
-      const kind = normalizeChannelKind(values.kind ?? kindTab)
+      const kind = normalizeChannelKind(values.kind ?? editDraft?.kind ?? kindTab)
+      // 编辑态 id 不可改：优先表单值，其次打开时的 draft
+      const rawId =
+        editMode === 'update'
+          ? (values.id || editDraft?.id || '')
+          : values.id || values.label || ''
       const normalizedId =
-        editMode === 'create' ? slugifyChannelId(values.id || values.label) : values.id.trim()
+        editMode === 'create' ? slugifyChannelId(String(rawId)) : String(rawId).trim()
       if (!isValidChannelId(normalizedId)) {
         message.error('渠道 id 仅允许小写字母、数字、连字符和下划线')
         return Promise.reject(new Error('validation'))
       }
-      setSaving(true)
       await saveChannel({
         ...values,
         id: normalizedId,
         kind,
-        label: values.label.trim(),
-        description: values.description.trim(),
+        label: (values.label ?? '').trim(),
+        description: (values.description ?? '').trim(),
         publishTool: values.publishTool?.trim() || undefined,
         notifyTool: values.notifyTool?.trim() || (kind === 'notify' ? 'notify_message' : undefined),
         notifyConfig:
@@ -230,16 +235,19 @@ export function ChannelsPage(): React.ReactElement {
               }
             : undefined,
         loginCheckUrl: values.loginCheckUrl?.trim() || undefined,
-        agentHint: values.agentHint.trim(),
-        titleMaxLength: values.titleMaxLength ?? undefined
+        agentHint: (values.agentHint ?? '').trim(),
+        titleMaxLength: values.titleMaxLength ?? undefined,
+        enabled: values.enabled ?? true
       })
       message.success(editMode === 'create' ? '渠道已创建' : '渠道已更新')
       setEditOpen(false)
+      setEditDraft(null)
     } catch (err) {
+      // Ant Design 校验失败是普通对象，不是 Error，静默拦截避免 Modal uncaught
       if (err instanceof Error && err.message && err.message !== 'validation') {
         message.error(err.message)
       }
-      return Promise.reject(err instanceof Error ? err : new Error('save failed'))
+      return Promise.reject(err instanceof Error ? err : new Error('validation'))
     } finally {
       setSaving(false)
     }
@@ -664,103 +672,121 @@ export function ChannelsPage(): React.ReactElement {
       <Modal
         title={editMode === 'create' ? '新增渠道' : '编辑渠道'}
         open={editOpen}
-        onCancel={() => setEditOpen(false)}
-        onOk={() => void handleSave()}
+        onCancel={() => {
+          if (saving) return
+          setEditOpen(false)
+          setEditDraft(null)
+        }}
+        onOk={handleSave}
         confirmLoading={saving}
+        okButtonProps={{ loading: saving }}
+        cancelButtonProps={{ disabled: saving }}
+        maskClosable={!saving}
+        closable={!saving}
         destroyOnHidden
         width={560}
+        className={styles.editModal}
       >
-        <Form form={form} layout="vertical" preserve={false}>
-          <Form.Item name="kind" hidden>
-            <Input />
-          </Form.Item>
-          {editMode === 'create' ? (
-            <Form.Item
-              name="id"
-              label="渠道 ID"
-              tooltip="留空则根据名称自动生成；仅小写字母、数字、连字符与下划线"
-            >
-              <Input placeholder={formIsNotify ? '例如 feishu_team' : '例如 bilibili'} />
-            </Form.Item>
-          ) : (
-            <Form.Item label="渠道 ID">
-              <Input value={form.getFieldValue('id')} disabled />
-            </Form.Item>
-          )}
-          <Form.Item label="类型">
-            <Tag className={formIsNotify ? styles.tagNotify : styles.tagActive}>
-              {formIsNotify ? '通知渠道' : '发布渠道'}
-            </Tag>
-            <Text type="secondary" style={{ marginLeft: 8 }}>
-              创建后不可修改
-            </Text>
-          </Form.Item>
-          <Form.Item
-            name="label"
-            label="渠道名称"
-            rules={[{ required: true, message: '请输入渠道名称' }]}
+        <Spin spinning={saving} tip="保存中…">
+          <Form
+            key={editDraft ? `${editMode}-${editDraft.id || 'new'}` : 'closed'}
+            form={form}
+            layout="vertical"
+            preserve={false}
+            initialValues={editDraft ?? undefined}
+            disabled={saving}
           >
-            <Input placeholder={formIsNotify ? '例如 飞书运营群' : '例如 B站'} />
-          </Form.Item>
-          <Form.Item name="description" label="简介">
-            <Input.TextArea rows={2} placeholder="渠道页展示的说明" />
-          </Form.Item>
-          <Form.Item name="enabled" label="已接入" valuePropName="checked">
-            <Switch checkedChildren="是" unCheckedChildren="否" />
-          </Form.Item>
-          {formIsNotify ? (
-            <>
-              <Form.Item name="notifyTool" label="通知工具名" initialValue="notify_message">
+            <Form.Item name="kind" hidden>
+              <Input />
+            </Form.Item>
+            {editMode === 'create' ? (
+              <Form.Item
+                name="id"
+                label="渠道 ID"
+                tooltip="留空则根据名称自动生成；仅小写字母、数字、连字符与下划线"
+              >
+                <Input placeholder={formIsNotify ? '例如 feishu_team' : '例如 bilibili'} />
+              </Form.Item>
+            ) : (
+              <Form.Item name="id" label="渠道 ID">
                 <Input disabled />
               </Form.Item>
-              <Form.Item
-                name={['notifyConfig', 'webhookUrl']}
-                label="Webhook URL"
-                tooltip="飞书自定义机器人地址；仅本地保存"
-              >
-                <Input.Password placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." />
-              </Form.Item>
-              <Form.Item
-                name={['notifyConfig', 'secret']}
-                label="签名密钥"
-                tooltip="若机器人启用了签名校验则填写"
-              >
-                <Input.Password placeholder="可选" />
-              </Form.Item>
-            </>
-          ) : (
-            <>
-              <Form.Item
-                name="publishTool"
-                label="Agent 发布工具名"
-                rules={[{ required: true, message: '请输入发布工具名' }]}
-                tooltip="snake_case，如 xhs_publish_note；需在后端实现对应工具"
-              >
-                <Input placeholder="例如 bilibili_publish_note" />
-              </Form.Item>
-              <Form.Item name="titleMaxLength" label="标题字数上限">
-                <InputNumber min={1} max={200} placeholder="可选" style={{ width: '100%' }} />
-              </Form.Item>
-              <Form.Item name="loginCheckUrl" label="创作者中心地址">
-                <Input placeholder="登录检测与打开登录页时使用，可选" />
-              </Form.Item>
-            </>
-          )}
-          <Form.Item
-            name="agentHint"
-            label="Agent 补充说明"
-            rules={[{ required: true, message: '请填写 Agent 说明' }]}
-          >
-            <Input.TextArea
-              rows={4}
-              placeholder={
-                formIsNotify
-                  ? '通知该渠道时的用法与注意事项'
-                  : '发布该渠道时的工具用法与注意事项'
-              }
-            />
-          </Form.Item>
-        </Form>
+            )}
+            <Form.Item label="类型">
+              <Tag className={formIsNotify ? styles.tagNotify : styles.tagActive}>
+                {formIsNotify ? '通知渠道' : '发布渠道'}
+              </Tag>
+              <Text type="secondary" style={{ marginLeft: 8 }}>
+                创建后不可修改
+              </Text>
+            </Form.Item>
+            <Form.Item
+              name="label"
+              label="渠道名称"
+              rules={[{ required: true, message: '请输入渠道名称' }]}
+            >
+              <Input placeholder={formIsNotify ? '例如 飞书运营群' : '例如 B站'} />
+            </Form.Item>
+            <Form.Item name="description" label="简介">
+              <Input.TextArea rows={2} placeholder="渠道页展示的说明" />
+            </Form.Item>
+            <Form.Item name="enabled" label="已接入" valuePropName="checked">
+              <Switch checkedChildren="是" unCheckedChildren="否" />
+            </Form.Item>
+            {formIsNotify ? (
+              <>
+                <Form.Item name="notifyTool" label="通知工具名" initialValue="notify_message">
+                  <Input disabled />
+                </Form.Item>
+                <Form.Item
+                  name={['notifyConfig', 'webhookUrl']}
+                  label="Webhook URL"
+                  tooltip="飞书自定义机器人地址；仅本地保存"
+                >
+                  <Input.Password placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." />
+                </Form.Item>
+                <Form.Item
+                  name={['notifyConfig', 'secret']}
+                  label="签名密钥"
+                  tooltip="若机器人启用了签名校验则填写"
+                >
+                  <Input.Password placeholder="可选" />
+                </Form.Item>
+              </>
+            ) : (
+              <>
+                <Form.Item
+                  name="publishTool"
+                  label="Agent 发布工具名"
+                  rules={[{ required: true, message: '请输入发布工具名' }]}
+                  tooltip="snake_case，如 xhs_publish_note；需在后端实现对应工具"
+                >
+                  <Input placeholder="例如 bilibili_publish_note" />
+                </Form.Item>
+                <Form.Item name="titleMaxLength" label="标题字数上限">
+                  <InputNumber min={1} max={200} placeholder="可选" style={{ width: '100%' }} />
+                </Form.Item>
+                <Form.Item name="loginCheckUrl" label="创作者中心地址">
+                  <Input placeholder="登录检测与打开登录页时使用，可选" />
+                </Form.Item>
+              </>
+            )}
+            <Form.Item
+              name="agentHint"
+              label="Agent 补充说明"
+              rules={[{ required: true, message: '请填写 Agent 说明' }]}
+            >
+              <Input.TextArea
+                rows={4}
+                placeholder={
+                  formIsNotify
+                    ? '通知该渠道时的用法与注意事项'
+                    : '发布该渠道时的工具用法与注意事项'
+                }
+              />
+            </Form.Item>
+          </Form>
+        </Spin>
       </Modal>
     </div>
   )

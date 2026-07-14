@@ -161,6 +161,12 @@ a {
   box-shadow: var(--db-shadow-overlay) !important;
 }
 
+/* 所有弹窗内容区统一限高，超长表单/详情可滚动（对齐技能市场 70vh） */
+.ant-modal-body {
+  max-height: 70vh;
+  overflow: auto;
+}
+
 .ant-popover-inner {
   box-shadow: var(--db-shadow-overlay) !important;
 }
