@@ -139,6 +139,8 @@ export function WorkflowCanvasDrawer({
                 nodes={draft.nodes}
                 canvas={draft.canvas}
                 onChange={onCanvasChange}
+                isFullscreen={isFullscreen}
+                fullscreenContainer={isFullscreen ? canvasPanelRef.current : null}
               />
             </div>
           </div>

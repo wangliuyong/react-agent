@@ -28,6 +28,10 @@ interface WorkflowNodeEditModalProps {
   node: WorkflowNode | null
   /** 是否在创建并行组内的叶子（禁止再选 parallel） */
   leafOnly?: boolean
+  /** 画布编辑区是否处于浏览器全屏 */
+  isFullscreen?: boolean
+  /** 全屏时 Modal 挂载目标，避免落在 Fullscreen 顶层外 */
+  fullscreenContainer?: HTMLElement | null
   onCancel: () => void
   onOk: (node: WorkflowNode) => void
 }
@@ -133,6 +137,8 @@ export function WorkflowNodeEditModal({
   open,
   node,
   leafOnly = false,
+  isFullscreen = false,
+  fullscreenContainer = null,
   onCancel,
   onOk
 }: WorkflowNodeEditModalProps): React.ReactElement {
@@ -195,6 +201,11 @@ export function WorkflowNodeEditModal({
       cancelText="取消"
       destroyOnHidden
       width={560}
+      getContainer={
+        isFullscreen && fullscreenContainer
+          ? () => fullscreenContainer
+          : undefined
+      }
     >
       <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
         <Form.Item name="type" label="类型" rules={[{ required: true }]}>

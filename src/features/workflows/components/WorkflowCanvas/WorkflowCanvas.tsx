@@ -38,6 +38,10 @@ interface WorkflowCanvasProps {
   nodes: WorkflowNode[]
   canvas?: WorkflowCanvasModel
   onChange: (next: { nodes: WorkflowNode[]; canvas: WorkflowCanvasModel }) => void
+  /** 画布编辑区是否处于浏览器全屏（用于浮层挂载） */
+  isFullscreen?: boolean
+  /** 全屏容器：仅全屏时将 Dropdown/Modal 挂到此节点内 */
+  fullscreenContainer?: HTMLElement | null
 }
 
 function toRfNodes(
@@ -109,7 +113,9 @@ export function WorkflowCanvas({
   workflowId,
   nodes: engineNodes,
   canvas: canvasProp,
-  onChange
+  onChange,
+  isFullscreen = false,
+  fullscreenContainer = null
 }: WorkflowCanvasProps): React.ReactElement {
   const [editOpen, setEditOpen] = useState(false)
   const [editingLeaf, setEditingLeaf] = useState<WorkflowLeafNode | null>(null)
@@ -318,7 +324,14 @@ export function WorkflowCanvas({
     <div className={styles.wrap}>
       <div className={styles.toolbar}>
         <span className={styles.hint}>双击节点可编辑 · 多条出线表示并行分支</span>
-        <Dropdown menu={{ items: addMenu }}>
+        <Dropdown
+          menu={{ items: addMenu }}
+          getPopupContainer={
+            isFullscreen && fullscreenContainer
+              ? () => fullscreenContainer
+              : undefined
+          }
+        >
           <Button type="primary" size="small" icon={<PlusOutlined />}>
             添加节点
           </Button>
@@ -348,6 +361,8 @@ export function WorkflowCanvas({
         open={editOpen}
         node={editingLeaf}
         leafOnly
+        isFullscreen={isFullscreen}
+        fullscreenContainer={fullscreenContainer}
         onCancel={() => {
           setEditOpen(false)
           setEditingLeaf(null)
