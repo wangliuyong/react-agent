@@ -1,4 +1,5 @@
 import { useBrowserControl } from '@/features/browser'
+import { useSettingsStore } from '@/features/settings'
 import { queryNewChatShortcutLabel } from '@/layouts/AppShell/hooks'
 import { useAppStore } from '@/stores/app-store'
 import { useSessionStore } from '../../hooks/useSessionStore'
@@ -29,10 +30,29 @@ export function ChatPage(): React.ReactElement {
   const createSession = useSessionStore((s) => s.createSession)
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
+  const setView = useAppStore((s) => s.setView)
+  const settings = useSettingsStore((s) => s.settings)
+  const settingsLoaded = useSettingsStore((s) => s.loaded)
   const { browserRunning, loading, toggleBrowser } = useBrowserControl()
 
   const [chatMode, setChatMode] = useState<ChatMode>('assistant')
   const newChatShortcut = queryNewChatShortcutLabel()
+
+  useEffect(() => {
+    // 为什么：启动时 Store 先使用默认空 API Key，必须等待磁盘配置加载后再判断，
+    // 否则已配置用户也会被短暂误导到设置页。
+    if (!settingsLoaded) return
+
+    const missingFields = [
+      !settings.apiKey.trim() ? 'API Key' : null,
+      !settings.baseUrl.trim() ? 'Base URL' : null
+    ].filter((field): field is string => Boolean(field))
+
+    if (missingFields.length === 0) return
+
+    message.warning(`请先在设置中填写 ${missingFields.join('、')}`)
+    setView('settings')
+  }, [settings.apiKey, settings.baseUrl, settingsLoaded, setView])
 
   const messages = session?.messages ?? []
   const isEmpty = messages.length === 0 && !streamingText && !running

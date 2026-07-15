@@ -67,18 +67,15 @@
   z-index: 1;
   flex: 1;
   padding: 24px 28px 48px;
-  max-width: 640px;
+  width: 100%;
+  max-width: 1040px;
 }
 
 .formCard {
+  max-width: 640px;
   background: var(--db-bg-content);
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-lg);
   padding: 28px 32px;
   box-shadow: var(--db-shadow-sm);
-}
-
-.alertCard {
-  margin-top: 24px;
-  border-radius: var(--db-radius-md) !important;
 }
