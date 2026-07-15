@@ -38,7 +38,7 @@ function queryChannelStateMeta(state: ChannelDisplayState | undefined): ChannelS
     case 'unsupported':
       return { label: '即将上线', color: 'muted' }
     default:
-      return { label: '检测中', color: 'muted' }
+      return { label: '未检测', color: 'muted' }
   }
 }
 
@@ -61,7 +61,6 @@ export function ChannelStatusPanel(): React.ReactElement {
   const [openingId, setOpeningId] = useState<string | null>(null)
   const [clearing, setClearing] = useState(false)
   const [queryError, setQueryError] = useState<string | null>(null)
-  const autoCheckedRef = useRef(false)
   const refreshTimerRef = useRef<number | null>(null)
 
   const refreshStatuses = useCallback(async (): Promise<void> => {
@@ -85,13 +84,6 @@ export function ChannelStatusPanel(): React.ReactElement {
       void hydrateChannels()
     }
   }, [channels.length, channelsLoading, hydrateChannels])
-
-  useEffect(() => {
-    // 每次进入设置页只自动检测一次；手动刷新和登录后的检测由对应操作触发。
-    if (channelsLoading || channels.length === 0 || autoCheckedRef.current) return
-    autoCheckedRef.current = true
-    void refreshStatuses()
-  }, [channels.length, channelsLoading, refreshStatuses])
 
   useEffect(
     () => () => {
