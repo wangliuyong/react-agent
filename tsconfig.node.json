@@ -21,6 +21,7 @@
     "config/**/*",
     "electron/**/*",
     "shared/**/*",
+    "src/features/chat/components/TaskChecklist/task-status.ts",
     "tests/**/*"
   ]
 }

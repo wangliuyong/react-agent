@@ -1,5 +1,9 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
-import type { TaskItem, TaskItemStatus } from '@shared/types'
+import type { TaskItem } from '@shared/types'
+import {
+  queryChecklistTaskStatus,
+  type ChecklistTaskStatus
+} from './task-status'
 import styles from './TaskChecklist.module.css'
 
 /** 默认距顶部偏移（位于 header 下方） */
@@ -219,7 +223,7 @@ function getExpandFromOrbPosition(
 }
 
 /** 渲染单个任务的状态图标 */
-function TaskStatusIcon({ status }: { status: TaskItemStatus }): React.ReactElement {
+function TaskStatusIcon({ status }: { status: ChecklistTaskStatus }): React.ReactElement {
   if (status === 'done') {
     return <CheckCircleFilled className={styles.iconDone} />
   }
@@ -237,15 +241,19 @@ function TaskStatusIcon({ status }: { status: TaskItemStatus }): React.ReactElem
       </>
     )
   }
+  if (status === 'paused') {
+    return <PauseCircleOutlined className={styles.iconPaused} />
+  }
   return <span className={styles.iconPending} aria-hidden />
 }
 
 /** 渲染任务标题样式类名 */
-function queryTaskTitleClass(status: TaskItemStatus): string {
+function queryTaskTitleClass(status: ChecklistTaskStatus): string {
   return [
     styles.taskTitle,
     status === 'done' && styles.taskTitleDone,
     status === 'running' && styles.taskTitleRunning,
+    status === 'paused' && styles.taskTitlePaused,
     status === 'failed' && styles.taskTitleFailed,
     status === 'skipped' && styles.taskTitleSkipped
   ]
@@ -254,7 +262,7 @@ function queryTaskTitleClass(status: TaskItemStatus): string {
 }
 
 /** 渲染任务行样式类名 */
-function queryTaskRowClass(status: TaskItemStatus): string {
+function queryTaskRowClass(status: ChecklistTaskStatus): string {
   return [
     styles.taskRow,
     status === 'done' && styles.taskRowDone,
@@ -317,7 +325,8 @@ export function TaskChecklist({
     return { total, done, percent }
   }, [tasks])
 
-  const hasRunningTask = tasks.some((t) => t.status === 'running')
+  // 持久化任务状态在中断时仍为 running，只有 Agent 真正执行时才显示动态执行态。
+  const hasRunningTask = running && tasks.some((t) => t.status === 'running')
 
   /** 将当前 root 位置夹紧到父容器内 */
   const clampRootToParent = useCallback((pos: Position): Position => {
@@ -611,34 +620,45 @@ export function TaskChecklist({
         {contentExpanded ? (
           <>
             <ul className={styles.taskList}>
-              {tasks.map((item, index) => (
-                <li
-                  key={item.id}
-                  className={[
-                    queryTaskRowClass(item.status),
-                    item.parentId ? styles.taskRowChild : ''
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  style={{ '--task-index': index } as CSSProperties}
-                >
-                  <span className={styles.statusIcon}>
-                    <TaskStatusIcon status={item.status} />
-                  </span>
-                  <div className={styles.taskContent}>
-                    <span className={queryTaskTitleClass(item.status)}>{item.title}</span>
-                    {item.status === 'running' ? (
-                      <span className={`${styles.taskBadge} ${styles.badgeRunning}`}>执行中</span>
-                    ) : null}
-                    {item.status === 'failed' ? (
-                      <span className={`${styles.taskBadge} ${styles.badgeFailed}`}>失败</span>
-                    ) : null}
-                    {item.status === 'skipped' ? (
-                      <span className={`${styles.taskBadge} ${styles.badgeSkipped}`}>已跳过</span>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
+              {tasks.map((item, index) => {
+                const displayStatus = queryChecklistTaskStatus(item.status, {
+                  running,
+                  canResume
+                })
+
+                return (
+                  <li
+                    key={item.id}
+                    data-status={displayStatus}
+                    className={[
+                      queryTaskRowClass(displayStatus),
+                      item.parentId ? styles.taskRowChild : ''
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    style={{ '--task-index': index } as CSSProperties}
+                  >
+                    <span className={styles.statusIcon}>
+                      <TaskStatusIcon status={displayStatus} />
+                    </span>
+                    <div className={styles.taskContent}>
+                      <span className={queryTaskTitleClass(displayStatus)}>{item.title}</span>
+                      {displayStatus === 'running' ? (
+                        <span className={`${styles.taskBadge} ${styles.badgeRunning}`}>执行中</span>
+                      ) : null}
+                      {displayStatus === 'paused' ? (
+                        <span className={`${styles.taskBadge} ${styles.badgePaused}`}>已暂停</span>
+                      ) : null}
+                      {displayStatus === 'failed' ? (
+                        <span className={`${styles.taskBadge} ${styles.badgeFailed}`}>失败</span>
+                      ) : null}
+                      {displayStatus === 'skipped' ? (
+                        <span className={`${styles.taskBadge} ${styles.badgeSkipped}`}>已跳过</span>
+                      ) : null}
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
 
             {showActionBar ? (

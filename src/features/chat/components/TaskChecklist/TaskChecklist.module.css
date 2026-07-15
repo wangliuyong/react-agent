@@ -463,6 +463,11 @@
   color: var(--db-primary);
 }
 
+.iconPaused {
+  font-size: 15px;
+  color: var(--db-warning-text);
+}
+
 .iconPending {
   width: 8px;
   height: 8px;
@@ -518,6 +523,11 @@
   font-weight: 500;
 }
 
+.taskTitlePaused {
+  color: var(--db-warning-text);
+  font-weight: 500;
+}
+
 .taskTitleFailed {
   color: var(--db-danger);
 }
@@ -546,6 +556,11 @@
   background: var(--db-primary-muted);
   color: var(--db-primary);
   animation: badgePulse 1.6s ease-in-out infinite;
+}
+
+.badgePaused {
+  background: var(--db-warning-bg);
+  color: var(--db-warning-text);
 }
 
 .badgeFailed {
