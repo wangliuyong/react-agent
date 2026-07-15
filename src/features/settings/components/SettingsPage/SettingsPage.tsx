@@ -1,8 +1,10 @@
 import { MODEL_OPTIONS } from '@shared/types'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
+import { ChannelStatusPanel } from '../ChannelStatusPanel'
 import styles from './SettingsPage.module.css'
+import { BASE_URL_RULES, MODEL_RULES } from './settingsValidation'
 
-const { Title, Paragraph, Text } = Typography
+const { Title, Paragraph } = Typography
 
 export function SettingsPage(): React.ReactElement {
   const settings = useSettingsStore((s) => s.settings)
@@ -54,10 +56,10 @@ export function SettingsPage(): React.ReactElement {
             >
               <Input.Password placeholder="sk-..." />
             </Form.Item>
-            <Form.Item label="Base URL" name="baseUrl">
+            <Form.Item label="Base URL" name="baseUrl" rules={BASE_URL_RULES}>
               <Input placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
             </Form.Item>
-            <Form.Item label="模型" name="model">
+            <Form.Item label="模型" name="model" rules={MODEL_RULES}>
               <Select
                 showSearch
                 optionFilterProp="label"
@@ -79,28 +81,7 @@ export function SettingsPage(): React.ReactElement {
           </Form>
         </div>
 
-        <Alert
-          className={styles.alertCard}
-          type="info"
-          showIcon
-          message="小红书登录态"
-          description={
-            <Space direction="vertical">
-              <Text>
-                浏览器 Profile 保存在本机。若登录异常，可清除后重新扫码。
-              </Text>
-              <Button
-                danger
-                onClick={async () => {
-                  await window.api.postBrowserClearProfile()
-                  message.success('已清除浏览器登录态')
-                }}
-              >
-                清除小红书登录态
-              </Button>
-            </Space>
-          }
-        />
+        <ChannelStatusPanel />
       </div>
     </div>
   )
