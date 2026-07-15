@@ -3,7 +3,7 @@ import type { AppSettings } from '../../../shared/types'
 
 /**
  * 创建对接阿里云百炼（DashScope OpenAI 兼容）的 LangChain 聊天模型。
- * 与 llm.ts 的 createLlmClient 共用同一套 settings 字段。
+ * 应用内唯一 ChatModel 工厂。
  */
 export function createChatModel(settings: AppSettings): ChatOpenAI {
   if (!settings.apiKey) {
