@@ -1,9 +1,10 @@
 {
-  "name": "lingxifa",
-  "version": "0.1.0",
+  "name": "lingxi",
+  "version": "0.1.1",
   "description": "灵犀 · AI助手",
   "main": "./out/main/index.js",
   "build": {
+    "productName": "灵犀",
     "extraResources": [
       {
         "from": "resources",
@@ -23,7 +24,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
     "install:browser": "node scripts/install-browser.mjs",
     "install:browser:official": "playwright install chromium",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "pack:mac": "pnpm build && electron-builder --mac",
+    "pack:mac:arm64": "pnpm build && electron-builder --mac --arm64",
+    "pack:mac:x64": "pnpm build && electron-builder --mac --x64",
+    "pack:win": "pnpm build && electron-builder --win --x64"
   },
   "dependencies": {
     "@ant-design/icons": "^5.6.1",
