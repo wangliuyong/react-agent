@@ -92,27 +92,14 @@ export function ChatPage(): React.ReactElement {
           </div>
         </div>
 
-        {/* 中部：智能助手 / 业务系统 切换 */}
+        {/* 中部：智能助手 / 业务系统 切换（样式对齐技能页 Segmented） */}
         <div className={`${styles.headerCenter} app-no-drag`}>
           <Segmented<ChatMode>
             className={styles.modeSwitch}
             options={[
+              { label: <span className={styles.modeLabel}>灵犀AI助手</span>, value: 'assistant' },
               {
-                label: (
-                  <span className={styles.modeLabel}>
-                    {/* <RobotOutlined /> */}
-                    灵犀AI助手
-                  </span>
-                ),
-                value: 'assistant'
-              },
-              {
-                label: (
-                  <span className={styles.modeLabel}>
-                    {/* <FolderOutlined /> */}
-                    业务系统
-                  </span>
-                ),
+                label: <span className={styles.modeLabel}>业务系统</span>,
                 value: 'business',
                 disabled: true
               }

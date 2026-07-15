@@ -129,24 +129,48 @@
   }
 }
 
-/* 模式切换 — 主题色选中态 */
+/* 模式切换 — 对齐技能页 Segmented：浅底 + 白卡选中 + 品牌色文字 */
 .modeSwitch {
-  background: var(--db-hover) !important;
-  border-radius: var(--db-radius-pill) !important;
-  padding: 3px !important;
+  background: var(--db-bg-subtle) !important;
+  border: 1px solid var(--db-border-light) !important;
+  border-radius: var(--db-radius-md) !important;
+  padding: 2px !important;
 }
 
 .modeSwitch :global(.ant-segmented-item) {
-  border-radius: var(--db-radius-pill) !important;
+  border-radius: calc(var(--db-radius-md) - 2px) !important;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease !important;
 }
 
-.modeSwitch :global(.ant-segmented-item-selected) {
-  background: var(--db-primary) !important;
-  box-shadow: none !important;
+.modeSwitch :global(.ant-segmented-item-label) {
+  color: var(--db-text-secondary) !important;
+  min-height: 30px !important;
+  line-height: 30px !important;
+  padding: 0 16px !important;
+  transition: color 0.15s ease !important;
+}
+
+.modeSwitch :global(.ant-segmented-item:hover:not(.ant-segmented-item-selected):not(.ant-segmented-item-disabled) .ant-segmented-item-label) {
+  color: var(--db-text) !important;
 }
 
 .modeSwitch :global(.ant-segmented-item-selected .ant-segmented-item-label) {
-  color: var(--db-on-primary) !important;
+  color: var(--db-primary) !important;
+  font-weight: 600 !important;
+}
+
+.modeSwitch :global(.ant-segmented-item-disabled .ant-segmented-item-label) {
+  color: var(--db-text-tertiary) !important;
+  cursor: not-allowed;
+}
+
+/* 滑块拇指：白底轻阴影，替代原实心蓝块 */
+.modeSwitch :global(.ant-segmented-thumb) {
+  background: var(--db-bg-content) !important;
+  border-radius: calc(var(--db-radius-md) - 2px) !important;
+  box-shadow: var(--db-shadow-sm) !important;
 }
 
 .modeLabel {
@@ -154,8 +178,8 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  font-weight: 500;
-  padding: 2px 4px;
+  font-weight: inherit;
+  letter-spacing: -0.01em;
 }
 
 .body {
