@@ -73,9 +73,6 @@ export const IpcChannels = {
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 
-/** Agent 运行时：langgraph 为默认；legacy 保留自研 ReAct 回滚 */
-export type AgentRuntime = 'langgraph' | 'legacy'
-
 /** 应用设置（本地 JSON 缓存） */
 export interface AppSettings {
   /** 阿里云百炼 API Key */
@@ -88,11 +85,6 @@ export interface AppSettings {
   fullAccess: boolean
   /** Agent 最大工具轮次 */
   maxTurns: number
-  /**
-   * Agent 编排实现。
-   * langgraph：LangChain + LangGraph；legacy：自研 loop.ts ReAct（迁移期回滚）。
-   */
-  agentRuntime: AgentRuntime
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -100,8 +92,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   model: 'qwen-plus',
   fullAccess: false,
-  maxTurns: 40,
-  agentRuntime: 'langgraph'
+  maxTurns: 40
 }
 
 /** 百炼常用模型选项（聊天与设置页共用） */
