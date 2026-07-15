@@ -20,12 +20,20 @@ export const IpcChannels = {
   queryPublishPlan: 'query:publish-plan',
   postPublishPlan: 'post:publish-plan',
   postDeletePublishPlan: 'post:publish-plan:delete',
+  /** 首次启动写入内置发布计划（磁盘为空时） */
+  postInitPublishPlans: 'post:publish-plans:init',
+  /** 导入缺失的内置发布计划（手动「导入示例」） */
+  postImportBuiltinPublishPlans: 'post:publish-plans:import-builtin',
   // 定时任务
   queryScheduledTasks: 'query:scheduled-tasks',
   queryScheduledTask: 'query:scheduled-task',
   postScheduledTask: 'post:scheduled-task',
   postDeleteScheduledTask: 'post:scheduled-task:delete',
   postRunScheduledTask: 'post:scheduled-task:run',
+  /** 首次启动写入内置定时任务（磁盘为空时） */
+  postInitScheduledTasks: 'post:scheduled-tasks:init',
+  /** 导入缺失的内置定时任务（手动「导入示例」） */
+  postImportBuiltinScheduledTasks: 'post:scheduled-tasks:import-builtin',
   // Agent
   postAgentChat: 'post:agent:chat',
   postAgentAbort: 'post:agent:abort',
@@ -718,11 +726,15 @@ export interface ElectronApi {
   queryPublishPlan: (id: string) => Promise<PublishPlan | null>
   postPublishPlan: (plan: PublishPlan) => Promise<PublishPlan>
   postDeletePublishPlan: (id: string) => Promise<void>
+  postInitPublishPlans: () => Promise<PublishPlan[]>
+  postImportBuiltinPublishPlans: () => Promise<PublishPlan[]>
   queryScheduledTasks: () => Promise<ScheduledTask[]>
   queryScheduledTask: (id: string) => Promise<ScheduledTask | null>
   postScheduledTask: (task: ScheduledTask) => Promise<ScheduledTask>
   postDeleteScheduledTask: (id: string) => Promise<void>
   postRunScheduledTask: (id: string) => Promise<ScheduledTask | null>
+  postInitScheduledTasks: () => Promise<ScheduledTask[]>
+  postImportBuiltinScheduledTasks: () => Promise<ScheduledTask[]>
   postAgentChat: (req: AgentChatRequest) => Promise<void>
   postAgentAbort: (sessionId: string) => Promise<void>
   postAgentContinue: (sessionId: string) => Promise<void>

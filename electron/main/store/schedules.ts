@@ -7,7 +7,9 @@ import {
 } from 'fs'
 import { join } from 'path'
 import type { ScheduledTask } from '../../../shared/types'
+import { createBuiltinScheduledTasks } from '../../../shared/builtin-seeds'
 import { computeNextRunAt } from '../../../shared/schedule-utils'
+import { postInitPublishPlans } from './plans'
 import { getSchedulesDir } from './paths'
 
 /** 保存前根据 enabled / repeat 重算 nextRunAt */
@@ -60,4 +62,31 @@ export function postScheduledTask(task: ScheduledTask): ScheduledTask {
 export function postDeleteScheduledTask(id: string): void {
   const path = join(getSchedulesDir(), `${id}.json`)
   if (existsSync(path)) unlinkSync(path)
+}
+
+/**
+ * 写：导入尚未存在的内置定时任务（按固定 id 去重）。
+ * 定时任务可能关联发布计划，会先确保内置计划已写入。
+ */
+export function postImportBuiltinScheduledTasks(): ScheduledTask[] {
+  // 关联的 publish_plan 依赖内置发布计划 id
+  postInitPublishPlans()
+  const existingIds = new Set(queryScheduledTasks().map((task) => task.id))
+  for (const task of createBuiltinScheduledTasks()) {
+    if (!existingIds.has(task.id)) {
+      postScheduledTask(task)
+    }
+  }
+  return queryScheduledTasks()
+}
+
+/**
+ * 写：首次启动或磁盘为空时写入内置定时任务。
+ * 已有用户数据时不覆盖。
+ */
+export function postInitScheduledTasks(): ScheduledTask[] {
+  if (queryScheduledTasks().length > 0) {
+    return queryScheduledTasks()
+  }
+  return postImportBuiltinScheduledTasks()
 }

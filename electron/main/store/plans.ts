@@ -7,6 +7,7 @@ import {
 } from 'fs'
 import { join } from 'path'
 import type { PublishPlan } from '../../../shared/types'
+import { createBuiltinPublishPlans } from '../../../shared/builtin-seeds'
 import { normalizePublishPlan } from '../../../shared/publish-normalize'
 import { getPlansDir } from './paths'
 
@@ -49,4 +50,29 @@ export function postPublishPlan(plan: PublishPlan): PublishPlan {
 export function postDeletePublishPlan(id: string): void {
   const path = join(getPlansDir(), `${id}.json`)
   if (existsSync(path)) unlinkSync(path)
+}
+
+/**
+ * 写：导入尚未存在的内置发布计划（按固定 id 去重）。
+ * 返回导入后的完整计划列表。
+ */
+export function postImportBuiltinPublishPlans(): PublishPlan[] {
+  const existingIds = new Set(queryPublishPlans().map((plan) => plan.id))
+  for (const plan of createBuiltinPublishPlans()) {
+    if (!existingIds.has(plan.id)) {
+      postPublishPlan(plan)
+    }
+  }
+  return queryPublishPlans()
+}
+
+/**
+ * 写：首次启动或磁盘为空时写入内置发布计划。
+ * 已有用户数据时不覆盖。
+ */
+export function postInitPublishPlans(): PublishPlan[] {
+  if (queryPublishPlans().length > 0) {
+    return queryPublishPlans()
+  }
+  return postImportBuiltinPublishPlans()
 }

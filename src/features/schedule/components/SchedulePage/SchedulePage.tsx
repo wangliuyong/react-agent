@@ -14,6 +14,8 @@ import { useWorkflowsStore } from '@/features/workflows'
 import { useSessionStore } from '@/features/chat'
 import { useSettingsStore } from '@/features/settings'
 import { useAppStore } from '@/stores/app-store'
+import { isBuiltinSeedId } from '@shared/builtin-seeds'
+import { DB_THEME } from '@/styles/theme-tokens'
 import styles from './SchedulePage.module.css'
 
 const { Title, Text } = Typography
@@ -389,6 +391,11 @@ function TaskCard({
       <div className={styles.taskCardHeader}>
         <div className={styles.taskCardTitleRow}>
           <span className={styles.taskCardTitle}>{task.title || '未命名任务'}</span>
+          {isBuiltinSeedId(task.id) ? (
+            <Tag color={DB_THEME.primary} className={styles.builtinTag}>
+              内置
+            </Tag>
+          ) : null}
           <span className={styles.statusBadge} data-status={displayStatus}>
             {resolveStatusLabel(displayStatus)}
           </span>
@@ -491,6 +498,7 @@ export function SchedulePage(): React.ReactElement {
   const removeTask = useScheduleStore((s) => s.removeTask)
   const toggleEnabled = useScheduleStore((s) => s.toggleEnabled)
   const runNow = useScheduleStore((s) => s.runNow)
+  const addBuiltinTasks = useScheduleStore((s) => s.addBuiltinTasks)
 
   const plans = usePublishStore((s) => s.plans)
   const workflows = useWorkflowsStore((s) => s.workflows)
@@ -611,6 +619,14 @@ export function SchedulePage(): React.ReactElement {
             刷新
           </Button>
           <Button
+            onClick={async () => {
+              await addBuiltinTasks()
+              message.success('已导入内置定时任务')
+            }}
+          >
+            导入示例
+          </Button>
+          <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => {
@@ -655,15 +671,25 @@ export function SchedulePage(): React.ReactElement {
             className={styles.empty}
           >
             {tasks.length === 0 ? (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  setTaskModal({ mode: 'create', task: createEmptyScheduledTask() })
-                }}
-              >
-                添加任务
-              </Button>
+              <Space>
+                <Button
+                  onClick={async () => {
+                    await addBuiltinTasks()
+                    message.success('已导入内置定时任务')
+                  }}
+                >
+                  导入示例
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    setTaskModal({ mode: 'create', task: createEmptyScheduledTask() })
+                  }}
+                >
+                  添加任务
+                </Button>
+              </Space>
             ) : null}
           </Empty>
         ) : (

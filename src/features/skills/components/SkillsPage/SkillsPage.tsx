@@ -449,7 +449,7 @@ export function SkillsPage(): React.ReactElement {
               <span className={styles.countBadge}>{skills.length}</span>
             </div>
             <Text type="secondary" className={styles.desc}>
-              管理项目 <code>.cursor/skills</code>，将领域知识注入 Agent 系统提示
+              将领域知识注入 Agent 系统提示
             </Text>
           </div>
         </div>
