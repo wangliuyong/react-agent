@@ -1,5 +1,5 @@
 import { END, MemorySaver, START, StateGraph } from '@langchain/langgraph'
-import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages'
+import { SystemMessage, AIMessage } from '@langchain/core/messages'
 import type { BaseMessage } from '@langchain/core/messages'
 import type { AppSettings, AgentRoleName } from '../../../../shared/types'
 import { createChatModel } from '../llm-langchain'
@@ -9,6 +9,7 @@ import { AgentGraphAnnotation, type AgentGraphState } from './state'
 import { buildRoleSystemPrompt } from './prompts'
 import { queryToolsForRole, queryToolsByWhitelist } from './role-tools'
 import { createReactSubgraph, queryRecursionLimit } from './react-subgraph'
+import { queryLatestHumanMessage, trimMessagesToCharBudget } from '../token-budget'
 
 /** 进程内唯一 checkpointer；thread_id = sessionId */
 export const chatCheckpointer = new MemorySaver()
@@ -32,6 +33,7 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     state: AgentGraphState
   ): Promise<Partial<AgentGraphState>> {
     const tools = adaptAgentTools(queryToolsForRole(role), { ctx: toolCtx })
+    const roleInputMessages = trimMessagesToCharBudget(state.messages)
     const agent = createReactSubgraph({
       llm,
       tools,
@@ -39,12 +41,12 @@ export function buildChatGraph(params: BuildChatGraphParams) {
       name: `role_${role}`
     })
     const result = await agent.invoke(
-      { messages: state.messages },
+      { messages: roleInputMessages },
       { recursionLimit }
     )
     // messagesStateReducer 会追加；只回传本角色新增的消息，避免整段历史重复
     const all = result.messages as BaseMessage[]
-    const delta = all.slice(state.messages.length)
+    const delta = all.slice(roleInputMessages.length)
     return {
       messages: delta,
       activeAgent: role
@@ -52,10 +54,12 @@ export function buildChatGraph(params: BuildChatGraphParams) {
   }
 
   async function supervisorNode(state: AgentGraphState): Promise<Partial<AgentGraphState>> {
-    const reply = await llm.invoke([
-      new SystemMessage(buildRoleSystemPrompt('supervisor')),
-      ...state.messages.slice(-12)
-    ])
+    const latestUserMessage = queryLatestHumanMessage(state.messages)
+    const reply = await llm.invoke(
+      latestUserMessage
+        ? [new SystemMessage(buildRoleSystemPrompt('supervisor')), latestUserMessage]
+        : [new SystemMessage(buildRoleSystemPrompt('supervisor'))]
+    )
     const text =
       typeof reply.content === 'string'
         ? reply.content
@@ -103,13 +107,8 @@ export function buildChatGraph(params: BuildChatGraphParams) {
 }
 
 function lastUserText(messages: BaseMessage[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i]
-    if (HumanMessage.isInstance(m) || m.getType?.() === 'human') {
-      return typeof m.content === 'string' ? m.content : ''
-    }
-  }
-  return ''
+  const message = queryLatestHumanMessage(messages)
+  return typeof message?.content === 'string' ? message.content : ''
 }
 
 /**
