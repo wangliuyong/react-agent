@@ -6,18 +6,15 @@ import {
 } from './task-status'
 import styles from './TaskChecklist.module.css'
 
-/** 默认距顶部偏移（位于 header 下方） */
-const DEFAULT_TOP = 68
-/** 默认距右侧边距 */
-const DEFAULT_MARGIN = 20
-/** 面板宽度（与 CSS .card 一致） */
-const PANEL_WIDTH = 288
-/** 吸附圆球直径（与 CSS .orb 一致） */
-const ORB_SIZE = 52
+/** 默认距顶部偏移（位于 header 下方，相对锚定容器） */
+const DEFAULT_TOP = 100
 /** 指针移动超过该距离视为拖动而非点击 */
 const CLICK_MOVE_TOLERANCE = 6
 
-/** localStorage 键：记住垂直位置 */
+/** 垂直定位锚点选择器（ChatPage .page） */
+const ANCHOR_SELECTOR = '[data-task-checklist-anchor]'
+
+/** localStorage 键：记住垂直位置（视口坐标） */
 const POSITION_STORAGE_KEY = 'react-agent:task-checklist-position'
 
 interface TaskChecklistProps {
@@ -37,58 +34,43 @@ interface TaskChecklistProps {
   onResume?: () => void
 }
 
-/** 从 localStorage 读取上次垂直位置（兼容旧版 { x, y, docked } 格式） */
-function loadSavedY(): number | null {
+/** 从 localStorage 读取垂直位置；兼容旧版相对 page 的 offset */
+function loadSavedY(anchorTop: number): number {
   try {
     const raw = localStorage.getItem(POSITION_STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as { y?: unknown }
-    if (typeof parsed.y === 'number') return parsed.y
+    if (!raw) return anchorTop + DEFAULT_TOP
+    const parsed = JSON.parse(raw) as { y?: unknown; space?: unknown }
+    if (typeof parsed.y !== 'number') return anchorTop + DEFAULT_TOP
+    if (parsed.space === 'viewport') return parsed.y
+    return anchorTop + parsed.y
   } catch {
-    // 解析失败时使用默认位置
+    return anchorTop + DEFAULT_TOP
   }
-  return null
 }
 
-/** 计算右侧固定时的 left 坐标 */
-function queryRightX(parentWidth: number, elementWidth: number): number {
-  return Math.max(0, parentWidth - elementWidth - DEFAULT_MARGIN)
+/** 持久化垂直位置到 localStorage */
+function postSavedY(y: number): void {
+  localStorage.setItem(
+    POSITION_STORAGE_KEY,
+    JSON.stringify({ y, space: 'viewport' })
+  )
 }
 
-/** 计算右侧固定时的 left 坐标（相对 .page 容器，读取 DOM 尺寸） */
-function queryRightAlignedX(
-  el: HTMLElement,
-  parentEl: HTMLElement
-): number {
-  const parentRect = parentEl.getBoundingClientRect()
-  const elRect = el.getBoundingClientRect()
-  return queryRightX(parentRect.width, elRect.width)
+/** 查找 ChatPage 锚定容器 */
+function queryAnchorEl(fromEl: HTMLElement): HTMLElement | null {
+  return fromEl.closest(ANCHOR_SELECTOR) as HTMLElement | null
 }
 
-/** 将垂直位置限制在父容器可视范围内 */
-function clampVerticalY(
+/** 将 fixed 定位的 top 限制在锚定容器可视范围内 */
+function clampFixedVerticalY(
   y: number,
-  size: { height: number },
-  parentSize: { height: number }
+  elementHeight: number,
+  anchorEl: HTMLElement
 ): number {
-  const maxY = Math.max(0, parentSize.height - size.height)
-  return Math.min(Math.max(0, y), maxY)
-}
-
-/** 读取元素与父容器尺寸，用于吸附/夹紧计算 */
-function queryLayoutMetrics(
-  el: HTMLElement,
-  parentEl: HTMLElement
-): {
-  size: { width: number; height: number }
-  parentSize: { width: number; height: number }
-} {
-  const parentRect = parentEl.getBoundingClientRect()
-  const elRect = el.getBoundingClientRect()
-  return {
-    size: { width: elRect.width, height: elRect.height },
-    parentSize: { width: parentRect.width, height: parentRect.height }
-  }
+  const rect = anchorEl.getBoundingClientRect()
+  const minY = rect.top
+  const maxY = rect.bottom - elementHeight
+  return Math.min(Math.max(minY, y), maxY)
 }
 
 /** 渲染单个任务的状态图标 */
@@ -142,7 +124,7 @@ function queryTaskRowClass(status: ChecklistTaskStatus): string {
 }
 
 /**
- * 浮动任务清单：固定在页面右侧，仅支持上下拖动。
+ * 浮动任务清单：fixed 贴右（right: 0），不随侧边栏折叠移动；仅支持上下拖动。
  * 收起时吸附为右侧圆球；点击圆球展开面板。
  */
 const { Text } = Typography
@@ -158,11 +140,8 @@ export function TaskChecklist({
   onResume
 }: TaskChecklistProps): React.ReactElement | null {
   const rootRef = useRef<HTMLDivElement>(null)
-  const savedY = useMemo(() => loadSavedY(), [])
-  /** 垂直位置（水平始终贴右对齐） */
-  const [positionY, setPositionY] = useState<number>(() => savedY ?? DEFAULT_TOP)
-  /** 右侧固定时的 left 坐标，随容器/面板尺寸变化重算 */
-  const [rightX, setRightX] = useState(0)
+  /** 垂直位置（视口坐标，fixed top） */
+  const [positionY, setPositionY] = useState<number>(DEFAULT_TOP)
   const [dragging, setDragging] = useState(false)
   /** 任务列表展开；false 时渲染右侧吸附圆球 */
   const [contentExpanded, setContentExpanded] = useState(true)
@@ -175,17 +154,16 @@ export function TaskChecklist({
   const movedDuringDragRef = useRef(false)
   /** 面板是否曾展示过（区分首次入场 vs 圆球展开） */
   const hasShownPanelRef = useRef(false)
+  /** 是否已从缓存完成首次定位 */
+  const positionInitializedRef = useRef(false)
+  /** 同步 positionY 供拖动结束时写入缓存 */
+  const positionYRef = useRef(DEFAULT_TOP)
 
   /** 收起为右侧吸附圆球 */
   const handleCollapseToOrb = useCallback(
     (event: { stopPropagation: () => void; preventDefault: () => void }) => {
       event.stopPropagation()
       event.preventDefault()
-      const parentEl = rootRef.current?.offsetParent as HTMLElement | null
-      if (parentEl) {
-        const parentWidth = parentEl.getBoundingClientRect().width
-        setRightX(queryRightX(parentWidth, ORB_SIZE))
-      }
       setMorphPhase('to-orb')
       setContentExpanded(false)
     },
@@ -194,11 +172,6 @@ export function TaskChecklist({
 
   /** 点击圆球展开面板 */
   const handleExpandFromOrb = useCallback(() => {
-    const parentEl = rootRef.current?.offsetParent as HTMLElement | null
-    if (parentEl) {
-      const parentWidth = parentEl.getBoundingClientRect().width
-      setRightX(queryRightX(parentWidth, PANEL_WIDTH))
-    }
     setMorphPhase('to-panel')
     setContentExpanded(true)
   }, [])
@@ -214,15 +187,27 @@ export function TaskChecklist({
   // 持久化任务状态在中断时仍为 running，只有 Agent 真正执行时才显示动态执行态。
   const hasRunningTask = running && tasks.some((t) => t.status === 'running')
 
-  /** 同步右侧水平坐标，并将垂直位置夹紧到父容器内 */
+  /** 同步垂直位置：首次读取缓存，之后仅夹紧范围 */
   const syncLayout = useCallback((): void => {
     const el = rootRef.current
-    const parentEl = el?.offsetParent as HTMLElement | null
-    if (!el || !parentEl) return
-    const { size, parentSize } = queryLayoutMetrics(el, parentEl)
-    setRightX(queryRightAlignedX(el, parentEl))
-    setPositionY((prev) => clampVerticalY(prev, size, parentSize))
+    const anchorEl = el ? queryAnchorEl(el) : null
+    if (!el || !anchorEl) return
+    const height = el.getBoundingClientRect().height
+    const anchorTop = anchorEl.getBoundingClientRect().top
+    setPositionY((prev) => {
+      const baseY = positionInitializedRef.current
+        ? prev
+        : loadSavedY(anchorTop)
+      if (!positionInitializedRef.current) {
+        positionInitializedRef.current = true
+      }
+      return clampFixedVerticalY(baseY, height, anchorEl)
+    })
   }, [])
+
+  useEffect(() => {
+    positionYRef.current = positionY
+  }, [positionY])
 
   /** 窗口尺寸变化时校正位置 */
   useEffect(() => {
@@ -238,12 +223,6 @@ export function TaskChecklist({
       hasShownPanelRef.current = true
     }
   }, [visible, contentExpanded, syncLayout])
-
-  /** 拖动结束后持久化垂直位置 */
-  useEffect(() => {
-    if (dragging) return
-    localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify({ y: positionY }))
-  }, [dragging, positionY])
 
   /** 形态切换动画结束后清除 morphPhase */
   useEffect(() => {
@@ -267,30 +246,33 @@ export function TaskChecklist({
     setDragging(true)
   }, [])
 
-  /** 拖动中仅更新垂直坐标，水平始终贴右 */
+  /** 拖动中仅更新垂直坐标 */
   const handleDragMove = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       if (!dragging) return
 
       const el = rootRef.current
-      const parentEl = el?.offsetParent as HTMLElement | null
-      if (!el || !parentEl) return
+      const anchorEl = el ? queryAnchorEl(el) : null
+      if (!el || !anchorEl) return
 
       const dy = event.clientY - pointerStartYRef.current
       if (Math.abs(dy) > CLICK_MOVE_TOLERANCE) {
         movedDuringDragRef.current = true
       }
 
-      const parentRect = parentEl.getBoundingClientRect()
-      const { size, parentSize } = queryLayoutMetrics(el, parentEl)
-      const nextY = event.clientY - parentRect.top - dragOffsetYRef.current
-      setPositionY(clampVerticalY(nextY, size, parentSize))
-      setRightX(queryRightAlignedX(el, parentEl))
+      const height = el.getBoundingClientRect().height
+      const nextY = clampFixedVerticalY(
+        event.clientY - dragOffsetYRef.current,
+        height,
+        anchorEl
+      )
+      positionYRef.current = nextY
+      setPositionY(nextY)
     },
     [dragging]
   )
 
-  /** 松开：圆球短按展开面板，否则结束拖动 */
+  /** 松开：圆球短按展开面板；拖动结束后缓存位置 */
   const handleDragEnd = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       if (!dragging) return
@@ -298,6 +280,21 @@ export function TaskChecklist({
         event.currentTarget.releasePointerCapture(event.pointerId)
       }
       setDragging(false)
+
+      if (movedDuringDragRef.current) {
+        const el = rootRef.current
+        const anchorEl = el ? queryAnchorEl(el) : null
+        if (el && anchorEl) {
+          const height = el.getBoundingClientRect().height
+          const savedY = clampFixedVerticalY(
+            event.clientY - dragOffsetYRef.current,
+            height,
+            anchorEl
+          )
+          positionYRef.current = savedY
+          postSavedY(savedY)
+        }
+      }
 
       if (!contentExpanded && !movedDuringDragRef.current) {
         handleExpandFromOrb()
@@ -332,7 +329,7 @@ export function TaskChecklist({
       <div
         ref={rootRef}
         className={rootClass}
-        style={{ left: rightX, top: positionY }}
+        style={{ top: positionY }}
       >
         <button
           type="button"
@@ -382,7 +379,7 @@ export function TaskChecklist({
     <div
       ref={rootRef}
       className={rootClass}
-      style={{ left: rightX, top: positionY }}
+      style={{ top: positionY }}
     >
       <Card
         size="small"
@@ -434,100 +431,100 @@ export function TaskChecklist({
           .join(' ')}
       >
         <ul className={styles.taskList}>
-              {tasks.map((item, index) => {
-                const displayStatus = queryChecklistTaskStatus(item.status, {
-                  running,
-                  canResume
-                })
+          {tasks.map((item, index) => {
+            const displayStatus = queryChecklistTaskStatus(item.status, {
+              running,
+              canResume
+            })
 
-                return (
-                  <li
-                    key={item.id}
-                    data-status={displayStatus}
-                    className={[
-                      queryTaskRowClass(displayStatus),
-                      item.parentId ? styles.taskRowChild : ''
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    style={{ '--task-index': index } as CSSProperties}
-                  >
-                    <span className={styles.statusIcon}>
-                      <TaskStatusIcon status={displayStatus} />
-                    </span>
-                    <div className={styles.taskContent}>
-                      <span className={queryTaskTitleClass(displayStatus)}>{item.title}</span>
-                      {displayStatus === 'running' ? (
-                        <span className={`${styles.taskBadge} ${styles.badgeRunning}`}>执行中</span>
-                      ) : null}
-                      {displayStatus === 'paused' ? (
-                        <span className={`${styles.taskBadge} ${styles.badgePaused}`}>已暂停</span>
-                      ) : null}
-                      {displayStatus === 'failed' ? (
-                        <span className={`${styles.taskBadge} ${styles.badgeFailed}`}>失败</span>
-                      ) : null}
-                      {displayStatus === 'skipped' ? (
-                        <span className={`${styles.taskBadge} ${styles.badgeSkipped}`}>已跳过</span>
-                      ) : null}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+            return (
+              <li
+                key={item.id}
+                data-status={displayStatus}
+                className={[
+                  queryTaskRowClass(displayStatus),
+                  item.parentId ? styles.taskRowChild : ''
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                style={{ '--task-index': index } as CSSProperties}
+              >
+                <span className={styles.statusIcon}>
+                  <TaskStatusIcon status={displayStatus} />
+                </span>
+                <div className={styles.taskContent}>
+                  <span className={queryTaskTitleClass(displayStatus)}>{item.title}</span>
+                  {displayStatus === 'running' ? (
+                    <span className={`${styles.taskBadge} ${styles.badgeRunning}`}>执行中</span>
+                  ) : null}
+                  {displayStatus === 'paused' ? (
+                    <span className={`${styles.taskBadge} ${styles.badgePaused}`}>已暂停</span>
+                  ) : null}
+                  {displayStatus === 'failed' ? (
+                    <span className={`${styles.taskBadge} ${styles.badgeFailed}`}>失败</span>
+                  ) : null}
+                  {displayStatus === 'skipped' ? (
+                    <span className={`${styles.taskBadge} ${styles.badgeSkipped}`}>已跳过</span>
+                  ) : null}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
 
         {showActionBar ? (
-              <div
-                className={styles.actionBar}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                {awaitUserReason ? (
-                  <>
-                    <Text className={styles.awaitReason} ellipsis={{ tooltip: awaitUserReason }}>
-                      {awaitUserReason}
-                    </Text>
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<PlayCircleOutlined />}
-                      className={styles.actionBtn}
-                      onClick={onContinue}
-                    >
-                      继续
-                    </Button>
-                  </>
-                ) : canResume ? (
-                  <>
-                    <Text type="secondary" className={styles.runningHint}>
-                      任务已中断，可继续执行
-                    </Text>
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<PlayCircleOutlined />}
-                      className={styles.actionBtn}
-                      onClick={onResume}
-                    >
-                      继续
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Text type="secondary" className={styles.runningHint}>
-                      {hasRunningTask ? '任务执行中…' : 'Agent 处理中…'}
-                    </Text>
-                    <Button
-                      danger
-                      size="small"
-                      icon={<PauseCircleOutlined />}
-                      className={styles.actionBtn}
-                      onClick={onAbort}
-                    >
-                      中断
-                    </Button>
-                  </>
-                )}
-              </div>
-            ) : null}
+          <div
+            className={styles.actionBar}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {awaitUserReason ? (
+              <>
+                <Text className={styles.awaitReason} ellipsis={{ tooltip: awaitUserReason }}>
+                  {awaitUserReason}
+                </Text>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<PlayCircleOutlined />}
+                  className={styles.actionBtn}
+                  onClick={onContinue}
+                >
+                  继续
+                </Button>
+              </>
+            ) : canResume ? (
+              <>
+                <Text type="secondary" className={styles.runningHint}>
+                  任务已中断，可继续执行
+                </Text>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<PlayCircleOutlined />}
+                  className={styles.actionBtn}
+                  onClick={onResume}
+                >
+                  继续
+                </Button>
+              </>
+            ) : (
+              <>
+                <Text type="secondary" className={styles.runningHint}>
+                  {hasRunningTask ? '任务执行中…' : 'Agent 处理中…'}
+                </Text>
+                <Button
+                  danger
+                  size="small"
+                  icon={<PauseCircleOutlined />}
+                  className={styles.actionBtn}
+                  onClick={onAbort}
+                >
+                  中断
+                </Button>
+              </>
+            )}
+          </div>
+        ) : null}
       </Card>
     </div>
   )

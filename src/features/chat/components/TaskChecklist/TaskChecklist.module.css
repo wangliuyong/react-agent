@@ -1,8 +1,9 @@
 /* ── 浮动任务清单：豆包极简 + 时间轴进度 ── */
 
-/* 定位外壳：面板与吸附圆球共用坐标 */
+/* 定位外壳：fixed 贴右，不随侧边栏折叠左右移动 */
 .root {
-  position: absolute;
+  position: fixed;
+  right: 4px;
   z-index: 10;
   touch-action: none;
 }
