@@ -15,11 +15,11 @@ description: >-
 | `electron/main/agent/tools/index.ts` | **工具注册表**，新增工具只在此 append |
 | `electron/main/agent/tools/types.ts` | `AgentTool`、`ToolContext`、`ToolPermission` |
 | `electron/main/agent/tools/langchain-adapter.ts` | `AgentTool` → LangChain `tool()` + `interrupt` 权限门 |
-| `electron/main/agent/graph-bridge.ts` | stream → `AgentEvent`、abort / continue |
+| `electron/main/agent/graph-bridge.ts` | **聊天/步骤唯一入口**：stream → `AgentEvent`、abort / continue |
+| `electron/main/agent/llm-langchain.ts` | ChatOpenAI 工厂（DashScope） |
 | `electron/main/agent/graph/chat-graph.ts` | Supervisor + general / researcher / writer / publisher |
 | `electron/main/agent/graph/prompts.ts` | 各角色 system prompt |
 | `electron/main/agent/graph/role-tools.ts` | 角色工具白名单 |
-| `electron/main/agent/loop.ts` | 入口：`agentRuntime=langgraph`（默认）或 `legacy` |
 | `electron/main/workflow/compile-to-langgraph.ts` | 工作流 Definition → StateGraph |
 
 ## 新增工具（固定流程）
@@ -62,8 +62,6 @@ export const myTool: AgentTool = {
 
 `await_user` / 登录暂停 → LangGraph `interrupt` → UI `await_user` → `postAgentContinue` → `Command({ resume })`。
 
-设置项 `agentRuntime: 'langgraph' | 'legacy'` 可回滚自研 ReAct。
-
 ## 角色提示修改
 
 在 `graph/prompts.ts` 的 `ROLE_PROMPTS` / `BASE_CAPABILITY` 中修改。注意：
@@ -88,4 +86,5 @@ pnpm dev   # 聊天问答 / 发布管线；观察 tool_* 与 await_user
 ## 沉淀
 
 新工具模式写入 [examples.md](examples.md)。
-设计详见 `docs/superpowers/specs/2026-07-14-langgraph-orchestration-design.md`。
+设计详见 `docs/superpowers/specs/2026-07-14-langgraph-orchestration-design.md`；
+移除 legacy：`docs/superpowers/specs/2026-07-15-remove-legacy-react-design.md`。
