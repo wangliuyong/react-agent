@@ -5,6 +5,7 @@ import type {
   AgentEvent,
   AgentRuleUpsertInput,
   AppSettings,
+  ModelOption,
   BrowserFramePayload,
   ChannelLoginStatus,
   ElectronApi,
@@ -27,6 +28,8 @@ const api: ElectronApi = {
   querySettings: () => ipcRenderer.invoke(IpcChannels.querySettings),
   postSettings: (settings: Partial<AppSettings>) =>
     ipcRenderer.invoke(IpcChannels.postSettings, settings),
+  queryProviderModels: (override) =>
+    ipcRenderer.invoke(IpcChannels.queryProviderModels, override),
 
   querySessions: () => ipcRenderer.invoke(IpcChannels.querySessions),
   querySession: (id: string) => ipcRenderer.invoke(IpcChannels.querySession, id),

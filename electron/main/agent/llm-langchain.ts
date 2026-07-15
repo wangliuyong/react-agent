@@ -12,6 +12,17 @@ export function queryChatModelConfig(
   if (!settings.apiKey) {
     throw new Error(`未配置 ${provider.apiKeyLabel}，请先在设置中填写`)
   }
+  /**
+   * DeepSeek V4 默认 thinking=enabled；工具多轮必须回传 reasoning_content。
+   * ChatOpenAI 出站消息不会带上该字段，ReAct 第二轮会 HTTP 400。
+   * 官方供应商关闭 thinking，走非思考模式的 Tool Calls（与 Agent 工具循环兼容）。
+   * 文档：https://api-docs.deepseek.com/guides/thinking_mode
+   */
+  const modelKwargs =
+    settings.provider === 'deepseek'
+      ? { thinking: { type: 'disabled' as const } }
+      : undefined
+
   return {
     apiKey: settings.apiKey,
     model: settings.model,
@@ -19,7 +30,8 @@ export function queryChatModelConfig(
       baseURL: settings.baseUrl || provider.defaultBaseUrl
     },
     streaming: true,
-    temperature: 0.7
+    temperature: 0.7,
+    ...(modelKwargs ? { modelKwargs } : {})
   }
 }
 

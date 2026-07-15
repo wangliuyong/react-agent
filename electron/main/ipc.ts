@@ -12,6 +12,7 @@ import type {
   SkillUpsertInput
 } from '../../shared/types'
 import { querySettings, postSettings } from './store/settings'
+import { queryProviderModels } from './store/provider-models'
 import {
   querySessions,
   querySession,
@@ -85,6 +86,14 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.querySettings, () => querySettings())
   ipcMain.handle(IpcChannels.postSettings, (_e, partial: Partial<AppSettings>) =>
     postSettings(partial)
+  )
+  // 默认读盘；设置页可传入未保存的草稿覆盖
+  ipcMain.handle(
+    IpcChannels.queryProviderModels,
+    (
+      _e,
+      override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>
+    ) => queryProviderModels({ ...querySettings(), ...override })
   )
 
   ipcMain.handle(IpcChannels.querySessions, () => querySessions())

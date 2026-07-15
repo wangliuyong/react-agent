@@ -1,4 +1,4 @@
-import type { Session, SessionType } from '@shared/types'
+import type { AppSettings, ModelOption, Session, SessionType } from '@shared/types'
 import { createEmptySession } from './types'
 
 /** 读：会话列表 */
@@ -47,4 +47,11 @@ export async function postSelectImages(): Promise<string[]> {
 /** 读取本地图片为 data URL，供聊天预览 */
 export async function queryLocalImageDataUrl(filePath: string): Promise<string | null> {
   return window.api.queryLocalImageDataUrl(filePath)
+}
+
+/** 从当前供应商平台拉取可用模型（DeepSeek 等 OpenAI 兼容 /models） */
+export async function queryProviderModels(
+  override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>
+): Promise<ModelOption[]> {
+  return window.api.queryProviderModels(override)
 }

@@ -39,4 +39,30 @@ describe('聊天模型配置', () => {
       })
     ).toThrow('未配置 DeepSeek API Key')
   })
+
+  /**
+   * DeepSeek V4 默认开启 thinking；工具多轮时 API 要求回传 reasoning_content。
+   * ChatOpenAI 不会在后续请求带回该字段，ReAct 第二轮会 HTTP 400。
+   * 因此官方 DeepSeek 供应商显式关闭 thinking，保证 Agent 工具循环可用。
+   * 文档：https://api-docs.deepseek.com/guides/thinking_mode
+   */
+  it('DeepSeek 供应商关闭 thinking，避免工具多轮缺少 reasoning_content', () => {
+    expect(
+      queryChatModelConfig({
+        ...BASE_SETTINGS,
+        provider: 'deepseek',
+        apiKey: 'sk-deepseek',
+        baseUrl: 'https://api.deepseek.com',
+        model: 'deepseek-v4-flash'
+      })
+    ).toEqual(
+      expect.objectContaining({
+        modelKwargs: { thinking: { type: 'disabled' } }
+      })
+    )
+  })
+
+  it('百炼供应商不注入 DeepSeek thinking 参数', () => {
+    expect(queryChatModelConfig(BASE_SETTINGS).modelKwargs).toBeUndefined()
+  })
 })
