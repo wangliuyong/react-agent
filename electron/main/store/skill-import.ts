@@ -756,7 +756,7 @@ function resolveSkillDirInClone(repoRoot: string, skillDirPath?: string): string
   )
 }
 
-/** 从克隆结果安装技能目录到 .cursor/skills/<id> */
+/** 从克隆结果安装技能目录到当前环境的 resources/skills/<id> */
 function installSkillDirFromClone(sourceDir: string, targetId: string): void {
   validateSkillId(targetId)
   const destDir = join(getSkillsDir(), targetId)
@@ -837,7 +837,7 @@ async function importSkillViaHttpDownload(
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    throw new Error(`写入技能失败（请确认 .cursor/skills 可写）：${msg}`)
+    throw new Error(`写入技能失败（请确认 resources/skills 可写）：${msg}`)
   }
 
   const detail = queryProjectSkillDetail(id)
@@ -961,7 +961,7 @@ async function previewJsonImportFromUrl(url: string): Promise<SkillImportPreview
         ? first.description
         : items.map((s) => s.name).join('、'),
     hasExamples: items.some((s) => Boolean(s.examplesContent?.trim())),
-    reasoning: '识别为技能 JSON，将按条写入 .cursor/skills',
+    reasoning: '识别为技能 JSON，将按条写入 resources/skills',
     jsonItems: items.map((s) => ({
       id: s.id,
       name: s.name,

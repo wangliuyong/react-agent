@@ -43,7 +43,7 @@ export const IpcChannels = {
   // 发布渠道登录态
   queryChannelLoginStatuses: 'query:channel-login-statuses',
   postChannelOpenLogin: 'post:channel:open-login',
-  // 项目技能（.cursor/skills）
+  // 项目技能（resources/skills）
   queryProjectSkills: 'query:project-skills',
   queryProjectSkillDetail: 'query:project-skill-detail',
   postSkillStates: 'post:skill-states',
@@ -333,7 +333,7 @@ export interface AgentChatRequest {
   attachmentPaths?: string[]
 }
 
-/** 项目技能摘要（来自 .cursor/skills/<id>/SKILL.md） */
+/** 技能摘要（来自 resources/skills/<id>/SKILL.md） */
 export interface ProjectSkill {
   id: string
   name: string
@@ -356,7 +356,7 @@ export interface SkillUpsertInput {
   examplesContent?: string
 }
 
-/** 市场模板摘要（只读，来自 resources/skill-templates） */
+/** 市场模板摘要（只读，来自内置 resources/skills） */
 export interface SkillTemplate {
   id: string
   name: string

@@ -7,6 +7,7 @@ import { setMainWindow } from './window'
 import { getBrowserService } from './browser/service'
 import { releaseBrowserProfileLock } from './browser/profile-lock'
 import { startScheduleService } from './schedule/scheduler'
+import { initializeResources } from './store/resources'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -16,7 +17,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    title: '灵犀 · AI 助手',
+    title: '灵犀 · AI助手',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 16, y: 16 },
     backgroundColor: '#f5f5f7',
@@ -51,6 +52,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   getDataRoot()
+  initializeResources()
   initPublishChannelRegistry()
   registerIpcHandlers()
   startScheduleService()
