@@ -9,11 +9,11 @@ const testState = vi.hoisted(() => ({
   bundledRoot: ''
 }))
 
-vi.mock('./paths', () => ({
+vi.mock('../electron/main/store/paths', () => ({
   getDataRoot: (): string => testState.dataRoot
 }))
 
-vi.mock('./resources', () => ({
+vi.mock('../electron/main/store/resources', () => ({
   queryBundledResourcesRoot: (): string => testState.bundledRoot,
   querySkillsDir: (): string => testState.skillsDir
 }))
@@ -38,7 +38,7 @@ describe('skills store', () => {
 
   it('从 resources/skills 创建、查询并删除技能', async () => {
     const { getSkillsDir, postDeleteProjectSkill, postProjectSkill, queryProjectSkills } =
-      await import('./skills')
+      await import('../electron/main/store/skills')
 
     expect(getSkillsDir()).toBe(testState.skillsDir)
 
@@ -72,7 +72,7 @@ describe('skills store', () => {
       'utf-8'
     )
 
-    const { querySkillTemplates } = await import('./skills')
+    const { querySkillTemplates } = await import('../electron/main/store/skills')
 
     expect(querySkillTemplates()).toEqual([
       {

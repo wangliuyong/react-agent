@@ -74,8 +74,12 @@ export const IpcChannels = {
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 
 /** 应用设置（本地 JSON 缓存） */
+export type ModelProvider = 'dashscope' | 'deepseek'
+
 export interface AppSettings {
-  /** 阿里云百炼 API Key */
+  /** 当前模型服务供应商 */
+  provider: ModelProvider
+  /** 当前供应商的 API Key */
   apiKey: string
   /** OpenAI 兼容 baseURL */
   baseUrl: string
@@ -88,6 +92,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  provider: 'dashscope',
   apiKey: '',
   baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   model: 'qwen-plus',
@@ -95,8 +100,35 @@ export const DEFAULT_SETTINGS: AppSettings = {
   maxTurns: 40
 }
 
-/** 百炼常用模型选项（聊天与设置页共用） */
+/** 模型供应商选项（聊天与设置页共用） */
+export interface ModelProviderOption {
+  value: ModelProvider
+  label: string
+  apiKeyLabel: string
+  defaultBaseUrl: string
+  defaultModel: string
+}
+
+export const MODEL_PROVIDER_OPTIONS: ModelProviderOption[] = [
+  {
+    value: 'dashscope',
+    label: '阿里云百炼',
+    apiKeyLabel: 'DASHSCOPE API Key',
+    defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    defaultModel: 'qwen-plus'
+  },
+  {
+    value: 'deepseek',
+    label: 'DeepSeek',
+    apiKeyLabel: 'DeepSeek API Key',
+    defaultBaseUrl: 'https://api.deepseek.com',
+    defaultModel: 'deepseek-chat'
+  }
+]
+
+/** 可选模型；provider 防止模型被发送到错误的兼容接口。 */
 export interface ModelOption {
+  provider: ModelProvider
   /** OpenAI 兼容接口中的 model 字段 */
   value: string
   /** 展示名称 */
@@ -106,33 +138,93 @@ export interface ModelOption {
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [
-  { value: 'qwen-plus', label: 'Qwen Plus', description: '均衡，推荐默认' },
-  { value: 'qwen-max', label: 'Qwen Max', description: '能力最强' },
-  { value: 'qwen-turbo', label: 'Qwen Turbo', description: '速度快、成本低' },
-  { value: 'qwen-long', label: 'Qwen Long', description: '超长上下文' },
-  // DeepSeek
-  { value: 'deepseek-v4-flash', label: 'deepseek-v4-flash' },
-  { value: 'deepseek-v4-pro', label: 'deepseek-v4-pro' },
+  { provider: 'dashscope', value: 'qwen-plus', label: 'Qwen Plus', description: '均衡，推荐默认' },
+  { provider: 'dashscope', value: 'qwen-max', label: 'Qwen Max', description: '能力最强' },
+  {
+    provider: 'dashscope',
+    value: 'qwen-turbo',
+    label: 'Qwen Turbo',
+    description: '速度快、成本低'
+  },
+  { provider: 'dashscope', value: 'qwen-long', label: 'Qwen Long', description: '超长上下文' },
+  // DeepSeek 官方 API
+  {
+    provider: 'deepseek',
+    value: 'deepseek-chat',
+    label: 'DeepSeek Chat',
+    description: '通用对话模型'
+  },
+  {
+    provider: 'deepseek',
+    value: 'deepseek-reasoner',
+    label: 'DeepSeek Reasoner',
+    description: '深度推理模型'
+  },
+  // 阿里云百炼中的 DeepSeek 模型
+  { provider: 'dashscope', value: 'deepseek-v4-flash', label: 'deepseek-v4-flash' },
+  { provider: 'dashscope', value: 'deepseek-v4-pro', label: 'deepseek-v4-pro' },
   // Qwen 3.x
-  { value: 'qwen3.6-flash-2026-04-16', label: 'qwen3.6-flash-2026-04-16' },
-  { value: 'qwen3.5-ocr', label: 'qwen3.5-ocr' },
-  { value: 'qwen3.6-35b-a3b', label: 'qwen3.6-35b-a3b' },
-  { value: 'qwen3.7-max-2026-05-17', label: 'qwen3.7-max-2026-05-17' },
-  { value: 'qwen3.7-max-2026-06-08', label: 'qwen3.7-max-2026-06-08' },
-  { value: 'qwen3.7-max-preview', label: 'qwen3.7-max-preview' },
-  { value: 'qwen3.5-plus-2026-04-20', label: 'qwen3.5-plus-2026-04-20' },
-  { value: 'qwen3.6-max-preview', label: 'qwen3.6-max-preview' },
-  { value: 'qwen3.7-max', label: 'qwen3.7-max' },
-  { value: 'qwen3.7-max-2026-05-20', label: 'qwen3.7-max-2026-05-20' },
-  { value: 'qwen3.7-plus-2026-05-26', label: 'qwen3.7-plus-2026-05-26' },
-  { value: 'qwen3.6-flash', label: 'qwen3.6-flash' },
+  {
+    provider: 'dashscope',
+    value: 'qwen3.6-flash-2026-04-16',
+    label: 'qwen3.6-flash-2026-04-16'
+  },
+  { provider: 'dashscope', value: 'qwen3.5-ocr', label: 'qwen3.5-ocr' },
+  { provider: 'dashscope', value: 'qwen3.6-35b-a3b', label: 'qwen3.6-35b-a3b' },
+  {
+    provider: 'dashscope',
+    value: 'qwen3.7-max-2026-05-17',
+    label: 'qwen3.7-max-2026-05-17'
+  },
+  {
+    provider: 'dashscope',
+    value: 'qwen3.7-max-2026-06-08',
+    label: 'qwen3.7-max-2026-06-08'
+  },
+  { provider: 'dashscope', value: 'qwen3.7-max-preview', label: 'qwen3.7-max-preview' },
+  {
+    provider: 'dashscope',
+    value: 'qwen3.5-plus-2026-04-20',
+    label: 'qwen3.5-plus-2026-04-20'
+  },
+  { provider: 'dashscope', value: 'qwen3.6-max-preview', label: 'qwen3.6-max-preview' },
+  { provider: 'dashscope', value: 'qwen3.7-max', label: 'qwen3.7-max' },
+  {
+    provider: 'dashscope',
+    value: 'qwen3.7-max-2026-05-20',
+    label: 'qwen3.7-max-2026-05-20'
+  },
+  {
+    provider: 'dashscope',
+    value: 'qwen3.7-plus-2026-05-26',
+    label: 'qwen3.7-plus-2026-05-26'
+  },
+  { provider: 'dashscope', value: 'qwen3.6-flash', label: 'qwen3.6-flash' },
   // GLM
-  { value: 'glm-5.1', label: 'glm-5.1' },
-  { value: 'glm-5.2', label: 'glm-5.2' },
+  { provider: 'dashscope', value: 'glm-5.1', label: 'glm-5.1' },
+  { provider: 'dashscope', value: 'glm-5.2', label: 'glm-5.2' },
   // Kimi
-  { value: 'kimi-k2.7-code', label: 'kimi-k2.7-code', description: '代码能力强' },
-  { value: 'kimi-k2.6', label: 'kimi-k2.6' }
+  {
+    provider: 'dashscope',
+    value: 'kimi-k2.7-code',
+    label: 'kimi-k2.7-code',
+    description: '代码能力强'
+  },
+  { provider: 'dashscope', value: 'kimi-k2.6', label: 'kimi-k2.6' }
 ]
+
+/** 查询供应商元数据；类型已限制输入，兜底仅用于处理损坏的本地配置。 */
+export function queryProviderOption(provider: ModelProvider): ModelProviderOption {
+  return (
+    MODEL_PROVIDER_OPTIONS.find((option) => option.value === provider) ??
+    MODEL_PROVIDER_OPTIONS[0]
+  )
+}
+
+/** 返回供应商可用模型，避免模型与 Base URL 交叉配置。 */
+export function queryModelOptions(provider: ModelProvider): ModelOption[] {
+  return MODEL_OPTIONS.filter((option) => option.provider === provider)
+}
 
 /** 根据 model id 取展示名；未知模型回退为原始 id */
 export function queryModelLabel(model: string): string {

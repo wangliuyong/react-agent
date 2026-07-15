@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { BASE_URL_RULES, MODEL_RULES } from './settingsValidation'
+import {
+  BASE_URL_RULES,
+  MODEL_RULES,
+  PROVIDER_RULES
+} from '../src/features/settings/components/SettingsPage/settingsValidation'
 
 describe('设置页必填校验', () => {
+  it('要求选择模型供应商', () => {
+    expect(PROVIDER_RULES).toContainEqual({
+      required: true,
+      message: '请选择模型供应商'
+    })
+  })
+
   it('要求填写 Base URL', () => {
     expect(BASE_URL_RULES).toContainEqual({
       required: true,

@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const componentSource = readFileSync(
-  new URL('./ChannelStatusPanel.tsx', import.meta.url),
+  new URL(
+    '../src/features/settings/components/ChannelStatusPanel/ChannelStatusPanel.tsx',
+    import.meta.url
+  ),
   'utf8'
 )
 
