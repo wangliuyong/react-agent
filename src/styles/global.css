@@ -152,7 +152,7 @@ a {
 }
 
 .ant-segmented-item-selected {
-  border-radius: calc(var(--db-radius-md) - 2px) !important;
+  border-radius: 12px !important;
   box-shadow: var(--db-shadow-sm) !important;
 }
 

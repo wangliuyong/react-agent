@@ -100,8 +100,8 @@ export function ChatPage(): React.ReactElement {
               {
                 label: (
                   <span className={styles.modeLabel}>
-                    <RobotOutlined />
-                    智能助手
+                    {/* <RobotOutlined /> */}
+                    灵犀AI助手
                   </span>
                 ),
                 value: 'assistant'
@@ -109,7 +109,7 @@ export function ChatPage(): React.ReactElement {
               {
                 label: (
                   <span className={styles.modeLabel}>
-                    <FolderOutlined />
+                    {/* <FolderOutlined /> */}
                     业务系统
                   </span>
                 ),
