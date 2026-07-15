@@ -10,7 +10,12 @@ import {
   queryScheduledTasks
 } from '../store/schedules'
 import { queryWorkflow } from '../store/workflows'
-import { runAgentChat } from '../agent/loop'
+import {
+  bindSessionAbort,
+  releaseSessionAbort,
+  runAgentStep
+} from '../agent/loop'
+import { emitAgentEvent } from '../agent/graph-bridge'
 import { postRunWorkflow } from '../workflow/engine'
 import { getMainWindow } from '../window'
 import {
@@ -42,6 +47,50 @@ function createScheduleSession(task: ScheduledTask): Session {
     tokenUsed: 0,
     createdAt: now,
     updatedAt: now
+  }
+}
+
+/**
+ * 包装定时自定义指令：强调成功即止，避免模型对 notify 等工具连发两轮。
+ */
+function buildScheduleCustomPrompt(userPrompt: string): string {
+  return [
+    '[定时任务自动触发]',
+    '',
+    '执行约束（必须遵守）：',
+    '1. 严格按下方指令完成任务；',
+    '2. 任一相关工具返回成功后立即结束，不要再调用任何工具；',
+    '3. 禁止对相同渠道、相同正文重复发送通知。',
+    '',
+    userPrompt
+  ].join('\n')
+}
+
+/**
+ * 自定义指令走单步 ReAct（非多智能体路由），结束后回写定时任务状态。
+ */
+async function postRunScheduleCustomPrompt(sessionId: string, prompt: string): Promise<void> {
+  bindSessionAbort(sessionId)
+  try {
+    const result = await runAgentStep({
+      sessionId,
+      prompt: buildScheduleCustomPrompt(prompt)
+    })
+    const reason =
+      result === 'completed'
+        ? 'end_turn'
+        : result === 'max_turns'
+          ? 'max_turns'
+          : result === 'aborted'
+            ? 'aborted'
+            : 'error'
+    emitAgentEvent({ type: 'done', sessionId, reason })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    emitAgentEvent({ type: 'error', sessionId, message })
+    emitAgentEvent({ type: 'done', sessionId, reason: 'error' })
+  } finally {
+    releaseSessionAbort(sessionId)
   }
 }
 
@@ -85,7 +134,7 @@ function resolveWorkflowId(task: ScheduledTask): string | null {
 /**
  * 触发单个定时任务。
  * - publish_plan / workflow：编排引擎
- * - custom_prompt：单次 ReAct（兼容旧行为）
+ * - custom_prompt：单步 ReAct（不再走多智能体聊天图，降低通知类指令连发）
  * manual=true 时跳过 nextRunAt 校验（立即执行按钮）。
  */
 export async function triggerScheduledTask(
@@ -116,10 +165,7 @@ export async function triggerScheduledTask(
     postScheduledTask(running)
     emitScheduleUpdate()
 
-    void runAgentChat({
-      sessionId: session.id,
-      content: `[定时任务自动触发]\n\n${prompt}`
-    })
+    void postRunScheduleCustomPrompt(session.id, prompt)
     return running
   }
 
