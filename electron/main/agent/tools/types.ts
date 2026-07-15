@@ -1,4 +1,3 @@
-import type OpenAI from 'openai'
 import type { TaskItem } from '../../../../shared/types'
 
 /** 工具权限级别：敏感操作需用户确认或完全访问模式 */
@@ -22,16 +21,4 @@ export interface AgentTool {
   permission: ToolPermission
   parameters: Record<string, unknown>
   execute: (args: Record<string, unknown>, ctx: ToolContext) => Promise<string>
-}
-
-/** 转为 OpenAI tools schema */
-export function toOpenAiTools(tools: AgentTool[]): OpenAI.Chat.Completions.ChatCompletionTool[] {
-  return tools.map((t) => ({
-    type: 'function' as const,
-    function: {
-      name: t.name,
-      description: t.description,
-      parameters: t.parameters
-    }
-  }))
 }

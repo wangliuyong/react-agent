@@ -18,7 +18,8 @@ import {
   parseSkillImportJson,
   slugifySkillImportId
 } from '../../../shared/skill-import-json'
-import { createLlmClient } from '../agent/llm'
+import { HumanMessage, SystemMessage } from '@langchain/core/messages'
+import { createChatModel } from '../agent/llm-langchain'
 import { getSkillImportTempDir } from './paths'
 import { querySettings } from './settings'
 import {
@@ -598,17 +599,31 @@ async function querySkillImportPlan(url: string): Promise<SkillImportPlan> {
   const settings = querySettings()
   if (settings.apiKey) {
     try {
-      const client = createLlmClient(settings)
-      const completion = await client.chat.completions.create({
-        model: settings.model,
-        messages: [
-          { role: 'system', content: SKILL_IMPORT_LLM_SYSTEM },
-          { role: 'user', content: `请分析以下技能链接并返回 JSON 导入计划：\n${trimmed}` }
-        ],
+      // 与原先 OpenAI response_format: json_object 对齐，便于 parseLlmImportPlanJson
+      const model = createChatModel(settings).withConfig({
         response_format: { type: 'json_object' }
       })
+      const result = await model.invoke([
+        new SystemMessage(SKILL_IMPORT_LLM_SYSTEM),
+        new HumanMessage(`请分析以下技能链接并返回 JSON 导入计划：\n${trimmed}`)
+      ])
+      // AIMessage.content 可能是 string 或多模态块数组
+      const rawContent = result.content
+      const content =
+        typeof rawContent === 'string'
+          ? rawContent
+          : Array.isArray(rawContent)
+            ? rawContent
+                .map((block) => {
+                  if (typeof block === 'string') return block
+                  if (block && typeof block === 'object' && 'text' in block) {
+                    return String((block as { text?: unknown }).text ?? '')
+                  }
+                  return ''
+                })
+                .join('')
+            : String(rawContent ?? '')
 
-      const content = completion.choices[0]?.message?.content ?? ''
       const plan = parseLlmImportPlanJson(content)
       if (plan) {
         if (plan.method === 'http_download' && !plan.skillMdUrl) {
