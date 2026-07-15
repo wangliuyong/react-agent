@@ -2,12 +2,11 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
   background: var(--db-bg);
   position: relative;
 }
 
-/* 与其他功能页统一的背景氛围 */
 .page::before {
   content: '';
   position: absolute;
@@ -23,11 +22,19 @@
   position: relative;
   z-index: 1;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 14px;
+  gap: 20px;
   padding: 22px 28px;
   background: var(--db-bg-content);
   border-bottom: 1px solid var(--db-border-light);
+}
+
+.headerMain {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
 }
 
 .headerIcon {
@@ -43,39 +50,311 @@
   flex-shrink: 0;
 }
 
-.headerMain {
-  min-width: 0;
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .title {
   margin: 0 !important;
-  font-size: 20px !important;
+  font-size: 18px !important;
   font-weight: 650 !important;
   color: var(--db-text) !important;
+}
+
+.versionBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--db-radius-pill);
+  background: var(--db-primary);
+  color: var(--db-on-primary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .desc {
   margin: 4px 0 0 !important;
   font-size: 13px !important;
   color: var(--db-text-secondary) !important;
-  max-width: 560px;
   line-height: 1.6 !important;
+}
+
+.localBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 7px 11px;
+  border: 1px solid rgba(0, 181, 120, 0.18);
+  border-radius: var(--db-radius-pill);
+  background: rgba(0, 181, 120, 0.07);
+  color: #008f5d;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .body {
   position: relative;
   z-index: 1;
   flex: 1;
+  overflow: auto;
   padding: 24px 28px 48px;
   width: 100%;
-  max-width: 1040px;
 }
 
 .formCard {
-  max-width: 640px;
+  width: 100%;
   background: var(--db-bg-content);
-  border: 1px solid var(--db-border);
+  border: 1px solid var(--db-border-light);
   border-radius: var(--db-radius-lg);
-  padding: 28px 32px;
   box-shadow: var(--db-shadow-sm);
+  overflow: hidden;
+  animation: cardIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--db-border-light);
+  background:
+    linear-gradient(100deg, var(--db-primary-faint), transparent 45%),
+    var(--db-bg-content);
+}
+
+.cardHeading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 17px;
+}
+
+.cardTitle {
+  margin: 0 !important;
+  color: var(--db-text) !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+}
+
+.cardDesc {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.providerTag {
+  flex-shrink: 0;
+  margin: 0 !important;
+  padding: 2px 9px !important;
+  border: 1px solid var(--db-primary-border) !important;
+  border-radius: var(--db-radius-pill) !important;
+  background: var(--db-primary-muted) !important;
+  color: var(--db-primary) !important;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 10px !important;
+}
+
+.form {
+  padding: 24px 24px 0;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(200px, 0.65fr);
+  gap: 4px 20px;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.form :global(.ant-form-item-label > label) {
+  color: var(--db-text) !important;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.form :global(.ant-form-item-extra) {
+  padding-top: 3px;
+  color: var(--db-text-tertiary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.form :global(.ant-input-affix-wrapper),
+.form :global(.ant-select-selector),
+.form :global(.ant-input-number) {
+  background: var(--db-bg-subtle) !important;
+}
+
+.form :global(.ant-input-affix-wrapper:hover),
+.form :global(.ant-input-affix-wrapper-focused),
+.form :global(.ant-select-focused .ant-select-selector),
+.form :global(.ant-input-number:hover),
+.form :global(.ant-input-number-focused) {
+  background: var(--db-bg-content) !important;
+}
+
+.form :global(.ant-input-prefix) {
+  margin-right: 8px;
+  color: var(--db-text-tertiary);
+}
+
+.permissionRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 24px;
+  padding: 15px 16px;
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-md);
+  background: var(--db-bg-subtle);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.permissionRow:hover {
+  border-color: var(--db-primary-border-hover);
+  background: var(--db-primary-faint);
+}
+
+.permissionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 15px;
+}
+
+.permissionContent {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.permissionContent :global(.ant-typography) {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.formFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 -24px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--db-border-light);
+  background: var(--db-bg-subtle);
+}
+
+.footerHint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--db-text-secondary);
+  font-size: 12px;
+}
+
+.footerHint :global(.anticon) {
+  color: var(--db-primary);
+}
+
+.saveButton {
+  min-width: 116px;
+  font-weight: 600;
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 760px) {
+  .header {
+    align-items: flex-start;
+    padding: 18px 20px;
+  }
+
+  .localBadge {
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .localBadge span {
+    display: none;
+  }
+
+  .body {
+    padding: 18px 20px 36px;
+  }
+
+  .cardHeader {
+    align-items: flex-start;
+    padding: 18px;
+  }
+
+  .providerTag {
+    display: none;
+  }
+
+  .form {
+    padding: 20px 18px 0;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .fullWidth {
+    grid-column: auto;
+  }
+
+  .formFooter {
+    align-items: stretch;
+    flex-direction: column;
+    margin: 0 -18px;
+    padding: 14px 18px;
+  }
+
+  .saveButton {
+    width: 100%;
+  }
 }
