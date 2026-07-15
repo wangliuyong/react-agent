@@ -184,7 +184,15 @@ export function ChatInput({
                 }}
               >
                 <Button type="text" size="small" className={styles.accessBtn} disabled={running}>
-                  <span className={styles.dot} data-on={settings.fullAccess} />
+                  <Tooltip
+                    title={
+                      settings.fullAccess
+                        ? '完全访问模式：将跳过部分敏感确认'
+                        : '需确认模式：敏感操作前会暂停确认'
+                    }
+                  >
+                    <span className={styles.dot} data-on={settings.fullAccess} />
+                  </Tooltip>
                   {settings.fullAccess ? '完全访问' : '需确认'}
                   <DownOutlined className={styles.accessChevron} />
                 </Button>
