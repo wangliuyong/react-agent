@@ -17,6 +17,12 @@
 
 .rootMorphToPanel .card {
   animation: panelExpandIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: right center;
+}
+
+/* 圆球展开时跳过任务行入场动画，避免列表闪烁 */
+.rootMorphToPanel .taskRow {
+  animation: none;
 }
 
 @keyframes orbSnapIn {
@@ -39,15 +45,14 @@
 
 @keyframes panelExpandIn {
   0% {
-    opacity: 0.4;
-    transform: scale(0.55);
-    transform-origin: center center;
-    filter: blur(1px);
+    opacity: 0.55;
+    transform: scale(0.18);
+    transform-origin: right center;
   }
   100% {
     opacity: 0.55;
     transform: scale(1);
-    filter: blur(0);
+    transform-origin: right center;
   }
 }
 
@@ -59,7 +64,8 @@
   padding: 0;
   border: none;
   border-radius: 50%;
-  cursor: grab;
+  /* 固定在右侧，仅允许上下拖动 */
+  cursor: ns-resize;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90,7 +96,7 @@
 }
 
 .rootDragging .orb {
-  cursor: grabbing;
+  cursor: ns-resize;
   opacity: 1;
 }
 
@@ -210,8 +216,12 @@
     background 0.32s ease,
     box-shadow 0.32s ease,
     border-color 0.32s ease;
-  animation: panelEnter 0.38s cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
+}
+
+/* 首次出现时的入场动画（圆球展开走 panelExpandIn，不叠加此动画） */
+.cardFirstAppear {
+  animation: panelEnter 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .card:hover,
@@ -277,12 +287,13 @@
   align-items: center;
   gap: 8px;
   padding: 12px 14px 10px;
-  cursor: grab;
+  /* 固定在右侧，仅允许上下拖动 */
+  cursor: ns-resize;
   user-select: none;
 }
 
 .dragHandle.dragging {
-  cursor: grabbing;
+  cursor: ns-resize;
 }
 
 .dragIcon {
