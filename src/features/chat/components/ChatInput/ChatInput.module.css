@@ -147,7 +147,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--db-border);
+  background: var(--db-success);
   margin-right: 6px;
   transition: background 0.2s ease;
 }
