@@ -10,21 +10,15 @@ import styles from './TaskChecklist.module.css'
 const DEFAULT_TOP = 68
 /** 默认距右侧边距 */
 const DEFAULT_MARGIN = 20
-/** 拖至边缘多少 px 内松手即吸附为圆球 */
-const EDGE_SNAP_THRESHOLD = 32
-/** 吸附圆球直径 */
-const ORB_SIZE = 52
-/** 圆球贴边内缩，避免贴死裁切 */
-const ORB_EDGE_INSET = 10
-/** 面板展开时估算宽度（与 CSS 一致） */
+/** 面板宽度（与 CSS .card 一致） */
 const PANEL_WIDTH = 288
+/** 吸附圆球直径（与 CSS .orb 一致） */
+const ORB_SIZE = 52
 /** 指针移动超过该距离视为拖动而非点击 */
 const CLICK_MOVE_TOLERANCE = 6
 
-/** localStorage 键：记住位置与吸附态 */
+/** localStorage 键：记住垂直位置 */
 const POSITION_STORAGE_KEY = 'react-agent:task-checklist-position'
-
-type DockEdge = 'left' | 'right' | 'top' | 'bottom'
 
 interface TaskChecklistProps {
   tasks: TaskItem[]
@@ -43,72 +37,42 @@ interface TaskChecklistProps {
   onResume?: () => void
 }
 
-interface Position {
-  x: number
-  y: number
-}
-
-interface PersistedLayout {
-  position: Position
-  docked: DockEdge | null
-}
-
-/** 旧版默认左上角位置（用于迁移，避免 localStorage 残留导致仍显示在左侧） */
-const LEGACY_DEFAULT_POSITION = { x: 20, y: 68 }
-
-const DOCK_EDGES: DockEdge[] = ['left', 'right', 'top', 'bottom']
-
-function isDockEdge(value: unknown): value is DockEdge {
-  return typeof value === 'string' && DOCK_EDGES.includes(value as DockEdge)
-}
-
-/** 从 localStorage 读取上次位置与吸附态 */
-function loadSavedLayout(): PersistedLayout | null {
+/** 从 localStorage 读取上次垂直位置（兼容旧版 { x, y, docked } 格式） */
+function loadSavedY(): number | null {
   try {
     const raw = localStorage.getItem(POSITION_STORAGE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as Position & { docked?: unknown }
-    if (typeof parsed.x !== 'number' || typeof parsed.y !== 'number') return null
-    // 若仍是旧版左上角默认值，视为未自定义，改用右上角
-    if (
-      parsed.x === LEGACY_DEFAULT_POSITION.x &&
-      parsed.y === LEGACY_DEFAULT_POSITION.y &&
-      !isDockEdge(parsed.docked)
-    ) {
-      return null
-    }
-    return {
-      position: { x: parsed.x, y: parsed.y },
-      docked: isDockEdge(parsed.docked) ? parsed.docked : null
-    }
+    const parsed = JSON.parse(raw) as { y?: unknown }
+    if (typeof parsed.y === 'number') return parsed.y
   } catch {
     // 解析失败时使用默认位置
   }
   return null
 }
 
-/** 计算右上角默认位置（相对 .page 容器） */
-function getDefaultPosition(el: HTMLElement, parentEl: HTMLElement): Position {
-  const parentRect = parentEl.getBoundingClientRect()
-  const elRect = el.getBoundingClientRect()
-  return {
-    x: Math.max(0, parentRect.width - elRect.width - DEFAULT_MARGIN),
-    y: DEFAULT_TOP
-  }
+/** 计算右侧固定时的 left 坐标 */
+function queryRightX(parentWidth: number, elementWidth: number): number {
+  return Math.max(0, parentWidth - elementWidth - DEFAULT_MARGIN)
 }
 
-/** 将位置限制在父容器可视范围内 */
-function clampPosition(
-  pos: Position,
-  size: { width: number; height: number },
-  parentSize: { width: number; height: number }
-): Position {
-  const maxX = Math.max(0, parentSize.width - size.width)
+/** 计算右侧固定时的 left 坐标（相对 .page 容器，读取 DOM 尺寸） */
+function queryRightAlignedX(
+  el: HTMLElement,
+  parentEl: HTMLElement
+): number {
+  const parentRect = parentEl.getBoundingClientRect()
+  const elRect = el.getBoundingClientRect()
+  return queryRightX(parentRect.width, elRect.width)
+}
+
+/** 将垂直位置限制在父容器可视范围内 */
+function clampVerticalY(
+  y: number,
+  size: { height: number },
+  parentSize: { height: number }
+): number {
   const maxY = Math.max(0, parentSize.height - size.height)
-  return {
-    x: Math.min(Math.max(0, pos.x), maxX),
-    y: Math.min(Math.max(0, pos.y), maxY)
-  }
+  return Math.min(Math.max(0, y), maxY)
 }
 
 /** 读取元素与父容器尺寸，用于吸附/夹紧计算 */
@@ -125,101 +89,6 @@ function queryLayoutMetrics(
     size: { width: elRect.width, height: elRect.height },
     parentSize: { width: parentRect.width, height: parentRect.height }
   }
-}
-
-/**
- * 根据面板当前位置判断是否贴近边缘；返回最近且在阈值内的边。
- */
-function querySnapEdge(
-  pos: Position,
-  size: { width: number; height: number },
-  parentSize: { width: number; height: number }
-): DockEdge | null {
-  const distances: Record<DockEdge, number> = {
-    left: pos.x,
-    right: parentSize.width - (pos.x + size.width),
-    top: pos.y,
-    bottom: parentSize.height - (pos.y + size.height)
-  }
-  let best: DockEdge | null = null
-  let bestDist = Infinity
-  for (const edge of DOCK_EDGES) {
-    const d = distances[edge]
-    if (d < bestDist) {
-      bestDist = d
-      best = edge
-    }
-  }
-  if (best === null || bestDist > EDGE_SNAP_THRESHOLD) return null
-  return best
-}
-
-/** 吸附后的圆球坐标：贴边并尽量保持原中心投影 */
-function getOrbDockPosition(
-  edge: DockEdge,
-  current: Position,
-  size: { width: number; height: number },
-  parentSize: { width: number; height: number }
-): Position {
-  const centerX = current.x + size.width / 2
-  const centerY = current.y + size.height / 2
-  let next: Position
-  switch (edge) {
-    case 'left':
-      next = { x: ORB_EDGE_INSET, y: centerY - ORB_SIZE / 2 }
-      break
-    case 'right':
-      next = {
-        x: parentSize.width - ORB_SIZE - ORB_EDGE_INSET,
-        y: centerY - ORB_SIZE / 2
-      }
-      break
-    case 'top':
-      next = { x: centerX - ORB_SIZE / 2, y: ORB_EDGE_INSET }
-      break
-    case 'bottom':
-      next = {
-        x: centerX - ORB_SIZE / 2,
-        y: parentSize.height - ORB_SIZE - ORB_EDGE_INSET
-      }
-      break
-  }
-  return clampPosition(next, { width: ORB_SIZE, height: ORB_SIZE }, parentSize)
-}
-
-/** 从圆球展开为面板时的落点：沿吸附边内缩一截 */
-function getExpandFromOrbPosition(
-  edge: DockEdge,
-  orbPos: Position,
-  parentSize: { width: number; height: number }
-): Position {
-  const estimatedHeight = 220
-  let next: Position
-  switch (edge) {
-    case 'left':
-      next = { x: DEFAULT_MARGIN, y: orbPos.y }
-      break
-    case 'right':
-      next = {
-        x: Math.max(0, parentSize.width - PANEL_WIDTH - DEFAULT_MARGIN),
-        y: orbPos.y
-      }
-      break
-    case 'top':
-      next = { x: Math.max(0, orbPos.x + ORB_SIZE / 2 - PANEL_WIDTH / 2), y: DEFAULT_TOP }
-      break
-    case 'bottom':
-      next = {
-        x: Math.max(0, orbPos.x + ORB_SIZE / 2 - PANEL_WIDTH / 2),
-        y: Math.max(0, parentSize.height - estimatedHeight - DEFAULT_MARGIN)
-      }
-      break
-  }
-  return clampPosition(
-    next,
-    { width: PANEL_WIDTH, height: estimatedHeight },
-    parentSize
-  )
 }
 
 /** 渲染单个任务的状态图标 */
@@ -273,9 +142,8 @@ function queryTaskRowClass(status: ChecklistTaskStatus): string {
 }
 
 /**
- * 浮动任务清单：默认右上角，可拖动。
- * 拖到窗口边缘松手 → 吸附成小圆球；点击圆球 → 展开面板。
- * 标题栏支持列表折叠（默认展开）；默认半透明，悬停不透明。
+ * 浮动任务清单：固定在页面右侧，仅支持上下拖动。
+ * 收起时吸附为右侧圆球；点击圆球展开面板。
  */
 const { Text } = Typography
 
@@ -290,32 +158,50 @@ export function TaskChecklist({
   onResume
 }: TaskChecklistProps): React.ReactElement | null {
   const rootRef = useRef<HTMLDivElement>(null)
-  const saved = useMemo(() => loadSavedLayout(), [])
-  const [position, setPosition] = useState<Position>(
-    () => saved?.position ?? { x: 0, y: DEFAULT_TOP }
-  )
+  const savedY = useMemo(() => loadSavedY(), [])
+  /** 垂直位置（水平始终贴右对齐） */
+  const [positionY, setPositionY] = useState<number>(() => savedY ?? DEFAULT_TOP)
+  /** 右侧固定时的 left 坐标，随容器/面板尺寸变化重算 */
+  const [rightX, setRightX] = useState(0)
   const [dragging, setDragging] = useState(false)
-  /** 任务列表内容展开（折叠箭头），默认展开 */
+  /** 任务列表展开；false 时渲染右侧吸附圆球 */
   const [contentExpanded, setContentExpanded] = useState(true)
-  /** 边缘吸附为圆球；非 null 时只渲染圆球 */
-  const [docked, setDocked] = useState<DockEdge | null>(() => saved?.docked ?? null)
-  /** 吸附/展开形态切换时的过渡动画标记 */
+  /** 面板 ↔ 圆球切换时的过渡动画 */
   const [morphPhase, setMorphPhase] = useState<'idle' | 'to-orb' | 'to-panel'>('idle')
-  /** 指针按下时相对控件左上角的偏移 */
-  const dragOffsetRef = useRef<Position>({ x: 0, y: 0 })
-  /** 本次按下起点，用于区分点击与拖动 */
-  const pointerStartRef = useRef<Position>({ x: 0, y: 0 })
+  /** 指针按下时相对控件顶部的垂直偏移 */
+  const dragOffsetYRef = useRef(0)
+  /** 本次按下起点，用于区分圆球点击与拖动 */
+  const pointerStartYRef = useRef(0)
   const movedDuringDragRef = useRef(false)
+  /** 面板是否曾展示过（区分首次入场 vs 圆球展开） */
+  const hasShownPanelRef = useRef(false)
 
-  /** 切换列表折叠；阻止冒泡以免触发拖动 */
-  const handleToggleContent = useCallback(
+  /** 收起为右侧吸附圆球 */
+  const handleCollapseToOrb = useCallback(
     (event: { stopPropagation: () => void; preventDefault: () => void }) => {
       event.stopPropagation()
       event.preventDefault()
-      setContentExpanded((prev) => !prev)
+      const parentEl = rootRef.current?.offsetParent as HTMLElement | null
+      if (parentEl) {
+        const parentWidth = parentEl.getBoundingClientRect().width
+        setRightX(queryRightX(parentWidth, ORB_SIZE))
+      }
+      setMorphPhase('to-orb')
+      setContentExpanded(false)
     },
     []
   )
+
+  /** 点击圆球展开面板 */
+  const handleExpandFromOrb = useCallback(() => {
+    const parentEl = rootRef.current?.offsetParent as HTMLElement | null
+    if (parentEl) {
+      const parentWidth = parentEl.getBoundingClientRect().width
+      setRightX(queryRightX(parentWidth, PANEL_WIDTH))
+    }
+    setMorphPhase('to-panel')
+    setContentExpanded(true)
+  }, [])
 
   /** 任务进度统计 */
   const progress = useMemo(() => {
@@ -328,77 +214,60 @@ export function TaskChecklist({
   // 持久化任务状态在中断时仍为 running，只有 Agent 真正执行时才显示动态执行态。
   const hasRunningTask = running && tasks.some((t) => t.status === 'running')
 
-  /** 将当前 root 位置夹紧到父容器内 */
-  const clampRootToParent = useCallback((pos: Position): Position => {
+  /** 同步右侧水平坐标，并将垂直位置夹紧到父容器内 */
+  const syncLayout = useCallback((): void => {
     const el = rootRef.current
     const parentEl = el?.offsetParent as HTMLElement | null
-    if (!el || !parentEl) return pos
+    if (!el || !parentEl) return
     const { size, parentSize } = queryLayoutMetrics(el, parentEl)
-    return clampPosition(pos, size, parentSize)
+    setRightX(queryRightAlignedX(el, parentEl))
+    setPositionY((prev) => clampVerticalY(prev, size, parentSize))
   }, [])
 
   /** 窗口尺寸变化时校正位置 */
   useEffect(() => {
-    const handleResize = (): void => {
-      setPosition((prev) => clampRootToParent(prev))
+    window.addEventListener('resize', syncLayout)
+    return () => window.removeEventListener('resize', syncLayout)
+  }, [syncLayout])
+
+  /** 首次可见或形态切换后，绘制前同步位置，避免展开/收起时闪烁 */
+  useLayoutEffect(() => {
+    if (!visible) return
+    syncLayout()
+    if (contentExpanded) {
+      hasShownPanelRef.current = true
     }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [clampRootToParent])
+  }, [visible, contentExpanded, syncLayout])
 
-  /** 无存档时，首次可见对齐右上角（仅初始化一次，避免折叠时被重置） */
-  useEffect(() => {
-    if (!visible || docked) return
-    if (loadSavedLayout()) return
-    const el = rootRef.current
-    const parentEl = el?.offsetParent as HTMLElement | null
-    if (!el || !parentEl) return
-    setPosition(clampRootToParent(getDefaultPosition(el, parentEl)))
-    // 仅在变为可见时做默认定位，避免折叠反复重置坐标
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible])
-
-  /** 折叠 / 吸附切换后高度变化，重新夹紧到父容器内 */
-  useEffect(() => {
-    setPosition((prev) => clampRootToParent(prev))
-  }, [docked, contentExpanded, clampRootToParent])
-
-  /** 拖动结束或吸附变化后持久化 */
+  /** 拖动结束后持久化垂直位置 */
   useEffect(() => {
     if (dragging) return
-    localStorage.setItem(
-      POSITION_STORAGE_KEY,
-      JSON.stringify({ ...position, docked })
-    )
-  }, [dragging, position, docked])
+    localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify({ y: positionY }))
+  }, [dragging, positionY])
 
-  /** 吸附/展开动画结束后清除 morphPhase */
+  /** 形态切换动画结束后清除 morphPhase */
   useEffect(() => {
     if (morphPhase === 'idle') return
     const timer = window.setTimeout(() => setMorphPhase('idle'), 420)
     return () => window.clearTimeout(timer)
   }, [morphPhase])
 
-  /** 指针按下：开始拖动（面板标题栏或圆球） */
+  /** 指针按下：开始垂直拖动（面板标题栏或圆球） */
   const handleDragStart = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const el = rootRef.current
-    const parentEl = el?.offsetParent as HTMLElement | null
-    if (!el || !parentEl) return
+    if (!el) return
 
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
 
     const elRect = el.getBoundingClientRect()
-    dragOffsetRef.current = {
-      x: event.clientX - elRect.left,
-      y: event.clientY - elRect.top
-    }
-    pointerStartRef.current = { x: event.clientX, y: event.clientY }
+    dragOffsetYRef.current = event.clientY - elRect.top
+    pointerStartYRef.current = event.clientY
     movedDuringDragRef.current = false
     setDragging(true)
   }, [])
 
-  /** 拖动中更新坐标 */
+  /** 拖动中仅更新垂直坐标，水平始终贴右 */
   const handleDragMove = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       if (!dragging) return
@@ -407,24 +276,21 @@ export function TaskChecklist({
       const parentEl = el?.offsetParent as HTMLElement | null
       if (!el || !parentEl) return
 
-      const dx = event.clientX - pointerStartRef.current.x
-      const dy = event.clientY - pointerStartRef.current.y
-      if (Math.hypot(dx, dy) > CLICK_MOVE_TOLERANCE) {
+      const dy = event.clientY - pointerStartYRef.current
+      if (Math.abs(dy) > CLICK_MOVE_TOLERANCE) {
         movedDuringDragRef.current = true
       }
 
       const parentRect = parentEl.getBoundingClientRect()
       const { size, parentSize } = queryLayoutMetrics(el, parentEl)
-      const nextPos: Position = {
-        x: event.clientX - parentRect.left - dragOffsetRef.current.x,
-        y: event.clientY - parentRect.top - dragOffsetRef.current.y
-      }
-      setPosition(clampPosition(nextPos, size, parentSize))
+      const nextY = event.clientY - parentRect.top - dragOffsetYRef.current
+      setPositionY(clampVerticalY(nextY, size, parentSize))
+      setRightX(queryRightAlignedX(el, parentEl))
     },
     [dragging]
   )
 
-  /** 松开：若贴边则吸附为圆球；圆球上若几乎未移动则视为点击展开 */
+  /** 松开：圆球短按展开面板，否则结束拖动 */
   const handleDragEnd = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       if (!dragging) return
@@ -433,58 +299,12 @@ export function TaskChecklist({
       }
       setDragging(false)
 
-      const el = rootRef.current
-      const parentEl = el?.offsetParent as HTMLElement | null
-      if (!el || !parentEl) return
-
-      const { size, parentSize } = queryLayoutMetrics(el, parentEl)
-
-      // 圆球模式：短按无位移 → 展开面板
-      if (docked && !movedDuringDragRef.current) {
-        const expandPos = getExpandFromOrbPosition(docked, position, parentSize)
-        setMorphPhase('to-panel')
-        setDocked(null)
-        setContentExpanded(true)
-        setPosition(expandPos)
-        return
-      }
-
-      // 面板或圆球拖到边缘 → 吸附
-      const edge = querySnapEdge(position, size, parentSize)
-      if (edge) {
-        const orbPos = getOrbDockPosition(edge, position, size, parentSize)
-        setMorphPhase('to-orb')
-        setDocked(edge)
-        setPosition(orbPos)
-        return
-      }
-
-      // 圆球被拖离边缘且未贴边 → 保持圆球但落在松手处；此处取消吸附、展开为面板更符合「拖出边缘」
-      if (docked) {
-        setMorphPhase('to-panel')
-        setDocked(null)
-        setContentExpanded(true)
-        setPosition(clampPosition(position, { width: PANEL_WIDTH, height: 200 }, parentSize))
+      if (!contentExpanded && !movedDuringDragRef.current) {
+        handleExpandFromOrb()
       }
     },
-    [dragging, docked, position]
+    [dragging, contentExpanded, handleExpandFromOrb]
   )
-
-  /** 圆球显式点击展开（键盘/辅助；指针路径已在 dragEnd 处理） */
-  const handleOrbActivate = useCallback(() => {
-    if (!docked || movedDuringDragRef.current) return
-    const el = rootRef.current
-    const parentEl = el?.offsetParent as HTMLElement | null
-    if (!parentEl) return
-    const parentSize = {
-      width: parentEl.getBoundingClientRect().width,
-      height: parentEl.getBoundingClientRect().height
-    }
-    setMorphPhase('to-panel')
-    setPosition(getExpandFromOrbPosition(docked, position, parentSize))
-    setDocked(null)
-    setContentExpanded(true)
-  }, [docked, position])
 
   const showActionBar =
     Boolean(awaitUserReason) ||
@@ -502,8 +322,8 @@ export function TaskChecklist({
     .filter(Boolean)
     .join(' ')
 
-  /* ── 边缘吸附圆球 ── */
-  if (docked) {
+  /* ── 收起态：右侧吸附圆球 ── */
+  if (!contentExpanded) {
     const ringStyle = {
       '--orb-progress': `${progress.percent}`
     } as CSSProperties
@@ -512,13 +332,13 @@ export function TaskChecklist({
       <div
         ref={rootRef}
         className={rootClass}
-        style={{ left: position.x, top: position.y }}
+        style={{ left: rightX, top: positionY }}
       >
         <button
           type="button"
           className={[
             styles.orb,
-            styles[`orbEdge_${docked}`],
+            styles.orbEdge_right,
             hasRunningTask || running ? styles.orbRunning : '',
             progress.done === progress.total && progress.total > 0 ? styles.orbDone : ''
           ]
@@ -535,7 +355,7 @@ export function TaskChecklist({
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault()
               movedDuringDragRef.current = false
-              handleOrbActivate()
+              handleExpandFromOrb()
             }
           }}
         >
@@ -557,12 +377,12 @@ export function TaskChecklist({
     )
   }
 
-  /* ── 完整任务清单面板 ── */
+  /* ── 展开态：完整任务清单面板 ── */
   return (
     <div
       ref={rootRef}
       className={rootClass}
-      style={{ left: position.x, top: position.y }}
+      style={{ left: rightX, top: positionY }}
     >
       <Card
         size="small"
@@ -587,16 +407,12 @@ export function TaskChecklist({
                   <button
                     type="button"
                     className={styles.collapseBtn}
-                    aria-label={contentExpanded ? '折叠任务清单' : '展开任务清单'}
-                    aria-expanded={contentExpanded}
+                    aria-label="收起为圆球"
+                    aria-expanded
                     onPointerDown={(e) => e.stopPropagation()}
-                    onClick={handleToggleContent}
+                    onClick={handleCollapseToOrb}
                   >
-                    {contentExpanded ? (
-                      <UpOutlined className={styles.collapseIcon} />
-                    ) : (
-                      <DownOutlined className={styles.collapseIcon} />
-                    )}
+                    <UpOutlined className={styles.collapseIcon} />
                   </button>
                 </div>
               </div>
@@ -611,15 +427,13 @@ export function TaskChecklist({
         }
         className={[
           styles.card,
-          contentExpanded ? '' : styles.cardCollapsed,
-          dragging ? styles.cardOpaque : ''
+          dragging ? styles.cardOpaque : '',
+          !hasShownPanelRef.current && morphPhase !== 'to-panel' ? styles.cardFirstAppear : ''
         ]
           .filter(Boolean)
           .join(' ')}
       >
-        {contentExpanded ? (
-          <>
-            <ul className={styles.taskList}>
+        <ul className={styles.taskList}>
               {tasks.map((item, index) => {
                 const displayStatus = queryChecklistTaskStatus(item.status, {
                   running,
@@ -661,7 +475,7 @@ export function TaskChecklist({
               })}
             </ul>
 
-            {showActionBar ? (
+        {showActionBar ? (
               <div
                 className={styles.actionBar}
                 onPointerDown={(e) => e.stopPropagation()}
@@ -714,8 +528,6 @@ export function TaskChecklist({
                 )}
               </div>
             ) : null}
-          </>
-        ) : null}
       </Card>
     </div>
   )
