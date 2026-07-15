@@ -538,7 +538,9 @@ export function SkillsPage(): React.ReactElement {
                   <Card key={template.id} variant="borderless" className={styles.card}>
                     <div className={styles.cardHead}>
                       <div className={styles.cardTitleRow}>
-                        <span className={styles.cardTitle}>{template.name}</span>
+                        <Tooltip title={template.name}>
+                          <span className={styles.cardTitle} title={template.name}>{template.name}</span>
+                        </Tooltip>
                         <Tag color={DB_THEME.primary}>模板</Tag>
                       </div>
                       <p className={styles.cardDesc}>
@@ -585,7 +587,10 @@ export function SkillsPage(): React.ReactElement {
                 >
                   <div className={styles.cardHead}>
                     <div className={styles.cardTitleRow}>
-                      <span className={styles.cardTitle}>{skill.name}</span>
+                      <Tooltip title={skill.name}>
+                        <span className={styles.cardTitle}>{skill.name}</span>
+                      </Tooltip>
+
                       <SkillStatusTag skill={skill} />
                     </div>
                     <p className={styles.cardDesc}>
