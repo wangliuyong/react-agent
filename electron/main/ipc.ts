@@ -31,7 +31,11 @@ import {
   postDeleteScheduledTask
 } from './store/schedules'
 import { triggerScheduledTask } from './schedule/scheduler'
-import { runAgentChat, postAgentAbort, postAgentContinue } from './agent/loop'
+import {
+  runLangGraphChat,
+  postGraphAbort,
+  postGraphContinue
+} from './agent/graph-bridge'
 import { getBrowserService } from './browser/service'
 import { getBrowserProfileDir } from './store/paths'
 import { releaseBrowserProfileLock } from './browser/profile-lock'
@@ -119,14 +123,14 @@ export function registerIpcHandlers(): void {
   )
 
   ipcMain.handle(IpcChannels.postAgentChat, async (_e, req: AgentChatRequest) => {
-    // 异步跑 loop，事件通过 webContents.send 推送
-    void runAgentChat(req)
+    // 异步跑 LangGraph；事件经 webContents.send 推送
+    void runLangGraphChat(req)
   })
   ipcMain.handle(IpcChannels.postAgentAbort, (_e, sessionId: string) => {
-    postAgentAbort(sessionId)
+    postGraphAbort(sessionId)
   })
   ipcMain.handle(IpcChannels.postAgentContinue, (_e, sessionId: string) => {
-    postAgentContinue(sessionId)
+    postGraphContinue(sessionId)
   })
 
   ipcMain.handle(IpcChannels.queryBrowserStatus, () => getBrowserService().getStatus())

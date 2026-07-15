@@ -11,11 +11,11 @@ import {
 } from '../store/schedules'
 import { queryWorkflow } from '../store/workflows'
 import {
-  bindSessionAbort,
-  releaseSessionAbort,
-  runAgentStep
-} from '../agent/loop'
-import { emitAgentEvent } from '../agent/graph-bridge'
+  bindGraphSessionAbort,
+  releaseGraphSessionAbort,
+  runLangGraphStep,
+  emitAgentEvent
+} from '../agent/graph-bridge'
 import { postRunWorkflow } from '../workflow/engine'
 import { getMainWindow } from '../window'
 import {
@@ -70,9 +70,9 @@ function buildScheduleCustomPrompt(userPrompt: string): string {
  * 自定义指令走单步 ReAct（非多智能体路由），结束后回写定时任务状态。
  */
 async function postRunScheduleCustomPrompt(sessionId: string, prompt: string): Promise<void> {
-  bindSessionAbort(sessionId)
+  bindGraphSessionAbort(sessionId)
   try {
-    const result = await runAgentStep({
+    const result = await runLangGraphStep({
       sessionId,
       prompt: buildScheduleCustomPrompt(prompt)
     })
@@ -90,7 +90,7 @@ async function postRunScheduleCustomPrompt(sessionId: string, prompt: string): P
     emitAgentEvent({ type: 'error', sessionId, message })
     emitAgentEvent({ type: 'done', sessionId, reason: 'error' })
   } finally {
-    releaseSessionAbort(sessionId)
+    releaseGraphSessionAbort(sessionId)
   }
 }
 

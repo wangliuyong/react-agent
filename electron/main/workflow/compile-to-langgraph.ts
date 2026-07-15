@@ -9,6 +9,7 @@ import type {
   WorkflowDefinition
 } from '../../../shared/types'
 import { WorkflowGraphAnnotation, type WorkflowGraphState } from '../agent/graph/state'
+import { waitForGraphUserContinue } from '../agent/graph-bridge'
 import {
   executeTopLevelNodeForGraph,
   finalizeWorkflowRun,
@@ -76,7 +77,6 @@ export async function executeWorkflowWithLangGraph(
           }
           if (isInterrupted(chunk)) {
             const reason = extractReasonFromInterrupted(chunk) || '等待用户确认'
-            const { waitForUserContinue } = await import('../agent/loop')
             const { queryWorkflowRun, postWorkflowRun } = await import('../store/workflow-runs')
             const live = queryWorkflowRun(runId)
             if (live) {
@@ -86,7 +86,7 @@ export async function executeWorkflowWithLangGraph(
                 updatedAt: Date.now()
               })
             }
-            await waitForUserContinue(session.id, reason)
+            await waitForGraphUserContinue(session.id, reason)
             if (signal.aborted) {
               finalizeWorkflowRun(runId, session.id, 'aborted')
               return
@@ -102,7 +102,6 @@ export async function executeWorkflowWithLangGraph(
       } catch (e) {
         if (isGraphInterrupt(e)) {
           const reason = extractReason(e) || '等待用户确认'
-          const { waitForUserContinue } = await import('../agent/loop')
           const { queryWorkflowRun, postWorkflowRun } = await import('../store/workflow-runs')
           const live = queryWorkflowRun(runId)
           if (live) {
@@ -112,7 +111,7 @@ export async function executeWorkflowWithLangGraph(
               updatedAt: Date.now()
             })
           }
-          await waitForUserContinue(session.id, reason)
+          await waitForGraphUserContinue(session.id, reason)
           if (signal.aborted) {
             finalizeWorkflowRun(runId, session.id, 'aborted')
             return
@@ -126,8 +125,7 @@ export async function executeWorkflowWithLangGraph(
       const snap = await graph.getState(config)
       if (hasInterrupt(snap)) {
         const reason = extractReasonFromState(snap) || '等待用户确认'
-        const { waitForUserContinue } = await import('../agent/loop')
-        await waitForUserContinue(session.id, reason)
+        await waitForGraphUserContinue(session.id, reason)
         if (signal.aborted) {
           finalizeWorkflowRun(runId, session.id, 'aborted')
           return
