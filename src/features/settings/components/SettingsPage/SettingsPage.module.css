@@ -177,6 +177,17 @@
   padding: 24px 24px 0;
 }
 
+/** hydrate 完成前占位，避免先渲染默认空表单再闪回真实配置 */
+.formLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 220px;
+  padding: 24px;
+}
+
 .formGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(200px, 0.65fr);

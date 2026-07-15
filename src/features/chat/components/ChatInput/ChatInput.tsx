@@ -1,8 +1,8 @@
-import { queryModelLabel, queryModelOptions } from '@shared/types'
+import { queryModelLabel, queryModelOptions, type ModelOption } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
 import { TypingIndicator } from '../TypingIndicator'
-import { postSelectImages } from '../../api'
+import { postSelectImages, queryProviderModels } from '../../api'
 import styles from './ChatInput.module.css'
 
 const { Text } = Typography
@@ -34,8 +34,38 @@ export function ChatInput({
   const [text, setText] = useState('')
   const [paths, setPaths] = useState<string[]>([])
   const [modelSwitching, setModelSwitching] = useState(false)
+  /** DeepSeek 等平台动态模型；null 表示使用本地静态列表 */
+  const [remoteModels, setRemoteModels] = useState<ModelOption[] | null>(null)
+  const [modelsLoading, setModelsLoading] = useState(false)
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
+
+  /**
+   * DeepSeek 模型随平台版本变化，聊天框优先展示平台 /models 实时列表。
+   * 拉取失败时回退静态 MODEL_OPTIONS，保证仍可切换。
+   */
+  useEffect(() => {
+    if (settings.provider !== 'deepseek' || !settings.apiKey.trim()) {
+      setRemoteModels(null)
+      setModelsLoading(false)
+      return
+    }
+    let cancelled = false
+    setModelsLoading(true)
+    void queryProviderModels()
+      .then((models) => {
+        if (!cancelled && models.length > 0) setRemoteModels(models)
+      })
+      .catch(() => {
+        if (!cancelled) setRemoteModels(null)
+      })
+      .finally(() => {
+        if (!cancelled) setModelsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [settings.provider, settings.apiKey, settings.baseUrl])
 
   /** 参考样式：以 120k 为展示上限 */
   const tokenDisplayMax = 120_000
@@ -65,9 +95,9 @@ export function ChatInput({
     }
   }
 
-  /** 下拉项：若当前模型不在预设列表（历史自定义），追加一项以便展示 */
+  /** 下拉项：优先平台列表；若当前模型不在列表（历史自定义），追加一项以便展示 */
   const modelMenuItems = useMemo(() => {
-    const providerModels = queryModelOptions(settings.provider)
+    const providerModels = remoteModels ?? queryModelOptions(settings.provider)
     const items = providerModels.map((m) => ({
       key: m.value,
       label: (
@@ -98,7 +128,7 @@ export function ChatInput({
     }
     return items
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleModelChange 依赖 settings.model
-  }, [settings.model, settings.provider])
+  }, [settings.model, settings.provider, remoteModels])
 
   const handleSend = (): void => {
     const value = text.trim()
@@ -198,7 +228,15 @@ export function ChatInput({
                   <DownOutlined className={styles.accessChevron} />
                 </Button>
               </Dropdown>
-              <Tooltip title={running ? '任务运行中，请结束后再切换模型' : '选择大模型'}>
+              <Tooltip
+                title={
+                  running
+                    ? '任务运行中，请结束后再切换模型'
+                    : settings.provider === 'deepseek'
+                      ? '选择 DeepSeek 平台模型'
+                      : '选择大模型'
+                }
+              >
                 <Dropdown
                   disabled={inputDisabled || running}
                   menu={{ selectedKeys: [settings.model], items: modelMenuItems }}
@@ -208,7 +246,7 @@ export function ChatInput({
                     type="text"
                     size="small"
                     className={styles.modelBtn}
-                    loading={modelSwitching}
+                    loading={modelSwitching || modelsLoading}
                   >
                     {queryModelLabel(settings.model)}
                     <DownOutlined className={styles.modelChevron} />

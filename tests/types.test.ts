@@ -12,15 +12,16 @@ describe('模型供应商配置', () => {
         value: 'deepseek',
         label: 'DeepSeek',
         defaultBaseUrl: 'https://api.deepseek.com',
-        defaultModel: 'deepseek-chat'
+        defaultModel: 'deepseek-v4-flash'
       })
     )
   })
 
-  it('仅返回当前供应商支持的模型', () => {
+  it('默认模型列表与 DeepSeek /models 文档示例一致', () => {
+    // 文档示例：https://api-docs.deepseek.com/zh-cn/api/list-models
     expect(queryModelOptions('deepseek').map((option) => option.value)).toEqual([
-      'deepseek-chat',
-      'deepseek-reasoner'
+      'deepseek-v4-flash',
+      'deepseek-v4-pro'
     ])
     expect(queryModelOptions('dashscope')).not.toContainEqual(
       expect.objectContaining({ value: 'deepseek-chat' })

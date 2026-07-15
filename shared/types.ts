@@ -8,6 +8,8 @@ export const IpcChannels = {
   // 设置
   querySettings: 'query:settings',
   postSettings: 'post:settings',
+  /** 从当前供应商平台拉取可用模型（OpenAI 兼容 /models） */
+  queryProviderModels: 'query:provider-models',
   // 会话
   querySessions: 'query:sessions',
   querySession: 'query:session',
@@ -122,7 +124,8 @@ export const MODEL_PROVIDER_OPTIONS: ModelProviderOption[] = [
     label: 'DeepSeek',
     apiKeyLabel: 'DeepSeek API Key',
     defaultBaseUrl: 'https://api.deepseek.com',
-    defaultModel: 'deepseek-chat'
+    /** 与平台当前推荐一致；拉取 /models 失败时也用此默认 */
+    defaultModel: 'deepseek-v4-flash'
   }
 ]
 
@@ -147,18 +150,22 @@ export const MODEL_OPTIONS: ModelOption[] = [
     description: '速度快、成本低'
   },
   { provider: 'dashscope', value: 'qwen-long', label: 'Qwen Long', description: '超长上下文' },
-  // DeepSeek 官方 API
+  /**
+   * DeepSeek 官方模型（与 GET /models 文档示例一致）：
+   * https://api-docs.deepseek.com/zh-cn/api/list-models
+   * 聊天/设置优先实时拉取；此处作无 Key / 请求失败时的静态兜底。
+   */
   {
     provider: 'deepseek',
-    value: 'deepseek-chat',
-    label: 'DeepSeek Chat',
-    description: '通用对话模型'
+    value: 'deepseek-v4-flash',
+    label: 'DeepSeek V4 Flash',
+    description: '高速推理，推荐默认'
   },
   {
     provider: 'deepseek',
-    value: 'deepseek-reasoner',
-    label: 'DeepSeek Reasoner',
-    description: '深度推理模型'
+    value: 'deepseek-v4-pro',
+    label: 'DeepSeek V4 Pro',
+    description: '更强推理能力'
   },
   // 阿里云百炼中的 DeepSeek 模型
   { provider: 'dashscope', value: 'deepseek-v4-flash', label: 'deepseek-v4-flash' },
@@ -696,6 +703,13 @@ export interface WorkflowRunStartResult {
 export interface ElectronApi {
   querySettings: () => Promise<AppSettings>
   postSettings: (settings: Partial<AppSettings>) => Promise<AppSettings>
+  /**
+   * 从平台拉取当前供应商可用模型。
+   * 可传入草稿覆盖（设置页未保存的 Key / Base URL）；失败时由调用方回退静态列表。
+   */
+  queryProviderModels: (
+    override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>
+  ) => Promise<ModelOption[]>
   querySessions: () => Promise<Session[]>
   querySession: (id: string) => Promise<Session | null>
   postSession: (session: Session) => Promise<Session>
