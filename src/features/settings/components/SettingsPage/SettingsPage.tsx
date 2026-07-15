@@ -1,8 +1,14 @@
-import { MODEL_OPTIONS } from '@shared/types'
+import {
+  MODEL_PROVIDER_OPTIONS,
+  queryModelOptions,
+  queryProviderOption,
+  type AppSettings,
+  type ModelProvider
+} from '@shared/types'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
 import { ChannelStatusPanel } from '../ChannelStatusPanel'
 import styles from './SettingsPage.module.css'
-import { BASE_URL_RULES, MODEL_RULES } from './settingsValidation'
+import { BASE_URL_RULES, MODEL_RULES, PROVIDER_RULES } from './settingsValidation'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -10,18 +16,30 @@ export function SettingsPage(): React.ReactElement {
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
   const [saving, setSaving] = useState(false)
+  const [form] = Form.useForm<AppSettings>()
+  const [selectedProvider, setSelectedProvider] = useState<ModelProvider>(settings.provider)
+  const providerOption = queryProviderOption(selectedProvider)
 
   /** 若用户曾保存自定义 model id，合并进选项避免 Select 显示异常 */
   const modelSelectOptions = useMemo(() => {
-    const options = MODEL_OPTIONS.map((m) => ({
+    const providerModels = queryModelOptions(selectedProvider)
+    const options = providerModels.map((m) => ({
       value: m.value,
       label: m.description ? `${m.label} — ${m.description}` : m.label
     }))
-    if (!MODEL_OPTIONS.some((m) => m.value === settings.model)) {
+    if (
+      selectedProvider === settings.provider &&
+      !providerModels.some((m) => m.value === settings.model)
+    ) {
       options.unshift({ value: settings.model, label: settings.model })
     }
     return options
-  }, [settings.model])
+  }, [selectedProvider, settings.model, settings.provider])
+
+  /** hydrate 完成后同步供应商，兼容设置页先于本地配置加载的场景。 */
+  useEffect(() => {
+    setSelectedProvider(settings.provider)
+  }, [settings.provider])
 
   return (
     <div className={styles.page}>
@@ -65,10 +83,11 @@ export function SettingsPage(): React.ReactElement {
                 </Text>
               </div>
             </div>
-            <Tag className={styles.providerTag}>OpenAI Compatible</Tag>
+            <Tag className={styles.providerTag}>{providerOption.label}</Tag>
           </div>
 
           <Form
+            form={form}
             layout="vertical"
             key={JSON.stringify(settings)}
             initialValues={settings}
@@ -84,12 +103,35 @@ export function SettingsPage(): React.ReactElement {
             }}
           >
             <div className={styles.formGrid}>
+              <Form.Item label="模型供应商" name="provider" rules={PROVIDER_RULES}>
+                <Select
+                  options={MODEL_PROVIDER_OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: option.label
+                  }))}
+                  onChange={(provider: ModelProvider) => {
+                    const nextProvider = queryProviderOption(provider)
+                    setSelectedProvider(provider)
+                    /**
+                     * 切换供应商时原子更新地址与模型，并清空旧服务密钥，
+                     * 防止把百炼密钥误发给 DeepSeek（反之亦然）。
+                     */
+                    form.setFieldsValue({
+                      provider,
+                      apiKey: '',
+                      baseUrl: nextProvider.defaultBaseUrl,
+                      model: nextProvider.defaultModel
+                    })
+                  }}
+                />
+              </Form.Item>
+
               <Form.Item
                 className={styles.fullWidth}
-                label="DASHSCOPE API Key"
+                label={providerOption.apiKeyLabel}
                 name="apiKey"
                 rules={[{ required: true, message: '请填写 API Key' }]}
-                extra="密钥会加密写入 Electron userData，不参与任何遥测或同步。"
+                extra="密钥仅写入本机 Electron userData，不参与任何遥测或同步。"
               >
                 <Input.Password prefix={<ApiOutlined />} placeholder="sk-..." />
               </Form.Item>
@@ -103,7 +145,7 @@ export function SettingsPage(): React.ReactElement {
               >
                 <Input
                   prefix={<GlobalOutlined />}
-                  placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
+                  placeholder={providerOption.defaultBaseUrl}
                 />
               </Form.Item>
 

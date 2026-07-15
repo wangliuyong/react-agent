@@ -7,7 +7,7 @@ const testState = vi.hoisted(() => ({
   rulesDir: ''
 }))
 
-vi.mock('./resources', () => ({
+vi.mock('../electron/main/store/resources', () => ({
   queryRulesDir: (): string => testState.rulesDir
 }))
 
@@ -32,7 +32,9 @@ describe('rules store', () => {
       'utf-8'
     )
     writeFileSync(join(testState.rulesDir, 'ignored.md'), '不应读取', 'utf-8')
-    const { postAgentRule, postDeleteAgentRule, queryAgentRules } = await import('./rules')
+    const { postAgentRule, postDeleteAgentRule, queryAgentRules } = await import(
+      '../electron/main/store/rules'
+    )
 
     expect(queryAgentRules()).toEqual([
       expect.objectContaining({
@@ -69,7 +71,7 @@ describe('rules store', () => {
       '---\nname: "停用规则"\nalwaysApply: false\n---\n\n不要注入\n',
       'utf-8'
     )
-    const { queryEnabledRulePrompt } = await import('./rules')
+    const { queryEnabledRulePrompt } = await import('../electron/main/store/rules')
 
     expect(queryEnabledRulePrompt()).toContain('必须执行')
     expect(queryEnabledRulePrompt()).not.toContain('不要注入')

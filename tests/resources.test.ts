@@ -18,7 +18,7 @@ vi.mock('electron', () => ({
   }
 }))
 
-vi.mock('./paths', () => ({
+vi.mock('../electron/main/store/paths', () => ({
   getDataRoot: (): string => testState.dataRoot
 }))
 
@@ -40,7 +40,9 @@ describe('resources store', () => {
   })
 
   it('开发环境直接读写项目 resources 目录', async () => {
-    const { queryRulesDir, querySkillsDir, queryWritableResourcesRoot } = await import('./resources')
+    const { queryRulesDir, querySkillsDir, queryWritableResourcesRoot } = await import(
+      '../electron/main/store/resources'
+    )
 
     expect(queryWritableResourcesRoot()).toBe(join(testState.appPath, 'resources'))
     expect(querySkillsDir()).toBe(join(testState.appPath, 'resources', 'skills'))
@@ -59,7 +61,9 @@ describe('resources store', () => {
     writeFileSync(join(bundledRoot, 'skills', 'demo', 'SKILL.md'), 'bundled', 'utf-8')
     writeFileSync(join(bundledRoot, 'rules', 'demo.mdc'), 'bundled', 'utf-8')
 
-    const { initializeResources, queryRulesDir, querySkillsDir } = await import('./resources')
+    const { initializeResources, queryRulesDir, querySkillsDir } = await import(
+      '../electron/main/store/resources'
+    )
     initializeResources()
 
     const writableSkill = join(querySkillsDir(), 'demo', 'SKILL.md')
@@ -106,7 +110,7 @@ describe('resources store', () => {
       'utf-8'
     )
 
-    const { initializeResources } = await import('./resources')
+    const { initializeResources } = await import('../electron/main/store/resources')
     initializeResources()
 
     expect(readFileSync(join(rulesDir, 'legacy-rule.mdc'), 'utf-8')).toContain('旧规则正文')

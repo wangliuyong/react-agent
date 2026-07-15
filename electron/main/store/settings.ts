@@ -1,15 +1,28 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { DEFAULT_SETTINGS, type AppSettings } from '../../../shared/types'
+import { DEFAULT_SETTINGS, type AppSettings, type ModelProvider } from '../../../shared/types'
 import { getSettingsPath } from './paths'
 
 /**
  * 合并默认值并剥离已废弃字段。
  * 为什么：旧 settings.json 展开后仍可能带回 agentRuntime。
  */
-function normalizeSettings(raw: Partial<AppSettings> & Record<string, unknown>): AppSettings {
+export function normalizeSettings(
+  raw: Partial<AppSettings> & Record<string, unknown>
+): AppSettings {
   const merged = { ...DEFAULT_SETTINGS, ...raw }
   delete (merged as Record<string, unknown>).agentRuntime
+  /**
+   * provider 是后续新增字段：旧配置若已直连 DeepSeek，则根据 Base URL 自动迁移；
+   * 其他旧配置继续归入百炼，保持原有行为。
+   */
+  const provider: ModelProvider =
+    raw.provider === 'deepseek' || raw.provider === 'dashscope'
+      ? raw.provider
+      : String(raw.baseUrl ?? '').includes('api.deepseek.com')
+        ? 'deepseek'
+        : DEFAULT_SETTINGS.provider
   return {
+    provider,
     apiKey: merged.apiKey,
     baseUrl: merged.baseUrl,
     model: merged.model,

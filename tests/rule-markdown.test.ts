@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentRule } from '../../../shared/types'
-import { buildRuleMarkdown, parseRuleMarkdown } from './rule-markdown'
+import type { AgentRule } from '../shared/types'
+import { buildRuleMarkdown, parseRuleMarkdown } from '../electron/main/store/rule-markdown'
 
 describe('rule markdown', () => {
   it('解析 Cursor MDC 并在名称缺失时使用文件 id', () => {

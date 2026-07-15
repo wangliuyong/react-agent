@@ -17,8 +17,10 @@
   },
   "include": [
     "electron.vite.config.ts",
+    "vitest.config.ts",
     "config/**/*",
     "electron/**/*",
-    "shared/**/*"
+    "shared/**/*",
+    "tests/**/*"
   ]
 }

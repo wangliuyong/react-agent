@@ -1,4 +1,4 @@
-import { MODEL_OPTIONS, queryModelLabel } from '@shared/types'
+import { queryModelLabel, queryModelOptions } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
 import { TypingIndicator } from '../TypingIndicator'
@@ -67,7 +67,8 @@ export function ChatInput({
 
   /** 下拉项：若当前模型不在预设列表（历史自定义），追加一项以便展示 */
   const modelMenuItems = useMemo(() => {
-    const items = MODEL_OPTIONS.map((m) => ({
+    const providerModels = queryModelOptions(settings.provider)
+    const items = providerModels.map((m) => ({
       key: m.value,
       label: (
         <div className={styles.modelMenuItem}>
@@ -81,7 +82,7 @@ export function ChatInput({
       ),
       onClick: () => void handleModelChange(m.value)
     }))
-    if (!MODEL_OPTIONS.some((m) => m.value === settings.model)) {
+    if (!providerModels.some((m) => m.value === settings.model)) {
       items.unshift({
         key: settings.model,
         label: (
@@ -97,7 +98,7 @@ export function ChatInput({
     }
     return items
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleModelChange 依赖 settings.model
-  }, [settings.model])
+  }, [settings.model, settings.provider])
 
   const handleSend = (): void => {
     const value = text.trim()
