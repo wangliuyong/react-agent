@@ -65,7 +65,7 @@ export function ChatPage(): React.ReactElement {
   })
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-task-checklist-anchor>
       <header className={`${styles.header} app-drag`}>
         {/* 左侧：侧边栏展开按钮（收起时）+ 会话标题 */}
         <div className={styles.headerLeft}>
