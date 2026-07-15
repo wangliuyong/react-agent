@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import type { ScheduledTask } from '@shared/types'
 import {
   postDeleteScheduledTask,
+  postImportBuiltinScheduledTasks,
+  postInitScheduledTasks,
   postRunScheduledTask,
   postScheduledTask,
   queryScheduledTasks
@@ -18,6 +20,8 @@ interface ScheduleState {
   removeTask: (id: string) => Promise<void>
   toggleEnabled: (id: string, enabled: boolean) => Promise<void>
   runNow: (id: string) => Promise<ScheduledTask | null>
+  /** 导入内置定时任务（按固定 id 去重，默认未启用） */
+  addBuiltinTasks: () => Promise<ScheduledTask[]>
   bindScheduleUpdates: () => () => void
 }
 
@@ -26,7 +30,11 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   activeTaskId: null,
 
   hydrate: async () => {
-    const tasks = await queryScheduledTasks()
+    // 首次启动或磁盘为空时，自动写入内置定时任务
+    let tasks = await queryScheduledTasks()
+    if (tasks.length === 0) {
+      tasks = await postInitScheduledTasks()
+    }
     set({
       tasks,
       activeTaskId: get().activeTaskId ?? tasks[0]?.id ?? null
@@ -84,6 +92,16 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       }))
     }
     return result
+  },
+
+  /** 导入内置定时任务：每日发布 + 周一调研 + 周五文娱 */
+  addBuiltinTasks: async () => {
+    const tasks = await postImportBuiltinScheduledTasks()
+    set({
+      tasks,
+      activeTaskId: get().activeTaskId ?? tasks[0]?.id ?? null
+    })
+    return tasks
   },
 
   /** 订阅主进程调度器推送，保持列表与执行状态同步 */

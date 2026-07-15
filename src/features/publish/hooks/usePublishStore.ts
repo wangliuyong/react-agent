@@ -2,10 +2,12 @@ import { create } from 'zustand'
 import type { PublishPlan } from '@shared/types'
 import {
   postDeletePublishPlan,
+  postImportBuiltinPublishPlans,
+  postInitPublishPlans,
   postPublishPlan,
   queryPublishPlans
 } from '../api'
-import { createEmptyPlan, createEmptySubTask, normalizePublishPlan } from '../types'
+import { createEmptyPlan, normalizePublishPlan } from '../types'
 
 interface PublishState {
   plans: PublishPlan[]
@@ -15,7 +17,8 @@ interface PublishState {
   createPlan: () => Promise<PublishPlan>
   savePlan: (plan: PublishPlan) => Promise<void>
   removePlan: (id: string) => Promise<void>
-  addDemoPlan: () => Promise<PublishPlan>
+  /** 导入内置发布计划（按固定 id 去重，不覆盖已有数据） */
+  addBuiltinPlans: () => Promise<PublishPlan[]>
 }
 
 export const usePublishStore = create<PublishState>((set, get) => ({
@@ -23,7 +26,11 @@ export const usePublishStore = create<PublishState>((set, get) => ({
   activePlanId: null,
 
   hydrate: async () => {
-    const plans = (await queryPublishPlans()).map(normalizePublishPlan)
+    // 首次启动或磁盘为空时，自动写入内置发布计划
+    let plans = (await queryPublishPlans()).map(normalizePublishPlan)
+    if (plans.length === 0) {
+      plans = (await postInitPublishPlans()).map(normalizePublishPlan)
+    }
     set({
       plans,
       activePlanId: plans[0]?.id ?? null
@@ -64,32 +71,13 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     })
   },
 
-  /** 预置示例计划：含单渠道与多渠道子任务，方便开箱体验 */
-  addDemoPlan: async () => {
-    const plan = createEmptyPlan()
-    plan.title = '多渠道发布任务'
-    plan.description = '单任务多渠道 + 分渠道串行示例'
-    plan.kind = 'normal'
-    plan.subTasks = [
-      createEmptySubTask({
-        title: '人工智能 · 小红书 + 抖音',
-        channels: ['xhs', 'douyin'],
-        topic: '人工智能',
-        autoPublish: true,
-        contentPrompt:
-          '内容主题：搜罗昨日 ai 最新热门新闻。配图：从相关新闻来源网页用 fetch_web_images 抓取封面图（本地上传可选）。未登录时会暂停等人扫码。'
-      }),
-      createEmptySubTask({
-        title: '体育 · 小红书',
-        channels: ['xhs'],
-        topic: '体育',
-        autoPublish: true,
-        contentPrompt:
-          '内容主题：搜罗昨日最新 nba 信息、交易、球星评论等。配图：从相关新闻来源网页抓取（本地上传可选）。未登录时会暂停等人扫码。'
-      })
-    ]
-    await postPublishPlan(plan)
-    set((s) => ({ plans: [plan, ...s.plans], activePlanId: plan.id }))
-    return plan
+  /** 导入内置发布计划：多渠道 + 小红书快速发布 */
+  addBuiltinPlans: async () => {
+    const plans = (await postImportBuiltinPublishPlans()).map(normalizePublishPlan)
+    set({
+      plans,
+      activePlanId: get().activePlanId ?? plans[0]?.id ?? null
+    })
+    return plans
   }
 }))

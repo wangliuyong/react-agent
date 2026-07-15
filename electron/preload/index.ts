@@ -41,6 +41,9 @@ const api: ElectronApi = {
   postPublishPlan: (plan: PublishPlan) => ipcRenderer.invoke(IpcChannels.postPublishPlan, plan),
   postDeletePublishPlan: (id: string) =>
     ipcRenderer.invoke(IpcChannels.postDeletePublishPlan, id),
+  postInitPublishPlans: () => ipcRenderer.invoke(IpcChannels.postInitPublishPlans),
+  postImportBuiltinPublishPlans: () =>
+    ipcRenderer.invoke(IpcChannels.postImportBuiltinPublishPlans),
 
   queryScheduledTasks: () => ipcRenderer.invoke(IpcChannels.queryScheduledTasks),
   queryScheduledTask: (id: string) => ipcRenderer.invoke(IpcChannels.queryScheduledTask, id),
@@ -50,6 +53,9 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.postDeleteScheduledTask, id),
   postRunScheduledTask: (id: string) =>
     ipcRenderer.invoke(IpcChannels.postRunScheduledTask, id),
+  postInitScheduledTasks: () => ipcRenderer.invoke(IpcChannels.postInitScheduledTasks),
+  postImportBuiltinScheduledTasks: () =>
+    ipcRenderer.invoke(IpcChannels.postImportBuiltinScheduledTasks),
 
   postAgentChat: (req: AgentChatRequest) => ipcRenderer.invoke(IpcChannels.postAgentChat, req),
   postAgentAbort: (sessionId: string) =>

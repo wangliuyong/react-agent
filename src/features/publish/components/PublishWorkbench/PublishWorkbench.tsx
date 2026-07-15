@@ -17,6 +17,7 @@ import { useSessionStore } from '@/features/chat'
 import { useAppStore } from '@/stores/app-store'
 import { postRunWorkflow } from '@/features/workflows'
 import { DB_THEME } from '@/styles/theme-tokens'
+import { isBuiltinSeedId } from '@shared/builtin-seeds'
 import styles from './PublishWorkbench.module.css'
 
 const { Title, Text, Paragraph } = Typography
@@ -199,7 +200,7 @@ export function PublishWorkbench(): React.ReactElement {
   const plans = usePublishStore((s) => s.plans)
   const savePlan = usePublishStore((s) => s.savePlan)
   const removePlan = usePublishStore((s) => s.removePlan)
-  const addDemoPlan = usePublishStore((s) => s.addDemoPlan)
+  const addBuiltinPlans = usePublishStore((s) => s.addBuiltinPlans)
 
   const workflows = useWorkflowsStore((s) => s.workflows)
   const hydrateWorkflows = useWorkflowsStore((s) => s.hydrate)
@@ -347,8 +348,8 @@ export function PublishWorkbench(): React.ReactElement {
         <Space wrap>
           <Button
             onClick={async () => {
-              await addDemoPlan()
-              message.success('已添加示例计划')
+              await addBuiltinPlans()
+              message.success('已导入内置发布任务')
             }}
           >
             导入示例
@@ -396,13 +397,23 @@ export function PublishWorkbench(): React.ReactElement {
             className={styles.empty}
           >
             {plans.length === 0 ? (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setPlanModal({ mode: 'create', plan: createEmptyPlan('normal') })}
-              >
-                新建任务
-              </Button>
+              <Space>
+                <Button
+                  onClick={async () => {
+                    await addBuiltinPlans()
+                    message.success('已导入内置发布任务')
+                  }}
+                >
+                  导入示例
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setPlanModal({ mode: 'create', plan: createEmptyPlan('normal') })}
+                >
+                  新建任务
+                </Button>
+              </Space>
             ) : null}
           </Empty>
         ) : (
@@ -421,6 +432,9 @@ export function PublishWorkbench(): React.ReactElement {
                   <div className={styles.cardHead}>
                     <div className={styles.cardTitleRow}>
                       <span className={styles.cardTitle}>{plan.title}</span>
+                      {isBuiltinSeedId(plan.id) ? (
+                        <Tag color={DB_THEME.primary}>内置</Tag>
+                      ) : null}
                       {kind === 'workflow' ? (
                         <Tag color={DB_THEME.primary}>流程</Tag>
                       ) : (

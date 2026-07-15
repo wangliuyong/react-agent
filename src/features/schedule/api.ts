@@ -20,3 +20,13 @@ export async function postDeleteScheduledTask(id: string): Promise<void> {
 export async function postRunScheduledTask(id: string): Promise<ScheduledTask | null> {
   return window.api.postRunScheduledTask(id)
 }
+
+/** 写：首次启动写入内置定时任务（磁盘为空时） */
+export async function postInitScheduledTasks(): Promise<ScheduledTask[]> {
+  return window.api.postInitScheduledTasks()
+}
+
+/** 写：导入缺失的内置定时任务 */
+export async function postImportBuiltinScheduledTasks(): Promise<ScheduledTask[]> {
+  return window.api.postImportBuiltinScheduledTasks()
+}

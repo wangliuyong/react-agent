@@ -23,13 +23,17 @@ import {
   queryPublishPlans,
   queryPublishPlan,
   postPublishPlan,
-  postDeletePublishPlan
+  postDeletePublishPlan,
+  postInitPublishPlans,
+  postImportBuiltinPublishPlans
 } from './store/plans'
 import {
   queryScheduledTasks,
   queryScheduledTask,
   postScheduledTask,
-  postDeleteScheduledTask
+  postDeleteScheduledTask,
+  postInitScheduledTasks,
+  postImportBuiltinScheduledTasks
 } from './store/schedules'
 import { triggerScheduledTask } from './schedule/scheduler'
 import {
@@ -77,6 +81,7 @@ import {
   postDeletePublishPlanWorkflow,
   syncPublishPlanWorkflow
 } from './workflow/migrate-publish'
+import { createBuiltinPublishPlans } from '../../shared/builtin-seeds'
 import type { PublishChannelUpsertInput } from '../../shared/publish-channels'
 import type { WorkflowDefinition } from '../../shared/types'
 import { postNotifyMessage } from './notify/send'
@@ -119,6 +124,31 @@ export function registerIpcHandlers(): void {
     postDeletePublishPlan(id)
   })
 
+  /** 同步内置发布计划到编排引擎镜像工作流 */
+  const syncBuiltinPublishPlans = (): PublishPlan[] => {
+    const plans = queryPublishPlans()
+    for (const seed of createBuiltinPublishPlans()) {
+      const saved = plans.find((plan) => plan.id === seed.id)
+      if (saved) {
+        try {
+          syncPublishPlanWorkflow(saved)
+        } catch {
+          /* 执行时会惰性迁移 */
+        }
+      }
+    }
+    return plans
+  }
+
+  ipcMain.handle(IpcChannels.postInitPublishPlans, () => {
+    postInitPublishPlans()
+    return syncBuiltinPublishPlans()
+  })
+  ipcMain.handle(IpcChannels.postImportBuiltinPublishPlans, () => {
+    postImportBuiltinPublishPlans()
+    return syncBuiltinPublishPlans()
+  })
+
   ipcMain.handle(IpcChannels.queryScheduledTasks, () => queryScheduledTasks())
   ipcMain.handle(IpcChannels.queryScheduledTask, (_e, id: string) => queryScheduledTask(id))
   ipcMain.handle(IpcChannels.postScheduledTask, (_e, task: ScheduledTask) =>
@@ -129,6 +159,11 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IpcChannels.postRunScheduledTask, async (_e, id: string) =>
     triggerScheduledTask(id, true)
+  )
+
+  ipcMain.handle(IpcChannels.postInitScheduledTasks, () => postInitScheduledTasks())
+  ipcMain.handle(IpcChannels.postImportBuiltinScheduledTasks, () =>
+    postImportBuiltinScheduledTasks()
   )
 
   ipcMain.handle(IpcChannels.postAgentChat, async (_e, req: AgentChatRequest) => {
