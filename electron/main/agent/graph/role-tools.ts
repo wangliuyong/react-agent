@@ -6,6 +6,7 @@ import type { AgentTool } from '../tools/types'
 const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | null> = {
   general: null,
   researcher: [
+    'use_skill',
     'fetch_hot_topics',
     'fetch_web_images',
     'list_attachments',
@@ -14,8 +15,9 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'browser_navigate',
     'browser_snapshot'
   ],
-  writer: ['update_task_list', 'read_file', 'write_file', 'list_attachments'],
+  writer: ['use_skill', 'update_task_list', 'read_file', 'write_file', 'list_attachments'],
   publisher: [
+    'use_skill',
     'xhs_publish_note',
     'douyin_publish_note',
     'notify_message',

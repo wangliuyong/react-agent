@@ -30,9 +30,11 @@ describe('角色提示词 Token 预算', () => {
   })
 
   it('普通角色使用受限的规则和技能字符预算', () => {
-    buildRoleSystemPrompt('general')
+    const prompt = buildRoleSystemPrompt('general')
 
     expect(promptMocks.queryEnabledRulePrompt).toHaveBeenCalledWith(4_000)
     expect(promptMocks.queryEnabledSkillPrompt).toHaveBeenCalledWith(4_000)
+    expect(prompt).toContain('可用技能目录')
+    expect(prompt).toContain('use_skill')
   })
 })

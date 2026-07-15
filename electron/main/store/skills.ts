@@ -334,28 +334,53 @@ export function postSkillStates(states: SkillStates): SkillStates {
 }
 
 /**
- * 获取已启用技能的 Markdown 正文，供 Agent SYSTEM_PROMPT 注入。
- * 限制总长度，避免撑爆上下文。
+ * 获取已启用技能的轻量目录，供 Agent 判断当前任务是否需要某项技能。
+ * 完整正文不进入固定 system prompt，只有 Agent 调用 use_skill 时才读取。
  */
 export function queryEnabledSkillPrompt(maxChars = 12000): string {
   const skills = queryProjectSkills().filter((s) => s.enabled)
   if (!skills.length) return ''
 
-  const parts: string[] = []
-  let total = 0
+  const entries = skills.map(
+    (skill) =>
+      `- \`${skill.id}\`：${skill.name}${skill.description ? ` — ${skill.description}` : ''}`
+  )
+  const included: string[] = []
+  let usedChars = 0
 
-  for (const skill of skills) {
-    const detail = queryProjectSkillDetail(skill.id)
-    if (!detail) continue
-
-    const chunk = `### 技能：${detail.name}\n${detail.description ? `> ${detail.description}\n\n` : ''}${detail.content}`
-    if (total + chunk.length > maxChars) {
-      parts.push(chunk.slice(0, maxChars - total) + '\n\n...(技能内容已截断)')
-      break
-    }
-    parts.push(chunk)
-    total += chunk.length
+  for (const entry of entries) {
+    const separatorChars = included.length > 0 ? 1 : 0
+    if (usedChars + separatorChars + entry.length > maxChars) break
+    included.push(entry)
+    usedChars += separatorChars + entry.length
   }
 
-  return parts.join('\n\n---\n\n')
+  const catalog = included.join('\n')
+  return included.length < entries.length
+    ? `${catalog}${catalog ? '\n' : ''}...(技能目录已截断)`
+    : catalog
+}
+
+/**
+ * 按 id 读取单个已启用技能的完整说明。
+ * 未启用和不存在的技能统一返回 null，避免绕过技能市场的启用状态。
+ */
+export function queryEnabledSkillContent(id: string, maxChars = 12000): string | null {
+  const skill = queryProjectSkills().find((item) => item.id === id && item.enabled)
+  if (!skill) return null
+
+  const detail = queryProjectSkillDetail(skill.id)
+  if (!detail) return null
+
+  const sections = [
+    `# 技能：${detail.name}`,
+    detail.description ? `> ${detail.description}` : '',
+    detail.content,
+    detail.examplesContent ? `## 示例\n\n${detail.examplesContent}` : ''
+  ].filter(Boolean)
+  const content = sections.join('\n\n')
+
+  return content.length > maxChars
+    ? `${content.slice(0, Math.max(0, maxChars))}\n\n...(技能内容已截断)`
+    : content
 }
