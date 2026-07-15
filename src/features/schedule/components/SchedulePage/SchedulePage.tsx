@@ -45,6 +45,43 @@ type TaskDisplayStatus = 'running' | 'executing' | 'paused' | 'completed'
 
 type ScheduleFilter = 'all' | TaskDisplayStatus
 
+/**
+ * 解析 HH:mm 为 dayjs。
+ * 为什么：未启用 customParseFormat 时 dayjs('09:00','HH:mm') 会得到 Invalid Date，编辑回显空白。
+ */
+function parseTimeOfDay(hhmm: string | undefined): Dayjs {
+  const raw = (hhmm && hhmm.trim()) || '09:00'
+  const [hRaw, mRaw] = raw.split(':')
+  const hour = Number.parseInt(hRaw ?? '9', 10)
+  const minute = Number.parseInt(mRaw ?? '0', 10)
+  return dayjs()
+    .hour(Number.isFinite(hour) ? hour : 9)
+    .minute(Number.isFinite(minute) ? minute : 0)
+    .second(0)
+    .millisecond(0)
+}
+
+/**
+ * 实体 → 表单初始值。
+ * 为什么：destroyOnHidden 下须在 Form 挂载前备好 initialValues，不能依赖 afterOpenChange + setFieldsValue
+ *（preserve={false} 时未挂载的条件字段会被丢弃，导致编辑回显失败）。
+ */
+function taskToFormValues(task: ScheduledTask): TaskFormValues {
+  return {
+    title: task.title,
+    description: task.description,
+    repeat: task.repeat,
+    runAt: task.runAt ? dayjs(task.runAt) : undefined,
+    weekday: task.weekday ?? 1,
+    timeOfDay: parseTimeOfDay(task.timeOfDay),
+    actionType: task.actionType,
+    publishPlanId: task.publishPlanId,
+    workflowId: task.workflowId,
+    customPrompt: task.customPrompt,
+    enabled: task.enabled
+  }
+}
+
 /** 将表单值合并回定时任务实体 */
 function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): ScheduledTask {
   return {
@@ -151,8 +188,9 @@ function TaskEditModal({
 }): React.ReactElement {
   const [form] = Form.useForm<TaskFormValues>()
   const [submitting, setSubmitting] = useState(false)
-  const repeat = Form.useWatch('repeat', form)
-  const actionType = Form.useWatch('actionType', form)
+  // 挂载首帧 useWatch 可能尚未同步，回退到 initialTask 以保证条件字段立刻渲染
+  const repeat = Form.useWatch('repeat', form) ?? initialTask?.repeat
+  const actionType = Form.useWatch('actionType', form) ?? initialTask?.actionType
 
   const handleOk = async (): Promise<void> => {
     if (!initialTask) return
@@ -167,6 +205,10 @@ function TaskEditModal({
     }
   }
 
+  const formInitialValues = initialTask ? taskToFormValues(initialTask) : undefined
+  // 打开时强制重挂载，确保 initialValues 生效（对齐渠道/技能编辑表单）
+  const formKey = open && initialTask ? `${mode}-${initialTask.id}` : 'closed'
+
   return (
     <Modal
       title={mode === 'create' ? '新建定时任务' : '编辑定时任务'}
@@ -177,27 +219,15 @@ function TaskEditModal({
       okText={mode === 'create' ? '创建' : '保存'}
       width={560}
       destroyOnHidden
-      afterOpenChange={(visible) => {
-        if (visible && initialTask) {
-          form.setFieldsValue({
-            title: initialTask.title,
-            description: initialTask.description,
-            repeat: initialTask.repeat,
-            runAt: initialTask.runAt ? dayjs(initialTask.runAt) : undefined,
-            weekday: initialTask.weekday ?? 1,
-            timeOfDay: dayjs(initialTask.timeOfDay, 'HH:mm'),
-            actionType: initialTask.actionType,
-            publishPlanId: initialTask.publishPlanId,
-            workflowId: initialTask.workflowId,
-            customPrompt: initialTask.customPrompt,
-            enabled: initialTask.enabled
-          })
-        } else {
-          form.resetFields()
-        }
-      }}
     >
-      <Form form={form} layout="vertical" className={styles.form} preserve={false}>
+      <Form
+        key={formKey}
+        form={form}
+        layout="vertical"
+        className={styles.form}
+        preserve={false}
+        initialValues={formInitialValues}
+      >
         <Form.Item
           label="标题"
           name="title"
