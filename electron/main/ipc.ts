@@ -74,6 +74,7 @@ import {
 } from './workflow/migrate-publish'
 import type { PublishChannelUpsertInput } from '../../shared/publish-channels'
 import type { WorkflowDefinition } from '../../shared/types'
+import { postNotifyMessage } from './notify/send'
 
 /** 注册全部 IPC；读 query* / 写 post* */
 export function registerIpcHandlers(): void {
@@ -155,7 +156,6 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IpcChannels.postInitPublishChannels, () => postInitPublishChannels())
   ipcMain.handle(IpcChannels.postNotifyChannelTest, async (_e, channelId: string) => {
-    const { postNotifyMessage } = await import('./notify/send')
     return postNotifyMessage({
       channelId: String(channelId),
       title: '灵犀通知测试',
