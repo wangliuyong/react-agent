@@ -1,7 +1,7 @@
 {
   "name": "lingxifa",
   "version": "0.1.0",
-  "description": "灵犀 · AI 助手",
+  "description": "灵犀 · AI助手",
   "main": "./out/main/index.js",
   "build": {
     "extraResources": [
