@@ -31,11 +31,14 @@ function createWindow(): void {
   setMainWindow(mainWindow)
 
   if (process.env.ELECTRON_RENDERER_URL) {
-    // 本地开发：加载 Vite 开发服务器并自动打开调试面板
+    // 本地开发：加载 Vite 开发服务器
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
-    mainWindow.webContents.once('did-finish-load', () => {
-      mainWindow?.webContents.openDevTools({ mode: 'detach' })
-    })
+    // 仅在 OPEN_DEVTOOLS=1 时自动打开调试面板（见 package.json 的 dev:devtools）
+    if (process.env.OPEN_DEVTOOLS === '1') {
+      mainWindow.webContents.once('did-finish-load', () => {
+        mainWindow?.webContents.openDevTools({ mode: 'detach' })
+      })
+    }
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }

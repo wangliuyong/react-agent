@@ -5,6 +5,7 @@
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev --sourcemap --remoteDebuggingPort 9222",
+    "dev:devtools": "OPEN_DEVTOOLS=1 electron-vite dev --sourcemap --remoteDebuggingPort 9222",
     "dev:fast": "electron-vite dev",
     "dev:debug": "pnpm dev",
     "dev:inspect": "electron-vite dev --inspect --sourcemap",
