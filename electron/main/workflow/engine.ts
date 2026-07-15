@@ -20,11 +20,11 @@ import {
 } from '../store/workflow-runs'
 import { queryOrMigratePublishWorkflow } from './migrate-publish'
 import {
-  bindSessionAbort,
-  releaseSessionAbort,
-  runAgentStep,
-  waitForUserContinue
-} from '../agent/loop'
+  bindGraphSessionAbort,
+  releaseGraphSessionAbort,
+  runLangGraphStep,
+  waitForGraphUserContinue
+} from '../agent/graph-bridge'
 import { getToolByName } from '../agent/tools'
 import type { ToolContext } from '../agent/tools/types'
 import { getMainWindow } from '../window'
@@ -217,7 +217,7 @@ async function executeToolNode(
     attachmentPaths: [],
     emitAwaitUser: async (reason) => {
       if (onAwaitUser) await onAwaitUser()
-      await waitForUserContinue(sessionId, reason)
+      await waitForGraphUserContinue(sessionId, reason)
     },
     updateTasks: () => {
       /* 引擎权威维护 tasks */
@@ -284,7 +284,7 @@ async function executeLeafNode(
       interrupt({ type: 'await_user', sessionId, reason })
     } catch (e) {
       if (isGraphInterrupt(e)) throw e
-      await waitForUserContinue(sessionId, reason)
+      await waitForGraphUserContinue(sessionId, reason)
     }
     if (signal.aborted) throw new Error('__aborted__')
     return patchRun(run, { status: 'running' })
@@ -308,7 +308,7 @@ async function executeLeafNode(
       .join('\n\n'),
     run.context
   )
-  const stepResult = await runAgentStep({
+  const stepResult = await runLangGraphStep({
     sessionId,
     prompt: stepPrompt,
     toolWhitelist: node.toolWhitelist
@@ -360,7 +360,7 @@ async function queryAgentBranchKey(
       ? node.toolWhitelist
       : ['__workflow_condition_no_tool__']
 
-  const stepResult = await runAgentStep({
+  const stepResult = await runLangGraphStep({
     sessionId,
     prompt: [
       `【条件分支】${node.title}`,
@@ -679,7 +679,7 @@ async function executeWorkflowRunLegacy(runId: string, fromStart: boolean): Prom
       __graphApi_finalizeWorkflowRun(runId, sessionId, 'failed', message)
     }
   } finally {
-    releaseSessionAbort(sessionId)
+    releaseGraphSessionAbort(sessionId)
     runningBySession.delete(sessionId)
   }
 }
@@ -747,7 +747,7 @@ export function __graphApi_prepareWorkflowRun(
   }
   persistSessionTasks(liveSession, buildTasks(specs, statusMap))
 
-  const controller = bindSessionAbort(sessionId)
+  const controller = bindGraphSessionAbort(sessionId)
   run = patchRun(run, { status: 'running', errorMessage: undefined })
 
   if (fromStart) {
@@ -822,7 +822,7 @@ export function __graphApi_finalizeWorkflowRun(
       emitDone(sessionId, 'error')
     }
   } finally {
-    releaseSessionAbort(sessionId)
+    releaseGraphSessionAbort(sessionId)
     runningBySession.delete(sessionId)
   }
 }
