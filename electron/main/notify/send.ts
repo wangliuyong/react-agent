@@ -5,7 +5,17 @@ import {
 import { queryPublishChannels } from '../store/channels'
 import { postFeishuWebhookText } from './feishu'
 
-export type NotifySendResult = { ok: true } | { ok: false; error: string }
+export type NotifySendResult =
+  | { ok: true; deduped?: boolean }
+  | { ok: false; error: string }
+
+/** 相同渠道+标题+正文短时去重，防止 ReAct 连续两轮误发 */
+const NOTIFY_DEDUPE_MS = 120_000
+const recentNotifyAt = new Map<string, number>()
+
+function queryNotifyDedupeKey(channelId: string, title: string | undefined, content: string): string {
+  return `${channelId}\0${title?.trim() ?? ''}\0${content.trim()}`
+}
 
 /**
  * 按渠道 id 路由发送通知。
@@ -32,6 +42,14 @@ export async function postNotifyMessage(args: {
   if (!webhookUrl) {
     return { ok: false, error: '飞书 Webhook 未配置，请先在渠道页填写并保存' }
   }
+
+  const dedupeKey = queryNotifyDedupeKey(args.channelId, args.title, args.content)
+  const lastAt = recentNotifyAt.get(dedupeKey)
+  if (lastAt != null && Date.now() - lastAt < NOTIFY_DEDUPE_MS) {
+    console.info(`[notify] deduped channelId=${meta.id}`)
+    return { ok: true, deduped: true }
+  }
+
   const text = args.title?.trim()
     ? `${args.title.trim()}\n${args.content}`
     : args.content
@@ -41,6 +59,7 @@ export async function postNotifyMessage(args: {
       secret: meta.notifyConfig?.secret,
       text
     })
+    recentNotifyAt.set(dedupeKey, Date.now())
     console.info(`[notify] ok channelId=${meta.id}`)
     return { ok: true }
   } catch (err) {

@@ -33,7 +33,8 @@ const ROLE_PROMPTS: Record<AgentRoleName, string> = {
 1. 先用 update_task_list 列出清晰的任务步骤（若任务多于一步）
 2. 按需调用工具完成用户目标
 3. 每完成一步更新任务清单状态
-4. 不要建议用脚本直接改 DOM；所有交互都应通过工具完成`,
+4. 不要建议用脚本直接改 DOM；所有交互都应通过工具完成
+5. 通知类工具（notify_message）成功后立即结束；禁止对相同渠道/相同正文重复发送`,
 
   researcher: `${BASE_CAPABILITY}
 

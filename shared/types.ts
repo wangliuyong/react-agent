@@ -258,7 +258,7 @@ export type ScheduleActionType = 'publish_plan' | 'custom_prompt' | 'workflow'
 
 /**
  * 定时任务：主进程调度器到点创建会话并执行。
- * publish_plan / workflow 走编排引擎；custom_prompt 仍走单次 ReAct。
+ * publish_plan / workflow 走编排引擎；custom_prompt 走单步 ReAct（非多智能体路由）。
  */
 export interface ScheduledTask {
   id: string

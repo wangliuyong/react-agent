@@ -66,7 +66,7 @@ function buildEndToEndAgentNode(sub: PublishSubTask): WorkflowAgentNode {
     notifyIds.length > 0
       ? [
           `发布完成后，依次调用 notify_message，channelId 分别为：${notifyIds.join('、')}（${notifyLabels}），`,
-          'content 简要说明本子任务各渠道发布结果。通知失败可忽略，不要因此判定任务失败。'
+          'content 简要说明本子任务各渠道发布结果。每个渠道只通知一次；成功后禁止重复发送。通知失败可忽略，不要因此判定任务失败。'
         ].join('')
       : ''
 
@@ -109,7 +109,7 @@ function buildPlanNotifyNode(plan: PublishPlan): WorkflowAgentNode {
     prompt: [
       `请汇总整个发布计划「${plan.title}」的执行结果（成功/失败要点），`,
       `调用 notify_message 通知到：${labels}（channelId: ${ids.join(', ')}）。`,
-      '若某渠道通知失败，说明原因即可，不要重试超过 1 次。'
+      '每个渠道只调用一次；成功后禁止再次发送。仅失败时可对该渠道重试 1 次。'
     ].join('\n'),
     toolWhitelist: ['notify_message']
   }
