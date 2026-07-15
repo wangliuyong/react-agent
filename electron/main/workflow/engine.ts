@@ -11,7 +11,6 @@ import type {
   WorkflowRunStartResult
 } from '../../../shared/types'
 import { queryConditionCaseKey } from '../../../shared/evaluate-workflow-condition'
-import { querySettings } from '../store/settings'
 import { postSession, querySession } from '../store/sessions'
 import { queryWorkflow } from '../store/workflows'
 import {
@@ -635,58 +634,13 @@ function findResumeIndex(nodes: WorkflowNode[], cursorNodeId: string | null): nu
 }
 
 async function executeWorkflowRun(runId: string, fromStart: boolean): Promise<void> {
-  // 默认走 LangGraph 编译执行；legacy 保留 for 循环以便回滚
-  if (querySettings().agentRuntime !== 'legacy') {
-    const { executeWorkflowWithLangGraph } = await import('./compile-to-langgraph')
-    await executeWorkflowWithLangGraph(runId, fromStart)
-    return
-  }
-  await executeWorkflowRunLegacy(runId, fromStart)
-}
-
-/** 自研 for 循环（agentRuntime=legacy） */
-async function executeWorkflowRunLegacy(runId: string, fromStart: boolean): Promise<void> {
-  const prepared = __graphApi_prepareWorkflowRun(runId, fromStart)
-  if (!prepared) return
-
-  const { workflow, session: liveSession, run: initialRun, specs, statusMap, startIndex, signal } =
-    prepared
-  const sessionId = liveSession.id
-  let run = initialRun
-
-  try {
-    for (let i = startIndex; i < workflow.nodes.length; i++) {
-      if (signal.aborted) {
-        throw new Error('__aborted__')
-      }
-      const node = workflow.nodes[i]
-      run = await executeTopLevelNode(
-        sessionId,
-        node,
-        run,
-        statusMap,
-        specs,
-        liveSession,
-        signal
-      )
-    }
-    __graphApi_finalizeWorkflowRun(runId, sessionId, 'success')
-  } catch (e) {
-    if (e instanceof Error && e.message === '__aborted__') {
-      __graphApi_finalizeWorkflowRun(runId, sessionId, 'aborted')
-    } else {
-      const message = e instanceof Error ? e.message : String(e)
-      __graphApi_finalizeWorkflowRun(runId, sessionId, 'failed', message)
-    }
-  } finally {
-    releaseGraphSessionAbort(sessionId)
-    runningBySession.delete(sessionId)
-  }
+  const { executeWorkflowWithLangGraph } = await import('./compile-to-langgraph')
+  await executeWorkflowWithLangGraph(runId, fromStart)
 }
 
 /**
  * 准备 Run 执行上下文（任务骨架、abort、开场消息）。
- * LangGraph / legacy 共用。
+ * LangGraph 与节点执行共用。
  */
 export function __graphApi_prepareWorkflowRun(
   runId: string,
