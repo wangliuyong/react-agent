@@ -1,4 +1,3 @@
-import { app } from 'electron'
 import {
   cpSync,
   existsSync,
@@ -19,41 +18,20 @@ import type {
   SkillUpsertInput
 } from '../../../shared/types'
 import { getDataRoot } from './paths'
+import { queryBundledResourcesRoot, querySkillsDir } from './resources'
 
 /** 技能启用状态持久化路径 */
 function getSkillStatesPath(): string {
   return join(getDataRoot(), 'skill-states.json')
 }
 
-/**
- * 定位项目根目录（含 .cursor/skills）。
- * dev / 打包后路径不同，按候选路径探测。
- */
-export function getProjectRoot(): string {
-  const candidates = [process.cwd(), app.getAppPath(), join(__dirname, '../../..')]
-  for (const root of candidates) {
-    if (existsSync(join(root, '.cursor/skills'))) {
-      return root
-    }
-  }
-  return process.cwd()
-}
-
 export function getSkillsDir(): string {
-  return join(getProjectRoot(), '.cursor/skills')
+  return querySkillsDir()
 }
 
-/** 内置模板目录（与已安装技能隔离，避免被 queryProjectSkills 扫描） */
+/** 技能市场始终读取内置 resources/skills，安装版与用户可写副本隔离。 */
 function getSkillTemplatesDir(): string {
-  const candidates = [
-    join(process.cwd(), 'resources/skill-templates'),
-    join(getProjectRoot(), 'resources/skill-templates'),
-    join(__dirname, '../../../resources/skill-templates')
-  ]
-  for (const dir of candidates) {
-    if (existsSync(dir)) return dir
-  }
-  return candidates[0]
+  return join(queryBundledResourcesRoot(), 'skills')
 }
 
 /** 是否为项目内置技能 id */
@@ -176,7 +154,7 @@ function toProjectSkill(
   }
 }
 
-/** 列出项目 .cursor/skills 下全部技能 */
+/** 列出当前环境可写 resources/skills 下的全部技能 */
 export function queryProjectSkills(): ProjectSkill[] {
   const dir = getSkillsDir()
   if (!existsSync(dir)) return []
@@ -236,7 +214,7 @@ export function queryProjectSkillDetail(id: string): ProjectSkillDetail | null {
   }
 }
 
-/** 创建或更新技能（写入 .cursor/skills/<id>/） */
+/** 创建或更新技能（写入 resources/skills/<id>/） */
 export function postProjectSkill(input: SkillUpsertInput): ProjectSkillDetail {
   validateSkillId(input.id)
   if (!input.name.trim()) throw new Error('技能名称不能为空')
@@ -263,9 +241,7 @@ export function postProjectSkill(input: SkillUpsertInput): ProjectSkillDetail {
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    throw new Error(
-      `写入技能失败（请确认项目目录 .cursor/skills 可写）：${msg}`
-    )
+    throw new Error(`写入技能失败（请确认 resources/skills 可写）：${msg}`)
   }
 
   const detail = queryProjectSkillDetail(input.id)
@@ -319,7 +295,7 @@ export function querySkillTemplates(): SkillTemplate[] {
   return templates.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
 }
 
-/** 将模板复制安装到 .cursor/skills/<targetId>/ */
+/** 将内置模板复制到当前环境的 resources/skills/<targetId>/ */
 export function postInstallSkillTemplate(
   templateId: string,
   targetId?: string

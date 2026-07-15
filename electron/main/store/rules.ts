@@ -1,29 +1,21 @@
-import { existsSync, readFileSync, writeFileSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  unlinkSync,
+  writeFileSync
+} from 'fs'
 import { join } from 'path'
 import type { AgentRule, AgentRuleUpsertInput } from '../../../shared/types'
-import { getDataRoot } from './paths'
-
-function getRulesPath(): string {
-  return join(getDataRoot(), 'rules.json')
-}
+import { buildRuleMarkdown, parseRuleMarkdown } from './rule-markdown'
+import { queryRulesDir } from './resources'
 
 /** 校验规则 id：小写、数字、连字符、下划线，1～64 字符 */
 export function validateRuleId(id: string): void {
   if (!/^[a-z0-9_-]{1,64}$/.test(id)) {
     throw new Error('规则 id 仅允许小写字母、数字、连字符和下划线，长度 1～64')
-  }
-}
-
-function normalizeRule(raw: AgentRule): AgentRule {
-  const now = Date.now()
-  return {
-    id: raw.id.trim(),
-    name: raw.name.trim(),
-    description: (raw.description ?? '').trim(),
-    content: (raw.content ?? '').trim(),
-    enabled: Boolean(raw.enabled),
-    createdAt: raw.createdAt ?? now,
-    updatedAt: raw.updatedAt ?? now
   }
 }
 
@@ -33,26 +25,25 @@ function sortRules(rules: AgentRule[]): AgentRule[] {
 }
 
 function readRulesFromDisk(): AgentRule[] {
-  const path = getRulesPath()
-  if (!existsSync(path)) {
-    return []
-  }
+  const dir = queryRulesDir()
+  if (!existsSync(dir)) return []
 
-  try {
-    const parsed = JSON.parse(readFileSync(path, 'utf-8')) as AgentRule[]
-    if (!Array.isArray(parsed)) {
-      throw new Error('rules.json 格式无效')
+  const rules: AgentRule[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.mdc')) continue
+    const path = join(dir, entry.name)
+    const id = entry.name.slice(0, -'.mdc'.length)
+    try {
+      validateRuleId(id)
+      const stat = statSync(path)
+      rules.push(parseRuleMarkdown(id, readFileSync(path, 'utf-8'), stat.mtimeMs))
+    } catch (error) {
+      // 单个损坏文件不应阻断其他规则加载，路径与原因用于开发排查。
+      console.warn(`[rules] 跳过无法解析的规则文件：${path}`, error)
     }
-    return sortRules(parsed.map(normalizeRule))
-  } catch {
-    return []
   }
-}
 
-function writeRules(rules: AgentRule[]): AgentRule[] {
-  const normalized = sortRules(rules.map(normalizeRule))
-  writeFileSync(getRulesPath(), JSON.stringify(normalized, null, 2), 'utf-8')
-  return normalized
+  return sortRules(rules)
 }
 
 /** 读：全部 Agent 用户规则 */
@@ -66,31 +57,33 @@ export function postAgentRule(input: AgentRuleUpsertInput): AgentRule {
   if (!input.name.trim()) throw new Error('规则名称不能为空')
   if (!input.content.trim()) throw new Error('规则正文不能为空')
 
-  const rules = readRulesFromDisk()
+  const dir = queryRulesDir()
+  mkdirSync(dir, { recursive: true })
+  const path = join(dir, `${input.id}.mdc`)
   const now = Date.now()
-  const existing = rules.find((r) => r.id === input.id)
+  const previousRaw = existsSync(path) ? readFileSync(path, 'utf-8') : ''
+  const existing = previousRaw
+    ? parseRuleMarkdown(input.id, previousRaw, statSync(path).mtimeMs)
+    : null
 
-  const next = normalizeRule({
+  const next: AgentRule = {
     id: input.id,
-    name: input.name,
-    description: input.description,
-    content: input.content,
-    enabled: input.enabled,
+    name: input.name.trim(),
+    description: input.description.trim(),
+    content: input.content.trim(),
+    enabled: Boolean(input.enabled),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now
-  })
-
-  const idx = rules.findIndex((r) => r.id === input.id)
-  const merged = idx >= 0 ? rules.map((r, i) => (i === idx ? next : r)) : [...rules, next]
-  writeRules(merged)
+  }
+  writeFileSync(path, buildRuleMarkdown(next, previousRaw), 'utf-8')
   return next
 }
 
 /** 写：删除规则 */
 export function postDeleteAgentRule(id: string): void {
-  const rules = readRulesFromDisk()
-  if (!rules.some((r) => r.id === id)) return
-  writeRules(rules.filter((r) => r.id !== id))
+  validateRuleId(id)
+  const path = join(queryRulesDir(), `${id}.mdc`)
+  if (existsSync(path)) unlinkSync(path)
 }
 
 /**

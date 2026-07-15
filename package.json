@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "灵犀 · AI 助手",
   "main": "./out/main/index.js",
+  "build": {
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources"
+      }
+    ]
+  },
   "scripts": {
     "dev": "electron-vite dev --sourcemap --remoteDebuggingPort 9222",
     "dev:devtools": "OPEN_DEVTOOLS=1 electron-vite dev --sourcemap --remoteDebuggingPort 9222",
@@ -11,6 +19,7 @@
     "dev:inspect": "electron-vite dev --inspect --sourcemap",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
     "install:browser": "node scripts/install-browser.mjs",
     "install:browser:official": "playwright install chromium",
@@ -44,7 +53,8 @@
     "typescript": "^5.8.2",
     "unplugin-auto-import": "^21.0.0",
     "unplugin-auto-import-antd": "^0.0.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vitest": "^4.1.10"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
