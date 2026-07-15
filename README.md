@@ -194,7 +194,7 @@ pnpm install:browser  # 安装 Playwright Chromium（国内镜像）
 | 桌面壳 | Electron 34 |
 | 构建 | electron-vite + Vite 6 |
 | 前端 | React 19 + Ant Design 5 + Zustand |
-| Agent | OpenAI SDK（流式） + 自研 ReAct 循环 |
+| Agent | LangChain + LangGraph（Supervisor 多角色 / 工作流图） |
 | 浏览器自动化 | Playwright（Chromium 持久化上下文） |
 | 数据 | 本地 JSON 文件（无数据库） |
 
