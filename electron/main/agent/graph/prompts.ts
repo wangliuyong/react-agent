@@ -73,7 +73,8 @@ const ROLE_CONTEXT_BUDGETS: Record<
 }
 
 /**
- * 组装角色 system prompt：角色说明 + 用户规则 + 技能。
+ * 组装角色 system prompt：角色说明 + 用户规则 + 技能目录。
+ * 技能正文由 Agent 确认相关后通过 use_skill 按需加载。
  * 规则优先于技能。
  */
 export function buildRoleSystemPrompt(role: AgentRoleName): string {
@@ -87,7 +88,9 @@ export function buildRoleSystemPrompt(role: AgentRoleName): string {
     parts.push(`## 用户规则（必须优先遵循）\n\n${ruleBlock}`)
   }
   if (skillBlock) {
-    parts.push(`## 项目技能（开发规范与领域知识，请优先遵循）\n\n${skillBlock}`)
+    parts.push(
+      `## 可用技能目录\n\n${skillBlock}\n\n仅当当前任务与某项技能描述明确匹配时，调用 \`use_skill\` 读取该技能的完整说明；不相关的技能不要加载。`
+    )
   }
   return parts.join('\n\n')
 }

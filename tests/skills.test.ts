@@ -82,4 +82,63 @@ describe('skills store', () => {
       }
     ])
   })
+
+  it('提示词只暴露已启用技能目录，正文仅在显式使用技能时读取', async () => {
+    const {
+      postProjectSkill,
+      postSkillStates,
+      queryEnabledSkillContent,
+      queryEnabledSkillPrompt
+    } = await import('../electron/main/store/skills')
+
+    postProjectSkill({
+      id: 'writing-guide',
+      name: '写作指南',
+      description: '在撰写营销文案时使用',
+      content: '# 私有正文\n\n先提炼卖点，再组织文案。',
+      examplesContent: '# 示例\n\n一条示例文案'
+    })
+    postProjectSkill({
+      id: 'disabled-guide',
+      name: '停用指南',
+      description: '不应提供给 Agent',
+      content: '# 停用正文'
+    })
+    postSkillStates({ 'disabled-guide': { enabled: false } })
+
+    const prompt = queryEnabledSkillPrompt()
+
+    expect(prompt).toContain('writing-guide')
+    expect(prompt).toContain('在撰写营销文案时使用')
+    expect(prompt).not.toContain('先提炼卖点')
+    expect(prompt).not.toContain('disabled-guide')
+    expect(queryEnabledSkillContent('writing-guide')).toContain('先提炼卖点')
+    expect(queryEnabledSkillContent('writing-guide')).toContain('一条示例文案')
+    expect(queryEnabledSkillContent('disabled-guide')).toBeNull()
+  })
+
+  it('技能目录达到预算时不会截断单条技能信息', async () => {
+    const { postProjectSkill, queryEnabledSkillPrompt } = await import(
+      '../electron/main/store/skills'
+    )
+    postProjectSkill({
+      id: 'alpha',
+      name: 'A',
+      description: 'first',
+      content: 'alpha content'
+    })
+    postProjectSkill({
+      id: 'beta',
+      name: 'B',
+      description: 'second',
+      content: 'beta content'
+    })
+
+    const firstEntry = '- `alpha`：A — first'
+    const prompt = queryEnabledSkillPrompt(firstEntry.length + 5)
+
+    expect(prompt).toContain(firstEntry)
+    expect(prompt).not.toContain('\n- `')
+    expect(prompt).toContain('技能目录已截断')
+  })
 })
