@@ -25,6 +25,7 @@ import type { ToolContext } from './tools/types'
 import { buildChatGraph, buildStepReactGraph } from './graph/chat-graph'
 import { buildRoleSystemPrompt } from './graph/prompts'
 import { queryRecursionLimit } from './graph/react-subgraph'
+import { trimMessagesToCharBudget } from './token-budget'
 
 function uuidv4(): string {
   return crypto.randomUUID()
@@ -124,9 +125,8 @@ function buildToolContext(
 }
 
 function sessionToLcMessages(session: Session): BaseMessage[] {
-  const recent = session.messages.slice(-50)
   const out: BaseMessage[] = []
-  for (const m of recent) {
+  for (const m of session.messages) {
     if (m.role === 'user') {
       out.push(new HumanMessage(m.content))
     } else if (m.role === 'assistant') {
@@ -141,7 +141,7 @@ function sessionToLcMessages(session: Session): BaseMessage[] {
       )
     }
   }
-  return out
+  return trimMessagesToCharBudget(out)
 }
 
 function syncNewMessagesToSession(

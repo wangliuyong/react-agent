@@ -59,17 +59,34 @@ const ROLE_PROMPTS: Record<AgentRoleName, string> = {
 }
 
 /**
+ * 不同角色仅加载完成职责所需的提示词容量。
+ * Supervisor 只做路由，不加载任何用户规则或技能，避免每轮固定上下文浪费。
+ */
+const ROLE_CONTEXT_BUDGETS: Record<
+  Exclude<AgentRoleName, 'supervisor'>,
+  { ruleChars: number; skillChars: number }
+> = {
+  general: { ruleChars: 4_000, skillChars: 4_000 },
+  researcher: { ruleChars: 3_000, skillChars: 3_500 },
+  writer: { ruleChars: 3_000, skillChars: 3_000 },
+  publisher: { ruleChars: 4_000, skillChars: 4_000 }
+}
+
+/**
  * 组装角色 system prompt：角色说明 + 用户规则 + 技能。
  * 规则优先于技能。
  */
 export function buildRoleSystemPrompt(role: AgentRoleName): string {
+  if (role === 'supervisor') return ROLE_PROMPTS.supervisor
+
   const parts = [ROLE_PROMPTS[role]]
-  const ruleBlock = queryEnabledRulePrompt()
-  const skillBlock = queryEnabledSkillPrompt()
+  const budget = ROLE_CONTEXT_BUDGETS[role]
+  const ruleBlock = queryEnabledRulePrompt(budget.ruleChars)
+  const skillBlock = queryEnabledSkillPrompt(budget.skillChars)
   if (ruleBlock) {
     parts.push(`## 用户规则（必须优先遵循）\n\n${ruleBlock}`)
   }
-  if (skillBlock && role !== 'supervisor') {
+  if (skillBlock) {
     parts.push(`## 项目技能（开发规范与领域知识，请优先遵循）\n\n${skillBlock}`)
   }
   return parts.join('\n\n')

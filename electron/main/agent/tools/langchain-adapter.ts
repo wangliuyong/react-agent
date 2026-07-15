@@ -2,6 +2,7 @@ import { tool } from '@langchain/core/tools'
 import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { JsonSchema7Type } from '@langchain/core/utils/json_schema'
 import type { AgentTool, ToolContext, ToolPermission } from './types'
+import { compactToolResult } from '../token-budget'
 
 /**
  * 发布类工具自带登录/发布确认（工具内 emitAwaitUser），
@@ -51,7 +52,8 @@ export function adaptAgentTools(
 
         try {
           // 直接使用 Bridge 的 emitAwaitUser，保持登录等待与「继续」按钮一致
-          return await agentTool.execute(args, ctx)
+          const result = await agentTool.execute(args, ctx)
+          return compactToolResult(result)
         } catch (err) {
           // GraphInterrupt 必须向上抛（若未来节点级 interrupt 传入）；勿吞掉
           if (isGraphInterrupt(err)) throw err
