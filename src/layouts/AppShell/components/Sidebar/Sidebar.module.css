@@ -117,16 +117,9 @@
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--db-primary) 0%, var(--db-primary-light) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--db-on-primary);
-  font-size: 16px;
-  font-weight: 700;
+  object-fit: cover;
   flex-shrink: 0;
   box-shadow: 0 4px 12px var(--db-primary-glow);
-
 }
 
 .brandName {

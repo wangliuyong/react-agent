@@ -71,7 +71,7 @@ export const usePublishStore = create<PublishState>((set, get) => ({
     })
   },
 
-  /** 导入内置发布计划：多渠道 + 小红书快速发布 */
+  /** 导入内置发布计划：多渠道 + 小红书快速 + 飞书富文本推送 */
   addBuiltinPlans: async () => {
     const plans = (await postImportBuiltinPublishPlans()).map(normalizePublishPlan)
     set({

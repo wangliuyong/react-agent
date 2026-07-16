@@ -1,3 +1,4 @@
+import lingxiAvatar from '@/assets/lingxi-avatar.png'
 import styles from './Sidebar.module.css'
 
 interface SidebarBrandProps {
@@ -7,7 +8,16 @@ interface SidebarBrandProps {
 
 /** 品牌 Logo 展示，无业务逻辑 */
 export function SidebarBrand({ collapsed = false }: SidebarBrandProps): React.ReactElement {
-  const icon = <div className={styles.brandIcon}>灵</div>
+  const icon = (
+    <img
+      className={styles.brandIcon}
+      src={lingxiAvatar}
+      alt="灵犀"
+      width={32}
+      height={32}
+      draggable={false}
+    />
+  )
 
   if (collapsed) {
     return (
