@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { Session, SessionType } from '@shared/types'
 import { querySessionType, useSessionStore } from '@/features/chat'
 import { SESSION_TYPE_FILTER_OPTIONS, SESSION_TYPE_ICONS, type SessionTypeFilter } from '@/layouts/AppShell/config/session-type-icons'
@@ -132,7 +133,7 @@ function HistorySessionCard({
   return (
     <article
       className={`${styles.sessionCard} ${selected ? styles.sessionCardSelected : ''}`}
-      style={{ '--card-index': index } as React.CSSProperties}
+      style={{ '--card-index': index } as CSSProperties}
     >
       <Checkbox
         checked={selected}
