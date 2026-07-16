@@ -1,8 +1,10 @@
 import { useAppStore } from '@/stores/app-store'
 import { useBusinessStore } from '../../hooks/useBusinessStore'
-import { BUSINESS_MENUS } from '../../config/business-menu'
 import type { ChatMode } from '../../types'
-import { HistoryConversations } from '../HistoryConversations/HistoryConversations'
+import {
+  HistoryConversations,
+  type HistoryConversationsHeaderMeta
+} from '../HistoryConversations/HistoryConversations'
 import styles from './BusinessPanel.module.css'
 
 const { Title, Text } = Typography
@@ -14,21 +16,30 @@ const { Title, Text } = Typography
 export function BusinessPanel(): React.ReactElement {
   const setView = useAppStore((s) => s.setView)
   const activeMenu = useBusinessStore((s) => s.activeMenu)
-
-  const activeMenuItem = BUSINESS_MENUS.find((m) => m.key === activeMenu) ?? BUSINESS_MENUS[0]
+  const [historyHeader, setHistoryHeader] = useState<HistoryConversationsHeaderMeta | null>(null)
 
   return (
     <div className={styles.panel}>
       <header className={`${styles.header} app-drag`}>
-        <div className={styles.headerLeft}>
-          <div className={styles.titleWrap}>
-            <Title level={5} className={`${styles.title} app-no-drag`}>
-              业务系统
-            </Title>
-            <Text type="secondary" className={`${styles.subtitle} app-no-drag`}>
-              {activeMenuItem.label}
-            </Text>
-          </div>
+        <div className={`${styles.headerLeft} app-no-drag`}>
+          {activeMenu === 'history' && historyHeader ? (
+            <div className={styles.subPageHeader}>
+              <div className={styles.subPageHeaderIcon}>
+                <HistoryOutlined />
+              </div>
+              <div>
+                <div className={styles.subPageTitleRow}>
+                  <Title level={3} className={styles.subPageTitle}>
+                    历史对话
+                  </Title>
+                  <span className={styles.subPageCountBadge}>{historyHeader.count}</span>
+                </div>
+                <Text type="secondary" className={styles.subPageDesc}>
+                  管理全部会话记录，查看工作流 context 与各节点执行上下文
+                </Text>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className={`${styles.headerCenter} app-no-drag`}>
@@ -45,11 +56,23 @@ export function BusinessPanel(): React.ReactElement {
           />
         </div>
 
-        <div className={styles.headerRight} />
+        <div className={`${styles.headerRight} app-no-drag`}>
+          {activeMenu === 'history' && historyHeader ? (
+            <Button
+              icon={<ReloadOutlined />}
+              loading={historyHeader.refreshing}
+              onClick={() => void historyHeader.onRefresh()}
+            >
+              刷新
+            </Button>
+          ) : null}
+        </div>
       </header>
 
       <main className={styles.content}>
-        {activeMenu === 'history' ? <HistoryConversations /> : null}
+        {activeMenu === 'history' ? (
+          <HistoryConversations onHeaderChange={setHistoryHeader} />
+        ) : null}
       </main>
     </div>
   )

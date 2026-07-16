@@ -1,4 +1,4 @@
-import type { Session } from '@shared/types'
+import type { Session, SessionType } from '@shared/types'
 import { querySessionType, useSessionStore } from '@/features/chat'
 import { SESSION_TYPE_ICONS } from '@/layouts/AppShell/config/session-type-icons'
 import { queryLatestWorkflowRunBySession } from '../../api'
@@ -12,9 +12,29 @@ import {
 } from '../../utils/sessionContext'
 import styles from './HistoryConversations.module.css'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
-/** 格式化 Unix 毫秒为本地时间 */
+/** 同步到 BusinessPanel 顶栏的元信息 */
+export interface HistoryConversationsHeaderMeta {
+  count: number
+  refreshing: boolean
+  onRefresh: () => Promise<void>
+}
+
+interface HistoryConversationsProps {
+  /** 将计数与刷新状态同步到 BusinessPanel 顶栏 */
+  onHeaderChange?: (meta: HistoryConversationsHeaderMeta | null) => void
+}
+
+/** 会话类型筛选：全部 + 各业务类型 */
+type SessionTypeFilter = 'all' | SessionType
+
+/** 列表排序方式 */
+type SessionSort = 'updated_desc' | 'updated_asc' | 'token_desc'
+
+const PAGE_SIZE = 12
+
+/** 格式化 Unix 毫秒为本地完整时间 */
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleString('zh-CN', {
     year: 'numeric',
@@ -25,14 +45,172 @@ function formatTime(ts: number): string {
   })
 }
 
-/** 历史对话：列表、删除、批量删除、会话/节点上下文查看 */
-export function HistoryConversations(): React.ReactElement {
+/** 格式化为相对时间，便于列表快速扫读 */
+function formatRelativeTime(ts: number): string {
+  const diff = Date.now() - ts
+  const minutes = Math.floor(diff / 60_000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes} 分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} 小时前`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days} 天前`
+  return formatTime(ts)
+}
+
+/** 按标题 / id 匹配搜索词 */
+function matchSessionQuery(session: Session, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return (
+    session.title.toLowerCase().includes(q) || session.id.toLowerCase().includes(q)
+  )
+}
+
+/** 会话列表排序 */
+function sortSessions(list: Session[], sort: SessionSort): Session[] {
+  const next = [...list]
+  switch (sort) {
+    case 'updated_asc':
+      return next.sort((a, b) => a.updatedAt - b.updatedAt)
+    case 'token_desc':
+      return next.sort((a, b) => b.tokenUsed - a.tokenUsed)
+    default:
+      return next.sort((a, b) => b.updatedAt - a.updatedAt)
+  }
+}
+
+/** 会话类型对应的头像 / 标签样式类名 */
+function querySessionToneClass(type: SessionType): string {
+  switch (type) {
+    case 'publish':
+      return styles.tone_publish
+    case 'schedule':
+      return styles.tone_schedule
+    case 'workflow':
+      return styles.tone_workflow
+    default:
+      return styles.tone_chat
+  }
+}
+
+function querySessionTypeTagClass(type: SessionType): string {
+  switch (type) {
+    case 'publish':
+      return styles.typeTag_publish
+    case 'schedule':
+      return styles.typeTag_schedule
+    case 'workflow':
+      return styles.typeTag_workflow
+    default:
+      return styles.typeTag_chat
+  }
+}
+
+interface HistorySessionCardProps {
+  session: Session
+  index: number
+  selected: boolean
+  onSelect: (id: string, checked: boolean) => void
+  onViewContext: (session: Session) => void
+  onDelete: (id: string) => void
+}
+
+/** 单条历史会话卡片：横向布局，左侧勾选 + 类型头像，右侧操作 */
+function HistorySessionCard({
+  session,
+  index,
+  selected,
+  onSelect,
+  onViewContext,
+  onDelete
+}: HistorySessionCardProps): React.ReactElement {
+  const type = querySessionType(session)
+  const title = session.title || '未命名对话'
+
+  return (
+    <article
+      className={`${styles.sessionCard} ${selected ? styles.sessionCardSelected : ''}`}
+      style={{ '--card-index': index } as React.CSSProperties}
+    >
+      <Checkbox
+        checked={selected}
+        onChange={(e) => onSelect(session.id, e.target.checked)}
+        aria-label={`选择对话 ${title}`}
+      />
+
+      <div className={styles.sessionCardMain}>
+        <span className={`${styles.sessionAvatar} ${querySessionToneClass(type)}`}>
+          {SESSION_TYPE_ICONS[type]}
+        </span>
+        <div className={styles.sessionInfo}>
+          <div className={styles.sessionTitleRow}>
+            <Tooltip title={title}>
+              <span className={styles.sessionTitle}>{title}</span>
+            </Tooltip>
+            <Tag className={`${styles.typeTag} ${querySessionTypeTagClass(type)}`}>
+              {querySessionTypeLabel(type)}
+            </Tag>
+          </div>
+          <div className={styles.sessionMeta}>
+            <span className={styles.sessionMetaItem}>
+              <MessageOutlined />
+              {session.messages.length} 条消息
+            </span>
+            <span className={styles.sessionMetaItem}>
+              <ApartmentOutlined />
+              {session.tasks?.length ?? 0} 个节点
+            </span>
+            <span className={styles.sessionMetaItem}>
+              <ThunderboltOutlined />
+              {session.tokenUsed.toLocaleString('zh-CN')} Token
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.sessionAside}>
+        <Tooltip title={formatTime(session.updatedAt)}>
+          <span className={styles.sessionTime}>{formatRelativeTime(session.updatedAt)}</span>
+        </Tooltip>
+        <div className={styles.sessionActions}>
+          <Tooltip title="查看上下文">
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => onViewContext(session)}
+            />
+          </Tooltip>
+          <Popconfirm
+            title="确定删除该对话？"
+            description="删除后不可恢复，关联的工作流上下文记录仍会保留。"
+            onConfirm={() => onDelete(session.id)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+/** 历史对话：卡片列表、删除、批量删除、会话/节点上下文查看 */
+export function HistoryConversations({
+  onHeaderChange
+}: HistoryConversationsProps): React.ReactElement {
   const sessions = useSessionStore((s) => s.sessions)
   const hydrate = useSessionStore((s) => s.hydrate)
   const removeSession = useSessionStore((s) => s.removeSession)
 
   const [search, setSearch] = useState('')
-  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([])
+  const [typeFilter, setTypeFilter] = useState<SessionTypeFilter>('all')
+  const [sort, setSort] = useState<SessionSort>('updated_desc')
+  const [page, setPage] = useState(1)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -45,26 +223,45 @@ export function HistoryConversations(): React.ReactElement {
     void hydrate()
   }, [hydrate])
 
-  /** 按标题 / id 搜索过滤，按更新时间倒序 */
-  const filteredSessions = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    let list = [...sessions]
-    if (q) {
-      list = list.filter(
-        (s) => s.title.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)
-      )
-    }
-    return list.sort((a, b) => b.updatedAt - a.updatedAt)
-  }, [sessions, search])
+  /** 筛选条件变化时回到第一页，避免空页 */
+  useEffect(() => {
+    setPage(1)
+  }, [search, typeFilter, sort])
 
-  const handleRefresh = async (): Promise<void> => {
+  /** 按类型、搜索、排序过滤后的完整列表 */
+  const filteredSessions = useMemo(() => {
+    let list = sessions.filter((s) => matchSessionQuery(s, search))
+    if (typeFilter !== 'all') {
+      list = list.filter((s) => querySessionType(s) === typeFilter)
+    }
+    return sortSessions(list, sort)
+  }, [sessions, search, typeFilter, sort])
+
+  /** 当前页数据切片 */
+  const pagedSessions = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE
+    return filteredSessions.slice(start, start + PAGE_SIZE)
+  }, [filteredSessions, page])
+
+  const handleRefresh = useCallback(async (): Promise<void> => {
     setRefreshing(true)
     try {
       await hydrate()
+      message.success('已刷新')
     } finally {
       setRefreshing(false)
     }
-  }
+  }, [hydrate])
+
+  /** 顶栏已上移到 BusinessPanel，通过回调同步计数与刷新 */
+  useEffect(() => {
+    onHeaderChange?.({
+      count: filteredSessions.length,
+      refreshing,
+      onRefresh: handleRefresh
+    })
+    return () => onHeaderChange?.(null)
+  }, [filteredSessions.length, refreshing, handleRefresh, onHeaderChange])
 
   /** 打开上下文 Drawer：拉取工作流 run 并构建节点上下文 */
   const handleViewContext = async (session: Session): Promise<void> => {
@@ -86,10 +283,25 @@ export function HistoryConversations(): React.ReactElement {
     }
   }
 
+  const handleSelectOne = (id: string, checked: boolean): void => {
+    setSelectedIds((prev) =>
+      checked ? [...prev, id] : prev.filter((item) => item !== id)
+    )
+  }
+
+  const handleSelectPage = (checked: boolean): void => {
+    const pageIds = pagedSessions.map((s) => s.id)
+    if (checked) {
+      setSelectedIds((prev) => [...new Set([...prev, ...pageIds])])
+    } else {
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)))
+    }
+  }
+
   const handleDeleteOne = async (id: string): Promise<void> => {
     try {
       await removeSession(id)
-      setSelectedRowKeys((keys) => keys.filter((k) => k !== id))
+      setSelectedIds((keys) => keys.filter((k) => k !== id))
       message.success('已删除')
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败')
@@ -97,14 +309,14 @@ export function HistoryConversations(): React.ReactElement {
   }
 
   const handleBatchDelete = async (): Promise<void> => {
-    if (selectedRowKeys.length === 0) return
-    const count = selectedRowKeys.length
+    if (selectedIds.length === 0) return
+    const count = selectedIds.length
     setDeleting(true)
     try {
-      for (const id of selectedRowKeys) {
-        await removeSession(String(id))
+      for (const id of selectedIds) {
+        await removeSession(id)
       }
-      setSelectedRowKeys([])
+      setSelectedIds([])
       message.success(`已删除 ${count} 条对话`)
     } catch (err) {
       message.error(err instanceof Error ? err.message : '批量删除失败')
@@ -113,151 +325,124 @@ export function HistoryConversations(): React.ReactElement {
     }
   }
 
-  const columns = [
-    {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      ellipsis: true,
-      render: (_: unknown, record: Session) => {
-        const type = querySessionType(record)
-        return (
-          <div className={styles.titleCell}>
-            <span className={styles.titleText}>{record.title || '未命名对话'}</span>
-            <span className={styles.metaText}>
-              {record.messages.length} 条消息 · {record.tasks?.length ?? 0} 个节点
-            </span>
-            <Tag className={styles.typeTag} icon={SESSION_TYPE_ICONS[type]}>
-              {querySessionTypeLabel(type)}
-            </Tag>
-          </div>
-        )
-      }
-    },
-    {
-      title: 'Token',
-      dataIndex: 'tokenUsed',
-      key: 'tokenUsed',
-      width: 90,
-      render: (v: number) => v.toLocaleString('zh-CN')
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      width: 168,
-      render: (v: number) => formatTime(v)
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 140,
-      render: (_: unknown, record: Session) => (
-        <Space size={4}>
-          <Tooltip title="查看上下文">
-            <Button
-              type="text"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => void handleViewContext(record)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="确定删除该对话？"
-            description="删除后不可恢复，关联的工作流上下文记录仍会保留。"
-            onConfirm={() => void handleDeleteOne(record.id)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      )
-    }
-  ]
+  const pageAllSelected =
+    pagedSessions.length > 0 && pagedSessions.every((s) => selectedIds.includes(s.id))
+  const pageIndeterminate =
+    pagedSessions.some((s) => selectedIds.includes(s.id)) && !pageAllSelected
 
   return (
     <div className={styles.page}>
-      <div className={styles.subHeader}>
-        <div className={styles.subHeaderMain}>
-          <div className={styles.subHeaderIcon}>
-            <HistoryOutlined />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Title level={5} className={styles.subTitle}>
-                历史对话
-              </Title>
-              <span className={styles.countBadge}>{filteredSessions.length}</span>
-            </div>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              管理全部会话记录，查看工作流 context 与各节点执行上下文
-            </Text>
-          </div>
-        </div>
-      </div>
-
+      {/* 筛选栏：类型 + 搜索 + 排序 + 批量操作 */}
       <div className={styles.toolbar}>
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          placeholder="搜索标题或 ID…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ width: 240 }}
+        <Segmented
+          value={typeFilter}
+          onChange={(v) => setTypeFilter(v as SessionTypeFilter)}
+          options={[
+            { label: '全部', value: 'all' },
+            { label: '对话', value: 'chat' },
+            { label: '发布', value: 'publish' },
+            { label: '定时', value: 'schedule' },
+            { label: '流程', value: 'workflow' }
+          ]}
         />
         <div className={styles.toolbarRight}>
-          {selectedRowKeys.length > 0 ? (
+          {pagedSessions.length > 0 ? (
+            <Checkbox
+              checked={pageAllSelected}
+              indeterminate={pageIndeterminate}
+              onChange={(e) => handleSelectPage(e.target.checked)}
+            >
+              本页全选
+            </Checkbox>
+          ) : null}
+          {selectedIds.length > 0 ? (
             <Popconfirm
-              title={`确定删除选中的 ${selectedRowKeys.length} 条对话？`}
+              title={`确定删除选中的 ${selectedIds.length} 条对话？`}
               onConfirm={() => void handleBatchDelete()}
               okText="批量删除"
               cancelText="取消"
               okButtonProps={{ danger: true }}
             >
               <Button danger loading={deleting} icon={<DeleteOutlined />}>
-                批量删除 ({selectedRowKeys.length})
+                删除 ({selectedIds.length})
               </Button>
             </Popconfirm>
           ) : null}
-          <Button icon={<ReloadOutlined />} loading={refreshing} onClick={() => void handleRefresh()}>
-            刷新
-          </Button>
+          <span className={styles.resultCount}>{filteredSessions.length} 条</span>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="搜索标题或 ID"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={styles.searchInput}
+          />
+          <Select
+            value={sort}
+            onChange={setSort}
+            className={styles.sortSelect}
+            options={[
+              { label: '最近更新', value: 'updated_desc' },
+              { label: '最早更新', value: 'updated_asc' },
+              { label: 'Token 用量', value: 'token_desc' }
+            ]}
+          />
         </div>
       </div>
 
-      <div className={styles.tableWrap}>
-        <Table<Session>
-          rowKey="id"
-          columns={columns}
-          dataSource={filteredSessions}
-          pagination={{
-            pageSize: 12,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条`
-          }}
-          locale={{ emptyText: <Empty description="暂无历史对话" /> }}
-          rowSelection={{
-            selectedRowKeys,
-            onChange: (keys) => setSelectedRowKeys(keys.map(String))
-          }}
-          size="middle"
-        />
+      {/* 会话列表（可滚动区域） */}
+      <div className={styles.body}>
+        {filteredSessions.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={search || typeFilter !== 'all' ? '没有匹配的对话' : '暂无历史对话'}
+            className={styles.empty}
+          />
+        ) : (
+          <div className={styles.list}>
+            {pagedSessions.map((session, index) => (
+              <HistorySessionCard
+                key={session.id}
+                session={session}
+                index={index}
+                selected={selectedIds.includes(session.id)}
+                onSelect={handleSelectOne}
+                onViewContext={(s) => void handleViewContext(s)}
+                onDelete={(id) => void handleDeleteOne(id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* 分页器吸附在底部，列表滚动时不跟随 */}
+      {filteredSessions.length > PAGE_SIZE ? (
+        <footer className={styles.pagination}>
+          <Pagination
+            current={page}
+            pageSize={PAGE_SIZE}
+            total={filteredSessions.length}
+            showSizeChanger={false}
+            showTotal={(total) => `共 ${total} 条`}
+            onChange={setPage}
+          />
+        </footer>
+      ) : null}
+
+      {/* 上下文详情抽屉 */}
       <Drawer
         title="对话上下文"
-        width={560}
+        width={580}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         destroyOnClose
+        className={styles.contextDrawer}
       >
         <Spin spinning={drawerLoading}>
           {contextSummary ? (
             <>
               <section className={styles.drawerSection}>
-                <div className={styles.drawerSectionTitle}>会话信息</div>
+                <h3 className={styles.sectionLabel}>会话信息</h3>
                 <div className={styles.metaGrid}>
                   <div className={styles.metaItem}>
                     <span className={styles.metaLabel}>标题</span>
@@ -303,7 +488,7 @@ export function HistoryConversations(): React.ReactElement {
 
                 {contextSummary.workflowRun ? (
                   <>
-                    <div className={styles.drawerSectionTitle}>工作流运行</div>
+                    <h3 className={styles.sectionLabel}>工作流运行</h3>
                     <div className={styles.metaGrid}>
                       <div className={styles.metaItem}>
                         <span className={styles.metaLabel}>Run ID</span>
@@ -316,7 +501,7 @@ export function HistoryConversations(): React.ReactElement {
                       <div className={styles.metaItem}>
                         <span className={styles.metaLabel}>当前节点</span>
                         <span className={styles.metaValue}>
-                          {contextSummary.workflowRun.cursorNodeId ?? '—'}
+                          {contextSummary.workflowRun.cursorNodeId ?? '无'}
                         </span>
                       </div>
                       <div className={styles.metaItem}>
@@ -329,14 +514,14 @@ export function HistoryConversations(): React.ReactElement {
                   </>
                 ) : null}
 
-                <div className={styles.drawerSectionTitle}>Workflow Context（全局）</div>
+                <h3 className={styles.sectionLabel}>Workflow Context（全局）</h3>
                 <pre className={styles.contextPre}>
                   {contextSummary.workflowContextJson || '{}'}
                 </pre>
               </section>
 
               <section className={styles.drawerSection}>
-                <div className={styles.drawerSectionTitle}>节点执行上下文</div>
+                <h3 className={styles.sectionLabel}>节点执行上下文</h3>
                 {nodeContexts.length === 0 ? (
                   <Text type="secondary" className={styles.emptyHint}>
                     暂无任务节点
@@ -363,10 +548,10 @@ export function HistoryConversations(): React.ReactElement {
                             <span className={styles.metaValue}>{node.task.id}</span>
                           </div>
 
-                          <div className={styles.drawerSectionTitle}>Context 切片</div>
+                          <h4 className={styles.sectionLabel}>Context 切片</h4>
                           <pre className={styles.contextPre}>{node.contextJson || '{}'}</pre>
 
-                          <div className={styles.drawerSectionTitle}>关联消息</div>
+                          <h4 className={styles.sectionLabel}>关联消息</h4>
                           {node.relatedMessages.length === 0 ? (
                             <Text type="secondary" className={styles.emptyHint}>
                               未匹配到与该节点标题相关的消息
