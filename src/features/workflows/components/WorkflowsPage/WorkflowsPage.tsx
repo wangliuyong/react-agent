@@ -200,7 +200,7 @@ export function WorkflowsPage(): React.ReactElement {
       <header className={styles.header}>
         <div className={styles.headerMain}>
           <div className={styles.headerIcon}>
-            <ApartmentOutlined />
+            <AppstoreOutlined />
           </div>
           <div>
             <div className={styles.titleRow}>

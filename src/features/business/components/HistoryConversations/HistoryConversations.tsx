@@ -1,6 +1,6 @@
 import type { Session, SessionType } from '@shared/types'
 import { querySessionType, useSessionStore } from '@/features/chat'
-import { SESSION_TYPE_ICONS } from '@/layouts/AppShell/config/session-type-icons'
+import { SESSION_TYPE_FILTER_OPTIONS, SESSION_TYPE_ICONS, type SessionTypeFilter } from '@/layouts/AppShell/config/session-type-icons'
 import { queryLatestWorkflowRunBySession } from '../../api'
 import type { NodeExecutionContext, SessionContextSummary } from '../../types'
 import {
@@ -25,9 +25,6 @@ interface HistoryConversationsProps {
   /** 将计数与刷新状态同步到 BusinessPanel 顶栏 */
   onHeaderChange?: (meta: HistoryConversationsHeaderMeta | null) => void
 }
-
-/** 会话类型筛选：全部 + 各业务类型 */
-type SessionTypeFilter = 'all' | SessionType
 
 /** 列表排序方式 */
 type SessionSort = 'updated_desc' | 'updated_asc' | 'token_desc'
@@ -358,13 +355,7 @@ export function HistoryConversations({
         <Segmented
           value={typeFilter}
           onChange={(v) => setTypeFilter(v as SessionTypeFilter)}
-          options={[
-            { label: '全部', value: 'all' },
-            { label: '对话', value: 'chat' },
-            { label: '发布', value: 'publish' },
-            { label: '定时', value: 'schedule' },
-            { label: '流程', value: 'workflow' }
-          ]}
+          options={SESSION_TYPE_FILTER_OPTIONS}
         />
         <div className={styles.toolbarRight}>
           {pagedSessions.length > 0 ? (

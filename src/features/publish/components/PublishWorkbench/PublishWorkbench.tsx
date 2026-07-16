@@ -331,7 +331,7 @@ export function PublishWorkbench(): React.ReactElement {
       <header className={styles.header}>
         <div className={styles.headerMain}>
           <div className={styles.headerIcon}>
-            <SendOutlined />
+            <CloudUploadOutlined />
           </div>
           <div>
             <div className={styles.titleRow}>
