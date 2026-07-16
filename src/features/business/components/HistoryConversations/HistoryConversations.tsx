@@ -449,7 +449,7 @@ export function HistoryConversations({
       {/* 上下文详情抽屉 */}
       <Drawer
         title="对话上下文"
-        width={580}
+        width={'68vw'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         destroyOnClose
@@ -546,7 +546,7 @@ export function HistoryConversations({
                 ) : (
                   <Collapse
                     className={styles.nodePanel}
-                    defaultActiveKey={nodeContexts.map((n) => n.task.id)}
+                    defaultActiveKey={[]}
                     items={nodeContexts.map((node) => ({
                       key: node.task.id,
                       label: (

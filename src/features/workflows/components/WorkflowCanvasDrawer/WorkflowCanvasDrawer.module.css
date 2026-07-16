@@ -10,32 +10,6 @@
   background: var(--db-bg-content);
 }
 
-.drawer :global(.ant-drawer-header-title) {
-  flex-direction: row-reverse;
-  gap: 12px;
-}
-
-.drawer :global(.ant-drawer-close) {
-  margin-inline-end: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--db-radius-md);
-  color: var(--db-text-secondary);
-  transition:
-    color 0.15s ease,
-    background 0.15s ease;
-}
-
-.drawer :global(.ant-drawer-close:hover) {
-  color: var(--db-text);
-  background: var(--db-hover);
-}
-
-.drawer :global(.ant-drawer-title) {
-  flex: 1;
-  min-width: 0;
-}
-
 .titleRow {
   display: flex;
   align-items: center;
