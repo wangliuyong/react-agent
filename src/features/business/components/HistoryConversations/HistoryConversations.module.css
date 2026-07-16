@@ -85,9 +85,23 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  width: 100%;
   padding: 12px 28px;
   border-top: 1px solid var(--db-border-light);
   background: var(--db-bg-content);
+}
+
+.pagination :global(.ant-pagination) {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 8px;
+}
+
+.pagination :global(.ant-pagination-total-text) {
+  margin-inline-end: auto;
+  font-size: 13px;
+  color: var(--db-text-secondary);
 }
 
 /* ── 会话卡片（横向列表项） ── */

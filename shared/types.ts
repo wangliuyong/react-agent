@@ -427,6 +427,8 @@ export type AgentEvent =
     level: WorkflowToastLevel
     content: string
   }
+  /** LLM 调用结束后的 token 累计更新（执行中实时刷新 UI） */
+  | { type: 'token_update'; sessionId: string; tokenUsed: number; delta: number }
 
 export interface BrowserStatus {
   running: boolean

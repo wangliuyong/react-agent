@@ -376,6 +376,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         return
       }
 
+      /** LLM 每次调用结束后同步累计 token，供输入框与历史对话展示 */
+      if (event.type === 'token_update') {
+        set((state) => ({
+          sessions: patchSession(state.sessions, event.sessionId, (session) => ({
+            ...session,
+            tokenUsed: event.tokenUsed
+          }))
+        }))
+        return
+      }
+
       if (event.type === 'task_update') {
         const tasks = event.tasks as TaskItem[]
         const hasRunningTask = tasks.some((t) => t.status === 'running')

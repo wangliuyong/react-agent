@@ -3,6 +3,7 @@ import { SystemMessage, AIMessage } from '@langchain/core/messages'
 import type { BaseMessage } from '@langchain/core/messages'
 import type { AppSettings, AgentRoleName } from '../../../../shared/types'
 import { createChatModel } from '../llm-langchain'
+import { withSessionTokenUsage } from '../token-usage'
 import { adaptAgentTools } from '../tools/langchain-adapter'
 import type { ToolContext } from '../tools/types'
 import { AgentGraphAnnotation, type AgentGraphState } from './state'
@@ -25,7 +26,7 @@ export interface BuildChatGraphParams {
  */
 export function buildChatGraph(params: BuildChatGraphParams) {
   const { settings, toolCtx } = params
-  const llm = createChatModel(settings)
+  const llm = withSessionTokenUsage(createChatModel(settings), toolCtx.sessionId)
   const recursionLimit = queryRecursionLimit(settings.maxTurns)
 
   async function runRoleAgent(
@@ -121,7 +122,7 @@ export function buildStepReactGraph(params: {
   toolWhitelist?: string[]
 }) {
   const { settings, toolCtx, systemPrompt, toolWhitelist } = params
-  const llm = createChatModel(settings)
+  const llm = withSessionTokenUsage(createChatModel(settings), toolCtx.sessionId)
   const tools = adaptAgentTools(queryToolsByWhitelist(toolWhitelist), { ctx: toolCtx })
   return createReactSubgraph({
     llm,

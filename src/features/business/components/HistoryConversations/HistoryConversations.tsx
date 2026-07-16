@@ -32,7 +32,11 @@ type SessionTypeFilter = 'all' | SessionType
 /** 列表排序方式 */
 type SessionSort = 'updated_desc' | 'updated_asc' | 'token_desc'
 
-const PAGE_SIZE = 12
+/** 默认每页条数 */
+const DEFAULT_PAGE_SIZE = 12
+
+/** 可选每页条数 */
+const PAGE_SIZE_OPTIONS = [12, 24, 48, 96]
 
 /** 格式化 Unix 毫秒为本地完整时间 */
 function formatTime(ts: number): string {
@@ -210,6 +214,7 @@ export function HistoryConversations({
   const [typeFilter, setTypeFilter] = useState<SessionTypeFilter>('all')
   const [sort, setSort] = useState<SessionSort>('updated_desc')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [refreshing, setRefreshing] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -237,11 +242,27 @@ export function HistoryConversations({
     return sortSessions(list, sort)
   }, [sessions, search, typeFilter, sort])
 
+  /** 总页数变化后校正当前页，避免删除/筛选后停留在空页 */
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredSessions.length / pageSize))
+    if (page > maxPage) {
+      setPage(maxPage)
+    }
+  }, [filteredSessions.length, page, pageSize])
+
   /** 当前页数据切片 */
   const pagedSessions = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE
-    return filteredSessions.slice(start, start + PAGE_SIZE)
-  }, [filteredSessions, page])
+    const start = (page - 1) * pageSize
+    return filteredSessions.slice(start, start + pageSize)
+  }, [filteredSessions, page, pageSize])
+
+  /** 分页切换：支持改页码与每页条数 */
+  const handlePaginationChange = (nextPage: number, nextPageSize: number): void => {
+    setPage(nextPage)
+    if (nextPageSize !== pageSize) {
+      setPageSize(nextPageSize)
+    }
+  }
 
   const handleRefresh = useCallback(async (): Promise<void> => {
     setRefreshing(true)
@@ -415,16 +436,20 @@ export function HistoryConversations({
         )}
       </div>
 
-      {/* 分页器吸附在底部，列表滚动时不跟随 */}
-      {filteredSessions.length > PAGE_SIZE ? (
+      {/* 分页器吸附在底部：条数切换 + 快速跳转 + 范围统计 */}
+      {filteredSessions.length > 0 ? (
         <footer className={styles.pagination}>
           <Pagination
             current={page}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             total={filteredSessions.length}
-            showSizeChanger={false}
-            showTotal={(total) => `共 ${total} 条`}
-            onChange={setPage}
+            showSizeChanger
+            showQuickJumper
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            showTotal={(total, range) =>
+              total > 0 ? `第 ${range[0]}-${range[1]} 条，共 ${total} 条` : '共 0 条'
+            }
+            onChange={handlePaginationChange}
           />
         </footer>
       ) : null}
