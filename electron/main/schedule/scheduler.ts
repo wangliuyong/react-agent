@@ -1,6 +1,7 @@
 import type { ScheduledTask, Session } from '../../../shared/types'
 import { IpcChannels } from '../../../shared/types'
 import { computeNextRunAt } from '../../../shared/schedule-utils'
+import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
 import { queryPublishPlan } from '../store/plans'
 import { queryPublishPlanRunnableWorkflowId } from '../workflow/migrate-publish'
 import { postSession } from '../store/sessions'
@@ -51,30 +52,44 @@ function createScheduleSession(task: ScheduledTask): Session {
 }
 
 /**
- * 包装定时自定义指令：强调成功即止，避免模型对 notify 等工具连发两轮。
+ * 包装定时自定义指令：强调成功即止；若配置了 notifyChannels 则由主进程自动推送飞书。
  */
-function buildScheduleCustomPrompt(userPrompt: string): string {
-  return [
+function buildScheduleCustomPrompt(userPrompt: string, hasAutoNotify: boolean): string {
+  const lines = [
     '[定时任务自动触发]',
     '',
     '执行约束（必须遵守）：',
     '1. 严格按下方指令完成任务；',
-    '2. 任一相关工具返回成功后立即结束，不要再调用任何工具；',
-    '3. 禁止对相同渠道、相同正文重复发送通知。',
-    '',
-    userPrompt
-  ].join('\n')
+    '2. 完成调研/整理后直接结束，不要再调用任何工具；'
+  ]
+  if (hasAutoNotify) {
+    lines.push(
+      '3. 任务结果将由系统自动转为飞书富文本推送，禁止调用 notify_message；',
+      '4. 禁止对相同渠道重复发送通知。'
+    )
+  } else {
+    lines.push(
+      '3. 任一相关工具返回成功后立即结束，不要再调用任何工具；',
+      '4. 禁止对相同渠道、相同正文重复发送通知。'
+    )
+  }
+  lines.push('', userPrompt)
+  return lines.join('\n')
 }
 
 /**
  * 自定义指令走单步 ReAct（非多智能体路由），结束后回写定时任务状态。
  */
-async function postRunScheduleCustomPrompt(sessionId: string, prompt: string): Promise<void> {
+async function postRunScheduleCustomPrompt(
+  sessionId: string,
+  prompt: string,
+  hasAutoNotify: boolean
+): Promise<void> {
   bindGraphSessionAbort(sessionId)
   try {
     const result = await runLangGraphStep({
       sessionId,
-      prompt: buildScheduleCustomPrompt(prompt)
+      prompt: buildScheduleCustomPrompt(prompt, hasAutoNotify)
     })
     const reason =
       result === 'completed'
@@ -165,7 +180,11 @@ export async function triggerScheduledTask(
     postScheduledTask(running)
     emitScheduleUpdate()
 
-    void postRunScheduleCustomPrompt(session.id, prompt)
+    void postRunScheduleCustomPrompt(
+      session.id,
+      prompt,
+      normalizeNotifyChannelIds(task.notifyChannels).length > 0
+    )
     return running
   }
 

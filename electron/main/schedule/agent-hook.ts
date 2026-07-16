@@ -1,7 +1,10 @@
-import type { AgentEvent, ScheduledTask } from '../../../shared/types'
+import type { AgentEvent, ChatMessage, ScheduledTask } from '../../../shared/types'
 import { IpcChannels } from '../../../shared/types'
 import { computeNextRunAt } from '../../../shared/schedule-utils'
+import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
 import { postScheduledTask, queryScheduledTask, queryScheduledTasks } from '../store/schedules'
+import { querySession } from '../store/sessions'
+import { postScheduleTaskNotify } from '../notify/send'
 import { getMainWindow } from '../window'
 
 /** 会话 id → 定时任务 id */
@@ -15,6 +18,18 @@ function emitScheduleUpdate(): void {
   if (win && !win.isDestroyed()) {
     win.webContents.send(IpcChannels.onScheduleUpdate, queryScheduledTasks())
   }
+}
+
+/** 取会话中最后一条有正文的 assistant 消息，作为定时任务汇报正文 */
+function queryLastAssistantContent(messages: ChatMessage[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (msg.role === 'assistant') {
+      const text = msg.content?.trim()
+      if (text) return text
+    }
+  }
+  return null
 }
 
 /** 登记本次定时触发创建的会话，供 Agent 结束时回写状态 */
@@ -63,4 +78,20 @@ export function handleScheduleAgentDone(event: AgentEvent): void {
 
   postScheduledTask(next)
   emitScheduleUpdate()
+
+  // 成功后自动推送飞书富文本（主进程转换 Markdown，无需 Agent 再调 notify_message）
+  if (success) {
+    const notifyIds = normalizeNotifyChannelIds(task.notifyChannels)
+    if (notifyIds.length > 0) {
+      const session = querySession(event.sessionId)
+      const content = session ? queryLastAssistantContent(session.messages) : null
+      if (content) {
+        void postScheduleTaskNotify({
+          taskTitle: task.title,
+          content,
+          notifyChannelIds: notifyIds
+        })
+      }
+    }
+  }
 }

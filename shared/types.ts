@@ -381,6 +381,11 @@ export interface ScheduledTask {
   workflowId?: string
   /** 自定义 Agent 指令 */
   customPrompt?: string
+  /**
+   * 任务成功结束后自动通知的渠道 id（如 feishu），与 actionType 无关。
+   * 主进程将最终执行结果转为飞书富文本后推送。
+   */
+  notifyChannels?: PublishChannelId[]
   lastRunAt?: number
   nextRunAt?: number
   lastRunStatus?: ScheduleRunStatus

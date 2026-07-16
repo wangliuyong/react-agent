@@ -3,7 +3,7 @@ import {
   queryPublishChannelMeta
 } from '../../../shared/publish-channels'
 import { queryPublishChannels } from '../store/channels'
-import { postFeishuWebhookText } from './feishu'
+import { markdownToFeishuPost, postFeishuWebhookRichText } from './feishu-rich'
 
 export type NotifySendResult =
   | { ok: true; deduped?: boolean }
@@ -25,6 +25,10 @@ export async function postNotifyMessage(args: {
   channelId: string
   title?: string
   content: string
+  /** 为 true 时将 Markdown 转为飞书 post 富文本（msg_type=post） */
+  richText?: boolean
+  /** 富文本模式下 @ 提及 user_id（post 首行 tag=at），默认不 @ */
+  atUserId?: 'all' | string
 }): Promise<NotifySendResult> {
   // 为什么：发送前强制从磁盘刷新注册表，避免 UI 刚保存后 registry 仍是空 Webhook
   queryPublishChannels()
@@ -53,18 +57,60 @@ export async function postNotifyMessage(args: {
   const text = args.title?.trim()
     ? `${args.title.trim()}\n${args.content}`
     : args.content
+
   try {
-    await postFeishuWebhookText({
-      webhookUrl,
-      secret: meta.notifyConfig?.secret,
-      text
-    })
+    if (args.richText) {
+      const post = markdownToFeishuPost(args.content, {
+        atUserId: args.atUserId,
+        title: args.title
+      })
+      await postFeishuWebhookRichText({
+        webhookUrl,
+        secret: meta.notifyConfig?.secret,
+        post
+      })
+    } else {
+      const { postFeishuWebhookText } = await import('./feishu')
+      await postFeishuWebhookText({
+        webhookUrl,
+        secret: meta.notifyConfig?.secret,
+        text
+      })
+    }
     recentNotifyAt.set(dedupeKey, Date.now())
-    console.info(`[notify] ok channelId=${meta.id}`)
+    console.info(`[notify] ok channelId=${meta.id} richText=${Boolean(args.richText)}`)
     return { ok: true }
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err)
     console.warn(`[notify] fail channelId=${meta.id} error=${error}`)
     return { ok: false, error }
+  }
+}
+
+/**
+ * 定时任务成功后：将 Agent 最终输出转为飞书富文本并推送到配置的通知渠道。
+ */
+export async function postScheduleTaskNotify(args: {
+  taskTitle: string
+  content: string
+  notifyChannelIds: string[]
+}): Promise<void> {
+  const { taskTitle, content, notifyChannelIds } = args
+  const body = content.trim()
+  if (!body || notifyChannelIds.length === 0) return
+
+  for (const channelId of notifyChannelIds) {
+    const result = await postNotifyMessage({
+      channelId,
+      title: taskTitle,
+      content: body,
+      richText: true,
+      atUserId: 'all'
+    })
+    if (!result.ok) {
+      console.warn(
+        `[schedule-notify] fail task="${taskTitle}" channel=${channelId} error=${result.error}`
+      )
+    }
   }
 }

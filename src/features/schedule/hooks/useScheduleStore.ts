@@ -94,7 +94,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
     return result
   },
 
-  /** 导入内置定时任务：每日发布 + 周一调研 + 周五文娱 */
+  /** 导入内置定时任务：每日发布 + 昨日热点 + 周一调研 + 周五文娱 */
   addBuiltinTasks: async () => {
     const tasks = await postImportBuiltinScheduledTasks()
     set({

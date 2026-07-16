@@ -9,13 +9,15 @@ import { join } from 'path'
 import type { ScheduledTask } from '../../../shared/types'
 import { createBuiltinScheduledTasks } from '../../../shared/builtin-seeds'
 import { computeNextRunAt } from '../../../shared/schedule-utils'
+import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
 import { postInitPublishPlans } from './plans'
 import { getSchedulesDir } from './paths'
 
-/** 保存前根据 enabled / repeat 重算 nextRunAt */
+/** 保存前根据 enabled / repeat 重算 nextRunAt，并归一化通知渠道 */
 export function normalizeScheduledTask(task: ScheduledTask): ScheduledTask {
   const next = {
     ...task,
+    notifyChannels: normalizeNotifyChannelIds(task.notifyChannels),
     updatedAt: Date.now(),
     nextRunAt: computeNextRunAt(task) ?? undefined
   }

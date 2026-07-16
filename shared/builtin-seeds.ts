@@ -25,6 +25,8 @@ export const BUILTIN_SCHEDULE_TASK_IDS = {
   dailyMulti: 'builtin-schedule-daily-multi',
   /** 每周一 10:00 热点调研指令 */
   weeklyResearch: 'builtin-schedule-weekly-research',
+  /** 每日 8:00 昨日热点简报并推送飞书 */
+  dailyHotPush: 'builtin-schedule-daily-hot-push',
   /** 每周五 18:00 文娱推荐发布 */
   weeklyEntertainment: 'builtin-schedule-weekly-entertainment'
 } as const
@@ -114,7 +116,7 @@ export function createBuiltinScheduledTasks(now = Date.now()): ScheduledTask[] {
     {
       id: BUILTIN_SCHEDULE_TASK_IDS.weeklyResearch,
       title: '周一热点调研',
-      description: '每周一 10:00 让 Agent 汇总上周 AI 与科技热点',
+      description: '每周一 10:00 汇总上周 AI 与科技热点，并自动推送飞书',
       enabled: false,
       repeat: 'weekly',
       timeOfDay: '10:00',
@@ -122,6 +124,26 @@ export function createBuiltinScheduledTasks(now = Date.now()): ScheduledTask[] {
       actionType: 'custom_prompt',
       customPrompt:
         '请调研上周人工智能与科技行业的热点事件，整理成 5 条要点摘要，每条包含标题、一句话说明和参考来源链接。输出 Markdown 格式，便于后续改写为发布内容。',
+      /** 任务成功后主进程自动将正文转为飞书富文本推送 */
+      notifyChannels: ['feishu'],
+      createdAt: now,
+      updatedAt: now
+    },
+    {
+      id: BUILTIN_SCHEDULE_TASK_IDS.dailyHotPush,
+      title: '昨日热点推送',
+      description: '每天 8:00 抓取微博/百度热搜，筛选科技相关热点并推送飞书',
+      enabled: false,
+      repeat: 'daily',
+      timeOfDay: '08:00',
+      weekday: 1,
+      actionType: 'custom_prompt',
+      customPrompt:
+        '请获取昨日微博与百度热搜中与人工智能、科技、互联网相关的热点（优先调用 fetch_hot_topics，source 依次尝试 weibo、baidu）。' +
+        '整理成 8 条要点简报，每条包含：标题、一句话说明、可参考的资讯来源或链接。' +
+        '输出 Markdown 格式，文首加标题「昨日热点简报」，便于自动推送飞书。',
+      /** 任务成功后主进程自动将正文转为飞书富文本推送 */
+      notifyChannels: ['feishu'],
       createdAt: now,
       updatedAt: now
     },

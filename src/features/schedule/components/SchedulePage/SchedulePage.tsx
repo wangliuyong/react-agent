@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import dayjs, { type Dayjs } from 'dayjs'
-import type { ScheduledTask, ScheduleActionType, ScheduleRepeat } from '@shared/types'
+import type { ScheduledTask, ScheduleActionType, ScheduleRepeat, PublishChannelId } from '@shared/types'
 import {
   formatNextRunAt,
   formatScheduleSummary,
@@ -13,6 +13,7 @@ import { usePublishStore } from '@/features/publish'
 import { useWorkflowsStore } from '@/features/workflows'
 import { useSessionStore } from '@/features/chat'
 import { useSettingsStore } from '@/features/settings'
+import { useChannelsStore, queryEnabledNotifyChannelsFromStore } from '@/features/channels'
 import { useAppStore } from '@/stores/app-store'
 import { isBuiltinSeedId } from '@shared/builtin-seeds'
 import { DB_THEME } from '@/styles/theme-tokens'
@@ -31,6 +32,8 @@ interface TaskFormValues {
   publishPlanId?: string
   workflowId?: string
   customPrompt?: string
+  /** 自定义指令任务成功后自动推送的通知渠道 */
+  notifyChannels?: PublishChannelId[]
   enabled: boolean
 }
 
@@ -80,6 +83,7 @@ function taskToFormValues(task: ScheduledTask): TaskFormValues {
     publishPlanId: task.publishPlanId,
     workflowId: task.workflowId,
     customPrompt: task.customPrompt,
+    notifyChannels: task.notifyChannels ?? [],
     enabled: task.enabled
   }
 }
@@ -98,6 +102,7 @@ function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): Sched
     publishPlanId: values.actionType === 'publish_plan' ? values.publishPlanId : undefined,
     workflowId: values.actionType === 'workflow' ? values.workflowId : undefined,
     customPrompt: values.actionType === 'custom_prompt' ? values.customPrompt?.trim() : undefined,
+    notifyChannels: values.notifyChannels ?? [],
     enabled: values.enabled
   }
 }
@@ -177,6 +182,7 @@ function TaskEditModal({
   initialTask,
   plans,
   workflows,
+  notifyChannelOptions,
   onCancel,
   onSubmit
 }: {
@@ -185,6 +191,7 @@ function TaskEditModal({
   initialTask: ScheduledTask | null
   plans: Array<{ id: string; title: string; subTasks: unknown[] }>
   workflows: Array<{ id: string; title: string; nodes: unknown[] }>
+  notifyChannelOptions: Array<{ value: string; label: string }>
   onCancel: () => void
   onSubmit: (task: ScheduledTask) => Promise<void>
 }): React.ReactElement {
@@ -328,6 +335,18 @@ function TaskEditModal({
             <Input.TextArea rows={5} placeholder="到点时发送给 Agent 的完整指令…" />
           </Form.Item>
         ) : null}
+        <Form.Item
+          label="完成后通知"
+          name="notifyChannels"
+          extra="任务成功后自动将执行结果转为飞书富文本推送；需在渠道页配置飞书 Webhook"
+        >
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="可选，选择通知渠道"
+            options={notifyChannelOptions}
+          />
+        </Form.Item>
         <Form.Item label="启用" name="enabled" valuePropName="checked">
           <Switch />
         </Form.Item>
@@ -508,6 +527,19 @@ export function SchedulePage(): React.ReactElement {
   const beginExternalRun = useSessionStore((s) => s.beginExternalRun)
   const setView = useAppStore((s) => s.setView)
   const settings = useSettingsStore((s) => s.settings)
+  const channels = useChannelsStore((s) => s.channels)
+  const enabledNotifyChannels = useMemo(
+    () => queryEnabledNotifyChannelsFromStore(channels),
+    [channels]
+  )
+  const notifyChannelOptions = useMemo(
+    () =>
+      enabledNotifyChannels.map((ch) => ({
+        value: ch.id,
+        label: ch.label
+      })),
+    [enabledNotifyChannels]
+  )
 
   const [taskModal, setTaskModal] = useState<{
     mode: 'create' | 'edit'
@@ -723,6 +755,7 @@ export function SchedulePage(): React.ReactElement {
         initialTask={taskModal?.task ?? null}
         plans={plans}
         workflows={workflows}
+        notifyChannelOptions={notifyChannelOptions}
         onCancel={() => setTaskModal(null)}
         onSubmit={async (task) => {
           const isCreate = taskModal?.mode === 'create'
