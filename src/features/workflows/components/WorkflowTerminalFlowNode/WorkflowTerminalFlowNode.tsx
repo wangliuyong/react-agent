@@ -11,13 +11,14 @@ export type WorkflowTerminalRfNode = Node<WorkflowTerminalRfData, 'workflowTermi
 
 /** 开始 / 结束：胶囊节点；开始仅出、结束仅入；不可删除由画布侧控制 */
 export function WorkflowTerminalFlowNode({
-  data
+  data,
+  selected
 }: NodeProps & { data: WorkflowTerminalRfData }): React.ReactElement {
   const { terminal } = data
   const isStart = terminal.type === 'start'
   return (
     <div
-      className={`${styles.node} ${isStart ? styles.start : styles.end}`}
+      className={`${styles.node} ${isStart ? styles.start : styles.end} ${selected ? styles.selected : ''}`}
       title={isStart ? '流程开始（不可删除）' : '流程结束（不可删除）'}
     >
       {!isStart && (

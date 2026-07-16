@@ -26,7 +26,8 @@
 
 .selected {
   border-color: var(--db-primary);
-  box-shadow: 0 0 0 1px var(--db-primary-muted), 0 2px 8px var(--db-primary-shadow);
+  box-shadow: 0 0 0 2px var(--db-primary-muted), 0 2px 10px var(--db-primary-shadow);
+  transform: translateY(-0.5px);
 }
 
 .agent {

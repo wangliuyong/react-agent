@@ -49,4 +49,42 @@
 
 .canvas :global(.react-flow__edge-path) {
   stroke-linecap: round;
+  transition:
+    stroke 0.15s ease,
+    stroke-width 0.15s ease,
+    filter 0.15s ease;
+}
+
+/* 连线默认 / 条件色 — 不用内联 stroke，便于选中态覆盖 */
+.canvas :global(.react-flow__edge.wf-edge-default .react-flow__edge-path) {
+  stroke: var(--db-primary);
+}
+
+.canvas :global(.react-flow__edge.wf-edge-conditional .react-flow__edge-path) {
+  stroke: var(--db-warning);
+}
+
+/* 选中连线：统一高亮主色 + 略粗 + 柔光 */
+.canvas :global(.react-flow__edge.selected .react-flow__edge-path) {
+  stroke: var(--db-primary) !important;
+  stroke-width: 2 !important;
+  filter: drop-shadow(0 0 4px var(--db-primary-glow));
+}
+
+.canvas :global(.react-flow__edge.selected .react-flow__edge-text) {
+  fill: var(--db-primary) !important;
+  font-weight: 650;
+}
+
+.canvas :global(.react-flow__edge.selected marker path) {
+  fill: var(--db-primary) !important;
+  stroke: var(--db-primary) !important;
+}
+
+/* 选中节点时连线桩放大、加深 */
+.canvas :global(.react-flow__node.selected .react-flow__handle) {
+  width: 6px !important;
+  height: 6px !important;
+  background: var(--db-primary) !important;
+  box-shadow: 0 0 0 2px var(--db-primary-muted);
 }

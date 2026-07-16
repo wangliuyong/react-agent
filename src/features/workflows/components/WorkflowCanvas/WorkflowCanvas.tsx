@@ -125,9 +125,9 @@ function toRfEdges(canvas: WorkflowCanvasModel): Edge[] {
       target: e.target,
       label,
       animated: true,
+      className: conditional ? 'wf-edge-conditional' : 'wf-edge-default',
       markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
       style: {
-        stroke: conditional ? 'var(--db-warning)' : 'var(--db-primary)',
         strokeWidth: 1,
         strokeDasharray: conditional ? '4 3' : undefined
       },
@@ -181,9 +181,9 @@ function queryCanvasFromRf(
 function queryEdgeStyle(conditional = false): Partial<Edge> {
   return {
     animated: true,
+    className: conditional ? 'wf-edge-conditional' : 'wf-edge-default',
     markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
     style: {
-      stroke: conditional ? 'var(--db-warning)' : 'var(--db-primary)',
       strokeWidth: 1,
       strokeDasharray: conditional ? '4 3' : undefined
     },
