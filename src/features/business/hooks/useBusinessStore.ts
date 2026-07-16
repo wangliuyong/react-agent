@@ -1,26 +1,42 @@
 import { create } from 'zustand'
-import { useAppStore } from '@/stores/app-store'
-import type { BusinessMenuKey, ChatMode } from '../types'
+import type { BusinessMenuKey } from '../types'
+
+const MENU_STORAGE_KEY = 'lingxi:business-menu'
+
+const BUSINESS_MENUS: BusinessMenuKey[] = ['history']
+
+/** 从 localStorage 恢复业务系统左侧菜单选中项 */
+function queryPersistedActiveMenu(): BusinessMenuKey {
+  try {
+    const raw = localStorage.getItem(MENU_STORAGE_KEY)
+    if (raw && BUSINESS_MENUS.includes(raw as BusinessMenuKey)) {
+      return raw as BusinessMenuKey
+    }
+  } catch {
+    /* 忽略 */
+  }
+  return 'history'
+}
+
+function postPersistActiveMenu(menu: BusinessMenuKey): void {
+  try {
+    localStorage.setItem(MENU_STORAGE_KEY, menu)
+  } catch {
+    /* 忽略 */
+  }
+}
 
 interface BusinessState {
-  /** 聊天页顶栏：助手 / 业务系统 */
-  chatMode: ChatMode
   /** 业务系统当前选中的左侧菜单 */
   activeMenu: BusinessMenuKey
-  setChatMode: (mode: ChatMode) => void
   setActiveMenu: (menu: BusinessMenuKey) => void
 }
 
-/** 业务系统 UI 状态：模式切换与菜单选中 */
+/** 业务系统 UI 状态：菜单选中（刷新后保持） */
 export const useBusinessStore = create<BusinessState>((set) => ({
-  chatMode: 'assistant',
-  activeMenu: 'history',
-  setChatMode: (chatMode) => {
-    set({ chatMode })
-    // 进入业务系统时确保停留在 chat 视图，以便 AppShell 侧边栏切换为业务菜单
-    if (chatMode === 'business') {
-      useAppStore.getState().setView('chat')
-    }
-  },
-  setActiveMenu: (activeMenu) => set({ activeMenu })
+  activeMenu: queryPersistedActiveMenu(),
+  setActiveMenu: (activeMenu) => {
+    postPersistActiveMenu(activeMenu)
+    set({ activeMenu })
+  }
 }))

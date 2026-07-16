@@ -7,19 +7,14 @@ import styles from './BusinessPanel.module.css'
 
 const { Title, Text } = Typography
 
-interface BusinessPanelProps {
-  /** 顶栏模式切换回调（切回灵犀助手） */
-  onModeChange: (mode: ChatMode) => void
-}
-
 /**
- * 业务系统主内容区：顶栏模式切换 + 按左侧 AppShell 菜单渲染内容。
- * 业务菜单已移至 AppShell 最左侧侧边栏，避免重复导航。
+ * 业务系统独立页面：顶栏模式切换 + 按 AppShell 左侧菜单渲染内容。
+ * 与 ChatPage 平级，由 AppMain view=business 路由；刷新后 view 从 localStorage 恢复。
  */
-export function BusinessPanel({ onModeChange }: BusinessPanelProps): React.ReactElement {
+export function BusinessPanel(): React.ReactElement {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
-  const chatMode = useBusinessStore((s) => s.chatMode)
+  const setView = useAppStore((s) => s.setView)
   const activeMenu = useBusinessStore((s) => s.activeMenu)
 
   const activeMenuItem = BUSINESS_MENUS.find((m) => m.key === activeMenu) ?? BUSINESS_MENUS[0]
@@ -55,8 +50,10 @@ export function BusinessPanel({ onModeChange }: BusinessPanelProps): React.React
               { label: <span className={styles.modeLabel}>灵犀AI助手</span>, value: 'assistant' },
               { label: <span className={styles.modeLabel}>业务系统</span>, value: 'business' }
             ]}
-            value={chatMode}
-            onChange={(value) => onModeChange(value)}
+            value="business"
+            onChange={(value) => {
+              if (value === 'assistant') setView('chat')
+            }}
           />
         </div>
 

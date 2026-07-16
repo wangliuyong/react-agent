@@ -1,5 +1,5 @@
 import { useBrowserControl } from '@/features/browser'
-import { BusinessPanel, useBusinessStore } from '@/features/business'
+import type { ChatMode } from '@/features/business'
 import { useSettingsStore } from '@/features/settings'
 import { queryNewChatShortcutLabel } from '@/layouts/AppShell/hooks'
 import { useAppStore } from '@/stores/app-store'
@@ -13,10 +13,7 @@ import styles from './ChatPage.module.css'
 
 const { Title } = Typography
 
-/** 顶栏模式切换：智能助手 / 业务系统 */
-type ChatMode = 'assistant' | 'business'
-
-/** 聊天页容器：编排 store 与展示组件；业务系统模式下全页切换为 BusinessPanel */
+/** 聊天页容器：灵犀助手独立页面；业务系统见 AppView business */
 export function ChatPage(): React.ReactElement {
   const session = useSessionStore((s) => s.getActiveSession())
   const running = useSessionStore((s) => s.running)
@@ -31,13 +28,11 @@ export function ChatPage(): React.ReactElement {
   const createSession = useSessionStore((s) => s.createSession)
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
-  const setView = useAppStore((s) => s.setView)
   const settings = useSettingsStore((s) => s.settings)
   const settingsLoaded = useSettingsStore((s) => s.loaded)
   const { browserRunning, loading, toggleBrowser } = useBrowserControl()
 
-  const chatMode = useBusinessStore((s) => s.chatMode)
-  const setChatMode = useBusinessStore((s) => s.setChatMode)
+  const setView = useAppStore((s) => s.setView)
   const newChatShortcut = queryNewChatShortcutLabel()
 
   useEffect(() => {
@@ -65,11 +60,6 @@ export function ChatPage(): React.ReactElement {
     activeToolName,
     awaitUserReason
   })
-
-  /** 业务系统：整页替换为 BusinessPanel（保留顶栏模式 Segmented 在 Panel 内） */
-  if (chatMode === 'business') {
-    return <BusinessPanel onModeChange={setChatMode} />
-  }
 
   return (
     <div className={styles.page} data-task-checklist-anchor>
@@ -107,8 +97,10 @@ export function ChatPage(): React.ReactElement {
               { label: <span className={styles.modeLabel}>灵犀AI助手</span>, value: 'assistant' },
               { label: <span className={styles.modeLabel}>业务系统</span>, value: 'business' }
             ]}
-            value={chatMode}
-            onChange={(value) => setChatMode(value)}
+            value="assistant"
+            onChange={(value) => {
+              if (value === 'business') setView('business')
+            }}
           />
         </div>
 

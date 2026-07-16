@@ -1,6 +1,6 @@
 import type { ChatMessage, Session, TaskItem, WorkflowRun } from '@shared/types'
 
-/** 顶栏模式：灵犀助手 / 业务系统 */
+/** 顶栏模式：灵犀助手 / 业务系统（与 AppView chat/business 对应） */
 export type ChatMode = 'assistant' | 'business'
 
 /** 业务系统左侧菜单项 */

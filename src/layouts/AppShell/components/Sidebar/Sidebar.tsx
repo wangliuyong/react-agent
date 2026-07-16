@@ -1,5 +1,4 @@
 import type { AppView } from '@/stores/app-store'
-import { useBusinessStore } from '@/features/business'
 import { useNewChatShortcut, useSidebar, useSidebarNavigation } from '../../hooks'
 import { SidebarCollapsed } from './SidebarCollapsed'
 import { SidebarExpanded } from './SidebarExpanded'
@@ -9,10 +8,9 @@ interface SidebarProps {
   view: AppView
 }
 
-/** 侧边栏容器：助手 / 业务系统模式切换主导航 */
+/** 侧边栏容器：助手 / 业务系统独立视图切换主导航 */
 export function Sidebar({ view }: SidebarProps): React.ReactElement {
   const { sidebarCollapsed, toggleSidebar } = useSidebar()
-  const chatMode = useBusinessStore((s) => s.chatMode)
   const {
     historyItems,
     activeSessionId,
@@ -23,8 +21,8 @@ export function Sidebar({ view }: SidebarProps): React.ReactElement {
     deleteSession
   } = useSidebarNavigation({ view })
 
-  /** 业务系统模式：chat 视图 + chatMode=business 时替换左侧菜单 */
-  const isBusinessMode = view === 'chat' && chatMode === 'business'
+  /** 业务系统为独立 AppView，刷新后由 localStorage 恢复 */
+  const isBusinessMode = view === 'business'
 
   useNewChatShortcut({ onCreate: createNewSession, enabled: !isBusinessMode })
 

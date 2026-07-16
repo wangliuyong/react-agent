@@ -1,5 +1,6 @@
 import type { AppView } from '@/stores/app-store'
 import { ChatPage } from '@/features/chat'
+import { BusinessPanel } from '@/features/business'
 import { ChannelsPage } from '@/features/channels'
 import { PublishWorkbench } from '@/features/publish'
 import { SchedulePage } from '@/features/schedule'
@@ -23,6 +24,7 @@ export function AppMain({ view }: AppMainProps): React.ReactElement {
     <div className={styles.main}>
       <div className={styles.content}>
         {view === 'chat' && <ChatPage />}
+        {view === 'business' && <BusinessPanel />}
         {view === 'publish' && <PublishWorkbench />}
         {view === 'schedule' && <SchedulePage />}
         {view === 'settings' && <SettingsPage />}

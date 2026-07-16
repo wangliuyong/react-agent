@@ -15,7 +15,7 @@ interface SidebarExpandedProps {
   historyItems: SessionHistoryItem[]
   activeSessionId: string | null
   isFreshChatSession: boolean
-  /** 业务系统模式：侧边栏展示业务菜单而非助手导航 */
+  /** 业务系统模式：侧边栏仅 Logo + 业务菜单 */
   isBusinessMode: boolean
   onNavigate: (view: AppView) => void
   onSelectSession: (sessionId: string) => void
@@ -24,7 +24,7 @@ interface SidebarExpandedProps {
   onToggleCollapse: () => void
 }
 
-/** 展开态侧边栏：助手模式 = 导航 + 历史；业务系统模式 = 业务菜单 */
+/** 展开态侧边栏：助手 = 导航 + 历史；业务系统 = Logo + 菜单，Footer 固定底部 */
 export function SidebarExpanded({
   view,
   historyItems,
@@ -41,24 +41,19 @@ export function SidebarExpanded({
   const setActiveMenu = useBusinessStore((s) => s.setActiveMenu)
 
   return (
-    <>
-      <SidebarBrand />
+    <div className={styles.expandedBody}>
       {isBusinessMode ? (
-        <>
-          <div className={styles.sectionLabel}>
-            <span className={styles.sectionLabelText}>
-              <ApartmentOutlined className={styles.sectionLabelIcon} />
-              业务系统
-            </span>
-          </div>
+        <div className={styles.businessMain}>
+          <SidebarBrand />
           <SidebarBusinessNav
             items={BUSINESS_MENUS}
             activeMenu={activeMenu}
             onSelect={setActiveMenu}
           />
-        </>
+        </div>
       ) : (
         <>
+          <SidebarBrand />
           <SidebarNewChatButton active={isFreshChatSession} onCreate={onCreateSession} />
           <SidebarNav items={NAV_ITEMS} activeView={view} onNavigate={onNavigate} />
           <SidebarHistory
@@ -76,6 +71,6 @@ export function SidebarExpanded({
         onNavigate={onNavigate}
         onToggleCollapse={onToggleCollapse}
       />
-    </>
+    </div>
   )
 }

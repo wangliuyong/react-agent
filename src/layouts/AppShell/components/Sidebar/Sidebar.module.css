@@ -4,6 +4,8 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
   background: var(--db-sidebar);
   border-right: 1px solid var(--db-border);
   transition: width 0.22s ease;
@@ -43,6 +45,7 @@
   gap: 8px;
   padding: 0 8px 8px;
   min-height: 0;
+  height: 100%;
   padding-top: 16px;
 }
 
@@ -86,6 +89,7 @@
 
 .collapsedFooter {
   margin-top: auto;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -325,12 +329,39 @@
   flex-shrink: 0;
 }
 
+/* 展开态侧边栏内容区（业务系统：Logo + 菜单） */
+.expandedBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.businessMain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.businessMainCollapsed {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
 .sidebarFooter {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 12px;
   border-top: 1px solid var(--db-border-light);
+  margin-top: auto;
+  flex-shrink: 0;
 }
 
 .collapseToggleWrap {

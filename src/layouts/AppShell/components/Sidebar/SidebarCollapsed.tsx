@@ -33,12 +33,15 @@ export function SidebarCollapsed({
     <div className={styles.collapsedBody}>
       <SidebarBrand collapsed />
       {isBusinessMode ? (
-        <SidebarBusinessNav
-          items={BUSINESS_MENUS}
-          activeMenu={activeMenu}
-          collapsed
-          onSelect={setActiveMenu}
-        />
+        <div className={styles.businessMainCollapsed}>
+          <SidebarBrand collapsed />
+          <SidebarBusinessNav
+            items={BUSINESS_MENUS}
+            activeMenu={activeMenu}
+            collapsed
+            onSelect={setActiveMenu}
+          />
+        </div>
       ) : (
         <>
           <SidebarNewChatButton
