@@ -26,8 +26,6 @@ export function ChatPage(): React.ReactElement {
   const resumeRun = useSessionStore((s) => s.resumeRun)
   const canResume = useSessionStore((s) => s.canResume)
   const createSession = useSessionStore((s) => s.createSession)
-  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
-  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const settings = useSettingsStore((s) => s.settings)
   const settingsLoaded = useSettingsStore((s) => s.loaded)
   const { browserRunning, loading, toggleBrowser } = useBrowserControl()
@@ -64,18 +62,8 @@ export function ChatPage(): React.ReactElement {
   return (
     <div className={styles.page} data-task-checklist-anchor>
       <header className={`${styles.header} app-drag`}>
-        {/* 左侧：侧边栏展开按钮（收起时）+ 会话标题 */}
+        {/* 左侧：会话标题 */}
         <div className={styles.headerLeft}>
-          {sidebarCollapsed ? (
-            <Tooltip title="展开侧边栏">
-              <Button
-                type="text"
-                className={`${styles.headerIconBtn} app-no-drag`}
-                icon={<MenuUnfoldOutlined />}
-                onClick={toggleSidebar}
-              />
-            </Tooltip>
-          ) : null}
           <div className={styles.titleWrap}>
             <Title level={5} className={`${styles.title} app-no-drag`}>
               {session?.title ?? '新会话'}

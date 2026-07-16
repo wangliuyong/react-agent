@@ -31,7 +31,8 @@ export function SidebarCollapsed({
 
   return (
     <div className={styles.collapsedBody}>
-      <SidebarBrand collapsed />
+      {/* 业务系统 Logo 在 businessMainCollapsed 内单独展示，避免折叠态重复渲染 */}
+      {!isBusinessMode && <SidebarBrand collapsed />}
       {isBusinessMode ? (
         <div className={styles.businessMainCollapsed}>
           <SidebarBrand collapsed />

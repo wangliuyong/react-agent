@@ -12,8 +12,6 @@ const { Title, Text } = Typography
  * 与 ChatPage 平级，由 AppMain view=business 路由；刷新后 view 从 localStorage 恢复。
  */
 export function BusinessPanel(): React.ReactElement {
-  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
-  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const setView = useAppStore((s) => s.setView)
   const activeMenu = useBusinessStore((s) => s.activeMenu)
 
@@ -23,16 +21,6 @@ export function BusinessPanel(): React.ReactElement {
     <div className={styles.panel}>
       <header className={`${styles.header} app-drag`}>
         <div className={styles.headerLeft}>
-          {sidebarCollapsed ? (
-            <Tooltip title="展开侧边栏">
-              <Button
-                type="text"
-                className={`${styles.headerIconBtn} app-no-drag`}
-                icon={<MenuUnfoldOutlined />}
-                onClick={toggleSidebar}
-              />
-            </Tooltip>
-          ) : null}
           <div className={styles.titleWrap}>
             <Title level={5} className={`${styles.title} app-no-drag`}>
               业务系统
