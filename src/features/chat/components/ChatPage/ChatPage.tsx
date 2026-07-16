@@ -1,4 +1,5 @@
 import { useBrowserControl } from '@/features/browser'
+import { BusinessPanel, useBusinessStore } from '@/features/business'
 import { useSettingsStore } from '@/features/settings'
 import { queryNewChatShortcutLabel } from '@/layouts/AppShell/hooks'
 import { useAppStore } from '@/stores/app-store'
@@ -12,10 +13,10 @@ import styles from './ChatPage.module.css'
 
 const { Title } = Typography
 
-/** 顶栏模式切换：智能助手 / 业务系统（业务系统暂未开放） */
+/** 顶栏模式切换：智能助手 / 业务系统 */
 type ChatMode = 'assistant' | 'business'
 
-/** 聊天页容器：编排 store 与展示组件 */
+/** 聊天页容器：编排 store 与展示组件；业务系统模式下全页切换为 BusinessPanel */
 export function ChatPage(): React.ReactElement {
   const session = useSessionStore((s) => s.getActiveSession())
   const running = useSessionStore((s) => s.running)
@@ -35,7 +36,8 @@ export function ChatPage(): React.ReactElement {
   const settingsLoaded = useSettingsStore((s) => s.loaded)
   const { browserRunning, loading, toggleBrowser } = useBrowserControl()
 
-  const [chatMode, setChatMode] = useState<ChatMode>('assistant')
+  const chatMode = useBusinessStore((s) => s.chatMode)
+  const setChatMode = useBusinessStore((s) => s.setChatMode)
   const newChatShortcut = queryNewChatShortcutLabel()
 
   useEffect(() => {
@@ -63,6 +65,11 @@ export function ChatPage(): React.ReactElement {
     activeToolName,
     awaitUserReason
   })
+
+  /** 业务系统：整页替换为 BusinessPanel（保留顶栏模式 Segmented 在 Panel 内） */
+  if (chatMode === 'business') {
+    return <BusinessPanel onModeChange={setChatMode} />
+  }
 
   return (
     <div className={styles.page} data-task-checklist-anchor>
@@ -98,11 +105,7 @@ export function ChatPage(): React.ReactElement {
             className={styles.modeSwitch}
             options={[
               { label: <span className={styles.modeLabel}>灵犀AI助手</span>, value: 'assistant' },
-              {
-                label: <span className={styles.modeLabel}>业务系统</span>,
-                value: 'business',
-                disabled: true
-              }
+              { label: <span className={styles.modeLabel}>业务系统</span>, value: 'business' }
             ]}
             value={chatMode}
             onChange={(value) => setChatMode(value)}

@@ -78,6 +78,10 @@ import {
 } from './store/workflows'
 import { postRunWorkflow, postResumeWorkflow } from './workflow/engine'
 import {
+  queryWorkflowRuns,
+  queryLatestWorkflowRunBySession
+} from './store/workflow-runs'
+import {
   postDeletePublishPlanWorkflow,
   syncPublishPlanWorkflow
 } from './workflow/migrate-publish'
@@ -260,5 +264,9 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IpcChannels.postResumeWorkflow, async (_e, runId: string) =>
     postResumeWorkflow(runId)
+  )
+  ipcMain.handle(IpcChannels.queryWorkflowRuns, () => queryWorkflowRuns())
+  ipcMain.handle(IpcChannels.queryLatestWorkflowRunBySession, (_e, sessionId: string) =>
+    queryLatestWorkflowRunBySession(sessionId)
   )
 }

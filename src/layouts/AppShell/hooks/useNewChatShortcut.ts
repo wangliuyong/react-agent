@@ -1,5 +1,7 @@
 interface UseNewChatShortcutOptions {
   onCreate: () => void
+  /** 为 false 时不监听快捷键（如业务系统模式） */
+  enabled?: boolean
 }
 
 /** 检测是否为 macOS，用于展示与监听平台相关快捷键 */
@@ -16,8 +18,10 @@ export function queryNewChatShortcutLabel(): string {
  * 全局新对话快捷键：Shift+Cmd+K（mac）/ Shift+Ctrl+K（Win）
  * 与豆包侧边栏「新对话」入口行为一致。
  */
-export function useNewChatShortcut({ onCreate }: UseNewChatShortcutOptions): void {
+export function useNewChatShortcut({ onCreate, enabled = true }: UseNewChatShortcutOptions): void {
   useEffect(() => {
+    if (!enabled) return
+
     const handleKeyDown = (event: KeyboardEvent): void => {
       const modifier = queryIsMacPlatform() ? event.metaKey : event.ctrlKey
       if (event.shiftKey && modifier && event.key.toLowerCase() === 'k') {
@@ -28,5 +32,5 @@ export function useNewChatShortcut({ onCreate }: UseNewChatShortcutOptions): voi
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onCreate])
+  }, [onCreate, enabled])
 }

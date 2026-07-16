@@ -1,0 +1,30 @@
+#!/bin/bash
+# 拒绝任何仍包含 Cursor Agent 身份信息的提交。
+
+COMMIT_MSG_FILE="$1"
+
+if [[ ! -f "$COMMIT_MSG_FILE" ]]; then
+  echo "错误：找不到提交信息文件。" >&2
+  exit 1
+fi
+
+# 检查提交信息正文
+if grep -qiE 'cursoragent@cursor\.com|Co-authored-by: Cursor|Made-with: Cursor|Made with Cursor' "$COMMIT_MSG_FILE"; then
+  echo "错误：提交信息中不得包含 Cursor Agent 署名（Co-authored-by / Made-with）。" >&2
+  echo "请移除 Cursor 相关行后重新提交。" >&2
+  exit 1
+fi
+
+# 检查 author / committer 身份（防止直接以 Cursor Agent 账号提交）
+author_email=$(git var GIT_AUTHOR_IDENT 2>/dev/null | sed -n 's/.*<\([^>]*\)>.*/\1/p')
+committer_email=$(git var GIT_COMMITTER_IDENT 2>/dev/null | sed -n 's/.*<\([^>]*\)>.*/\1/p')
+
+for email in "$author_email" "$committer_email"; do
+  if [[ "$email" == *"cursoragent@cursor.com"* ]]; then
+    echo "错误：不得以 Cursor Agent（cursoragent@cursor.com）作为提交者。" >&2
+    echo "请检查 git config user.name / user.email 配置。" >&2
+    exit 1
+  fi
+done
+
+exit 0

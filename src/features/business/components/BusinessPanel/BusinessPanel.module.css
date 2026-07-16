@@ -1,0 +1,118 @@
+/* 业务系统 — 左侧菜单 + 内容区，风格对齐技能市场 */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  background: var(--db-bg);
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 45% at 0% 0%, var(--db-primary-muted), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, var(--db-primary-subtle), transparent 55%);
+  opacity: 0.9;
+}
+
+.header {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+.headerLeft {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.headerCenter {
+  justify-self: center;
+}
+
+.headerRight {
+  justify-self: end;
+}
+
+.headerIconBtn {
+  width: 36px !important;
+  height: 36px !important;
+  color: var(--db-text-secondary) !important;
+  border-radius: var(--db-radius-md) !important;
+}
+
+.headerIconBtn:hover {
+  color: var(--db-text) !important;
+  background: var(--db-hover) !important;
+}
+
+.titleWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0 !important;
+  font-weight: 650 !important;
+  font-size: 16px !important;
+  color: var(--db-text) !important;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+.modeSwitch {
+  background: var(--db-bg-subtle) !important;
+  border: 1px solid var(--db-border-light) !important;
+  border-radius: var(--db-radius-md) !important;
+  padding: 2px !important;
+}
+
+.modeSwitch :global(.ant-segmented-item-label) {
+  min-height: 30px !important;
+  line-height: 30px !important;
+  padding: 0 16px !important;
+}
+
+.modeSwitch :global(.ant-segmented-item-selected .ant-segmented-item-label) {
+  color: var(--db-primary) !important;
+  font-weight: 600 !important;
+}
+
+.modeSwitch :global(.ant-segmented-thumb) {
+  background: var(--db-bg-content) !important;
+  box-shadow: var(--db-shadow-sm) !important;
+}
+
+.modeLabel {
+  font-size: 13px;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}

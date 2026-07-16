@@ -22,8 +22,6 @@ import type {
   PublishChannelUpsertInput,
   WorkflowDefinition
 } from '../../shared/types'
-
-/** Preload：向渲染进程暴露安全 API 面 */
 const api: ElectronApi = {
   querySettings: () => ipcRenderer.invoke(IpcChannels.querySettings),
   postSettings: (settings: Partial<AppSettings>) =>
@@ -112,6 +110,9 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.postRunWorkflow, workflowId),
   postResumeWorkflow: (runId: string) =>
     ipcRenderer.invoke(IpcChannels.postResumeWorkflow, runId),
+  queryWorkflowRuns: () => ipcRenderer.invoke(IpcChannels.queryWorkflowRuns),
+  queryLatestWorkflowRunBySession: (sessionId: string) =>
+    ipcRenderer.invoke(IpcChannels.queryLatestWorkflowRunBySession, sessionId),
 
   onAgentEvent: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, data: AgentEvent): void => {

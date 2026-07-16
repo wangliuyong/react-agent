@@ -1,0 +1,22 @@
+---
+description: 禁止在 Git 提交、PR 或代码注释中添加 Cursor Agent 署名
+alwaysApply: true
+---
+
+# 禁止 Cursor Git 署名
+
+在本项目中，**不得**以 Cursor Agent 身份提交任何 Git 信息。
+
+## 禁止内容
+
+- `Co-authored-by: Cursor <cursoragent@cursor.com>`
+- `Made-with: Cursor` / `Made with Cursor`
+- 使用 `cursoragent@cursor.com` 作为 author / committer
+- 在 PR 描述中添加 Cursor 营销或署名 footer
+
+## Agent 执行 Git 操作时的要求
+
+1. 提交前确认 `git config user.name` 与 `user.email` 为项目维护者身份，而非 Cursor Agent。
+2. 若 Cursor 自动注入署名行，必须在提交前移除；`.githooks/prepare-commit-msg` 会自动剥离，但 Agent 不应依赖后处理。
+3. 执行 `git commit` 时，提交信息只包含功能描述，不添加任何 AI 工具署名。
+4. 执行 `gh pr create` 时，PR body 不得包含 Cursor 相关 footer。

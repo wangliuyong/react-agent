@@ -356,8 +356,8 @@ export async function runLangGraphChat(params: {
   const checkpointSnap = await graph.getState(config)
   const checkpointMessages =
     checkpointSnap.values &&
-    typeof checkpointSnap.values === 'object' &&
-    'messages' in checkpointSnap.values
+      typeof checkpointSnap.values === 'object' &&
+      'messages' in checkpointSnap.values
       ? ((checkpointSnap.values as { messages: BaseMessage[] }).messages ?? [])
       : []
   const hasCheckpoint = checkpointMessages.length > 0

@@ -1,0 +1,221 @@
+/* 历史对话 — 对齐技能市场顶栏 + 表格 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.subHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 20px 28px 14px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+.subHeaderMain {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.subHeaderIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--db-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 18px;
+}
+
+.subTitle {
+  margin: 0 !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+}
+
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--db-radius-pill);
+  background: var(--db-primary);
+  color: var(--db-on-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+.toolbarRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tableWrap {
+  flex: 1;
+  overflow: auto;
+  padding: 0 28px 24px;
+}
+
+.tableWrap :global(.ant-table) {
+  background: transparent;
+}
+
+.tableWrap :global(.ant-table-thead > tr > th) {
+  background: var(--db-bg-content) !important;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.tableWrap :global(.ant-table-tbody > tr:hover > td) {
+  background: var(--db-hover) !important;
+}
+
+.titleCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.titleText {
+  font-weight: 500;
+  color: var(--db-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metaText {
+  font-size: 11px;
+  color: var(--db-text-secondary);
+}
+
+.typeTag {
+  margin: 0;
+}
+
+/* 上下文 Drawer */
+.drawerSection {
+  margin-bottom: 20px;
+}
+
+.drawerSectionTitle {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--db-text);
+  margin-bottom: 10px;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin-bottom: 16px;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metaLabel {
+  font-size: 11px;
+  color: var(--db-text-secondary);
+}
+
+.metaValue {
+  font-size: 13px;
+  color: var(--db-text);
+  word-break: break-all;
+}
+
+.contextPre {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--db-radius-md);
+  background: var(--db-bg-subtle);
+  border: 1px solid var(--db-border-light);
+  font-size: 12px;
+  line-height: 1.55;
+  max-height: 280px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.nodePanel :global(.ant-collapse-header) {
+  align-items: center !important;
+}
+
+.nodeHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nodeTitle {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.messageList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.messageItem {
+  padding: 10px 12px;
+  border-radius: var(--db-radius-sm);
+  background: var(--db-bg-subtle);
+  border: 1px solid var(--db-border-light);
+}
+
+.messageRole {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--db-primary);
+  margin-bottom: 4px;
+}
+
+.messageContent {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.emptyHint {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}

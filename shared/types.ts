@@ -75,6 +75,9 @@ export const IpcChannels = {
   postDeleteWorkflow: 'post:workflow:delete',
   postRunWorkflow: 'post:workflow:run',
   postResumeWorkflow: 'post:workflow:resume',
+  /** 业务系统：读取工作流运行记录（含 context） */
+  queryWorkflowRuns: 'query:workflow-runs',
+  queryLatestWorkflowRunBySession: 'query:workflow-run:by-session',
   // 事件推送（main → renderer）
   onAgentEvent: 'event:agent',
   onBrowserFrame: 'event:browser-frame',
@@ -419,11 +422,11 @@ export type AgentEvent =
   | { type: 'session_started'; sessionId: string; session: Session }
   /** 工作流 Toast 节点触发，渲染进程展示 Ant Design message */
   | {
-      type: 'workflow_toast'
-      sessionId: string
-      level: WorkflowToastLevel
-      content: string
-    }
+    type: 'workflow_toast'
+    sessionId: string
+    level: WorkflowToastLevel
+    content: string
+  }
 
 export interface BrowserStatus {
   running: boolean
@@ -839,6 +842,10 @@ export interface ElectronApi {
   postDeleteWorkflow: (id: string) => Promise<void>
   postRunWorkflow: (workflowId: string) => Promise<WorkflowRunStartResult>
   postResumeWorkflow: (runId: string) => Promise<WorkflowRunStartResult>
+  /** 业务系统：全部工作流运行实例 */
+  queryWorkflowRuns: () => Promise<WorkflowRun[]>
+  /** 业务系统：按会话取最近一次工作流运行（含节点 context） */
+  queryLatestWorkflowRunBySession: (sessionId: string) => Promise<WorkflowRun | null>
   onAgentEvent: (cb: (event: AgentEvent) => void) => () => void
   onBrowserFrame: (cb: (frame: BrowserFramePayload) => void) => () => void
   onScheduleUpdate: (cb: (tasks: ScheduledTask[]) => void) => () => void

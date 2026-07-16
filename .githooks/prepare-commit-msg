@@ -1,0 +1,28 @@
+#!/bin/bash
+# 在提交完成前自动剥离 Cursor Agent 相关署名行。
+# Cursor IDE / Cloud Agent 可能自动注入 Co-authored-by 或 Made-with 行。
+
+COMMIT_MSG_FILE="$1"
+
+if [[ ! -f "$COMMIT_MSG_FILE" ]]; then
+  exit 0
+fi
+
+# macOS / Linux 兼容：优先使用 GNU sed，否则回退 BSD sed
+if sed --version >/dev/null 2>&1; then
+  sed -i \
+    -e '/Co-authored-by: Cursor <cursoragent@cursor.com>/d' \
+    -e '/cursoragent@cursor\.com/d' \
+    -e '/^Made-with: Cursor$/d' \
+    -e '/^Made with Cursor$/d' \
+    "$COMMIT_MSG_FILE"
+else
+  sed -i '' \
+    -e '/Co-authored-by: Cursor <cursoragent@cursor.com>/d' \
+    -e '/cursoragent@cursor\.com/d' \
+    -e '/^Made-with: Cursor$/d' \
+    -e '/^Made with Cursor$/d' \
+    "$COMMIT_MSG_FILE"
+fi
+
+exit 0
