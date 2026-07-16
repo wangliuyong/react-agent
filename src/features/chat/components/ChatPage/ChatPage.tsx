@@ -5,6 +5,7 @@ import { queryNewChatShortcutLabel } from '@/layouts/AppShell/hooks'
 import { useAppStore } from '@/stores/app-store'
 import { useSessionStore } from '../../hooks/useSessionStore'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
+import { queryIsTaskWorkflowSucceeded } from '../../utils/queryIsTaskWorkflowSucceeded'
 import { WelcomeHero } from '../WelcomeHero'
 import { MessageList } from '../MessageList'
 import { ChatInput } from '../ChatInput'
@@ -58,6 +59,11 @@ export function ChatPage(): React.ReactElement {
     activeToolName,
     awaitUserReason
   })
+
+  const taskWorkflowSucceeded = queryIsTaskWorkflowSucceeded(session, running, awaitUserReason)
+  const sendDisabledHint = taskWorkflowSucceeded
+    ? '任务流程已执行完毕，如需新任务请新建会话'
+    : undefined
 
   return (
     <div className={styles.page} data-task-checklist-anchor>
@@ -145,6 +151,8 @@ export function ChatPage(): React.ReactElement {
       </div>
 
       <ChatInput
+        disabled={taskWorkflowSucceeded}
+        sendDisabledHint={sendDisabledHint}
         running={running}
         streamingText={streamingText}
         activeToolName={activeToolName}

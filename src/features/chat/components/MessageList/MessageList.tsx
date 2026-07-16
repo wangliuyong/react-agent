@@ -88,7 +88,7 @@ export function MessageList({
         </div>
       )}
 
-      {displayMessages.map((m) => {
+      {displayMessages.map((m, index) => {
         if (m.role === 'user') {
           const images = extractMessageImages(m.content, m.attachmentPaths)
           const text = stripImagePathsFromDisplayText(m.content, images)
@@ -127,7 +127,7 @@ export function MessageList({
         }
         return (
           <div key={m.id} className={`${styles.row} ${styles.rowAssistant}`}>
-            <span className={styles.label}>灵犀</span>
+            {index < 2 ? (<span className={styles.label}>灵犀</span>) : null}
             <div className={styles.assistantCard}>
               <AssistantBody content={m.content} />
             </div>

@@ -9,6 +9,8 @@ const { Text } = Typography
 
 interface ChatInputProps {
   disabled?: boolean
+  /** disabled 时输入框占位提示（如任务流程已成功结束） */
+  sendDisabledHint?: string
   running?: boolean
   streamingText?: string
   activeToolName?: string | null
@@ -22,6 +24,7 @@ interface ChatInputProps {
 /** 底部输入条：附件 / 完全访问 / 模型 / 发送 */
 export function ChatInput({
   disabled,
+  sendDisabledHint,
   running,
   streamingText = '',
   activeToolName = null,
@@ -177,7 +180,9 @@ export function ChatInput({
             placeholder={
               running
                 ? 'Agent 正在处理，请稍候…'
-                : '描述你的任务，Enter 发送，Shift+Enter 换行…'
+                : disabled
+                  ? (sendDisabledHint ?? '当前不可发送消息')
+                  : '描述你的任务，Enter 发送，Shift+Enter 换行…'
             }
             value={text}
             rows={2}
@@ -270,14 +275,24 @@ export function ChatInput({
                   onClick={onAbort}
                 />
               ) : (
-                <Button
-                  type="primary"
-                  shape="circle"
-                  className={styles.sendBtn}
-                  icon={<SendOutlined />}
-                  disabled={!text.trim() || disabled}
-                  onClick={handleSend}
-                />
+                <Tooltip
+                  title={
+                    disabled
+                      ? (sendDisabledHint ?? '当前不可发送消息')
+                      : !text.trim()
+                        ? '请输入消息内容'
+                        : '发送'
+                  }
+                >
+                  <Button
+                    type="primary"
+                    shape="circle"
+                    className={styles.sendBtn}
+                    icon={<SendOutlined />}
+                    disabled={!text.trim() || disabled}
+                    onClick={handleSend}
+                  />
+                </Tooltip>
               )}
             </Space>
           </div>
