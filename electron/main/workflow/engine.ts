@@ -34,7 +34,10 @@ import { postNotifyMessage } from '../notify/send'
 import { interpolateDeep } from './interpolate'
 import {
   interpolatePromptSoft,
-  queryDecodeWorkflowToolResult
+  patchAgentOutputToContext,
+  queryAgentStepOutput,
+  queryDecodeWorkflowToolResult,
+  queryMarkdownHeadingTitle
 } from './tool-result'
 import { isGraphInterrupt, interrupt } from '@langchain/langgraph'
 
@@ -303,11 +306,15 @@ async function executeNotifyNode(
     return { context, summary: msg }
   }
 
+  const useRichText = node.channelId === 'feishu' ? node.richText !== false : Boolean(node.richText)
+  const resolvedTitle =
+    title?.trim() || (useRichText ? queryMarkdownHeadingTitle(content) : undefined)
+
   const result = await postNotifyMessage({
     channelId: node.channelId,
-    title: title?.trim() || undefined,
+    title: resolvedTitle,
     content,
-    richText: node.richText
+    richText: useRichText
   })
 
   const summary = result.ok
@@ -423,6 +430,9 @@ async function executeLeafNode(
       .join('\n\n'),
     run.context
   )
+  const sessionBefore = querySession(sessionId)
+  const msgCountBefore = sessionBefore?.messages.length ?? 0
+
   const stepResult = await runLangGraphStep({
     sessionId,
     prompt: stepPrompt,
@@ -435,7 +445,11 @@ async function executeLeafNode(
       stepResult === 'max_turns' ? `步骤「${node.title}」达到最大轮次` : `步骤「${node.title}」执行失败`
     )
   }
-  return run
+
+  const sessionAfter = querySession(sessionId)
+  const agentOutput = queryAgentStepOutput(sessionAfter?.messages ?? [], msgCountBefore)
+  const nextContext = patchAgentOutputToContext(run.context, agentOutput, node.outputKeys)
+  return patchRun(run, { context: nextContext, status: 'running' })
 }
 
 /** 从 Agent 回复文本中解析分支 key */

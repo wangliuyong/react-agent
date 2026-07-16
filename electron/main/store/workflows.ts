@@ -90,7 +90,10 @@ function normalizeLeaf(
       titleTemplate:
         notify.titleTemplate != null ? String(notify.titleTemplate) : undefined,
       contentTemplate: String(notify.contentTemplate || '').trim() || '{{summary}}',
-      richText: Boolean(notify.richText),
+      richText:
+        String(notify.channelId || 'feishu') === 'feishu'
+          ? notify.richText !== false
+          : Boolean(notify.richText),
       failSoft: notify.failSoft !== false,
       outputKeys: Array.isArray(notify.outputKeys)
         ? notify.outputKeys.map(String).filter(Boolean)

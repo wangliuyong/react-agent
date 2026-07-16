@@ -2,11 +2,14 @@ import type { AgentEvent, ChatMessage, ScheduledTask } from '../../../shared/typ
 import { IpcChannels } from '../../../shared/types'
 import { computeNextRunAt } from '../../../shared/schedule-utils'
 import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
+import { queryWorkflowHasNotifyNode } from '../../../shared/workflow-notify'
 import { postScheduledTask, queryScheduledTask, queryScheduledTasks } from '../store/schedules'
 import { queryPublishPlan } from '../store/plans'
 import { querySession } from '../store/sessions'
+import { queryWorkflow } from '../store/workflows'
 import { queryLatestWorkflowRunBySession } from '../store/workflow-runs'
 import { postScheduleTaskNotify } from '../notify/send'
+import { queryExtractNotifyMarkdown } from '../workflow/tool-result'
 import { getMainWindow } from '../window'
 
 /** 会话 id → 定时任务 id */
@@ -22,13 +25,25 @@ function emitScheduleUpdate(): void {
   }
 }
 
+/** 流程引擎写入的 assistant 占位文案，不作为任务汇报正文 */
+const WORKFLOW_ASSISTANT_SKIP = new Set(['流程执行完毕。', '流程已中止。'])
+
+function shouldSkipWorkflowAssistant(text: string): boolean {
+  if (WORKFLOW_ASSISTANT_SKIP.has(text)) return true
+  if (text.startsWith('【渠道通知】')) return true
+  if (text.startsWith('流程开始：') || text.startsWith('流程结束：')) return true
+  if (text.startsWith('流程执行失败：')) return true
+  return false
+}
+
 /** 取会话中最后一条有正文的 assistant 消息，作为任务汇报正文 */
 function queryLastAssistantContent(messages: ChatMessage[]): string | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i]
     if (msg.role === 'assistant') {
       const text = msg.content?.trim()
-      if (text) return text
+      if (!text || shouldSkipWorkflowAssistant(text)) continue
+      return queryExtractNotifyMarkdown(text)
     }
   }
   return null
@@ -114,6 +129,9 @@ export function handleScheduleAgentDone(event: AgentEvent): void {
     const run = queryLatestWorkflowRunBySession(event.sessionId)
     const workflowId = run?.workflowId
     if (!workflowId) return
+    const workflow = queryWorkflow(workflowId)
+    // 流程内已有渠道通知节点时，由节点负责推送，避免与计划级自动推送重复
+    if (workflow && queryWorkflowHasNotifyNode(workflow.nodes)) return
     const plan = queryPublishPlan(workflowId)
     if (!plan) return
     postTaskResultFeishuNotify({

@@ -17,4 +17,6 @@ export interface SessionHistoryItem {
   updatedAt: number
   /** 会话类型，用于历史列表图标 */
   type: SessionType
+  /** 是否正在执行，用于历史列表图标 loading */
+  running: boolean
 }

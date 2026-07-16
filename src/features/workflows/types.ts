@@ -92,7 +92,7 @@ export function createNotifyNode(partial?: Partial<WorkflowNotifyNode>): Workflo
     channelId: partial?.channelId ?? 'feishu',
     titleTemplate: partial?.titleTemplate,
     contentTemplate: partial?.contentTemplate ?? '{{summary}}',
-    richText: partial?.richText,
+    richText: partial?.richText ?? (partial?.channelId ?? 'feishu') === 'feishu',
     failSoft: partial?.failSoft ?? true,
     outputKeys: partial?.outputKeys
   }

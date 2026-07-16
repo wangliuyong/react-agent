@@ -14,6 +14,8 @@ import { useAppStore } from '@/stores/app-store'
 interface SessionState {
   sessions: Session[]
   activeSessionId: string | null
+  /** 进程内各会话的执行中标记，用于侧边栏历史图标 loading */
+  runningSessionIds: Set<string>
   running: boolean
   awaitUserReason: string | null
   /** 用户主动中断且仍有未完成任务时，可点「继续」恢复执行 */
@@ -64,9 +66,45 @@ function patchSession(
   return sessions.map((s) => (s.id === id ? patch(s) : s))
 }
 
+/** 不可变地向执行中会话集合添加一项 */
+function withRunningSession(ids: Set<string>, sessionId: string): Set<string> {
+  if (ids.has(sessionId)) return ids
+  const next = new Set(ids)
+  next.add(sessionId)
+  return next
+}
+
+/** 不可变地从执行中会话集合移除一项 */
+function withoutRunningSession(ids: Set<string>, sessionId: string): Set<string> {
+  if (!ids.has(sessionId)) return ids
+  const next = new Set(ids)
+  next.delete(sessionId)
+  return next
+}
+
+/** 根据当前选中会话同步全局 running 布尔值 */
+function syncActiveRunning(
+  activeSessionId: string | null,
+  runningSessionIds: Set<string>
+): boolean {
+  return activeSessionId != null && runningSessionIds.has(activeSessionId)
+}
+
+/** 从落盘任务清单恢复执行中会话（刷新后侧边栏 loading 仍可用） */
+function queryRunningSessionIdsFromSessions(sessions: Session[]): Set<string> {
+  const ids = new Set<string>()
+  for (const session of sessions) {
+    if ((session.tasks ?? []).some((t) => t.status === 'running')) {
+      ids.add(session.id)
+    }
+  }
+  return ids
+}
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   sessions: [],
   activeSessionId: null,
+  runningSessionIds: new Set<string>(),
   running: false,
   awaitUserReason: null,
   canResume: false,
@@ -87,20 +125,34 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       sessions[0]?.id ??
       null
     const active = sessions.find((s) => s.id === activeSessionId)
+    const sessionIdSet = new Set(sessions.map((s) => s.id))
+    const persistedRunningIds = queryRunningSessionIdsFromSessions(sessions)
+    // 合并进程内标记与落盘任务，避免 hydrate 冲掉后台仍在执行的会话
+    const runningSessionIds = new Set<string>()
+    for (const id of Array.from(get().runningSessionIds)) {
+      if (sessionIdSet.has(id)) runningSessionIds.add(id)
+    }
+    for (const id of Array.from(persistedRunningIds)) {
+      runningSessionIds.add(id)
+    }
     set({
       sessions,
       activeSessionId,
-      canResume: queryCanResumeFromSession(active, get().running)
+      runningSessionIds,
+      running: syncActiveRunning(activeSessionId, runningSessionIds),
+      canResume: queryCanResumeFromSession(active, syncActiveRunning(activeSessionId, runningSessionIds))
     })
   },
 
   setActive: (id) => {
     const session = get().sessions.find((s) => s.id === id)
+    const running = syncActiveRunning(id, get().runningSessionIds)
     set({
       activeSessionId: id,
+      running,
       streamingText: '',
       awaitUserReason: null,
-      canResume: queryCanResumeFromSession(session, get().running)
+      canResume: queryCanResumeFromSession(session, running)
     })
   },
 
@@ -109,6 +161,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set((state) => ({
       sessions: [session, ...state.sessions],
       activeSessionId: session.id,
+      runningSessionIds: withoutRunningSession(state.runningSessionIds, session.id),
+      running: false,
       streamingText: '',
       awaitUserReason: null,
       canResume: false
@@ -121,10 +175,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     await postDeleteSession(id)
     set((state) => {
       const sessions = state.sessions.filter((s) => s.id !== id)
+      const runningSessionIds = withoutRunningSession(state.runningSessionIds, id)
+      const nextActiveId =
+        state.activeSessionId === id ? (sessions[0]?.id ?? null) : state.activeSessionId
       return {
         sessions,
-        activeSessionId:
-          state.activeSessionId === id ? (sessions[0]?.id ?? null) : state.activeSessionId
+        runningSessionIds,
+        activeSessionId: nextActiveId,
+        running: syncActiveRunning(nextActiveId, runningSessionIds)
       }
     })
   },
@@ -135,7 +193,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const session = await get().createSession()
       activeSessionId = session.id
     }
-    set({ running: true, awaitUserReason: null, canResume: false, streamingText: '', activeToolName: null })
+    set((state) => ({
+      runningSessionIds: withRunningSession(state.runningSessionIds, activeSessionId),
+      running: true,
+      awaitUserReason: null,
+      canResume: false,
+      streamingText: '',
+      activeToolName: null
+    }))
     await postAgentChat(activeSessionId, content, attachmentPaths)
   },
 
@@ -144,18 +209,24 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!id) return
     await postAgentAbort(id)
     const session = get().sessions.find((s) => s.id === id)
-    set({
+    set((state) => ({
+      runningSessionIds: withoutRunningSession(state.runningSessionIds, id),
       running: false,
       awaitUserReason: null,
       // 不必等 done：有未完成任务时立刻可继续（刷新场景同理依赖 tasks 落盘）
       canResume: queryHasIncompleteTasks(session?.tasks ?? [])
-    })
+    }))
   },
 
   continueRun: async () => {
     const id = get().activeSessionId
     if (!id) return
-    set({ awaitUserReason: null, canResume: false })
+    set((state) => ({
+      awaitUserReason: null,
+      canResume: false,
+      runningSessionIds: withRunningSession(state.runningSessionIds, id),
+      running: true
+    }))
     await postAgentContinue(id)
   },
 
@@ -182,14 +253,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   beginExternalRun: (sessionId) => {
-    set({
+    set((state) => ({
       activeSessionId: sessionId,
+      runningSessionIds: withRunningSession(state.runningSessionIds, sessionId),
       running: true,
       awaitUserReason: null,
       canResume: false,
       streamingText: '',
       activeToolName: null
-    })
+    }))
   },
 
   bindAgentEvents: () => {
@@ -225,6 +297,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             ...(isTaskSession
               ? {
                   activeSessionId: event.session.id,
+                  runningSessionIds: withRunningSession(
+                    state.runningSessionIds,
+                    event.session.id
+                  ),
                   running: true,
                   awaitUserReason: null,
                   canResume: false,
@@ -240,17 +316,30 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const activeId = get().activeSessionId
 
       if (event.type === 'text_delta') {
-        if (event.sessionId !== activeId) return
         set((s) => ({
-          streamingText: s.streamingText + event.delta,
-          activeToolName: null
+          runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
+          ...(event.sessionId === activeId
+            ? {
+                streamingText: s.streamingText + event.delta,
+                activeToolName: null,
+                running: true
+              }
+            : {})
         }))
         return
       }
 
       if (event.type === 'tool_start') {
-        if (event.sessionId !== activeId) return
-        set({ activeToolName: event.toolName, streamingText: '' })
+        set((s) => ({
+          runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
+          ...(event.sessionId === activeId
+            ? {
+                activeToolName: event.toolName,
+                streamingText: '',
+                running: true
+              }
+            : {})
+        }))
         return
       }
 
@@ -290,16 +379,22 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       if (event.type === 'task_update') {
         const tasks = event.tasks as TaskItem[]
         const hasRunningTask = tasks.some((t) => t.status === 'running')
-        set((state) => ({
-          sessions: patchSession(state.sessions, event.sessionId, (session) => ({
-            ...session,
-            tasks
-          })),
-          // 工作流引擎推进步骤时同步「执行中」，确保清单可中断
-          ...(event.sessionId === activeId && hasRunningTask
-            ? { running: true, canResume: false }
-            : {})
-        }))
+        set((state) => {
+          const runningSessionIds = hasRunningTask
+            ? withRunningSession(state.runningSessionIds, event.sessionId)
+            : state.runningSessionIds
+          return {
+            sessions: patchSession(state.sessions, event.sessionId, (session) => ({
+              ...session,
+              tasks
+            })),
+            runningSessionIds,
+            // 工作流引擎推进步骤时同步「执行中」，确保清单可中断
+            ...(event.sessionId === activeId && hasRunningTask
+              ? { running: true, canResume: false }
+              : {})
+          }
+        })
         return
       }
 
@@ -311,23 +406,35 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
 
       if (event.type === 'done') {
-        if (event.sessionId === activeId) {
-          set({
-            running: false,
-            awaitUserReason: null,
-            streamingText: '',
-            activeToolName: null
-          })
-        }
+        set((state) => {
+          const runningSessionIds = withoutRunningSession(
+            state.runningSessionIds,
+            event.sessionId
+          )
+          return {
+            runningSessionIds,
+            ...(event.sessionId === activeId
+              ? {
+                  running: false,
+                  awaitUserReason: null,
+                  streamingText: '',
+                  activeToolName: null
+                }
+              : {})
+          }
+        })
         // hydrate 会按落盘 tasks 恢复 canResume（中断 / 刷新后均可继续）
         void get().hydrate()
         return
       }
 
       if (event.type === 'error') {
-        if (event.sessionId === activeId) {
-          set({ running: false, activeToolName: null })
-        }
+        set((state) => ({
+          runningSessionIds: withoutRunningSession(state.runningSessionIds, event.sessionId),
+          ...(event.sessionId === activeId
+            ? { running: false, activeToolName: null }
+            : {})
+        }))
         return
       }
     })

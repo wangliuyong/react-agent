@@ -45,9 +45,13 @@ export function SidebarHistory({
               className={styles.historyMain}
               onClick={() => onSelect(item.id)}
             >
-              {/* 按会话类型展示不同图标 */}
+              {/* 执行中展示 loading，否则按会话类型展示图标 */}
               <span className={styles.historyIcon}>
-                {SESSION_TYPE_ICONS[item.type]}
+                {item.running ? (
+                  <LoadingOutlined className={styles.historyIconLoading} spin />
+                ) : (
+                  SESSION_TYPE_ICONS[item.type]
+                )}
               </span>
               <span className={styles.historyTitle}>{item.title}</span>
               <span className={styles.historyTime}>{formatRelativeTime(item.updatedAt)}</span>
