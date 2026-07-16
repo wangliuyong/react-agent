@@ -2,9 +2,8 @@ import type { AppView } from '@/stores/app-store'
 import { BUSINESS_MENUS, useBusinessStore } from '@/features/business'
 import { NAV_ITEMS } from '../../config/nav-items'
 import { SidebarBrand } from './SidebarBrand'
-import { SidebarBusinessNav } from './SidebarBusinessNav'
 import { SidebarFooter } from './SidebarFooter'
-import { SidebarNav } from './SidebarNav'
+import { SidebarMenu } from './SidebarMenu'
 import { SidebarNewChatButton } from './SidebarNewChatButton'
 import styles from './Sidebar.module.css'
 
@@ -36,9 +35,10 @@ export function SidebarCollapsed({
       {isBusinessMode ? (
         <div className={styles.businessMainCollapsed}>
           <SidebarBrand collapsed />
-          <SidebarBusinessNav
+          <SidebarMenu
             items={BUSINESS_MENUS}
-            activeMenu={activeMenu}
+            activeKey={activeMenu}
+            ariaLabel="业务系统菜单"
             collapsed
             onSelect={setActiveMenu}
           />
@@ -50,11 +50,12 @@ export function SidebarCollapsed({
             active={isFreshChatSession}
             onCreate={onCreateSession}
           />
-          <SidebarNav
+          <SidebarMenu
             items={NAV_ITEMS}
-            activeView={view}
+            activeKey={view}
+            ariaLabel="主导航"
             collapsed
-            onNavigate={onNavigate}
+            onSelect={onNavigate}
           />
         </>
       )}

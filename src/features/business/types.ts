@@ -1,3 +1,4 @@
+import type { SidebarMenuItem } from '@/layouts/AppShell/components/Sidebar/SidebarMenu'
 import type { ChatMessage, Session, TaskItem, WorkflowRun } from '@shared/types'
 
 /** 顶栏模式：灵犀助手 / 业务系统（与 AppView chat/business 对应） */
@@ -6,11 +7,8 @@ export type ChatMode = 'assistant' | 'business'
 /** 业务系统左侧菜单项 */
 export type BusinessMenuKey = 'history'
 
-/** 业务系统菜单配置 */
-export interface BusinessMenuItem {
-  key: BusinessMenuKey
-  label: string
-  icon: React.ReactNode
+/** 业务系统侧边栏菜单配置 */
+export interface BusinessMenuItem extends SidebarMenuItem<BusinessMenuKey> {
   description?: string
 }
 

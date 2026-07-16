@@ -1,11 +1,10 @@
 import type { AppView } from '@/stores/app-store'
 import type { SessionType } from '@shared/types'
 
-/** 侧边栏主导航项配置 */
-export interface NavItem {
-  key: AppView
-  label: string
-  icon: React.ReactNode
+import type { SidebarMenuItem } from './components/Sidebar/SidebarMenu'
+
+/** 灵犀助手侧边栏主导航项配置 */
+export interface NavItem extends SidebarMenuItem<AppView> {
   /** 占位视图，功能尚未实现 */
   placeholder?: boolean
 }

@@ -11,3 +11,4 @@ playwright/.cache
 *.log
 .idea
 .vscode
+.cursor

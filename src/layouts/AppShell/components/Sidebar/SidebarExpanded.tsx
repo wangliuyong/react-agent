@@ -3,10 +3,9 @@ import { BUSINESS_MENUS, useBusinessStore } from '@/features/business'
 import { NAV_ITEMS } from '../../config/nav-items'
 import type { SessionHistoryItem } from '../../types'
 import { SidebarBrand } from './SidebarBrand'
-import { SidebarBusinessNav } from './SidebarBusinessNav'
 import { SidebarFooter } from './SidebarFooter'
 import { SidebarHistory } from './SidebarHistory'
-import { SidebarNav } from './SidebarNav'
+import { SidebarMenu } from './SidebarMenu'
 import { SidebarNewChatButton } from './SidebarNewChatButton'
 import styles from './Sidebar.module.css'
 
@@ -45,9 +44,10 @@ export function SidebarExpanded({
       {isBusinessMode ? (
         <div className={styles.businessMain}>
           <SidebarBrand />
-          <SidebarBusinessNav
+          <SidebarMenu
             items={BUSINESS_MENUS}
-            activeMenu={activeMenu}
+            activeKey={activeMenu}
+            ariaLabel="业务系统菜单"
             onSelect={setActiveMenu}
           />
         </div>
@@ -55,7 +55,12 @@ export function SidebarExpanded({
         <>
           <SidebarBrand />
           <SidebarNewChatButton active={isFreshChatSession} onCreate={onCreateSession} />
-          <SidebarNav items={NAV_ITEMS} activeView={view} onNavigate={onNavigate} />
+          <SidebarMenu
+            items={NAV_ITEMS}
+            activeKey={view}
+            ariaLabel="主导航"
+            onSelect={onNavigate}
+          />
           <SidebarHistory
             items={historyItems}
             activeSessionId={activeSessionId}
