@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { DEFAULT_SETTINGS, type AppSettings, type ModelProvider } from '../../../shared/types'
+import { postLaunchAtLogin } from './launch-at-login'
 import { getSettingsPath } from './paths'
 
 /**
@@ -27,7 +28,8 @@ export function normalizeSettings(
     baseUrl: merged.baseUrl,
     model: merged.model,
     fullAccess: merged.fullAccess,
-    maxTurns: merged.maxTurns
+    maxTurns: merged.maxTurns,
+    launchAtLogin: Boolean(merged.launchAtLogin)
   }
 }
 
@@ -60,5 +62,7 @@ export function querySettings(): AppSettings {
 export function postSettings(partial: Partial<AppSettings>): AppSettings {
   const next = normalizeSettings({ ...readSettingsFile(), ...partial })
   writeFileSync(getSettingsPath(), JSON.stringify(next, null, 2), 'utf-8')
+  // 每次保存后同步系统登录项，确保偏好与 OS 一致
+  postLaunchAtLogin(next.launchAtLogin)
   return next
 }

@@ -99,6 +99,8 @@ export interface AppSettings {
   fullAccess: boolean
   /** Agent 最大工具轮次 */
   maxTurns: number
+  /** 登录系统后自动启动应用 */
+  launchAtLogin: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -107,7 +109,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   model: 'qwen-plus',
   fullAccess: false,
-  maxTurns: 40
+  maxTurns: 40,
+  launchAtLogin: false
 }
 
 /** 模型供应商选项（聊天与设置页共用） */

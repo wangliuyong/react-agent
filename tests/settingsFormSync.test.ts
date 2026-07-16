@@ -12,7 +12,8 @@ const SAVED_SETTINGS: AppSettings = {
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-reasoner',
   fullAccess: true,
-  maxTurns: 28
+  maxTurns: 28,
+  launchAtLogin: false
 }
 
 describe('设置页模型与 API 回显同步', () => {

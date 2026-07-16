@@ -27,7 +27,8 @@ export function querySettingsFormValues(settings: AppSettings): AppSettings {
     baseUrl: settings.baseUrl,
     model: settings.model,
     fullAccess: settings.fullAccess,
-    maxTurns: settings.maxTurns
+    maxTurns: settings.maxTurns,
+    launchAtLogin: settings.launchAtLogin
   }
 }
 

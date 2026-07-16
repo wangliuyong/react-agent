@@ -29,4 +29,25 @@ describe('模型设置归一化', () => {
       }).provider
     ).toBe('deepseek')
   })
+
+  it('缺省 launchAtLogin 时默认为 false', () => {
+    expect(
+      normalizeSettings({
+        apiKey: 'k',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        model: 'qwen-plus'
+      }).launchAtLogin
+    ).toBe(false)
+  })
+
+  it('保留显式设置的 launchAtLogin', () => {
+    expect(
+      normalizeSettings({
+        launchAtLogin: true,
+        apiKey: 'k',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        model: 'qwen-plus'
+      }).launchAtLogin
+    ).toBe(true)
+  })
 })
