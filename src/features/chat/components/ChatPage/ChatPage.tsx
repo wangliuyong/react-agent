@@ -98,7 +98,7 @@ export function ChatPage(): React.ReactElement {
             <Button
               type="text"
               className={styles.headerIconBtn}
-              icon={<FormOutlined />}
+              icon={<PlusOutlined />}
               onClick={() => void createSession()}
             />
           </Tooltip>

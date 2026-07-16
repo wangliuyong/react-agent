@@ -27,7 +27,7 @@ export function SidebarNewChatButton({
           aria-label="新对话"
           onClick={onCreate}
         >
-          <FormOutlined />
+          <PlusOutlined />
         </button>
       </Tooltip>
     )
@@ -43,7 +43,7 @@ export function SidebarNewChatButton({
         onClick={onCreate}
       >
         <span className={styles.navIcon}>
-          <FormOutlined />
+          <PlusOutlined />
         </span>
         <span className={styles.newChatLabel}>新对话</span>
         <span className={styles.shortcutHint}>{shortcut}</span>
