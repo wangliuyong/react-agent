@@ -22,6 +22,12 @@ function queryNodeSummary(node: WorkflowNode): string {
   if (node.type === 'await_user') {
     return node.reason || '等待用户确认'
   }
+  if (node.type === 'notify') {
+    return node.channelId ? `推送至 ${node.channelId}` : '（未选择渠道）'
+  }
+  if (node.type === 'toast') {
+    return node.contentTemplate?.slice(0, 80) || '（未填写内容）'
+  }
   if (node.type === 'condition') {
     return `${node.mode === 'agent' ? 'Agent 选路' : '表达式'} · ${node.cases.length} 路`
   }

@@ -5,14 +5,20 @@ import type {
   WorkflowConditionNode,
   WorkflowLeafNode,
   WorkflowNode,
+  WorkflowNotifyNode,
   WorkflowParallelNode,
+  WorkflowToastLevel,
+  WorkflowToastNode,
   WorkflowToolNode
 } from '@shared/types'
+import { useChannelsStore, queryEnabledNotifyChannelsFromStore } from '@/features/channels'
 import {
   createAgentNode,
   createAwaitNode,
   createConditionNode,
+  createNotifyNode,
   createParallelNode,
+  createToastNode,
   createToolNode,
   isLeafNode
 } from '../../types'
@@ -24,7 +30,8 @@ const TOOL_NAME_OPTIONS = [
   { value: 'xhs_publish_note', label: 'xhs_publish_note' },
   { value: 'douyin_publish_note', label: 'douyin_publish_note' },
   { value: 'browser_navigate', label: 'browser_navigate' },
-  { value: 'list_attachments', label: 'list_attachments' }
+  { value: 'list_attachments', label: 'list_attachments' },
+  { value: 'notify_message', label: 'notify_message（渠道通知）' }
 ]
 
 interface WorkflowNodeEditModalProps {
@@ -53,6 +60,14 @@ interface FormValues {
   toolName?: string
   argsJson?: string
   reason?: string
+  /** notify */
+  channelId?: string
+  titleTemplate?: string
+  contentTemplate?: string
+  richText?: boolean
+  failSoft?: boolean
+  /** toast */
+  level?: WorkflowToastLevel
   /** condition */
   mode?: 'expression' | 'agent'
   branchShape?: 'ifelse' | 'switch'
@@ -83,6 +98,23 @@ function nodeToFormValues(node: WorkflowNode): FormValues {
   }
   if (node.type === 'await_user') {
     return { ...base, reason: node.reason }
+  }
+  if (node.type === 'notify') {
+    return {
+      ...base,
+      channelId: node.channelId,
+      titleTemplate: node.titleTemplate ?? '',
+      contentTemplate: node.contentTemplate,
+      richText: node.richText,
+      failSoft: node.failSoft !== false
+    }
+  }
+  if (node.type === 'toast') {
+    return {
+      ...base,
+      level: node.level,
+      contentTemplate: node.contentTemplate
+    }
   }
   if (node.type === 'condition') {
     const keys = node.cases.map((c) => c.key)
@@ -240,6 +272,37 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
     return node
   }
 
+  if (values.type === 'notify') {
+    const node: WorkflowNotifyNode = {
+      id,
+      type: 'notify',
+      title,
+      channelId: (values.channelId ?? '').trim() || 'feishu',
+      titleTemplate: (values.titleTemplate ?? '').trim() || undefined,
+      contentTemplate: (values.contentTemplate ?? '').trim() || '{{summary}}',
+      richText: Boolean(values.richText),
+      failSoft: values.failSoft !== false
+    }
+    if (!node.channelId) throw new Error('请选择通知渠道')
+    return node
+  }
+
+  if (values.type === 'toast') {
+    const level = values.level ?? 'info'
+    const validLevel: WorkflowToastLevel =
+      level === 'success' || level === 'error' || level === 'warning' || level === 'info'
+        ? level
+        : 'info'
+    const node: WorkflowToastNode = {
+      id,
+      type: 'toast',
+      title,
+      level: validLevel,
+      contentTemplate: (values.contentTemplate ?? '').trim() || '{{summary}}'
+    }
+    return node
+  }
+
   const prevChildren =
     prev && prev.type === 'parallel' ? prev.children : ([] as WorkflowLeafNode[])
   const node: WorkflowParallelNode = {
@@ -263,6 +326,15 @@ export function WorkflowNodeEditModal({
   onOk
 }: WorkflowNodeEditModalProps): React.ReactElement {
   const [form] = Form.useForm<FormValues>()
+  const channels = useChannelsStore((s) => s.channels)
+  const notifyChannelOptions = useMemo(
+    () =>
+      queryEnabledNotifyChannelsFromStore(channels).map((c) => ({
+        value: c.id,
+        label: c.label
+      })),
+    [channels]
+  )
   const type = Form.useWatch('type', form) as WorkflowNode['type'] | undefined
   const mode = Form.useWatch('mode', form)
   const branchShape = Form.useWatch('branchShape', form)
@@ -283,6 +355,8 @@ export function WorkflowNodeEditModal({
     const all: { value: WorkflowNode['type']; label: string }[] = [
       { value: 'agent', label: 'Agent 步骤' },
       { value: 'tool', label: '工具步骤' },
+      { value: 'notify', label: '渠道通知' },
+      { value: 'toast', label: 'Toast 通知' },
       { value: 'await_user', label: '等待确认' },
       { value: 'parallel', label: '并行组' },
       { value: 'condition', label: '条件分支' }
@@ -305,11 +379,15 @@ export function WorkflowNodeEditModal({
           ? createToolNode()
           : values.type === 'await_user'
             ? createAwaitNode()
-            : values.type === 'parallel'
-              ? createParallelNode()
-              : values.type === 'condition'
-                ? createConditionNode()
-                : createAgentNode())
+            : values.type === 'notify'
+              ? createNotifyNode()
+              : values.type === 'toast'
+                ? createToastNode()
+                : values.type === 'parallel'
+                  ? createParallelNode()
+                  : values.type === 'condition'
+                    ? createConditionNode()
+                    : createAgentNode())
       const next = buildNodeFromValues(values, node ?? basePrev)
       if (leafOnly && !isLeafNode(next) && next.type !== 'condition') {
         message.error('此处只能添加叶子步骤或条件分支')
@@ -518,6 +596,74 @@ export function WorkflowNodeEditModal({
           <Form.Item name="reason" label="确认说明">
             <Input.TextArea rows={3} placeholder="展示给用户的暂停原因" />
           </Form.Item>
+        )}
+
+        {type === 'notify' && (
+          <>
+            <Form.Item
+              name="channelId"
+              label="通知渠道"
+              rules={[{ required: true, message: '请选择渠道' }]}
+            >
+              <Select
+                placeholder="选择已启用的通知渠道"
+                options={notifyChannelOptions}
+                notFoundContent="请先在渠道页配置并启用通知渠道"
+              />
+            </Form.Item>
+            <Form.Item
+              name="titleTemplate"
+              label="推送标题"
+              tooltip="支持 {{contextKey}} 引用上游节点 outputKeys 写入的字段"
+            >
+              <Input placeholder="例如：{{workflowTitle}}" />
+            </Form.Item>
+            <Form.Item
+              name="contentTemplate"
+              label="推送正文"
+              rules={[{ required: true, message: '请填写正文模板' }]}
+              tooltip="支持 {{contextKey}} 插值，引用上游工具/Agent 返回值"
+              initialValue="{{summary}}"
+            >
+              <Input.TextArea rows={4} placeholder="{{summary}}" />
+            </Form.Item>
+            <Form.Item name="richText" label="飞书富文本" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              name="failSoft"
+              label="失败时继续"
+              valuePropName="checked"
+              tooltip="开启后通知发送失败不阻断流程"
+              initialValue
+            >
+              <Switch />
+            </Form.Item>
+          </>
+        )}
+
+        {type === 'toast' && (
+          <>
+            <Form.Item name="level" label="提示级别" initialValue="info">
+              <Select
+                options={[
+                  { value: 'success', label: '成功' },
+                  { value: 'info', label: '信息' },
+                  { value: 'warning', label: '警告' },
+                  { value: 'error', label: '错误' }
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
+              name="contentTemplate"
+              label="展示内容"
+              rules={[{ required: true, message: '请填写内容模板' }]}
+              tooltip="支持 {{contextKey}} 引用上游节点返回值"
+              initialValue="{{summary}}"
+            >
+              <Input.TextArea rows={4} placeholder="{{summary}}" />
+            </Form.Item>
+          </>
         )}
 
         {type === 'parallel' && (

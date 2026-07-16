@@ -6,8 +6,10 @@ import type {
   WorkflowEndNode,
   WorkflowLeafNode,
   WorkflowNode,
+  WorkflowNotifyNode,
   WorkflowParallelNode,
   WorkflowStartNode,
+  WorkflowToastNode,
   WorkflowToolNode
 } from '@shared/types'
 
@@ -81,6 +83,33 @@ export function createAwaitNode(partial?: Partial<WorkflowAwaitNode>): WorkflowA
   }
 }
 
+/** 新建渠道通知节点：默认飞书，正文引用上游 {{summary}} */
+export function createNotifyNode(partial?: Partial<WorkflowNotifyNode>): WorkflowNotifyNode {
+  return {
+    id: crypto.randomUUID(),
+    type: 'notify',
+    title: partial?.title ?? '渠道通知',
+    channelId: partial?.channelId ?? 'feishu',
+    titleTemplate: partial?.titleTemplate,
+    contentTemplate: partial?.contentTemplate ?? '{{summary}}',
+    richText: partial?.richText,
+    failSoft: partial?.failSoft ?? true,
+    outputKeys: partial?.outputKeys
+  }
+}
+
+/** 新建 Toast 通知节点：应用内 message 提示 */
+export function createToastNode(partial?: Partial<WorkflowToastNode>): WorkflowToastNode {
+  return {
+    id: crypto.randomUUID(),
+    type: 'toast',
+    title: partial?.title ?? 'Toast 通知',
+    level: partial?.level ?? 'info',
+    contentTemplate: partial?.contentTemplate ?? '{{summary}}',
+    outputKeys: partial?.outputKeys
+  }
+}
+
 export function createParallelNode(partial?: Partial<WorkflowParallelNode>): WorkflowParallelNode {
   return {
     id: crypto.randomUUID(),
@@ -115,6 +144,8 @@ export function createConditionNode(
 export function createEmptyNode(type: WorkflowNode['type']): WorkflowNode {
   if (type === 'tool') return createToolNode()
   if (type === 'await_user') return createAwaitNode()
+  if (type === 'notify') return createNotifyNode()
+  if (type === 'toast') return createToastNode()
   if (type === 'parallel') return createParallelNode()
   if (type === 'condition') return createConditionNode()
   if (type === 'start') return createStartNode()
@@ -128,6 +159,8 @@ export function queryNodeTypeLabel(type: WorkflowNode['type']): string {
     agent: 'Agent',
     tool: '工具',
     await_user: '确认',
+    notify: '渠道通知',
+    toast: 'Toast',
     parallel: '并行组',
     condition: '条件分支',
     start: '开始',
@@ -137,7 +170,13 @@ export function queryNodeTypeLabel(type: WorkflowNode['type']): string {
 }
 
 export function isLeafNode(node: WorkflowNode): node is WorkflowLeafNode {
-  return node.type === 'agent' || node.type === 'tool' || node.type === 'await_user'
+  return (
+    node.type === 'agent' ||
+    node.type === 'tool' ||
+    node.type === 'await_user' ||
+    node.type === 'notify' ||
+    node.type === 'toast'
+  )
 }
 
 export function isTerminalNode(

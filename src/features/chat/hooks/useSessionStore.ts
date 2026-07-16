@@ -199,6 +199,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         return
       }
 
+      /** 工作流 Toast 节点：全局弹出，不依赖当前会话 */
+      if (event.type === 'workflow_toast') {
+        const fn = message[event.level]
+        if (typeof fn === 'function') {
+          fn(event.content)
+        } else {
+          message.info(event.content)
+        }
+        return
+      }
+
       /** 定时/发布/流程每次执行新建会话：侧边栏追加并切换到该对话 */
       if (event.type === 'session_started') {
         const isTaskSession =

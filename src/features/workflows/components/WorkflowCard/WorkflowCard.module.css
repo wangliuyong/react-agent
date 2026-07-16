@@ -1,6 +1,9 @@
 /* 流程卡片 — 与技能市场卡片同构：标题/描述/页脚元信息 */
 
 .card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--db-border-light) !important;
   border-radius: var(--db-radius-lg) !important;
   background: var(--db-bg-content) !important;
@@ -14,11 +17,12 @@
 }
 
 .card :global(.ant-card-body) {
-  padding: 16px !important;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-height: 148px;
+  padding: 16px !important;
 }
 
 .card:hover {
@@ -75,6 +79,7 @@
 }
 
 .cardFooter {
+  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
