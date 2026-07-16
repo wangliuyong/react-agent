@@ -198,6 +198,34 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       if (event.type === 'agent_role') {
         return
       }
+
+      /** 定时/发布/流程每次执行新建会话：侧边栏追加并切换到该对话 */
+      if (event.type === 'session_started') {
+        const isTaskSession =
+          event.session.type === 'schedule' ||
+          event.session.type === 'workflow' ||
+          event.session.type === 'publish'
+        set((state) => {
+          const exists = state.sessions.some((s) => s.id === event.session.id)
+          return {
+            sessions: exists
+              ? state.sessions
+              : [event.session, ...state.sessions],
+            ...(isTaskSession
+              ? {
+                  activeSessionId: event.session.id,
+                  running: true,
+                  awaitUserReason: null,
+                  canResume: false,
+                  streamingText: '',
+                  activeToolName: null
+                }
+              : {})
+          }
+        })
+        return
+      }
+
       const activeId = get().activeSessionId
 
       if (event.type === 'text_delta') {

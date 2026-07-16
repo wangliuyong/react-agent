@@ -1,6 +1,7 @@
 import type { ScheduledTask, Session } from '../../../shared/types'
 import { IpcChannels } from '../../../shared/types'
 import { computeNextRunAt } from '../../../shared/schedule-utils'
+import { formatRunSessionTitle } from '../../../shared/session-run-title'
 import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
 import { queryPublishPlan } from '../store/plans'
 import { queryPublishPlanRunnableWorkflowId } from '../workflow/migrate-publish'
@@ -15,7 +16,8 @@ import {
   bindGraphSessionAbort,
   releaseGraphSessionAbort,
   runLangGraphStep,
-  emitAgentEvent
+  emitAgentEvent,
+  emitSessionStarted
 } from '../agent/graph-bridge'
 import { postRunWorkflow } from '../workflow/engine'
 import { getMainWindow } from '../window'
@@ -41,7 +43,7 @@ function createScheduleSession(task: ScheduledTask): Session {
   const now = Date.now()
   return {
     id: crypto.randomUUID(),
-    title: `[定时] ${task.title}`,
+    title: formatRunSessionTitle('[定时]', task.title, now),
     messages: [],
     tasks: [],
     type: 'schedule',
@@ -49,6 +51,12 @@ function createScheduleSession(task: ScheduledTask): Session {
     createdAt: now,
     updatedAt: now
   }
+}
+
+/** 落盘并通知 UI：每次触发使用全新会话，不复用 lastSessionId */
+function postScheduleRunSession(session: Session): void {
+  postSession(session)
+  emitSessionStarted(session)
 }
 
 /**
@@ -167,7 +175,7 @@ export async function triggerScheduledTask(
 
     markScheduleTaskRunning(taskId)
     const session = createScheduleSession(task)
-    postSession(session)
+    postScheduleRunSession(session)
     registerScheduleSession(session.id, taskId)
 
     const running: ScheduledTask = {
@@ -193,7 +201,7 @@ export async function triggerScheduledTask(
 
   markScheduleTaskRunning(taskId)
   const session = createScheduleSession(task)
-  postSession(session)
+  postScheduleRunSession(session)
   registerScheduleSession(session.id, taskId)
 
   const running: ScheduledTask = {

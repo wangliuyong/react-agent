@@ -606,12 +606,8 @@ export function SchedulePage(): React.ReactElement {
     await hydrateSessions()
     setView('chat')
     if (result.lastSessionId) {
-      // 编排引擎路径需标记 running，才能在任务清单中断
-      if (task.actionType === 'publish_plan' || task.actionType === 'workflow') {
-        beginExternalRun(result.lastSessionId)
-      } else {
-        setActiveSession(result.lastSessionId)
-      }
+      beginExternalRun(result.lastSessionId)
+      setActiveSession(result.lastSessionId)
     }
     message.success('已在主聊天窗口开始执行')
   }

@@ -11,6 +11,7 @@ import type {
   WorkflowRunStartResult
 } from '../../../shared/types'
 import { queryConditionCaseKey } from '../../../shared/evaluate-workflow-condition'
+import { formatRunSessionTitle } from '../../../shared/session-run-title'
 import { postSession, querySession } from '../store/sessions'
 import { queryWorkflow } from '../store/workflows'
 import {
@@ -22,7 +23,8 @@ import {
   bindGraphSessionAbort,
   releaseGraphSessionAbort,
   runLangGraphStep,
-  waitForGraphUserContinue
+  waitForGraphUserContinue,
+  emitSessionStarted
 } from '../agent/graph-bridge'
 import { getToolByName } from '../agent/tools'
 import type { ToolContext } from '../agent/tools/types'
@@ -179,7 +181,7 @@ function createWorkflowSession(workflow: WorkflowDefinition): Session {
   const now = Date.now()
   return {
     id: crypto.randomUUID(),
-    title: `[流程] ${workflow.title}`,
+    title: formatRunSessionTitle('[流程]', workflow.title, now),
     messages: [],
     tasks: [],
     type: 'workflow',
@@ -807,8 +809,10 @@ export async function postRunWorkflow(
   const session = options?.session ?? createWorkflowSession(workflow)
   if (!options?.session) {
     postSession(session)
+    emitSessionStarted(session)
   } else if (!querySession(session.id)) {
     postSession(session)
+    emitSessionStarted(session)
   }
 
   const now = Date.now()
