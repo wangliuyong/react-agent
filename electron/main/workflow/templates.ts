@@ -399,6 +399,15 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         ],
         defaultKey: 'weibo_fail'
       },
+      {
+        id: 'tpl_fr_notify',
+        type: 'notify',
+        title: '渠道通知',
+        channelId: 'feishu',
+        contentTemplate: '{{summary}}',
+        richText: true,
+        failSoft: true
+      },
       { id: 'tpl_fr_end', type: 'end', title: '结束' }
     ],
     canvas: {
@@ -408,7 +417,8 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         tpl_fr_fmt_weibo: { x: 40, y: 180 },
         tpl_fr_baidu: { x: 240, y: 180 },
         tpl_fr_fmt_baidu: { x: 240, y: 250 },
-        tpl_fr_end: { x: 140, y: 330 }
+        tpl_fr_notify: { x: 140, y: 300 },
+        tpl_fr_end: { x: 140, y: 370 }
       },
       edges: [
         { id: 'e_fr_s_w', source: 'tpl_fr_start', target: 'tpl_fr_weibo' },
@@ -427,8 +437,9 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
           isDefault: true
         },
         { id: 'e_fr_b_fmt', source: 'tpl_fr_baidu', target: 'tpl_fr_fmt_baidu' },
-        { id: 'e_fr_ok_end', source: 'tpl_fr_fmt_weibo', target: 'tpl_fr_end' },
-        { id: 'e_fr_fail_end', source: 'tpl_fr_fmt_baidu', target: 'tpl_fr_end' }
+        { id: 'e_fr_ok_notify', source: 'tpl_fr_fmt_weibo', target: 'tpl_fr_notify' },
+        { id: 'e_fr_fail_notify', source: 'tpl_fr_fmt_baidu', target: 'tpl_fr_notify' },
+        { id: 'e_fr_notify_end', source: 'tpl_fr_notify', target: 'tpl_fr_end' }
       ]
     },
     createdAt: 0,

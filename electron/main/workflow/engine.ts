@@ -44,6 +44,35 @@ import { isGraphInterrupt, interrupt } from '@langchain/langgraph'
 /** 同一时刻每个会话只跑一个工作流 */
 const runningBySession = new Set<string>()
 
+/**
+ * 调试输出：节点执行时的上下文与模板解析结果（主进程 console）。
+ * @param label 日志阶段说明，如「开始执行」「工具参数已解析」
+ * @param node 当前节点标识
+ * @param context 节点可用的 WorkflowRun.context
+ * @param resolvedInput 模板插值后的实际输入（可选）
+ */
+function logWorkflowNodeInput(
+  label: string,
+  node: { id: string; type: string; title?: string },
+  context: Record<string, unknown>,
+  resolvedInput?: unknown
+): void {
+  console.log(
+    `[workflow] ${label}`,
+    JSON.stringify(
+      {
+        nodeId: node.id,
+        nodeType: node.type,
+        title: node.title,
+        context,
+        ...(resolvedInput !== undefined ? { resolvedInput } : {})
+      },
+      null,
+      2
+    )
+  )
+}
+
 function emitTaskUpdate(sessionId: string, tasks: TaskItem[]): void {
   const win = getMainWindow()
   if (win && !win.isDestroyed()) {
@@ -228,7 +257,9 @@ async function executeToolNode(
     throw new Error(`未知工具: ${node.toolName}`)
   }
 
+  logWorkflowNodeInput('工具节点 · 上下文', node, context)
   const args = interpolateDeep(node.argsTemplate, context) as Record<string, unknown>
+  logWorkflowNodeInput('工具节点 · 参数已解析', node, context, args)
 
   emitToolStart(sessionId, node.toolName, args)
 
@@ -290,10 +321,12 @@ async function executeNotifyNode(
   node: Extract<WorkflowLeafNode, { type: 'notify' }>,
   context: Record<string, unknown>
 ): Promise<{ context: Record<string, unknown>; summary: string }> {
+  logWorkflowNodeInput('通知节点 · 上下文', node, context)
   const title = node.titleTemplate
     ? interpolatePromptSoft(node.titleTemplate, context)
     : undefined
   const content = interpolatePromptSoft(node.contentTemplate, context).trim()
+  logWorkflowNodeInput('通知节点 · 内容已解析', node, context, { title, content })
   if (!content) {
     const msg = '通知正文为空，请检查 contentTemplate 或上游 outputKeys'
     appendWorkflowMessage(session, {
@@ -351,8 +384,10 @@ async function executeToastNode(
   node: Extract<WorkflowLeafNode, { type: 'toast' }>,
   context: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
+  logWorkflowNodeInput('Toast 节点 · 上下文', node, context)
   const content = interpolatePromptSoft(node.contentTemplate, context).trim()
   const display = content || '（空通知）'
+  logWorkflowNodeInput('Toast 节点 · 内容已解析', node, context, { content: display })
 
   emitWorkflowToast(session.id, node.level, display)
   appendWorkflowMessage(session, {
@@ -383,6 +418,7 @@ async function executeLeafNode(
   }
 
   run = patchRun(run, { cursorNodeId: node.id, status: 'running' })
+  logWorkflowNodeInput('叶节点 · 开始执行', node, run.context)
 
   if (node.type === 'await_user') {
     run = patchRun(run, { status: 'awaiting_user' })
@@ -430,6 +466,7 @@ async function executeLeafNode(
       .join('\n\n'),
     run.context
   )
+  logWorkflowNodeInput('Agent 节点 · Prompt 已解析', node, run.context, { stepPrompt })
   const sessionBefore = querySession(sessionId)
   const msgCountBefore = sessionBefore?.messages.length ?? 0
 
@@ -531,6 +568,7 @@ async function executeConditionNode(
     for (const child of arm.nodes) statusMap.set(child.id, 'pending')
   }
   persistSessionTasks(session, buildTasks(specs, statusMap))
+  logWorkflowNodeInput('条件节点 · 开始执行', node, run.context)
 
   let selectedKey: string
   if (node.mode === 'agent') {
@@ -609,6 +647,7 @@ async function executeTopLevelNode(
   signal: AbortSignal
 ): Promise<WorkflowRun> {
   if (node.type === 'start' || node.type === 'end') {
+    logWorkflowNodeInput(`${node.type === 'start' ? '开始' : '结束'}节点 · 开始执行`, node, run.context)
     statusMap.set(node.id, 'running')
     persistSessionTasks(session, buildTasks(specs, statusMap))
     run = patchRun(run, { cursorNodeId: node.id, status: 'running' })
@@ -664,6 +703,9 @@ async function executeTopLevelNode(
   }
   persistSessionTasks(session, buildTasks(specs, statusMap))
   run = patchRun(run, { cursorNodeId: node.id, status: 'running' })
+  logWorkflowNodeInput('并行节点 · 开始执行', node, run.context, {
+    childIds: node.children.map((c) => c.id)
+  })
 
   const allTools =
     node.children.length > 0 && node.children.every((c) => c.type === 'tool')

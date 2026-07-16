@@ -280,7 +280,10 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
       channelId: (values.channelId ?? '').trim() || 'feishu',
       titleTemplate: (values.titleTemplate ?? '').trim() || undefined,
       contentTemplate: (values.contentTemplate ?? '').trim() || '{{summary}}',
-      richText: Boolean(values.richText),
+      richText:
+        (values.channelId ?? 'feishu') === 'feishu'
+          ? values.richText !== false
+          : Boolean(values.richText),
       failSoft: values.failSoft !== false
     }
     if (!node.channelId) throw new Error('请选择通知渠道')
@@ -627,7 +630,13 @@ export function WorkflowNodeEditModal({
             >
               <Input.TextArea rows={4} placeholder="{{summary}}" />
             </Form.Item>
-            <Form.Item name="richText" label="飞书富文本" valuePropName="checked">
+            <Form.Item
+              name="richText"
+              label="飞书富文本"
+              valuePropName="checked"
+              tooltip="开启后将 Markdown 转为飞书 post 富文本推送"
+              initialValue
+            >
               <Switch />
             </Form.Item>
             <Form.Item
