@@ -116,6 +116,14 @@
   animation: cardIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.secondaryCard {
+  margin-top: 20px;
+}
+
+.generalBody {
+  padding: 20px 24px 24px;
+}
+
 .cardHeader {
   display: flex;
   align-items: center;

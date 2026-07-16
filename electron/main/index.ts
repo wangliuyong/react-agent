@@ -8,6 +8,8 @@ import { getBrowserService } from './browser/service'
 import { releaseBrowserProfileLock } from './browser/profile-lock'
 import { startScheduleService } from './schedule/scheduler'
 import { initializeResources } from './store/resources'
+import { querySettings } from './store/settings'
+import { postLaunchAtLogin } from './store/launch-at-login'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -56,6 +58,8 @@ app.whenReady().then(() => {
   initPublishChannelRegistry()
   registerIpcHandlers()
   startScheduleService()
+  // 启动时按本机配置同步系统登录项
+  postLaunchAtLogin(querySettings().launchAtLogin)
   createWindow()
 
   app.on('activate', () => {

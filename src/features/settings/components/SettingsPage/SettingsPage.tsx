@@ -300,6 +300,51 @@ export function SettingsPage(): React.ReactElement {
           )}
         </div>
 
+        {/* 应用行为：开机自启独立于模型表单，切换后立即生效 */}
+        <div className={`${styles.formCard} ${styles.secondaryCard}`}>
+          <div className={styles.cardHeader}>
+            <div className={styles.cardHeading}>
+              <span className={styles.cardIcon}>
+                <RocketOutlined />
+              </span>
+              <div>
+                <Title level={4} className={styles.cardTitle}>
+                  应用与启动
+                </Title>
+                <Text type="secondary" className={styles.cardDesc}>
+                  控制应用在本机的启动行为
+                </Text>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.generalBody}>
+            <div className={styles.permissionRow}>
+              <span className={styles.permissionIcon}>
+                <PoweroffOutlined />
+              </span>
+              <div className={styles.permissionContent}>
+                <Text strong>开机自启</Text>
+                <Text type="secondary">
+                  登录 macOS / Windows 后自动启动灵犀，便于后台定时任务与渠道保持在线
+                </Text>
+              </div>
+              <Switch
+                checked={settings.launchAtLogin}
+                disabled={!loaded}
+                onChange={async (checked) => {
+                  try {
+                    await postSettings({ launchAtLogin: checked })
+                    message.success(checked ? '已开启开机自启' : '已关闭开机自启')
+                  } catch {
+                    message.error('更新开机自启失败，请重试')
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
         <ChannelStatusPanel />
       </div>
     </div>

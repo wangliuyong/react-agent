@@ -8,7 +8,8 @@ const BASE_SETTINGS: AppSettings = {
   baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   model: 'qwen-plus',
   fullAccess: false,
-  maxTurns: 40
+  maxTurns: 40,
+  launchAtLogin: false
 }
 
 describe('聊天模型配置', () => {
