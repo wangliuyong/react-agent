@@ -29,6 +29,8 @@ interface WorkflowCanvasDrawerProps {
 const ADD_NODE_MENU_TYPES: { key: WorkflowCanvasLeafType; label: string }[] = [
   { key: 'agent', label: 'Agent 步骤' },
   { key: 'tool', label: '工具步骤' },
+  { key: 'notify', label: '渠道通知' },
+  { key: 'toast', label: 'Toast 通知' },
   { key: 'await_user', label: '等待确认' }
 ]
 

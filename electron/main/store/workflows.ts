@@ -10,8 +10,10 @@ import type {
   WorkflowEndNode,
   WorkflowLeafNode,
   WorkflowNode,
+  WorkflowNotifyNode,
   WorkflowParallelNode,
   WorkflowStartNode,
+  WorkflowToastNode,
   WorkflowToolNode
 } from '../../../shared/types'
 import { mergeBuiltinWorkflowTemplates } from '../workflow/templates'
@@ -25,9 +27,26 @@ function sortWorkflows(list: WorkflowDefinition[]): WorkflowDefinition[] {
   return [...list].sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
+function isLeafType(
+  type: string
+): type is WorkflowLeafNode['type'] {
+  return (
+    type === 'agent' ||
+    type === 'tool' ||
+    type === 'await_user' ||
+    type === 'notify' ||
+    type === 'toast'
+  )
+}
+
 function normalizeLeaf(
   raw: WorkflowLeafNode
-): WorkflowAgentNode | WorkflowToolNode | WorkflowAwaitNode {
+):
+  | WorkflowAgentNode
+  | WorkflowToolNode
+  | WorkflowAwaitNode
+  | WorkflowNotifyNode
+  | WorkflowToastNode {
   const base = {
     id: String(raw.id || '').trim() || crypto.randomUUID(),
     title: String(raw.title || '').trim() || '未命名步骤'
@@ -62,6 +81,49 @@ function normalizeLeaf(
     }
   }
 
+  if (raw.type === 'notify') {
+    const notify = raw as WorkflowNotifyNode
+    return {
+      ...base,
+      type: 'notify',
+      channelId: String(notify.channelId || '').trim() || 'feishu',
+      titleTemplate:
+        notify.titleTemplate != null ? String(notify.titleTemplate) : undefined,
+      contentTemplate: String(notify.contentTemplate || '').trim() || '{{summary}}',
+      richText: Boolean(notify.richText),
+      failSoft: notify.failSoft !== false,
+      outputKeys: Array.isArray(notify.outputKeys)
+        ? notify.outputKeys.map(String).filter(Boolean)
+        : undefined
+    }
+  }
+
+  if (raw.type === 'toast') {
+    const toast = raw as WorkflowToastNode
+    const level = toast.level
+    const validLevel =
+      level === 'success' || level === 'error' || level === 'warning' || level === 'info'
+        ? level
+        : 'info'
+    return {
+      ...base,
+      type: 'toast',
+      level: validLevel,
+      contentTemplate: String(toast.contentTemplate || '').trim() || '{{summary}}',
+      outputKeys: Array.isArray(toast.outputKeys)
+        ? toast.outputKeys.map(String).filter(Boolean)
+        : undefined
+    }
+  }
+
+  if (raw.type === 'await_user') {
+    return {
+      ...base,
+      type: 'await_user',
+      reason: String((raw as WorkflowAwaitNode).reason || '').trim() || '请确认后继续'
+    }
+  }
+
   return {
     ...base,
     type: 'await_user',
@@ -92,8 +154,7 @@ function normalizeCondition(raw: WorkflowConditionNode): WorkflowConditionNode {
             ? c.nodes
                 .filter(
                   (n): n is WorkflowLeafNode =>
-                    n != null &&
-                    (n.type === 'agent' || n.type === 'tool' || n.type === 'await_user')
+                    n != null && isLeafType(String(n.type))
                 )
                 .map(normalizeLeaf)
             : []
@@ -143,9 +204,7 @@ function normalizeNode(raw: WorkflowNode): WorkflowNode {
     const children = Array.isArray(raw.children)
       ? raw.children
           .filter(
-            (c): c is WorkflowLeafNode =>
-              c != null &&
-              (c.type === 'agent' || c.type === 'tool' || c.type === 'await_user')
+            (c): c is WorkflowLeafNode => c != null && isLeafType(String(c.type))
           )
           .map(normalizeLeaf)
       : []

@@ -417,6 +417,13 @@ export type AgentEvent =
   | { type: 'agent_role'; sessionId: string; role: AgentRoleName }
   /** 任务/流程每次执行新建会话时推送，渲染进程据此在侧边栏展示新对话 */
   | { type: 'session_started'; sessionId: string; session: Session }
+  /** 工作流 Toast 节点触发，渲染进程展示 Ant Design message */
+  | {
+      type: 'workflow_toast'
+      sessionId: string
+      level: WorkflowToastLevel
+      content: string
+    }
 
 export interface BrowserStatus {
   running: boolean
@@ -579,15 +586,61 @@ export interface WorkflowAwaitNode {
   reason: string
 }
 
+/** Toast 级别，对应 Ant Design message */
+export type WorkflowToastLevel = 'success' | 'error' | 'warning' | 'info'
+
+/**
+ * 渠道通知节点：从 WorkflowRun.context 插值标题/正文后推送到通知渠道（飞书等）。
+ * 上游节点通过 outputKeys 或 @@workflow_ctx@@ 写入 context，正文模板用 {{key}} 引用。
+ */
+export interface WorkflowNotifyNode {
+  id: string
+  type: 'notify'
+  title: string
+  /** 通知渠道 id，如 feishu */
+  channelId: string
+  /** 推送标题模板，支持 {{contextKey}} */
+  titleTemplate?: string
+  /** 推送正文模板，支持 {{contextKey}} */
+  contentTemplate: string
+  /** 飞书 Markdown 富文本 */
+  richText?: boolean
+  /** 发送失败时继续流程（默认 true，对齐发布计划「通知失败可忽略」） */
+  failSoft?: boolean
+  /** 可选：将发送结果摘要写入 context */
+  outputKeys?: string[]
+}
+
+/**
+ * 应用内 Toast 节点：流程执行时通过 IPC 触发渲染进程 Ant Design message。
+ * 内容同样支持 {{contextKey}} 引用上游返回值。
+ */
+export interface WorkflowToastNode {
+  id: string
+  type: 'toast'
+  title: string
+  level: WorkflowToastLevel
+  /** 展示内容模板，支持 {{contextKey}} */
+  contentTemplate: string
+  /** 可选：将展示内容写入 context */
+  outputKeys?: string[]
+}
+
 /**
  * 并行组：组间串行，组内叶子并行（P0 引擎可先串行展开 children）。
- * children 仅允许 agent / tool / await_user。
+ * children 仅允许 agent / tool / await_user / notify / toast。
  */
 export interface WorkflowParallelNode {
   id: string
   type: 'parallel'
   title: string
-  children: Array<WorkflowAgentNode | WorkflowToolNode | WorkflowAwaitNode>
+  children: Array<
+    | WorkflowAgentNode
+    | WorkflowToolNode
+    | WorkflowAwaitNode
+    | WorkflowNotifyNode
+    | WorkflowToastNode
+  >
 }
 
 /** 条件判定模式：表达式（表单/短表达式）或 Agent 选路 */
@@ -646,7 +699,12 @@ export interface WorkflowEndNode {
   title: string
 }
 
-export type WorkflowLeafNode = WorkflowAgentNode | WorkflowToolNode | WorkflowAwaitNode
+export type WorkflowLeafNode =
+  | WorkflowAgentNode
+  | WorkflowToolNode
+  | WorkflowAwaitNode
+  | WorkflowNotifyNode
+  | WorkflowToastNode
 export type WorkflowTerminalNode = WorkflowStartNode | WorkflowEndNode
 export type WorkflowNode =
   | WorkflowLeafNode

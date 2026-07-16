@@ -30,6 +30,7 @@ import { getToolByName } from '../agent/tools'
 import type { ToolContext } from '../agent/tools/types'
 import { getMainWindow } from '../window'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
+import { postNotifyMessage } from '../notify/send'
 import { interpolateDeep } from './interpolate'
 import {
   interpolatePromptSoft,
@@ -82,6 +83,23 @@ function emitMessage(sessionId: string, message: ChatMessage): void {
   const win = getMainWindow()
   if (win && !win.isDestroyed()) {
     win.webContents.send('event:agent', { type: 'message', sessionId, message })
+  }
+}
+
+/** 工作流 Toast 节点：推送到渲染进程展示 Ant Design message */
+function emitWorkflowToast(
+  sessionId: string,
+  level: 'success' | 'error' | 'warning' | 'info',
+  content: string
+): void {
+  const win = getMainWindow()
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('event:agent', {
+      type: 'workflow_toast',
+      sessionId,
+      level,
+      content
+    })
   }
 }
 
@@ -260,6 +278,92 @@ async function executeToolNode(
   return nextContext
 }
 
+/**
+ * 执行渠道通知节点：软插值标题/正文后调用 postNotifyMessage。
+ * failSoft 为 true（默认）时发送失败不阻断流程。
+ */
+async function executeNotifyNode(
+  session: Session,
+  node: Extract<WorkflowLeafNode, { type: 'notify' }>,
+  context: Record<string, unknown>
+): Promise<{ context: Record<string, unknown>; summary: string }> {
+  const title = node.titleTemplate
+    ? interpolatePromptSoft(node.titleTemplate, context)
+    : undefined
+  const content = interpolatePromptSoft(node.contentTemplate, context).trim()
+  if (!content) {
+    const msg = '通知正文为空，请检查 contentTemplate 或上游 outputKeys'
+    appendWorkflowMessage(session, {
+      role: 'assistant',
+      content: `【${node.title}】${msg}`
+    })
+    if (node.failSoft === false) {
+      throw new Error(msg)
+    }
+    return { context, summary: msg }
+  }
+
+  const result = await postNotifyMessage({
+    channelId: node.channelId,
+    title: title?.trim() || undefined,
+    content,
+    richText: node.richText
+  })
+
+  const summary = result.ok
+    ? result.deduped
+      ? `通知已去重跳过（${node.channelId}）`
+      : `通知已发送至 ${node.channelId}`
+    : `通知发送失败：${result.error}`
+
+  appendWorkflowMessage(session, {
+    role: 'assistant',
+    content: `【${node.title}】${summary}`
+  })
+
+  if (!result.ok && node.failSoft === false) {
+    throw new Error(summary)
+  }
+
+  const nextContext = { ...context }
+  if (node.outputKeys?.length) {
+    for (const key of node.outputKeys) {
+      nextContext[key] = summary
+    }
+  } else {
+    nextContext[`notify_${node.id}`] = summary
+  }
+  return { context: nextContext, summary }
+}
+
+/**
+ * 执行 Toast 节点：软插值正文后通过 IPC 触发渲染进程 message。
+ */
+async function executeToastNode(
+  session: Session,
+  node: Extract<WorkflowLeafNode, { type: 'toast' }>,
+  context: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const content = interpolatePromptSoft(node.contentTemplate, context).trim()
+  const display = content || '（空通知）'
+
+  emitWorkflowToast(session.id, node.level, display)
+  appendWorkflowMessage(session, {
+    role: 'assistant',
+    content: `【${node.title}】Toast：${display}`
+  })
+
+  const nextContext = { ...context }
+  if (node.outputKeys?.length) {
+    for (const key of node.outputKeys) {
+      nextContext[key] = display
+    }
+  } else {
+    nextContext[`toast_${node.id}`] = display
+  }
+  return nextContext
+}
+
 async function executeLeafNode(
   session: Session,
   node: WorkflowLeafNode,
@@ -295,6 +399,16 @@ async function executeLeafNode(
     const nextContext = await executeToolNode(session, node, run.context, async () => {
       run = patchRun(run, { status: 'awaiting_user' })
     })
+    return patchRun(run, { context: nextContext, status: 'running' })
+  }
+
+  if (node.type === 'notify') {
+    const { context: nextContext } = await executeNotifyNode(session, node, run.context)
+    return patchRun(run, { context: nextContext, status: 'running' })
+  }
+
+  if (node.type === 'toast') {
+    const nextContext = await executeToastNode(session, node, run.context)
     return patchRun(run, { context: nextContext, status: 'running' })
   }
 
