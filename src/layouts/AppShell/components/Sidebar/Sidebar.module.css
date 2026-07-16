@@ -283,6 +283,11 @@
   color: var(--db-text-tertiary);
 }
 
+.historyIconLoading {
+  color: var(--db-primary);
+  font-size: 14px;
+}
+
 .historyItem[data-active='true'] .historyIcon {
   color: var(--db-primary);
 }

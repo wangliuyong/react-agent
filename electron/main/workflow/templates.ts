@@ -360,7 +360,8 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
                   '',
                   '{{hotTopics}}'
                 ].join('\n'),
-                toolWhitelist: ['update_task_list']
+                toolWhitelist: ['update_task_list'],
+                outputKeys: ['summary']
               }
             ]
           },
@@ -390,7 +391,8 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
                   '',
                   '{{hotTopics}}'
                 ].join('\n'),
-                toolWhitelist: ['update_task_list']
+                toolWhitelist: ['update_task_list'],
+                outputKeys: ['summary']
               }
             ]
           }

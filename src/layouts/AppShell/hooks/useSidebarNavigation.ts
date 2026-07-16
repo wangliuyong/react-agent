@@ -1,6 +1,6 @@
 import type { AppView } from '@/stores/app-store'
 import { useAppStore } from '@/stores/app-store'
-import { useSessionStore, querySessionType, queryIsFreshChatSession } from '@/features/chat'
+import { useSessionStore, querySessionType, queryIsFreshChatSession, queryIsSessionRunning } from '@/features/chat'
 import type { SessionHistoryItem } from '../types'
 
 interface UseSidebarNavigationOptions {
@@ -16,7 +16,7 @@ export function useSidebarNavigation({ view }: UseSidebarNavigationOptions) {
   const setActive = useSessionStore((s) => s.setActive)
   const createSession = useSessionStore((s) => s.createSession)
   const removeSession = useSessionStore((s) => s.removeSession)
-  const running = useSessionStore((s) => s.running)
+  const runningSessionIds = useSessionStore((s) => s.runningSessionIds)
   const abort = useSessionStore((s) => s.abort)
 
   const navigateTo = useCallback((target: AppView) => setView(target), [setView])
@@ -36,13 +36,13 @@ export function useSidebarNavigation({ view }: UseSidebarNavigationOptions) {
   /** 删除历史对话；若正在执行则先中止 Agent */
   const deleteSession = useCallback(
     async (sessionId: string) => {
-      if (running && activeSessionId === sessionId) {
+      if (queryIsSessionRunning(sessionId, runningSessionIds) && activeSessionId === sessionId) {
         await abort()
       }
       await removeSession(sessionId)
       message.success('已删除对话')
     },
-    [running, activeSessionId, abort, removeSession]
+    [runningSessionIds, activeSessionId, abort, removeSession]
   )
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null
@@ -52,7 +52,8 @@ export function useSidebarNavigation({ view }: UseSidebarNavigationOptions) {
     id: s.id,
     title: s.title,
     updatedAt: s.updatedAt,
-    type: querySessionType(s)
+    type: querySessionType(s),
+    running: queryIsSessionRunning(s.id, runningSessionIds, s)
   }))
 
   return {
