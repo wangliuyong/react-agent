@@ -11,7 +11,7 @@ export function querySessionType(
 ): SessionType {
   if (session.type) return session.type
 
-  // 定时任务会话标题带 [定时] 前缀（见 scheduler.createScheduleSession）
+  // 定时任务会话标题带 [定时] 前缀（见 scheduler.createScheduleSession / formatRunSessionTitle）
   if (session.title.startsWith('[定时]')) return 'schedule'
 
   // 工作流引擎创建的会话标题带 [流程] 前缀

@@ -71,6 +71,15 @@ export function queryActiveWorkflowRunBySession(sessionId: string): WorkflowRun 
   )
 }
 
+/** 按会话取最近一次工作流运行（含已结束），用于流程任务完成后推送通知 */
+export function queryLatestWorkflowRunBySession(sessionId: string): WorkflowRun | null {
+  return (
+    readRunsFromDisk()
+      .filter((r) => r.sessionId === sessionId)
+      .sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null
+  )
+}
+
 export function postWorkflowRun(run: WorkflowRun): WorkflowRun {
   const list = readRunsFromDisk()
   const next = normalizeRun({ ...run, updatedAt: Date.now() })

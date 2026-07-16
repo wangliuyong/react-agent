@@ -42,6 +42,11 @@ export function emitAgentEvent(event: AgentEvent): void {
   handleScheduleAgentDone(event)
 }
 
+/** 通知渲染进程：本次任务/流程已新建独立会话（每次执行一条新对话） */
+export function emitSessionStarted(session: Session): void {
+  emitAgentEvent({ type: 'session_started', sessionId: session.id, session })
+}
+
 function persistSession(session: Session): void {
   session.updatedAt = Date.now()
   postSession(session)

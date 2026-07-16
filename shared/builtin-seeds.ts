@@ -170,14 +170,14 @@ export function createBuiltinScheduledTasks(now = Date.now()): ScheduledTask[] {
     },
     {
       id: BUILTIN_SCHEDULE_TASK_IDS.feishuRichtextPush,
-      title: '每日富文本推送',
-      description: '每天 8:30 执行「飞书富文本推送」流程，以 post 格式推送到飞书',
+      title: '飞书富文本推送 · 每日自动',
+      description: '每天 8:30 执行「飞书富文本推送」流程任务，将 post 富文本推送到飞书',
       enabled: false,
       repeat: 'daily',
       timeOfDay: '08:30',
       weekday: 1,
-      actionType: 'workflow',
-      workflowId: BUILTIN_WORKFLOW_IDS.feishuRichtextPush,
+      actionType: 'publish_plan',
+      publishPlanId: BUILTIN_PUBLISH_PLAN_IDS.feishuRichtext,
       notifyChannels: ['feishu'],
       createdAt: now,
       updatedAt: now
