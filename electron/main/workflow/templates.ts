@@ -318,6 +318,119 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
     },
     createdAt: 0,
     updatedAt: 0
+  },
+  {
+    id: 'tpl_feishu_richtext_push',
+    title: '飞书富文本推送（模板）',
+    description:
+      '微博热搜优先、失败回退百度；整理 Markdown 简报。流程结束后由系统转为 msg_type=post 推送飞书，无需人工确认。',
+    templateKind: 'generic',
+    nodes: [
+      { id: 'tpl_fr_start', type: 'start', title: '开始' },
+      {
+        id: 'tpl_fr_weibo',
+        type: 'tool',
+        title: '获取微博热搜',
+        toolName: 'fetch_hot_topics',
+        argsTemplate: { source: 'weibo', maxCount: 20 },
+        outputKeys: ['weiboHotRaw']
+      },
+      {
+        id: 'tpl_fr_cond',
+        type: 'condition',
+        title: '微博是否成功',
+        mode: 'expression',
+        cases: [
+          {
+            key: 'weibo_ok',
+            label: '微博成功',
+            when: { contextKey: 'hotTopicsOk', op: 'eq', value: '1' },
+            nodes: [
+              {
+                id: 'tpl_fr_fmt_weibo',
+                type: 'agent',
+                title: '整理富文本简报（微博）',
+                prompt: [
+                  '将下列热点整理为飞书 post 富文本用的 Markdown 简报。',
+                  '要求：',
+                  '1. 文首二级标题「热点富文本简报」',
+                  '2. 列出 Top 8 条科技/互联网相关热点（不足则列综合热点）',
+                  '3. 每条：标题 + 一句话说明 + [查看](链接)（无链接可写热搜词条）',
+                  '4. 只输出 Markdown；禁止调用 notify_message（流程结束后系统自动 post 推送飞书）',
+                  '',
+                  '{{hotTopics}}'
+                ].join('\n'),
+                toolWhitelist: ['update_task_list']
+              }
+            ]
+          },
+          {
+            key: 'weibo_fail',
+            label: '回退百度',
+            nodes: [
+              {
+                id: 'tpl_fr_baidu',
+                type: 'tool',
+                title: '获取百度热搜',
+                toolName: 'fetch_hot_topics',
+                argsTemplate: { source: 'baidu', maxCount: 20 },
+                outputKeys: ['baiduHotRaw']
+              },
+              {
+                id: 'tpl_fr_fmt_baidu',
+                type: 'agent',
+                title: '整理富文本简报（百度）',
+                prompt: [
+                  '微博获取失败，已改用百度热搜。请整理为飞书 post 富文本用的 Markdown 简报。',
+                  '要求：',
+                  '1. 文首二级标题「热点富文本简报」',
+                  '2. 列出 Top 8 条科技/互联网相关热点（不足则列综合热点）',
+                  '3. 每条：标题 + 一句话说明 + [查看](链接)（无链接可写热搜词条）',
+                  '4. 只输出 Markdown；禁止调用 notify_message（流程结束后系统自动 post 推送飞书）',
+                  '',
+                  '{{hotTopics}}'
+                ].join('\n'),
+                toolWhitelist: ['update_task_list']
+              }
+            ]
+          }
+        ],
+        defaultKey: 'weibo_fail'
+      },
+      { id: 'tpl_fr_end', type: 'end', title: '结束' }
+    ],
+    canvas: {
+      positions: {
+        tpl_fr_start: { x: 140, y: 20 },
+        tpl_fr_weibo: { x: 140, y: 90 },
+        tpl_fr_fmt_weibo: { x: 40, y: 180 },
+        tpl_fr_baidu: { x: 240, y: 180 },
+        tpl_fr_fmt_baidu: { x: 240, y: 250 },
+        tpl_fr_end: { x: 140, y: 330 }
+      },
+      edges: [
+        { id: 'e_fr_s_w', source: 'tpl_fr_start', target: 'tpl_fr_weibo' },
+        {
+          id: 'e_fr_w_ok',
+          source: 'tpl_fr_weibo',
+          target: 'tpl_fr_fmt_weibo',
+          label: '微博成功',
+          when: { contextKey: 'hotTopicsOk', op: 'eq', value: '1' }
+        },
+        {
+          id: 'e_fr_w_fail',
+          source: 'tpl_fr_weibo',
+          target: 'tpl_fr_baidu',
+          label: '回退百度',
+          isDefault: true
+        },
+        { id: 'e_fr_b_fmt', source: 'tpl_fr_baidu', target: 'tpl_fr_fmt_baidu' },
+        { id: 'e_fr_ok_end', source: 'tpl_fr_fmt_weibo', target: 'tpl_fr_end' },
+        { id: 'e_fr_fail_end', source: 'tpl_fr_fmt_baidu', target: 'tpl_fr_end' }
+      ]
+    },
+    createdAt: 0,
+    updatedAt: 0
   }
 ]
 

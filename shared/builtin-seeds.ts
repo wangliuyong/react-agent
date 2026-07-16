@@ -16,7 +16,15 @@ export const BUILTIN_PUBLISH_PLAN_IDS = {
   /** 多渠道：AI 热点 + 体育资讯 */
   multiChannel: 'builtin-publish-multi-channel',
   /** 单渠道：小红书科技短讯 */
-  xhsQuick: 'builtin-publish-xhs-quick'
+  xhsQuick: 'builtin-publish-xhs-quick',
+  /** 流程任务：热点抓取 → 飞书 post 富文本推送 */
+  feishuRichtext: 'builtin-publish-feishu-richtext'
+} as const
+
+/** 内置工作流固定 id（与 templates.ts 中 tpl_* 对齐） */
+export const BUILTIN_WORKFLOW_IDS = {
+  /** 热点简报 → 飞书 post 富文本 */
+  feishuRichtextPush: 'tpl_feishu_richtext_push'
 } as const
 
 /** 内置定时任务固定 id */
@@ -27,6 +35,8 @@ export const BUILTIN_SCHEDULE_TASK_IDS = {
   weeklyResearch: 'builtin-schedule-weekly-research',
   /** 每日 8:00 昨日热点简报并推送飞书 */
   dailyHotPush: 'builtin-schedule-daily-hot-push',
+  /** 每日 8:30 执行飞书富文本推送流程 */
+  feishuRichtextPush: 'builtin-schedule-feishu-richtext-push',
   /** 每周五 18:00 文娱推荐发布 */
   weeklyEntertainment: 'builtin-schedule-weekly-entertainment'
 } as const
@@ -90,6 +100,17 @@ export function createBuiltinPublishPlans(now = Date.now()): PublishPlan[] {
       ],
       createdAt: now,
       updatedAt: now
+    },
+    {
+      id: BUILTIN_PUBLISH_PLAN_IDS.feishuRichtext,
+      title: '飞书富文本推送',
+      description: '抓取微博/百度热搜，整理 Markdown 简报，完成后自动推送飞书 post 富文本',
+      kind: 'workflow',
+      workflowIds: [BUILTIN_WORKFLOW_IDS.feishuRichtextPush],
+      notifyChannels: ['feishu'],
+      subTasks: [],
+      createdAt: now,
+      updatedAt: now
     }
   ]
 }
@@ -143,6 +164,20 @@ export function createBuiltinScheduledTasks(now = Date.now()): ScheduledTask[] {
         '整理成 8 条要点简报，每条包含：标题、一句话说明、可参考的资讯来源或链接。' +
         '输出 Markdown 格式，文首加标题「昨日热点简报」，便于自动推送飞书。',
       /** 任务成功后主进程自动将正文转为飞书富文本推送 */
+      notifyChannels: ['feishu'],
+      createdAt: now,
+      updatedAt: now
+    },
+    {
+      id: BUILTIN_SCHEDULE_TASK_IDS.feishuRichtextPush,
+      title: '每日富文本推送',
+      description: '每天 8:30 执行「飞书富文本推送」流程，以 post 格式推送到飞书',
+      enabled: false,
+      repeat: 'daily',
+      timeOfDay: '08:30',
+      weekday: 1,
+      actionType: 'workflow',
+      workflowId: BUILTIN_WORKFLOW_IDS.feishuRichtextPush,
       notifyChannels: ['feishu'],
       createdAt: now,
       updatedAt: now
