@@ -120,12 +120,30 @@ export function normalizeSettings(
     primary.id
   )
 
+  /**
+   * 连接与“模型与 API”同步：
+   * - 旧数据/历史操作可能导致同 provider 的连接存在但 apiKey 为空。
+   * - 由于 apiKey 只属于某一个供应商，回填时必须按 provider 绑定。
+   */
+  const syncedConnections =
+    primary.apiKey.trim().length > 0
+      ? connections.map((conn) => {
+          if (conn.provider !== primary.provider) return conn
+          return {
+            ...conn,
+            apiKey: conn.apiKey.trim() ? conn.apiKey : primary.apiKey,
+            baseUrl: conn.baseUrl.trim() ? conn.baseUrl : primary.baseUrl,
+            model: conn.model.trim() ? conn.model : primary.model
+          }
+        })
+      : connections
+
   return {
     provider: primary.provider,
     apiKey: primary.apiKey,
     baseUrl: primary.baseUrl,
     model: primary.model,
-    connections,
+    connections: syncedConnections,
     defaultConnectionId: primary.id,
     roleModelMap,
     fullAccess: Boolean(merged.fullAccess),

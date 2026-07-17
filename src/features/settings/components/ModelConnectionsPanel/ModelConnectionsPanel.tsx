@@ -4,6 +4,7 @@ import {
   queryModelOptionDisplayLabel,
   queryModelOptions,
   queryProviderOption,
+  type AppSettings,
   type ModelCapability,
   type ModelConnection,
   type ModelOption,
@@ -44,6 +45,33 @@ const PROVIDER_OPTIONS: { value: ModelProvider; label: string }[] = [
   { value: 'openai_compatible', label: 'OpenAI 兼容' }
 ]
 
+function querySyncConnectionsProviderApiKeys(
+  connections: ModelConnection[],
+  settings: AppSettings
+): ModelConnection[] {
+  const providerApiKeyMap: Partial<Record<ModelProvider, string>> = {}
+  const primaryKey = settings.apiKey.trim()
+  if (primaryKey) providerApiKeyMap[settings.provider] = primaryKey
+
+  // 兜底：从已有连接反推同 provider 的 Key，避免用户在其他连接里已填却当前连接为空
+  for (const conn of connections) {
+    const key = conn.apiKey.trim()
+    if (key) providerApiKeyMap[conn.provider] = key
+  }
+
+  return connections.map((conn) => {
+    const meta = queryProviderOption(conn.provider)
+    const apiKey = conn.apiKey.trim() ? conn.apiKey : providerApiKeyMap[conn.provider] ?? ''
+    return {
+      ...conn,
+      apiKey,
+      // baseUrl/model 也按 provider 补齐，避免旧数据残缺导致 /models 拉取失败
+      baseUrl: conn.baseUrl.trim() ? conn.baseUrl : meta.defaultBaseUrl,
+      model: conn.model.trim() ? conn.model : meta.defaultModel
+    }
+  })
+}
+
 function queryNewConnectionId(): string {
   return `conn-${Date.now().toString(36)}`
 }
@@ -80,7 +108,10 @@ export function ModelConnectionsPanel(): React.ReactElement {
   const postSettings = useSettingsStore((s) => s.postSettings)
   const [saving, setSaving] = useState(false)
   const [connections, setConnections] = useState<ModelConnection[]>(
-    settings.connections?.length ? settings.connections : [{ ...DEFAULT_CONNECTION }]
+    querySyncConnectionsProviderApiKeys(
+      settings.connections?.length ? settings.connections : [{ ...DEFAULT_CONNECTION }],
+      settings
+    )
   )
   const [defaultConnectionId, setDefaultConnectionId] = useState(
     settings.defaultConnectionId || connections[0]?.id
@@ -94,7 +125,10 @@ export function ModelConnectionsPanel(): React.ReactElement {
 
   useEffect(() => {
     setConnections(
-      settings.connections?.length ? settings.connections : [{ ...DEFAULT_CONNECTION }]
+      querySyncConnectionsProviderApiKeys(
+        settings.connections?.length ? settings.connections : [{ ...DEFAULT_CONNECTION }],
+        settings
+      )
     )
     setDefaultConnectionId(settings.defaultConnectionId)
     setRoleModelMap(settings.roleModelMap ?? {})
@@ -130,9 +164,31 @@ export function ModelConnectionsPanel(): React.ReactElement {
         if (c.id !== id) return c
         const next = { ...c, [field]: value }
         if (field === 'provider') {
-          const meta = queryProviderOption(value as ModelProvider)
-          next.baseUrl = meta.defaultBaseUrl
-          next.model = meta.defaultModel
+          const nextProvider = value as ModelProvider
+          const meta = queryProviderOption(nextProvider)
+
+          // provider 变化时强绑定：优先使用“模型与 API”页已保存的同 provider Key/baseUrl/model；
+          // 若不存在，则沿用其他连接里同 provider 的已有 Key；否则清空，避免串用。
+          const keyFromModelTab =
+            nextProvider === settings.provider ? settings.apiKey.trim() : ''
+          const keyFromOtherConn =
+            prev.find((x) => x.id !== id && x.provider === nextProvider && x.apiKey.trim())
+              ?.apiKey ?? ''
+          const nextApiKey = c.provider === nextProvider ? c.apiKey : keyFromModelTab || keyFromOtherConn
+
+          const baseUrlFromModelTab =
+            nextProvider === settings.provider && settings.baseUrl.trim()
+              ? settings.baseUrl
+              : meta.defaultBaseUrl
+          const modelFromModelTab =
+            nextProvider === settings.provider && settings.model.trim()
+              ? settings.model
+              : meta.defaultModel
+
+          next.provider = nextProvider
+          next.baseUrl = baseUrlFromModelTab
+          next.model = modelFromModelTab
+          next.apiKey = nextApiKey.trim()
         }
         return next
       })
@@ -161,7 +217,10 @@ export function ModelConnectionsPanel(): React.ReactElement {
                   ...DEFAULT_CONNECTION,
                   id: queryNewConnectionId(),
                   label: `连接 ${prev.length + 1}`,
-                  apiKey: ''
+                  provider: settings.provider,
+                  apiKey: settings.apiKey,
+                  baseUrl: settings.baseUrl,
+                  model: settings.model
                 }
               ])
             }
