@@ -391,6 +391,8 @@ export interface ScheduledTask {
   notifyChannels?: PublishChannelId[]
   lastRunAt?: number
   nextRunAt?: number
+  /** 累计触发执行次数（含定时触发与「立即执行」；旧数据无此字段时由 lastRunAt 推断） */
+  runCount?: number
   lastRunStatus?: ScheduleRunStatus
   /** 最近一次执行创建的会话，便于跳转查看 */
   lastSessionId?: string

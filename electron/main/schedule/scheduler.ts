@@ -1,6 +1,6 @@
 import type { ScheduledTask, Session } from '../../../shared/types'
 import { IpcChannels } from '../../../shared/types'
-import { computeNextRunAt } from '../../../shared/schedule-utils'
+import { computeNextRunAt, incrementScheduledTaskRunCount } from '../../../shared/schedule-utils'
 import { formatRunSessionTitle } from '../../../shared/session-run-title'
 import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
 import { queryPublishPlan } from '../store/plans'
@@ -171,7 +171,9 @@ export async function triggerScheduledTask(
 
   if (task.actionType === 'custom_prompt') {
     const prompt = task.customPrompt?.trim()
-    if (!prompt) return markTaskFailed(task)
+    if (!prompt) {
+      return markTaskFailed({ ...task, runCount: incrementScheduledTaskRunCount(task) })
+    }
 
     markScheduleTaskRunning(taskId)
     const session = createScheduleSession(task)
@@ -180,6 +182,7 @@ export async function triggerScheduledTask(
 
     const running: ScheduledTask = {
       ...task,
+      runCount: incrementScheduledTaskRunCount(task),
       lastRunAt: Date.now(),
       lastRunStatus: 'running',
       lastSessionId: session.id,
@@ -197,7 +200,9 @@ export async function triggerScheduledTask(
   }
 
   const workflowId = resolveWorkflowId(task)
-  if (!workflowId) return markTaskFailed(task)
+  if (!workflowId) {
+    return markTaskFailed({ ...task, runCount: incrementScheduledTaskRunCount(task) })
+  }
 
   markScheduleTaskRunning(taskId)
   const session = createScheduleSession(task)
@@ -206,6 +211,7 @@ export async function triggerScheduledTask(
 
   const running: ScheduledTask = {
     ...task,
+    runCount: incrementScheduledTaskRunCount(task),
     lastRunAt: Date.now(),
     lastRunStatus: 'running',
     lastSessionId: session.id,

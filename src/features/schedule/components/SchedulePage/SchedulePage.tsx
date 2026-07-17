@@ -4,6 +4,7 @@ import type { ScheduledTask, ScheduleActionType, ScheduleRepeat, PublishChannelI
 import {
   formatNextRunAt,
   formatScheduleSummary,
+  formatScheduledTaskRunCount,
   SCHEDULE_REPEAT_OPTIONS,
   WEEKDAY_OPTIONS
 } from '@shared/schedule-utils'
@@ -152,16 +153,6 @@ function formatTriggerMethod(task: ScheduledTask): { main: string; sub: string }
     main: repeatLabel,
     sub: formatScheduleSummary(task)
   }
-}
-
-/** 执行次数展示（无持久化计数时按规则推断） */
-function formatRunCount(task: ScheduledTask): string {
-  if (task.repeat === 'once') {
-    if (task.lastRunAt != null) return '1/1 次'
-    return '0/1 次'
-  }
-  if (task.lastRunAt != null) return '已执行'
-  return '尚未执行'
 }
 
 /** 下次执行绝对时间 */
@@ -449,7 +440,7 @@ function TaskCard({
         </div>
         <div className={styles.infoCell}>
           <span className={styles.infoLabel}>执行次数</span>
-          <span className={styles.infoValue}>{formatRunCount(task)}</span>
+          <span className={styles.infoValue}>{formatScheduledTaskRunCount(task)}</span>
           {task.lastRunAt ? (
             <span className={styles.infoSub}>
               上次 {new Date(task.lastRunAt).toLocaleString('zh-CN')}

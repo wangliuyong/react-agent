@@ -88,3 +88,28 @@ export const SCHEDULE_REPEAT_OPTIONS: Array<{ value: ScheduleRepeat; label: stri
 ]
 
 export const WEEKDAY_OPTIONS = WEEKDAY_LABELS.map((label, value) => ({ value, label }))
+
+/**
+ * 解析定时任务累计执行次数。
+ * 兼容磁盘上尚无 runCount 字段的旧任务：若曾执行过则按 1 次计。
+ */
+export function queryScheduledTaskRunCount(task: ScheduledTask): number {
+  if (typeof task.runCount === 'number' && task.runCount >= 0) {
+    return task.runCount
+  }
+  return task.lastRunAt != null ? 1 : 0
+}
+
+/** 触发执行前将 runCount 加一，供主进程调度器落盘 */
+export function incrementScheduledTaskRunCount(task: ScheduledTask): number {
+  return queryScheduledTaskRunCount(task) + 1
+}
+
+/** 定时任务卡片「执行次数」展示文案 */
+export function formatScheduledTaskRunCount(task: ScheduledTask): string {
+  const count = queryScheduledTaskRunCount(task)
+  if (task.repeat === 'once') {
+    return `${Math.min(count, 1)}/1 次`
+  }
+  return `${count} 次`
+}

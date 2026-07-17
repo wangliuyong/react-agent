@@ -21,6 +21,7 @@ export function createEmptyScheduledTask(): ScheduledTask {
     publishPlanId: undefined,
     customPrompt: '',
     notifyChannels: [],
+    runCount: 0,
     createdAt: now,
     updatedAt: now
   }
