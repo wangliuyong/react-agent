@@ -34,7 +34,8 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  /* 固定最多两列，避免宽屏下挤成三列卡片过窄 */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -73,7 +74,7 @@
 .labelInput {
   flex: 1;
   min-width: 0;
-  max-width: 200px;
+  max-width: 280px;
   font-weight: 650;
 }
 
