@@ -11,7 +11,8 @@ import {
   queryTextToImageProvider,
   queryTextToSpeechProvider,
   queryVideoComposeProvider,
-  refreshActiveTextToImageProvider
+  refreshActiveTextToImageProvider,
+  refreshActiveTextToSpeechProvider
 } from '../../media/provider'
 import { getVideosDir } from '../../store/paths'
 import type { AgentTool } from './types'
@@ -160,8 +161,8 @@ export const generateSceneAssetsTool: AgentTool = {
   name: 'generate_scene_assets',
   description:
     '读取 storyboardPath（或缺省用本会话 storyboard.json），为每镜生成画面/旁白素材。' +
-    '优先百炼万相文生图（需已配置百炼 API Key）；失败或未配置时自动生成本地占位图，保证后续可合成。' +
-    '写入 context.sceneAssetPaths（JSON 数组字符串）。',
+    '优先百炼万相文生图 + Qwen-TTS（需已配置百炼 API Key）；文生图失败时回退本地占位图。' +
+    '写入 context.sceneAssetPaths / sceneAudioPaths（JSON 数组字符串）。',
   permission: 'sensitive',
   parameters: {
     type: 'object',
@@ -175,6 +176,7 @@ export const generateSceneAssetsTool: AgentTool = {
   },
   async execute(args, ctx) {
     refreshActiveTextToImageProvider()
+    refreshActiveTextToSpeechProvider()
     const defaultPath = join(queryProjectDir(ctx.sessionId), 'storyboard.json')
     const storyboardPath = String(args.storyboardPath ?? defaultPath).trim()
     if (!existsSync(storyboardPath)) {
@@ -187,13 +189,18 @@ export const generateSceneAssetsTool: AgentTool = {
     const tts = queryTextToSpeechProvider()
 
     const assetPaths: string[] = []
+    const audioPaths: string[] = []
     const notes: string[] = []
+    let imageOk = 0
+    let voiceOk = 0
+    let voiceTotal = 0
 
     for (const shot of doc.shots ?? []) {
       const imageOut = join(sceneDir, `${shot.id}.png`)
       const img = await t2i.generate({ prompt: shot.visual, outputPath: imageOut })
       if (img.ok && img.path) {
         assetPaths.push(img.path)
+        imageOk += 1
         notes.push(`${shot.id} 画面：${img.path}`)
       } else {
         // 为什么：文生图失败时仍生成可合成的占位 PNG，避免成片步骤无图
@@ -213,32 +220,36 @@ export const generateSceneAssetsTool: AgentTool = {
       }
 
       if (shot.narration?.trim()) {
+        voiceTotal += 1
         const audioOut = join(sceneDir, `${shot.id}.wav`)
         const voice = await tts.synthesize({
           text: shot.narration.trim(),
           outputPath: audioOut
         })
-        notes.push(
-          voice.ok && voice.path
-            ? `${shot.id} 旁白：${voice.path}`
-            : `${shot.id} 旁白失败：${voice.message}`
-        )
+        if (voice.ok && voice.path) {
+          audioPaths.push(voice.path)
+          voiceOk += 1
+          notes.push(`${shot.id} 旁白：${voice.path}`)
+        } else {
+          notes.push(`${shot.id} 旁白失败：${voice.message}`)
+        }
       }
     }
 
     const manifestPath = join(sceneDir, 'assets-manifest.json')
     writeFileSync(
       manifestPath,
-      JSON.stringify({ storyboardPath, assetPaths, notes }, null, 2),
+      JSON.stringify({ storyboardPath, assetPaths, audioPaths, notes }, null, 2),
       'utf-8'
     )
 
     return queryEncodeWorkflowCtxResult(
-      `场景素材处理完成（成功图片 ${assetPaths.length}/${doc.shots.length}）\n` +
+      `场景素材处理完成（画面 ${imageOk}/${doc.shots.length}，旁白 ${voiceOk}/${voiceTotal}）\n` +
         notes.join('\n'),
       {
         sceneAssetsOk: assetPaths.length > 0 ? '1' : '0',
         sceneAssetPaths: JSON.stringify(assetPaths),
+        sceneAudioPaths: JSON.stringify(audioPaths),
         sceneAssetsManifest: manifestPath
       }
     )
@@ -268,17 +279,26 @@ export const composeVideoTool: AgentTool = {
   },
   async execute(args, ctx) {
     refreshActiveTextToImageProvider()
+    refreshActiveTextToSpeechProvider()
     let scenePaths = Array.isArray(args.scenePaths)
       ? (args.scenePaths as unknown[]).map(String).filter(Boolean)
       : []
 
-    if (!scenePaths.length) {
+    let audioPath =
+      args.audioPath != null ? String(args.audioPath).trim() || undefined : undefined
+
+    if (!scenePaths.length || !audioPath) {
       const manifestPath = join(querySceneAssetsDir(ctx.sessionId), 'assets-manifest.json')
       if (existsSync(manifestPath)) {
         const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
           assetPaths?: string[]
+          audioPaths?: string[]
         }
-        scenePaths = manifest.assetPaths ?? []
+        if (!scenePaths.length) scenePaths = manifest.assetPaths ?? []
+        // 多镜旁白时先用首段；完整时间轴对齐后续可在 compose 增强
+        if (!audioPath && manifest.audioPaths?.length) {
+          audioPath = manifest.audioPaths[0]
+        }
       }
     }
 
@@ -290,7 +310,7 @@ export const composeVideoTool: AgentTool = {
     const compose = queryVideoComposeProvider()
     const result = await compose.compose({
       scenePaths,
-      audioPath: args.audioPath != null ? String(args.audioPath) : undefined,
+      audioPath,
       title: args.title != null ? String(args.title) : undefined,
       sceneDurationSec: args.sceneDurationSec != null ? Number(args.sceneDurationSec) : 3,
       outputPath: join(queryProjectDir(ctx.sessionId), `final-${Date.now()}.mp4`)

@@ -472,7 +472,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         type: 'agent',
         title: '视频：场景素材',
         prompt:
-          '读取上游分镜，调用 generate_scene_assets 生成各镜画面/旁白。Provider 未配置时如实汇报。',
+          '读取上游分镜，调用 generate_scene_assets 生成各镜画面/旁白。百炼 Key 已配时走万相+Qwen-TTS；未配置时如实汇报。',
         toolWhitelist: ['generate_scene_assets', 'read_file', 'update_task_list'],
         outputKeys: ['sceneAssetPaths', 'sceneAssetsManifest']
       },

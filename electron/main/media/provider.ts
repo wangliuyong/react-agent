@@ -9,6 +9,7 @@ import { join } from 'path'
 import { getVideosDir } from '../store/paths'
 import { querySettings } from '../store/settings'
 import { queryDashscopeTextToImageProvider } from './dashscope-t2i'
+import { queryDashscopeTextToSpeechProvider } from './dashscope-tts'
 import { postWritePlaceholderImage } from './placeholder-image'
 
 export interface TextToImageRequest {
@@ -283,7 +284,7 @@ let mediaInited = false
 
 /**
  * 注册内置 Provider（幂等）。
- * 有百炼 Key 时优先万相文生图；否则用本地占位图，保证成片链路可跑通。
+ * 有百炼 Key 时优先万相文生图 + Qwen-TTS；否则文生图用本地占位、TTS 仍为占位提示。
  */
 export function initMediaProviders(): void {
   if (mediaInited) return
@@ -294,11 +295,13 @@ export function initMediaProviders(): void {
   postRegisterTextToImageProvider(queryDashscopeTextToImageProvider())
   postRegisterImageToVideoProvider(queryPlaceholderI2v())
   postRegisterTextToSpeechProvider(queryPlaceholderTts())
+  postRegisterTextToSpeechProvider(queryDashscopeTextToSpeechProvider())
   postRegisterVideoComposeProvider(queryLocalFfmpegCompose())
 
-  activeT2i = queryHasDashscopeKey() ? 'dashscope-wanx' : 'local-placeholder'
+  const hasDash = queryHasDashscopeKey()
+  activeT2i = hasDash ? 'dashscope-wanx' : 'local-placeholder'
   activeI2v = 'placeholder'
-  activeTts = 'placeholder'
+  activeTts = hasDash ? 'dashscope-qwen-tts' : 'placeholder'
   activeCompose = 'ffmpeg-local'
 }
 
@@ -310,6 +313,12 @@ export function refreshActiveTextToImageProvider(): void {
   } else if (activeT2i === 'dashscope-wanx' || activeT2i === 'placeholder') {
     activeT2i = 'local-placeholder'
   }
+}
+
+/** 按当前设置刷新 TTS 活跃 Provider（与文生图共用百炼 Key 判定） */
+export function refreshActiveTextToSpeechProvider(): void {
+  initMediaProviders()
+  activeTts = queryHasDashscopeKey() ? 'dashscope-qwen-tts' : 'placeholder'
 }
 
 export function queryActiveMediaProviderIds(): {
