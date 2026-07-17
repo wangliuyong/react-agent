@@ -199,16 +199,17 @@ export function ChannelStatusPanel(): React.ReactElement {
 
   return (
     <section className={styles.panel}>
+      {/* Tab 内嵌：精简顶栏，操作与技能市场工具条同级密度 */}
       <div className={styles.panelHeader}>
         <div>
           <div className={styles.titleRow}>
-            <Title level={4} className={styles.title}>
-              渠道状态
+            <Title level={5} className={styles.title}>
+              渠道登录与配置
             </Title>
             <span className={styles.countBadge}>{channels.length}</span>
           </div>
-          <Text type="secondary">
-            发布渠道使用共享浏览器 Profile 缓存登录信息；通知凭据仅保存在本机。
+          <Text type="secondary" className={styles.panelDesc}>
+            发布渠道使用共享浏览器 Profile；通知凭据仅保存在本机
           </Text>
         </div>
         <Space wrap>

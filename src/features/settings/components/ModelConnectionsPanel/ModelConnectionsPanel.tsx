@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import {
   DEFAULT_CONNECTION,
   type ModelCapability,
@@ -45,6 +46,7 @@ function queryNewConnectionId(): string {
 /**
  * 多模型连接与角色映射配置面板。
  * 本地草稿编辑，保存时一次性写入，避免逐键击打 IPC。
+ * 卡片网格气质对齐技能市场。
  */
 export function ModelConnectionsPanel(): React.ReactElement {
   const settings = useSettingsStore((s) => s.settings)
@@ -100,16 +102,16 @@ export function ModelConnectionsPanel(): React.ReactElement {
 
   return (
     <div className={styles.panel}>
-      <div className={styles.header}>
-        <div>
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarText}>
           <Title level={5} className={styles.title}>
-            多模型连接
+            模型连接
           </Title>
           <Text type="secondary" className={styles.desc}>
             为不同角色 / 任务绑定不同模型；未映射时使用默认连接
           </Text>
         </div>
-        <Space>
+        <Space wrap>
           <Button
             type="dashed"
             icon={<PlusOutlined />}
@@ -133,9 +135,14 @@ export function ModelConnectionsPanel(): React.ReactElement {
         </Space>
       </div>
 
-      <div className={styles.list}>
-        {connections.map((conn) => (
-          <div key={conn.id} className={styles.card}>
+      <div className={styles.grid}>
+        {connections.map((conn, index) => (
+          <Card
+            key={conn.id}
+            variant="borderless"
+            className={styles.card}
+            style={{ '--card-index': index } as CSSProperties}
+          >
             <div className={styles.cardHead}>
               <Input
                 value={conn.label}
@@ -143,16 +150,22 @@ export function ModelConnectionsPanel(): React.ReactElement {
                 placeholder="连接名称"
                 className={styles.labelInput}
               />
-              <Space size={8}>
-                <Radio
-                  checked={defaultConnectionId === conn.id}
-                  onChange={() => setDefaultConnectionId(conn.id)}
-                >
-                  默认
-                </Radio>
+              <Space size={4}>
+                {defaultConnectionId === conn.id ? (
+                  <Tag className={styles.defaultTag}>默认</Tag>
+                ) : (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => setDefaultConnectionId(conn.id)}
+                  >
+                    设为默认
+                  </Button>
+                )}
                 <Button
                   type="text"
                   danger
+                  size="small"
                   icon={<DeleteOutlined />}
                   disabled={connections.length <= 1}
                   onClick={() => {
@@ -167,9 +180,12 @@ export function ModelConnectionsPanel(): React.ReactElement {
                 />
               </Space>
             </div>
-            <div className={styles.grid}>
+
+            <div className={styles.fields}>
               <div>
-                <Text type="secondary">供应商</Text>
+                <Text type="secondary" className={styles.fieldLabel}>
+                  供应商
+                </Text>
                 <Select
                   style={{ width: '100%' }}
                   value={conn.provider}
@@ -178,7 +194,9 @@ export function ModelConnectionsPanel(): React.ReactElement {
                 />
               </div>
               <div>
-                <Text type="secondary">模型</Text>
+                <Text type="secondary" className={styles.fieldLabel}>
+                  模型
+                </Text>
                 <Input
                   value={conn.model}
                   onChange={(e) => handleFieldChange(conn.id, 'model', e.target.value)}
@@ -186,14 +204,18 @@ export function ModelConnectionsPanel(): React.ReactElement {
                 />
               </div>
               <div className={styles.span2}>
-                <Text type="secondary">Base URL</Text>
+                <Text type="secondary" className={styles.fieldLabel}>
+                  Base URL
+                </Text>
                 <Input
                   value={conn.baseUrl}
                   onChange={(e) => handleFieldChange(conn.id, 'baseUrl', e.target.value)}
                 />
               </div>
               <div className={styles.span2}>
-                <Text type="secondary">API Key</Text>
+                <Text type="secondary" className={styles.fieldLabel}>
+                  API Key
+                </Text>
                 <Input.Password
                   value={conn.apiKey}
                   onChange={(e) => handleFieldChange(conn.id, 'apiKey', e.target.value)}
@@ -201,7 +223,9 @@ export function ModelConnectionsPanel(): React.ReactElement {
                 />
               </div>
               <div className={styles.span2}>
-                <Text type="secondary">能力标签</Text>
+                <Text type="secondary" className={styles.fieldLabel}>
+                  能力标签
+                </Text>
                 <Select
                   mode="multiple"
                   style={{ width: '100%' }}
@@ -211,36 +235,41 @@ export function ModelConnectionsPanel(): React.ReactElement {
                 />
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
-      <Divider />
-
-      <Title level={5} className={styles.title}>
-        角色 / 任务 → 模型
-      </Title>
-      <div className={styles.roleGrid}>
-        {ROLE_OPTIONS.map((role) => (
-          <div key={role.value} className={styles.roleRow}>
-            <Text>{role.label}</Text>
-            <Select
-              allowClear
-              placeholder="使用默认连接"
-              style={{ width: '100%' }}
-              value={roleModelMap[role.value]}
-              options={connections.map((c) => ({ value: c.id, label: c.label }))}
-              onChange={(v) => {
-                setRoleModelMap((prev) => {
-                  const next = { ...prev }
-                  if (!v) delete next[role.value]
-                  else next[role.value] = v
-                  return next
-                })
-              }}
-            />
-          </div>
-        ))}
+      <div className={styles.roleSection}>
+        <div className={styles.roleHeader}>
+          <Title level={5} className={styles.title}>
+            角色 / 任务 → 模型
+          </Title>
+          <Text type="secondary" className={styles.desc}>
+            未指定时回落到默认连接
+          </Text>
+        </div>
+        <div className={styles.roleGrid}>
+          {ROLE_OPTIONS.map((role) => (
+            <div key={role.value} className={styles.roleCard}>
+              <Text className={styles.roleLabel}>{role.label}</Text>
+              <Select
+                allowClear
+                placeholder="使用默认连接"
+                style={{ width: '100%' }}
+                value={roleModelMap[role.value]}
+                options={connections.map((c) => ({ value: c.id, label: c.label }))}
+                onChange={(v) => {
+                  setRoleModelMap((prev) => {
+                    const next = { ...prev }
+                    if (!v) delete next[role.value]
+                    else next[role.value] = v
+                    return next
+                  })
+                }}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

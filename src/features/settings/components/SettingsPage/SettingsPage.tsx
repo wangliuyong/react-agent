@@ -21,11 +21,22 @@ import { BASE_URL_RULES, MODEL_RULES, PROVIDER_RULES } from './settingsValidatio
 
 const { Title, Paragraph, Text } = Typography
 
+/** 设置分类 Tab — 对齐技能市场 Segmented 信息架构 */
+type SettingsTab = 'model' | 'connections' | 'app' | 'channels'
+
+const SETTINGS_TAB_OPTIONS: { label: string; value: SettingsTab }[] = [
+  { label: '模型与 API', value: 'model' },
+  { label: '多模型连接', value: 'connections' },
+  { label: '应用与启动', value: 'app' },
+  { label: '渠道状态', value: 'channels' }
+]
+
 export function SettingsPage(): React.ReactElement {
   const settings = useSettingsStore((s) => s.settings)
   const loaded = useSettingsStore((s) => s.loaded)
   const postSettings = useSettingsStore((s) => s.postSettings)
   const [saving, setSaving] = useState(false)
+  const [tab, setTab] = useState<SettingsTab>('model')
   const [form] = Form.useForm<AppSettings>()
   const [selectedProvider, setSelectedProvider] = useState<ModelProvider>(settings.provider)
   /** DeepSeek 平台动态模型；null 表示使用静态兜底 */
@@ -124,6 +135,16 @@ export function SettingsPage(): React.ReactElement {
     return options
   }, [selectedProvider, settings.model, settings.provider, remoteModels])
 
+  const connectionCount = settings.connections?.length ?? 0
+  const tabHint =
+    tab === 'model'
+      ? '默认兼容服务与运行参数'
+      : tab === 'connections'
+        ? `${connectionCount || 1} 条连接`
+        : tab === 'app'
+          ? '本机启动偏好'
+          : '发布与通知渠道'
+
   return (
     <div className={styles.page}>
       {/* 顶栏沿用技能市场的图标、标题与辅助信息结构，保持功能页视觉一致。 */}
@@ -150,207 +171,241 @@ export function SettingsPage(): React.ReactElement {
         </div>
       </header>
 
-      <div className={styles.body}>
-        <div className={styles.formCard}>
-          <div className={styles.cardHeader}>
-            <div className={styles.cardHeading}>
-              <span className={styles.cardIcon}>
-                <ApiOutlined />
-              </span>
-              <div>
-                <Title level={4} className={styles.cardTitle}>
-                  模型与 API
-                </Title>
-                <Text type="secondary" className={styles.cardDesc}>
-                  默认兼容阿里云百炼，也可连接其他 OpenAI 兼容服务
-                </Text>
-              </div>
-            </div>
-            <Tag className={styles.providerTag}>{providerOption.label}</Tag>
-          </div>
-
-          {!loaded ? (
-            <div className={styles.formLoading}>
-              <Spin />
-              <Text type="secondary">正在加载本机配置…</Text>
-            </div>
-          ) : (
-            <Form
-              form={form}
-              layout="vertical"
-              initialValues={settings}
-              className={styles.form}
-              onFinish={async (values: typeof settings) => {
-                setSaving(true)
-                try {
-                  // 只提交主表单字段，由 store 同步进默认连接，避免覆盖多模型面板
-                  await postSettings(querySettingsMainFormPatch(values))
-                  message.success('设置已保存')
-                } finally {
-                  setSaving(false)
-                }
-              }}
-            >
-              <div className={styles.formGrid}>
-                <Form.Item label="模型供应商" name="provider" rules={PROVIDER_RULES}>
-                  <Select
-                    options={MODEL_PROVIDER_OPTIONS.map((option) => ({
-                      value: option.value,
-                      label: option.label
-                    }))}
-                    onChange={(provider: ModelProvider) => {
-                      // 离开当前供应商前先缓存草稿，切回时才能回显未保存输入
-                      const current = form.getFieldsValue()
-                      providerDraftsRef.current[selectedProvider] = {
-                        apiKey: String(current.apiKey ?? ''),
-                        baseUrl: String(current.baseUrl ?? ''),
-                        model: String(current.model ?? '')
-                      }
-                      const nextValues = queryProviderSwitchFormValues(
-                        provider,
-                        settings,
-                        providerDraftsRef.current
-                      )
-                      setSelectedProvider(provider)
-                      form.setFieldsValue(nextValues)
-                    }}
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  className={styles.fullWidth}
-                  label={providerOption.apiKeyLabel}
-                  name="apiKey"
-                  rules={[{ required: true, message: '请填写 API Key' }]}
-                  extra="密钥仅写入本机 Electron userData，不参与任何遥测或同步。"
-                >
-                  <Input.Password prefix={<ApiOutlined />} placeholder="sk-..." />
-                </Form.Item>
-
-                <Form.Item
-                  className={styles.fullWidth}
-                  label="Base URL"
-                  name="baseUrl"
-                  rules={BASE_URL_RULES}
-                  extra="请输入包含协议的完整服务地址。"
-                >
-                  <Input
-                    prefix={<GlobalOutlined />}
-                    placeholder={providerOption.defaultBaseUrl}
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  label="默认模型"
-                  name="model"
-                  rules={MODEL_RULES}
-                  extra={
-                    selectedProvider === 'deepseek'
-                      ? '选项来自 DeepSeek 平台 /models，填写 API Key 后自动刷新'
-                      : undefined
-                  }
-                >
-                  <Select
-                    showSearch
-                    optionFilterProp="label"
-                    options={modelSelectOptions}
-                    placeholder="选择模型"
-                    loading={modelsLoading}
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  label="最大工具轮次"
-                  name="maxTurns"
-                  extra="单次任务允许 Agent 连续调用工具的上限。"
-                >
-                  <InputNumber min={5} max={100} style={{ width: '100%' }} />
-                </Form.Item>
-
-                {/* 高权限配置单独成区，避免与普通模型参数混淆。 */}
-                <div className={`${styles.permissionRow} ${styles.fullWidth}`}>
-                  <span className={styles.permissionIcon}>
-                    <ToolOutlined />
-                  </span>
-                  <div className={styles.permissionContent}>
-                    <Text strong>完全访问</Text>
-                    <Text type="secondary">
-                      允许 Agent 执行更广泛的本机操作，仅在你信任当前任务时开启
-                    </Text>
-                  </div>
-                  <Form.Item name="fullAccess" valuePropName="checked" noStyle>
-                    <Switch />
-                  </Form.Item>
-                </div>
-              </div>
-
-              <div className={styles.formFooter}>
-                <div className={styles.footerHint}>
-                  <RobotOutlined />
-                  <span>新设置将在下一条 Agent 消息中生效</span>
-                </div>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  icon={<CheckCircleOutlined />}
-                  loading={saving}
-                  className={styles.saveButton}
-                >
-                  保存设置
-                </Button>
-              </div>
-            </Form>
-          )}
+      {/* 分类栏：Segmented Tab，与技能市场 / 渠道页同构 */}
+      <div className={styles.toolbar}>
+        <Segmented
+          value={tab}
+          onChange={(v) => setTab(v as SettingsTab)}
+          options={SETTINGS_TAB_OPTIONS}
+        />
+        <div className={styles.toolbarRight}>
+          <span className={styles.resultCount}>{tabHint}</span>
         </div>
+      </div>
 
-        {loaded ? <ModelConnectionsPanel /> : null}
-
-        {/* 应用行为：开机自启独立于模型表单，切换后立即生效 */}
-        <div className={`${styles.formCard} ${styles.secondaryCard}`}>
-          <div className={styles.cardHeader}>
-            <div className={styles.cardHeading}>
-              <span className={styles.cardIcon}>
-                <RocketOutlined />
-              </span>
-              <div>
-                <Title level={4} className={styles.cardTitle}>
-                  应用与启动
-                </Title>
-                <Text type="secondary" className={styles.cardDesc}>
-                  控制应用在本机的启动行为
-                </Text>
+      <div className={styles.body}>
+        {tab === 'model' ? (
+          <div className={styles.formCard} key="model">
+            <div className={styles.cardHeader}>
+              <div className={styles.cardHeading}>
+                <span className={styles.cardIcon}>
+                  <ApiOutlined />
+                </span>
+                <div>
+                  <Title level={4} className={styles.cardTitle}>
+                    模型与 API
+                  </Title>
+                  <Text type="secondary" className={styles.cardDesc}>
+                    默认兼容阿里云百炼，也可连接其他 OpenAI 兼容服务
+                  </Text>
+                </div>
               </div>
+              <Tag className={styles.providerTag}>{providerOption.label}</Tag>
             </div>
-          </div>
 
-          <div className={styles.generalBody}>
-            <div className={styles.permissionRow}>
-              <span className={styles.permissionIcon}>
-                <PoweroffOutlined />
-              </span>
-              <div className={styles.permissionContent}>
-                <Text strong>开机自启</Text>
-                <Text type="secondary">
-                  登录 macOS / Windows 后自动启动灵犀，便于后台定时任务与渠道保持在线
-                </Text>
+            {!loaded ? (
+              <div className={styles.formLoading}>
+                <Spin />
+                <Text type="secondary">正在加载本机配置…</Text>
               </div>
-              <Switch
-                checked={settings.launchAtLogin}
-                disabled={!loaded}
-                onChange={async (checked) => {
+            ) : (
+              <Form
+                form={form}
+                layout="vertical"
+                initialValues={settings}
+                className={styles.form}
+                onFinish={async (values: typeof settings) => {
+                  setSaving(true)
                   try {
-                    await postSettings({ launchAtLogin: checked })
-                    message.success(checked ? '已开启开机自启' : '已关闭开机自启')
-                  } catch {
-                    message.error('更新开机自启失败，请重试')
+                    // 只提交主表单字段，由 store 同步进默认连接，避免覆盖多模型面板
+                    await postSettings(querySettingsMainFormPatch(values))
+                    message.success('设置已保存')
+                  } finally {
+                    setSaving(false)
                   }
                 }}
-              />
-            </div>
-          </div>
-        </div>
+              >
+                <div className={styles.formGrid}>
+                  <Form.Item label="模型供应商" name="provider" rules={PROVIDER_RULES}>
+                    <Select
+                      options={MODEL_PROVIDER_OPTIONS.map((option) => ({
+                        value: option.value,
+                        label: option.label
+                      }))}
+                      onChange={(provider: ModelProvider) => {
+                        // 离开当前供应商前先缓存草稿，切回时才能回显未保存输入
+                        const current = form.getFieldsValue()
+                        providerDraftsRef.current[selectedProvider] = {
+                          apiKey: String(current.apiKey ?? ''),
+                          baseUrl: String(current.baseUrl ?? ''),
+                          model: String(current.model ?? '')
+                        }
+                        const nextValues = queryProviderSwitchFormValues(
+                          provider,
+                          settings,
+                          providerDraftsRef.current
+                        )
+                        setSelectedProvider(provider)
+                        form.setFieldsValue(nextValues)
+                      }}
+                    />
+                  </Form.Item>
 
-        <ChannelStatusPanel />
+                  <Form.Item
+                    className={styles.fullWidth}
+                    label={providerOption.apiKeyLabel}
+                    name="apiKey"
+                    rules={[{ required: true, message: '请填写 API Key' }]}
+                    extra="密钥仅写入本机 Electron userData，不参与任何遥测或同步。"
+                  >
+                    <Input.Password prefix={<ApiOutlined />} placeholder="sk-..." />
+                  </Form.Item>
+
+                  <Form.Item
+                    className={styles.fullWidth}
+                    label="Base URL"
+                    name="baseUrl"
+                    rules={BASE_URL_RULES}
+                    extra="请输入包含协议的完整服务地址。"
+                  >
+                    <Input
+                      prefix={<GlobalOutlined />}
+                      placeholder={providerOption.defaultBaseUrl}
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="默认模型"
+                    name="model"
+                    rules={MODEL_RULES}
+                    extra={
+                      selectedProvider === 'deepseek'
+                        ? '选项来自 DeepSeek 平台 /models，填写 API Key 后自动刷新'
+                        : undefined
+                    }
+                  >
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      options={modelSelectOptions}
+                      placeholder="选择模型"
+                      loading={modelsLoading}
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label="最大工具轮次"
+                    name="maxTurns"
+                    extra="单次任务允许 Agent 连续调用工具的上限。"
+                  >
+                    <InputNumber min={5} max={100} style={{ width: '100%' }} />
+                  </Form.Item>
+
+                  {/* 高权限配置单独成区，避免与普通模型参数混淆。 */}
+                  <div className={`${styles.permissionRow} ${styles.fullWidth}`}>
+                    <span className={styles.permissionIcon}>
+                      <ToolOutlined />
+                    </span>
+                    <div className={styles.permissionContent}>
+                      <Text strong>完全访问</Text>
+                      <Text type="secondary">
+                        允许 Agent 执行更广泛的本机操作，仅在你信任当前任务时开启
+                      </Text>
+                    </div>
+                    <Form.Item name="fullAccess" valuePropName="checked" noStyle>
+                      <Switch />
+                    </Form.Item>
+                  </div>
+                </div>
+
+                <div className={styles.formFooter}>
+                  <div className={styles.footerHint}>
+                    <RobotOutlined />
+                    <span>新设置将在下一条 Agent 消息中生效</span>
+                  </div>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    icon={<CheckCircleOutlined />}
+                    loading={saving}
+                    className={styles.saveButton}
+                  >
+                    保存设置
+                  </Button>
+                </div>
+              </Form>
+            )}
+          </div>
+        ) : null}
+
+        {tab === 'connections' ? (
+          loaded ? (
+            <ModelConnectionsPanel key="connections" />
+          ) : (
+            <div className={styles.formCard} key="connections-loading">
+              <div className={styles.formLoading}>
+                <Spin />
+                <Text type="secondary">正在加载本机配置…</Text>
+              </div>
+            </div>
+          )
+        ) : null}
+
+        {tab === 'app' ? (
+          <div className={styles.prefGrid} key="app">
+            {/* 偏好项做成技能市场式卡片，一眼可读、一点可改 */}
+            <Card variant="borderless" className={styles.prefCard}>
+              <div className={styles.prefCardHead}>
+                <span className={styles.prefCardIcon}>
+                  <PoweroffOutlined />
+                </span>
+                <Tag className={styles.prefTag}>启动</Tag>
+              </div>
+              <div className={styles.prefCardBody}>
+                <span className={styles.prefCardTitle}>开机自启</span>
+                <p className={styles.prefCardDesc}>
+                  登录 macOS / Windows 后自动启动灵犀，便于后台定时任务与渠道保持在线
+                </p>
+              </div>
+              <div className={styles.prefCardFooter}>
+                <span className={styles.prefCardMeta}>本机偏好 · 即时生效</span>
+                <Switch
+                  checked={settings.launchAtLogin}
+                  disabled={!loaded}
+                  onChange={async (checked) => {
+                    try {
+                      await postSettings({ launchAtLogin: checked })
+                      message.success(checked ? '已开启开机自启' : '已关闭开机自启')
+                    } catch {
+                      message.error('更新开机自启失败，请重试')
+                    }
+                  }}
+                />
+              </div>
+            </Card>
+
+            <Card variant="borderless" className={styles.prefCard}>
+              <div className={styles.prefCardHead}>
+                <span className={styles.prefCardIcon}>
+                  <RocketOutlined />
+                </span>
+                <Tag className={styles.prefTagMuted}>应用</Tag>
+              </div>
+              <div className={styles.prefCardBody}>
+                <span className={styles.prefCardTitle}>运行环境</span>
+                <p className={styles.prefCardDesc}>
+                  配置与密钥仅写入本机 Electron userData，不参与遥测或云端同步
+                </p>
+              </div>
+              <div className={styles.prefCardFooter}>
+                <span className={styles.prefCardMeta}>本地优先</span>
+                <Tag className={styles.localTag}>已隔离</Tag>
+              </div>
+            </Card>
+          </div>
+        ) : null}
+
+        {tab === 'channels' ? <ChannelStatusPanel key="channels" /> : null}
       </div>
     </div>
   )
