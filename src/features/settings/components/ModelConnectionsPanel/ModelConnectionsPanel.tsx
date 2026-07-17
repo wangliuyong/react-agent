@@ -3,7 +3,8 @@ import {
   DEFAULT_CONNECTION,
   queryModelOptionDisplayLabel,
   queryModelOptions,
-  queryProviderOption,
+  queryProviderCredentialsFromSettings,
+  querySyncConnectionsProviderCredentials,
   type AppSettings,
   type ModelCapability,
   type ModelConnection,
@@ -45,33 +46,6 @@ const PROVIDER_OPTIONS: { value: ModelProvider; label: string }[] = [
   { value: 'openai_compatible', label: 'OpenAI 兼容' }
 ]
 
-function querySyncConnectionsProviderApiKeys(
-  connections: ModelConnection[],
-  settings: AppSettings
-): ModelConnection[] {
-  const providerApiKeyMap: Partial<Record<ModelProvider, string>> = {}
-  const primaryKey = settings.apiKey.trim()
-  if (primaryKey) providerApiKeyMap[settings.provider] = primaryKey
-
-  // 兜底：从已有连接反推同 provider 的 Key，避免用户在其他连接里已填却当前连接为空
-  for (const conn of connections) {
-    const key = conn.apiKey.trim()
-    if (key) providerApiKeyMap[conn.provider] = key
-  }
-
-  return connections.map((conn) => {
-    const meta = queryProviderOption(conn.provider)
-    const apiKey = conn.apiKey.trim() ? conn.apiKey : providerApiKeyMap[conn.provider] ?? ''
-    return {
-      ...conn,
-      apiKey,
-      // baseUrl/model 也按 provider 补齐，避免旧数据残缺导致 /models 拉取失败
-      baseUrl: conn.baseUrl.trim() ? conn.baseUrl : meta.defaultBaseUrl,
-      model: conn.model.trim() ? conn.model : meta.defaultModel
-    }
-  })
-}
-
 function queryNewConnectionId(): string {
   return `conn-${Date.now().toString(36)}`
 }
@@ -108,7 +82,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
   const postSettings = useSettingsStore((s) => s.postSettings)
   const [saving, setSaving] = useState(false)
   const [connections, setConnections] = useState<ModelConnection[]>(
-    querySyncConnectionsProviderApiKeys(
+    querySyncConnectionsProviderCredentials(
       settings.connections?.length ? settings.connections : [{ ...DEFAULT_CONNECTION }],
       settings
     )
@@ -125,14 +99,22 @@ export function ModelConnectionsPanel(): React.ReactElement {
 
   useEffect(() => {
     setConnections(
-      querySyncConnectionsProviderApiKeys(
+      querySyncConnectionsProviderCredentials(
         settings.connections?.length ? settings.connections : [{ ...DEFAULT_CONNECTION }],
         settings
       )
     )
     setDefaultConnectionId(settings.defaultConnectionId)
     setRoleModelMap(settings.roleModelMap ?? {})
-  }, [settings.connections, settings.defaultConnectionId, settings.roleModelMap])
+  }, [
+    settings.connections,
+    settings.defaultConnectionId,
+    settings.roleModelMap,
+    settings.apiKey,
+    settings.provider,
+    settings.baseUrl,
+    settings.model
+  ])
 
   const handleSave = async (): Promise<void> => {
     if (connections.length === 0) {
@@ -159,40 +141,25 @@ export function ModelConnectionsPanel(): React.ReactElement {
     field: keyof ModelConnection,
     value: unknown
   ): void => {
-    setConnections((prev) =>
-      prev.map((c) => {
+    setConnections((prev) => {
+      const nextList = prev.map((c) => {
         if (c.id !== id) return c
         const next = { ...c, [field]: value }
         if (field === 'provider') {
           const nextProvider = value as ModelProvider
-          const meta = queryProviderOption(nextProvider)
-
-          // provider 变化时强绑定：优先使用“模型与 API”页已保存的同 provider Key/baseUrl/model；
-          // 若不存在，则沿用其他连接里同 provider 的已有 Key；否则清空，避免串用。
-          const keyFromModelTab =
-            nextProvider === settings.provider ? settings.apiKey.trim() : ''
-          const keyFromOtherConn =
-            prev.find((x) => x.id !== id && x.provider === nextProvider && x.apiKey.trim())
-              ?.apiKey ?? ''
-          const nextApiKey = c.provider === nextProvider ? c.apiKey : keyFromModelTab || keyFromOtherConn
-
-          const baseUrlFromModelTab =
-            nextProvider === settings.provider && settings.baseUrl.trim()
-              ? settings.baseUrl
-              : meta.defaultBaseUrl
-          const modelFromModelTab =
-            nextProvider === settings.provider && settings.model.trim()
-              ? settings.model
-              : meta.defaultModel
+          const creds = queryProviderCredentialsFromSettings(settings, nextProvider)
 
           next.provider = nextProvider
-          next.baseUrl = baseUrlFromModelTab
-          next.model = modelFromModelTab
-          next.apiKey = nextApiKey.trim()
+          next.baseUrl = creds.baseUrl
+          next.model = creds.model
+          // 切换供应商时绑定该供应商 Key，避免沿用其他供应商密钥
+          next.apiKey = c.provider === nextProvider ? c.apiKey : creds.apiKey
         }
         return next
       })
-    )
+
+      return nextList
+    })
   }
 
   return (
@@ -203,14 +170,15 @@ export function ModelConnectionsPanel(): React.ReactElement {
             模型连接
           </Title>
           <Text type="secondary" className={styles.desc}>
-            Agent 按角色自动选型；模型列表来自平台 /models，填写 API Key 后自动刷新
+            Agent 按角色自动选型；请在「模型与 API」中配置凭证，模型列表将自动刷新
           </Text>
         </div>
         <Space wrap>
           <Button
             type="dashed"
             icon={<PlusOutlined />}
-            onClick={() =>
+            onClick={() => {
+              const creds = queryProviderCredentialsFromSettings(settings, settings.provider)
               setConnections((prev) => [
                 ...prev,
                 {
@@ -218,12 +186,12 @@ export function ModelConnectionsPanel(): React.ReactElement {
                   id: queryNewConnectionId(),
                   label: `连接 ${prev.length + 1}`,
                   provider: settings.provider,
-                  apiKey: settings.apiKey,
-                  baseUrl: settings.baseUrl,
-                  model: settings.model
+                  apiKey: creds.apiKey,
+                  baseUrl: creds.baseUrl,
+                  model: creds.model
                 }
               ])
-            }
+            }}
           >
             添加连接
           </Button>
@@ -313,7 +281,9 @@ export function ModelConnectionsPanel(): React.ReactElement {
                     value={conn.model || undefined}
                     options={modelOptions}
                     loading={modelsLoading}
-                    placeholder={conn.apiKey.trim() ? '从平台选择模型' : '先填写 API Key'}
+                    placeholder={
+                      conn.apiKey.trim() ? '从平台选择模型' : '请先在「模型与 API」中配置 API Key'
+                    }
                     onChange={(v) => handleFieldChange(conn.id, 'model', v)}
                   />
                   {modelHint ? (
@@ -321,25 +291,6 @@ export function ModelConnectionsPanel(): React.ReactElement {
                       {modelHint}
                     </Text>
                   ) : null}
-                </div>
-                <div className={`${styles.field} ${styles.span2}`}>
-                  <Text type="secondary" className={styles.fieldLabel}>
-                    Base URL
-                  </Text>
-                  <Input
-                    value={conn.baseUrl}
-                    onChange={(e) => handleFieldChange(conn.id, 'baseUrl', e.target.value)}
-                  />
-                </div>
-                <div className={`${styles.field} ${styles.span2}`}>
-                  <Text type="secondary" className={styles.fieldLabel}>
-                    API Key
-                  </Text>
-                  <Input.Password
-                    value={conn.apiKey}
-                    onChange={(e) => handleFieldChange(conn.id, 'apiKey', e.target.value)}
-                    placeholder="仅存本机"
-                  />
                 </div>
                 <div className={`${styles.field} ${styles.span2}`}>
                   <Text type="secondary" className={styles.fieldLabel}>

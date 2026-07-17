@@ -63,12 +63,30 @@ describe('设置页模型与 API 回显同步', () => {
 })
 
 describe('切换模型供应商时的表单值', () => {
-  it('切到其他供应商时使用默认地址/模型，并清空密钥避免串用', () => {
-    expect(queryProviderSwitchFormValues('dashscope', SAVED_SETTINGS)).toEqual({
+  it('切到其他供应商时从多模型连接恢复该供应商 API Key', () => {
+    expect(
+      queryProviderSwitchFormValues('dashscope', {
+        ...SAVED_SETTINGS,
+        provider: 'deepseek',
+        connections: [
+          ...SAVED_SETTINGS.connections,
+          {
+            ...DEFAULT_CONNECTION,
+            id: 'conn-dashscope',
+            label: '百炼',
+            provider: 'dashscope',
+            apiKey: 'sk-dashscope-from-conn',
+            baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+            model: 'qwen-max',
+            capabilities: ['chat']
+          }
+        ]
+      })
+    ).toEqual({
       provider: 'dashscope',
-      apiKey: '',
+      apiKey: 'sk-dashscope-from-conn',
       baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-      model: 'qwen-plus'
+      model: 'qwen-max'
     })
   })
 

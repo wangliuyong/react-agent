@@ -5,7 +5,9 @@ import {
   queryBuildDefaultConnections,
   queryMergeDefaultRoleModelMap,
   queryModelConnection,
+  queryProviderCredentialsFromSettings,
   querySeedDefaultConnections,
+  querySyncConnectionsProviderCredentials,
   type AppSettings,
   type ModelConnection
 } from '../shared/types'
@@ -111,6 +113,64 @@ describe('默认多模型连接与角色映射', () => {
     expect(roles).toContain('supervisor')
     expect(roles).toContain('videographer')
     expect(roles).toContain('storyboard')
+  })
+
+  it('按供应商从连接解析凭证，供设置页切换供应商回显', () => {
+    const settings = {
+      provider: 'deepseek',
+      apiKey: 'sk-deepseek',
+      baseUrl: 'https://api.deepseek.com',
+      model: 'deepseek-v4-flash',
+      connections: [
+        {
+          id: 'conn-dashscope',
+          label: '百炼',
+          provider: 'dashscope' as const,
+          apiKey: 'sk-dashscope',
+          baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+          model: 'qwen-max',
+          capabilities: ['chat'] as const
+        }
+      ],
+      defaultConnectionId: 'conn-dashscope',
+      roleModelMap: {},
+      fullAccess: false,
+      maxTurns: 40,
+      launchAtLogin: false
+    }
+
+    expect(queryProviderCredentialsFromSettings(settings, 'dashscope').apiKey).toBe('sk-dashscope')
+    expect(queryProviderCredentialsFromSettings(settings, 'deepseek').apiKey).toBe('sk-deepseek')
+  })
+
+  it('多连接空 Key 时按供应商同步「模型与 API」凭证', () => {
+    const settings = {
+      provider: 'dashscope',
+      apiKey: 'sk-top',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model: 'qwen-plus',
+      connections: [
+        {
+          id: DEFAULT_CONNECTION_IDS.media,
+          label: '媒体',
+          provider: 'dashscope' as const,
+          apiKey: '',
+          baseUrl: '',
+          model: '',
+          capabilities: ['vision'] as const
+        }
+      ],
+      defaultConnectionId: DEFAULT_CONNECTION_IDS.default,
+      roleModelMap: {},
+      fullAccess: false,
+      maxTurns: 40,
+      launchAtLogin: false
+    }
+
+    const synced = querySyncConnectionsProviderCredentials(settings.connections, settings)
+    expect(synced[0]?.apiKey).toBe('sk-top')
+    expect(synced[0]?.baseUrl).toContain('dashscope.aliyuncs.com')
+    expect(synced[0]?.model).toBe('qwen-plus')
   })
 })
 

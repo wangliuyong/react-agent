@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   queryMergeDefaultRoleModelMap,
   querySeedDefaultConnections,
+  querySyncConnectionsProviderCredentials,
   type AppSettings,
   type ModelCapability,
   type ModelConnection,
@@ -59,16 +60,13 @@ function queryMigrateLegacyConnections(
     : []
 
   if (fromList.length > 0) {
-    // 多连接结构下仍可能遗留顶层 apiKey；回填默认连接，避免 /models 读到空 Key
+    // 多连接结构下仍可能遗留顶层 apiKey；按 provider 回填空 Key 连接
     const legacyKey = String(raw.apiKey ?? '').trim()
+    const legacyProvider = queryNormalizeProvider(raw.provider, String(raw.baseUrl ?? ''))
     if (!legacyKey) return fromList
-    const defaultId =
-      String(raw.defaultConnectionId ?? '').trim() ||
-      fromList[0]?.id ||
-      DEFAULT_CONNECTION_ID
     return fromList.map((conn) => {
       if (conn.apiKey.trim()) return conn
-      if (conn.id === defaultId || conn.id === DEFAULT_CONNECTION_ID) {
+      if (conn.provider === legacyProvider) {
         return { ...conn, apiKey: legacyKey }
       }
       return conn
@@ -120,23 +118,17 @@ export function normalizeSettings(
     primary.id
   )
 
-  /**
-   * 连接与“模型与 API”同步：
-   * - 旧数据/历史操作可能导致同 provider 的连接存在但 apiKey 为空。
-   * - 由于 apiKey 只属于某一个供应商，回填时必须按 provider 绑定。
-   */
-  const syncedConnections =
-    primary.apiKey.trim().length > 0
-      ? connections.map((conn) => {
-          if (conn.provider !== primary.provider) return conn
-          return {
-            ...conn,
-            apiKey: conn.apiKey.trim() ? conn.apiKey : primary.apiKey,
-            baseUrl: conn.baseUrl.trim() ? conn.baseUrl : primary.baseUrl,
-            model: conn.model.trim() ? conn.model : primary.model
-          }
-        })
-      : connections
+  const draftForSync: AppSettings = {
+    ...merged,
+    provider: primary.provider,
+    apiKey: primary.apiKey,
+    baseUrl: primary.baseUrl,
+    model: primary.model,
+    connections,
+    defaultConnectionId: primary.id,
+    roleModelMap
+  }
+  const syncedConnections = querySyncConnectionsProviderCredentials(connections, draftForSync)
 
   return {
     provider: primary.provider,
@@ -180,8 +172,31 @@ export function querySettings(): AppSettings {
 
 export function postSettings(partial: Partial<AppSettings>): AppSettings {
   const current = readSettingsFile()
-  // 若只改了顶层 apiKey/model，同步回写默认连接
   const nextPartial: Partial<AppSettings> & Record<string, unknown> = { ...current, ...partial }
+
+  // 保存多模型连接时，按供应商统一 API Key，并回写默认连接到顶层字段
+  if (partial.connections) {
+    const synced = querySyncConnectionsProviderCredentials(partial.connections, {
+      ...current,
+      ...partial,
+      connections: partial.connections
+    })
+    nextPartial.connections = synced
+    const defaultId =
+      String(partial.defaultConnectionId ?? current.defaultConnectionId).trim() ||
+      synced[0]?.id ||
+      DEFAULT_CONNECTION_ID
+    const primary = synced.find((c) => c.id === defaultId) ?? synced[0]
+    if (primary) {
+      nextPartial.provider = primary.provider
+      nextPartial.apiKey = primary.apiKey
+      nextPartial.baseUrl = primary.baseUrl
+      nextPartial.model = primary.model
+      nextPartial.defaultConnectionId = primary.id
+    }
+  }
+
+  // 若只改了顶层 apiKey/model，同步回写默认连接
   if (
     (partial.apiKey != null ||
       partial.baseUrl != null ||

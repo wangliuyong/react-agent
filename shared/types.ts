@@ -673,6 +673,82 @@ export function queryModelConnectionByCapability(
   return hit ?? queryModelConnection(settings, 'default')
 }
 
+/**
+ * 从设置中解析某供应商已保存的凭证。
+ * 优先级：顶层「模型与 API」字段（同 provider）→ 任意同 provider 连接 → 供应商默认地址/模型。
+ */
+export function queryProviderCredentialsFromSettings(
+  settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl' | 'model' | 'connections'>,
+  provider: ModelProvider
+): Pick<AppSettings, 'apiKey' | 'baseUrl' | 'model'> {
+  if (settings.provider === provider) {
+    const topKey = settings.apiKey.trim()
+    if (topKey) {
+      return {
+        apiKey: settings.apiKey,
+        baseUrl: settings.baseUrl.trim() || queryProviderOption(provider).defaultBaseUrl,
+        model: settings.model.trim() || queryProviderOption(provider).defaultModel
+      }
+    }
+  }
+
+  const fromConn = settings.connections?.find(
+    (conn) => conn.provider === provider && conn.apiKey.trim()
+  )
+  if (fromConn) {
+    const meta = queryProviderOption(provider)
+    return {
+      apiKey: fromConn.apiKey,
+      baseUrl: fromConn.baseUrl.trim() || meta.defaultBaseUrl,
+      model: fromConn.model.trim() || meta.defaultModel
+    }
+  }
+
+  const meta = queryProviderOption(provider)
+  return {
+    apiKey: '',
+    baseUrl: meta.defaultBaseUrl,
+    model: meta.defaultModel
+  }
+}
+
+/**
+ * 按供应商绑定 API Key，并补齐缺失的 baseUrl/model。
+ * 用于多模型连接面板与设置归一化，保证与「模型与 API」页凭证一致。
+ */
+export function querySyncConnectionsProviderCredentials(
+  connections: ModelConnection[],
+  settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl' | 'model' | 'connections'>
+): ModelConnection[] {
+  const providerCreds = new Map<ModelProvider, Pick<AppSettings, 'apiKey' | 'baseUrl' | 'model'>>()
+
+  for (const provider of ['dashscope', 'deepseek', 'openai_compatible'] as ModelProvider[]) {
+    providerCreds.set(provider, queryProviderCredentialsFromSettings(settings, provider))
+  }
+
+  for (const conn of connections) {
+    const key = conn.apiKey.trim()
+    if (!key) continue
+    const meta = queryProviderOption(conn.provider)
+    providerCreds.set(conn.provider, {
+      apiKey: conn.apiKey,
+      baseUrl: conn.baseUrl.trim() || meta.defaultBaseUrl,
+      model: conn.model.trim() || meta.defaultModel
+    })
+  }
+
+  return connections.map((conn) => {
+    const creds = providerCreds.get(conn.provider) ?? queryProviderCredentialsFromSettings(settings, conn.provider)
+    const meta = queryProviderOption(conn.provider)
+    return {
+      ...conn,
+      apiKey: conn.apiKey.trim() ? conn.apiKey : creds.apiKey,
+      baseUrl: conn.baseUrl.trim() ? conn.baseUrl : creds.baseUrl || meta.defaultBaseUrl,
+      model: conn.model.trim() ? conn.model : creds.model || meta.defaultModel
+    }
+  })
+}
+
 /** 聊天消息角色 */
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool'
 

@@ -1,5 +1,5 @@
 import {
-  queryProviderOption,
+  queryProviderCredentialsFromSettings,
   type AppSettings,
   type ModelProvider
 } from '@shared/types'
@@ -54,7 +54,7 @@ export function querySettingsMainFormPatch(
  * 切换模型供应商时的表单字段策略：
  * 1. 有该供应商草稿 → 优先恢复草稿（未保存输入不丢）
  * 2. 切回本机已保存供应商 → 恢复已配置的 API Key / Base URL / 模型
- * 3. 切到其他供应商 → 用默认地址/模型，并清空密钥，防止串用
+ * 3. 切到其他供应商 → 从多模型连接或默认地址恢复该供应商凭证，避免串用
  */
 export function queryProviderSwitchFormValues(
   nextProvider: ModelProvider,
@@ -71,20 +71,11 @@ export function queryProviderSwitchFormValues(
     }
   }
 
-  if (nextProvider === savedSettings.provider) {
-    return {
-      provider: nextProvider,
-      apiKey: savedSettings.apiKey,
-      baseUrl: savedSettings.baseUrl,
-      model: savedSettings.model
-    }
-  }
-
-  const nextMeta = queryProviderOption(nextProvider)
+  const creds = queryProviderCredentialsFromSettings(savedSettings, nextProvider)
   return {
     provider: nextProvider,
-    apiKey: '',
-    baseUrl: nextMeta.defaultBaseUrl,
-    model: nextMeta.defaultModel
+    apiKey: creds.apiKey,
+    baseUrl: creds.baseUrl,
+    model: creds.model
   }
 }
