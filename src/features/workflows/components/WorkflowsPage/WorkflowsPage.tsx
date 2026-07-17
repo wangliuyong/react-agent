@@ -138,6 +138,7 @@ export function WorkflowsPage(): React.ReactElement {
       const saved = await saveWorkflow(draft)
       setDraft(cloneDraft(saved))
       message.success('流程已保存')
+      closeDetail()
     } catch (err) {
       message.error(err instanceof Error ? err.message : '保存失败')
     } finally {
@@ -186,6 +187,7 @@ export function WorkflowsPage(): React.ReactElement {
       const sessionId = await runWorkflow(targetId)
       await hydrateSessions()
       beginExternalRun(sessionId)
+      closeDetail()
       setView('chat')
       message.success('流程已启动，已跳转到会话')
     } catch (err) {
