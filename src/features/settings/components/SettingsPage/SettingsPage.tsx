@@ -283,10 +283,7 @@ export function SettingsPage(): React.ReactElement {
                     </div>
                   </div>
                   <div className={styles.cardActions}>
-                    <span className={styles.saveHint}>
-                      <RobotOutlined />
-                      <span className={styles.saveHintText}>下一条消息生效</span>
-                    </span>
+
                     <Button
                       type="primary"
                       icon={<CheckCircleOutlined />}
@@ -296,7 +293,7 @@ export function SettingsPage(): React.ReactElement {
                     >
                       保存设置
                     </Button>
-                    <Tag className={styles.providerTag}>{providerOption.label}</Tag>
+
                   </div>
                 </div>
 

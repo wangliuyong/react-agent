@@ -152,6 +152,7 @@
   justify-content: space-between;
   gap: 18px;
   padding: 20px 24px;
+  padding-right: 0;
   border-bottom: 1px solid var(--db-border-light);
   background:
     linear-gradient(100deg, var(--db-primary-faint), transparent 45%),
