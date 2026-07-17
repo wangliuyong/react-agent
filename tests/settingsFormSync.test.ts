@@ -28,7 +28,8 @@ const SAVED_SETTINGS: AppSettings = {
   roleModelMap: {},
   fullAccess: true,
   maxTurns: 28,
-  launchAtLogin: false
+  launchAtLogin: false,
+  customProviders: []
 }
 
 describe('设置页模型与 API 回显同步', () => {
@@ -49,7 +50,8 @@ describe('设置页模型与 API 回显同步', () => {
         baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
         model: 'qwen-plus',
         fullAccess: false,
-        maxTurns: 40
+        maxTurns: 40,
+        customProviders: []
       })
     ).toEqual({
       provider: 'dashscope',
@@ -57,7 +59,8 @@ describe('设置页模型与 API 回显同步', () => {
       baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       model: 'qwen-plus',
       fullAccess: false,
-      maxTurns: 40
+      maxTurns: 40,
+      customProviders: []
     })
   })
 })

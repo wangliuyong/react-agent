@@ -13,6 +13,8 @@ interface UseProviderModelsOptions {
   provider: ModelProvider
   apiKey: string
   baseUrl: string
+  /** 自定义供应商元数据，用于补齐默认 Base URL */
+  customProviders?: import('@shared/types').CustomModelProvider[]
   /** 递增以手动刷新 */
   refreshToken?: number
 }
@@ -31,7 +33,7 @@ interface UseProviderModelsResult {
  * 防抖、最短 Key 校验、IPC 错误友好化均在此统一处理。
  */
 export function useProviderModels(options: UseProviderModelsOptions): UseProviderModelsResult {
-  const { enabled, provider, apiKey, baseUrl, refreshToken = 0 } = options
+  const { enabled, provider, apiKey, baseUrl, customProviders = [], refreshToken = 0 } = options
   const [remoteModels, setRemoteModels] = useState<ModelOption[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,7 +68,8 @@ export function useProviderModels(options: UseProviderModelsOptions): UseProvide
       void queryProviderModelsFromApi({
         provider,
         apiKey: trimmedKey,
-        baseUrl
+        baseUrl,
+        customProviders
       })
         .then((models) => {
           if (cancelled) return
@@ -92,7 +95,7 @@ export function useProviderModels(options: UseProviderModelsOptions): UseProvide
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [enabled, provider, apiKey, baseUrl, refreshToken, manualRefreshToken])
+  }, [enabled, provider, apiKey, baseUrl, customProviders, refreshToken, manualRefreshToken])
 
   return { remoteModels, loading, error, refresh }
 }

@@ -91,7 +91,23 @@ export const IpcChannels = {
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 
 /** 应用设置（本地 JSON 缓存） */
-export type ModelProvider = 'dashscope' | 'deepseek' | 'openai_compatible'
+export type BuiltInModelProvider = 'dashscope' | 'deepseek' | 'openai_compatible'
+/** 用户自定义 OpenAI 兼容供应商，持久化 id 以 custom: 前缀区分内置项 */
+export type CustomModelProviderId = `custom:${string}`
+export type ModelProvider = BuiltInModelProvider | CustomModelProviderId
+
+/** 用户添加的 OpenAI 兼容模型供应商元数据 */
+export interface CustomModelProvider {
+  id: CustomModelProviderId
+  /** 展示名称，如「月之暗面」「MiniMax」 */
+  label: string
+  /** API Key 表单项标签 */
+  apiKeyLabel: string
+  /** 默认 OpenAI 兼容 Base URL */
+  defaultBaseUrl: string
+  /** 拉取 /models 失败时的兜底模型 id */
+  defaultModel: string
+}
 
 /** 模型能力标签：助手按任务自动选型时使用 */
 export type ModelCapability = 'chat' | 'reasoning' | 'vision' | 'longContext' | 'creative'
@@ -156,6 +172,8 @@ export interface AppSettings {
   maxTurns: number
   /** 登录系统后自动启动应用 */
   launchAtLogin: boolean
+  /** 用户自定义模型供应商列表 */
+  customProviders: CustomModelProvider[]
 }
 
 export const DEFAULT_CONNECTION_ID = 'conn-default'
@@ -410,7 +428,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   roleModelMap: { ...DEFAULT_ROLE_MODEL_MAP },
   fullAccess: false,
   maxTurns: 40,
-  launchAtLogin: false
+  launchAtLogin: false,
+  customProviders: []
 }
 
 /** 模型供应商选项（聊天与设置页共用） */
@@ -611,12 +630,91 @@ export const MODEL_OPTIONS: ModelOption[] = [
   { provider: 'dashscope', value: 'kimi-k2.6', label: 'kimi-k2.6' }
 ]
 
-/** 查询供应商元数据；类型已限制输入，兜底仅用于处理损坏的本地配置。 */
-export function queryProviderOption(provider: ModelProvider): ModelProviderOption {
-  return (
-    MODEL_PROVIDER_OPTIONS.find((option) => option.value === provider) ??
-    MODEL_PROVIDER_OPTIONS[0]
-  )
+/** 判断是否为内置供应商 */
+export function queryIsBuiltInProvider(provider: ModelProvider): provider is BuiltInModelProvider {
+  return provider === 'dashscope' || provider === 'deepseek' || provider === 'openai_compatible'
+}
+
+/** 生成新的自定义供应商 id */
+export function queryNewCustomProviderId(): CustomModelProviderId {
+  const suffix = Math.random().toString(36).slice(2, 8)
+  return `custom:${Date.now().toString(36)}-${suffix}`
+}
+
+/** 归一化磁盘中的自定义供应商列表，过滤损坏项 */
+export function queryNormalizeCustomProviders(raw: unknown): CustomModelProvider[] {
+  if (!Array.isArray(raw)) return []
+  const seen = new Set<string>()
+  const result: CustomModelProvider[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const row = item as Record<string, unknown>
+    const id = String(row.id ?? '').trim()
+    if (!id.startsWith('custom:') || seen.has(id)) continue
+    const label = String(row.label ?? '').trim()
+    if (!label) continue
+    seen.add(id)
+    result.push({
+      id: id as CustomModelProviderId,
+      label,
+      apiKeyLabel: String(row.apiKeyLabel ?? 'API Key').trim() || 'API Key',
+      defaultBaseUrl: String(row.defaultBaseUrl ?? '').trim(),
+      defaultModel: String(row.defaultModel ?? '').trim() || 'gpt-4o-mini'
+    })
+  }
+  return result
+}
+
+/** 合并内置与用户自定义供应商，供设置页与多模型连接下拉使用 */
+export function queryAllProviderOptions(
+  customProviders: CustomModelProvider[] = []
+): ModelProviderOption[] {
+  return [
+    ...MODEL_PROVIDER_OPTIONS,
+    ...customProviders.map((provider) => ({
+      value: provider.id,
+      label: provider.label,
+      apiKeyLabel: provider.apiKeyLabel,
+      defaultBaseUrl: provider.defaultBaseUrl,
+      defaultModel: provider.defaultModel
+    }))
+  ]
+}
+
+/**
+ * 查询供应商元数据。
+ * 自定义项优先查 customProviders；缺失时回退 OpenAI 兼容模板，避免损坏配置导致白屏。
+ */
+export function queryProviderOption(
+  provider: ModelProvider,
+  customProviders: CustomModelProvider[] = []
+): ModelProviderOption {
+  const builtIn = MODEL_PROVIDER_OPTIONS.find((option) => option.value === provider)
+  if (builtIn) return builtIn
+
+  const custom = customProviders.find((item) => item.id === provider)
+  if (custom) {
+    return {
+      value: custom.id,
+      label: custom.label,
+      apiKeyLabel: custom.apiKeyLabel,
+      defaultBaseUrl: custom.defaultBaseUrl,
+      defaultModel: custom.defaultModel
+    }
+  }
+
+  if (provider.startsWith('custom:')) {
+    const fallbackLabel = provider.slice('custom:'.length) || '自定义供应商'
+    return {
+      value: provider,
+      label: fallbackLabel,
+      apiKeyLabel: 'API Key',
+      defaultBaseUrl: '',
+      defaultModel: 'gpt-4o-mini'
+    }
+  }
+
+  return MODEL_PROVIDER_OPTIONS[0]
 }
 
 /** 返回供应商可用模型，避免模型与 Base URL 交叉配置。 */
@@ -678,16 +776,23 @@ export function queryModelConnectionByCapability(
  * 优先级：顶层「模型与 API」字段（同 provider）→ 任意同 provider 连接 → 供应商默认地址/模型。
  */
 export function queryProviderCredentialsFromSettings(
-  settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl' | 'model' | 'connections'>,
+  settings: Pick<
+    AppSettings,
+    'provider' | 'apiKey' | 'baseUrl' | 'model' | 'connections' | 'customProviders'
+  >,
   provider: ModelProvider
 ): Pick<AppSettings, 'apiKey' | 'baseUrl' | 'model'> {
+  const customProviders = settings.customProviders ?? []
   if (settings.provider === provider) {
     const topKey = settings.apiKey.trim()
     if (topKey) {
       return {
         apiKey: settings.apiKey,
-        baseUrl: settings.baseUrl.trim() || queryProviderOption(provider).defaultBaseUrl,
-        model: settings.model.trim() || queryProviderOption(provider).defaultModel
+        baseUrl:
+          settings.baseUrl.trim() ||
+          queryProviderOption(provider, customProviders).defaultBaseUrl,
+        model:
+          settings.model.trim() || queryProviderOption(provider, customProviders).defaultModel
       }
     }
   }
@@ -696,7 +801,7 @@ export function queryProviderCredentialsFromSettings(
     (conn) => conn.provider === provider && conn.apiKey.trim()
   )
   if (fromConn) {
-    const meta = queryProviderOption(provider)
+    const meta = queryProviderOption(provider, customProviders)
     return {
       apiKey: fromConn.apiKey,
       baseUrl: fromConn.baseUrl.trim() || meta.defaultBaseUrl,
@@ -704,7 +809,7 @@ export function queryProviderCredentialsFromSettings(
     }
   }
 
-  const meta = queryProviderOption(provider)
+  const meta = queryProviderOption(provider, customProviders)
   return {
     apiKey: '',
     baseUrl: meta.defaultBaseUrl,
@@ -718,18 +823,28 @@ export function queryProviderCredentialsFromSettings(
  */
 export function querySyncConnectionsProviderCredentials(
   connections: ModelConnection[],
-  settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl' | 'model' | 'connections'>
+  settings: Pick<
+    AppSettings,
+    'provider' | 'apiKey' | 'baseUrl' | 'model' | 'connections' | 'customProviders'
+  >
 ): ModelConnection[] {
+  const customProviders = settings.customProviders ?? []
   const providerCreds = new Map<ModelProvider, Pick<AppSettings, 'apiKey' | 'baseUrl' | 'model'>>()
 
-  for (const provider of ['dashscope', 'deepseek', 'openai_compatible'] as ModelProvider[]) {
+  const providerIds = new Set<ModelProvider>([
+    ...MODEL_PROVIDER_OPTIONS.map((option) => option.value),
+    ...customProviders.map((provider) => provider.id),
+    ...connections.map((conn) => conn.provider)
+  ])
+
+  for (const provider of providerIds) {
     providerCreds.set(provider, queryProviderCredentialsFromSettings(settings, provider))
   }
 
   for (const conn of connections) {
     const key = conn.apiKey.trim()
     if (!key) continue
-    const meta = queryProviderOption(conn.provider)
+    const meta = queryProviderOption(conn.provider, customProviders)
     providerCreds.set(conn.provider, {
       apiKey: conn.apiKey,
       baseUrl: conn.baseUrl.trim() || meta.defaultBaseUrl,
@@ -738,8 +853,10 @@ export function querySyncConnectionsProviderCredentials(
   }
 
   return connections.map((conn) => {
-    const creds = providerCreds.get(conn.provider) ?? queryProviderCredentialsFromSettings(settings, conn.provider)
-    const meta = queryProviderOption(conn.provider)
+    const creds =
+      providerCreds.get(conn.provider) ??
+      queryProviderCredentialsFromSettings(settings, conn.provider)
+    const meta = queryProviderOption(conn.provider, customProviders)
     return {
       ...conn,
       apiKey: conn.apiKey.trim() ? conn.apiKey : creds.apiKey,

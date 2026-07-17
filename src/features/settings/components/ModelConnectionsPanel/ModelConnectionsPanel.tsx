@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import {
   DEFAULT_CONNECTION,
+  queryAllProviderOptions,
   queryModelOptionDisplayLabel,
   queryModelOptions,
   queryProviderCredentialsFromSettings,
@@ -38,12 +39,6 @@ const ROLE_OPTIONS: { value: ModelRoleKey; label: string }[] = [
   { value: 'script', label: '剧本任务' },
   { value: 'storyboard', label: '分镜任务' },
   { value: 'video', label: '视频任务' }
-]
-
-const PROVIDER_OPTIONS: { value: ModelProvider; label: string }[] = [
-  { value: 'dashscope', label: '阿里云百炼' },
-  { value: 'deepseek', label: 'DeepSeek' },
-  { value: 'openai_compatible', label: 'OpenAI 兼容' }
 ]
 
 function queryNewConnectionId(): string {
@@ -94,8 +89,17 @@ export function ModelConnectionsPanel(): React.ReactElement {
     settings.roleModelMap ?? {}
   )
 
+  const providerOptions = useMemo(
+    () =>
+      queryAllProviderOptions(settings.customProviders ?? []).map((option) => ({
+        value: option.value,
+        label: option.label
+      })),
+    [settings.customProviders]
+  )
+
   const { queryRemoteModels, queryIsLoading, queryModelHint } =
-    useConnectionProviderModels(connections)
+    useConnectionProviderModels(connections, true, settings.customProviders ?? [])
 
   useEffect(() => {
     setConnections(
@@ -113,7 +117,8 @@ export function ModelConnectionsPanel(): React.ReactElement {
     settings.apiKey,
     settings.provider,
     settings.baseUrl,
-    settings.model
+    settings.model,
+    settings.customProviders
   ])
 
   const handleSave = async (): Promise<void> => {
@@ -265,7 +270,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
                   <Select
                     style={{ width: '100%' }}
                     value={conn.provider}
-                    options={PROVIDER_OPTIONS}
+                    options={providerOptions}
                     onChange={(v) => handleFieldChange(conn.id, 'provider', v)}
                   />
                 </div>

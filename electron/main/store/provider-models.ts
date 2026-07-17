@@ -77,9 +77,11 @@ export function queryDashscopeModelsBaseUrlCandidates(baseUrl: string): string[]
 export function queryResolveProviderModelsCredentials(
   saved: AppSettings,
   override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>
-): Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'> {
+): Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'> & {
+  customProviders: AppSettings['customProviders']
+} {
   const provider = override?.provider ?? saved.provider
-  const providerMeta = queryProviderOption(provider)
+  const providerMeta = queryProviderOption(provider, saved.customProviders ?? [])
   let apiKey = String(override?.apiKey ?? saved.apiKey ?? '').trim()
   let baseUrl = String(override?.baseUrl ?? saved.baseUrl ?? '').trim()
 
@@ -98,7 +100,7 @@ export function queryResolveProviderModelsCredentials(
     baseUrl = queryNormalizeDashscopeCompatBaseUrl(baseUrl)
   }
 
-  return { provider, apiKey, baseUrl }
+  return { provider, apiKey, baseUrl, customProviders: saved.customProviders ?? [] }
 }
 
 /**
@@ -192,10 +194,12 @@ function queryFormatProviderModelsError(failure: ProviderModelsFetchFailure): st
  * 非百炼：仅请求用户配置的 Base URL。
  */
 async function queryFetchProviderModelsWithFallback(
-  settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>,
+  settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'> & {
+    customProviders?: AppSettings['customProviders']
+  },
   fetchImpl: FetchLike
 ): Promise<ModelOption[]> {
-  const providerMeta = queryProviderOption(settings.provider)
+  const providerMeta = queryProviderOption(settings.provider, settings.customProviders ?? [])
   const apiKey = settings.apiKey.trim()
   const baseUrl = (settings.baseUrl || providerMeta.defaultBaseUrl).trim()
 
@@ -246,10 +250,12 @@ async function queryFetchProviderModelsWithFallback(
  * 百炼 / DeepSeek / 兼容网关均支持 GET {baseUrl}/models。
  */
 export async function queryProviderModels(
-  settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>,
+  settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'> & {
+    customProviders?: AppSettings['customProviders']
+  },
   fetchImpl: FetchLike = fetch
 ): Promise<ModelOption[]> {
-  const providerMeta = queryProviderOption(settings.provider)
+  const providerMeta = queryProviderOption(settings.provider, settings.customProviders ?? [])
   const apiKey = settings.apiKey.trim()
   if (!apiKey) {
     throw new Error(`未配置 ${providerMeta.apiKeyLabel}，无法从平台获取模型列表`)

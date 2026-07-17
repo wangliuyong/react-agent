@@ -27,7 +27,8 @@ interface UseConnectionProviderModelsResult {
  */
 export function useConnectionProviderModels(
   connections: ModelConnection[],
-  enabled = true
+  enabled = true,
+  customProviders: import('@shared/types').CustomModelProvider[] = []
 ): UseConnectionProviderModelsResult {
   const [modelsByKey, setModelsByKey] = useState<
     Record<string, ModelOption[] | null | undefined>
@@ -87,7 +88,8 @@ export function useConnectionProviderModels(
         void queryProviderModelsFromApi({
           provider: conn.provider,
           apiKey: conn.apiKey,
-          baseUrl: conn.baseUrl
+          baseUrl: conn.baseUrl,
+          customProviders
         })
           .then((models) => {
             if (cancelled) return
@@ -125,7 +127,7 @@ export function useConnectionProviderModels(
     return () => {
       for (const cancel of controllers) cancel()
     }
-  }, [enabled, credentialsSignature, connections])
+  }, [enabled, credentialsSignature, connections, customProviders])
 
   const queryRemoteModels = (conn: ModelConnection): ModelOption[] | null | undefined => {
     if (!queryCanFetchProviderModels(conn.apiKey)) return undefined

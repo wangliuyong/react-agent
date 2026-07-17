@@ -15,7 +15,7 @@ export function queryChatModelConfig(
   purpose?: ModelRoleKey
 ): ConstructorParameters<typeof ChatOpenAI>[0] {
   const connection = queryModelConnection(settings, purpose)
-  const provider = queryProviderOption(connection.provider)
+  const provider = queryProviderOption(connection.provider, settings.customProviders ?? [])
   if (!connection.apiKey) {
     throw new Error(`未配置 ${provider.apiKeyLabel}（连接：${connection.label}），请先在设置中填写`)
   }

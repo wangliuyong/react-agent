@@ -32,13 +32,23 @@ export function querySettingsFormValues(settings: AppSettings): AppSettings {
     roleModelMap: settings.roleModelMap ?? {},
     fullAccess: settings.fullAccess,
     maxTurns: settings.maxTurns,
-    launchAtLogin: settings.launchAtLogin
+    launchAtLogin: settings.launchAtLogin,
+    customProviders: settings.customProviders ?? []
   }
 }
 
 /** 主表单提交时只提交默认连接相关字段 */
 export function querySettingsMainFormPatch(
-  values: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl' | 'model' | 'fullAccess' | 'maxTurns'>
+  values: Pick<
+    AppSettings,
+    | 'provider'
+    | 'apiKey'
+    | 'baseUrl'
+    | 'model'
+    | 'fullAccess'
+    | 'maxTurns'
+    | 'customProviders'
+  >
 ): Partial<AppSettings> {
   return {
     provider: values.provider,
@@ -46,7 +56,8 @@ export function querySettingsMainFormPatch(
     baseUrl: values.baseUrl,
     model: values.model,
     fullAccess: values.fullAccess,
-    maxTurns: values.maxTurns
+    maxTurns: values.maxTurns,
+    customProviders: values.customProviders ?? []
   }
 }
 

@@ -4,11 +4,13 @@ import {
   queryModelOptions,
   queryProviderOption,
   type AppSettings,
+  type CustomModelProvider,
   type ModelProvider
 } from '@shared/types'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
 import { ChannelStatusPanel } from '../ChannelStatusPanel'
 import { ModelConnectionsPanel } from '../ModelConnectionsPanel'
+import { AddModelProviderModal } from '../AddModelProviderModal'
 import styles from './SettingsPage.module.css'
 import {
   queryProviderSwitchFormValues,
@@ -39,6 +41,7 @@ export function SettingsPage(): React.ReactElement {
   const postSettings = useSettingsStore((s) => s.postSettings)
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState<SettingsTab>('model')
+  const [addProviderOpen, setAddProviderOpen] = useState(false)
   const [form] = Form.useForm<AppSettings>()
   const [selectedProvider, setSelectedProvider] = useState<ModelProvider>(settings.provider)
   /** 手动刷新计数，便于用户点击「刷新模型」重拉 */
@@ -51,7 +54,11 @@ export function SettingsPage(): React.ReactElement {
   /** 监听草稿密钥与地址，输入后即可拉取平台模型，无需先保存 */
   const watchedApiKey = Form.useWatch('apiKey', form)
   const watchedBaseUrl = Form.useWatch('baseUrl', form)
-  const providerOption = queryProviderOption(selectedProvider)
+  const watchedCustomProviders = Form.useWatch('customProviders', form) as
+    | CustomModelProvider[]
+    | undefined
+  const customProviders = watchedCustomProviders ?? settings.customProviders ?? []
+  const providerOption = queryProviderOption(selectedProvider, customProviders)
 
   /** 表单空串时回退已保存设置 / 供应商默认地址，避免打到错误 endpoint */
   const draftApiKey =
@@ -70,6 +77,7 @@ export function SettingsPage(): React.ReactElement {
     provider: selectedProvider,
     apiKey: draftApiKey,
     baseUrl: draftBaseUrl,
+    customProviders,
     refreshToken: modelsRefreshToken
   })
 
@@ -90,6 +98,63 @@ export function SettingsPage(): React.ReactElement {
       model: values.model
     }
   }, [loaded, settings, form])
+
+  const providerSelectOptions = useMemo(() => {
+    const builtIn = MODEL_PROVIDER_OPTIONS.map((option) => ({
+      value: option.value,
+      label: option.label
+    }))
+    const custom = customProviders.map((provider) => ({
+      value: provider.id,
+      label: provider.label
+    }))
+    if (custom.length === 0) return builtIn
+    return [
+      { label: '内置供应商', options: builtIn },
+      { label: '自定义供应商', options: custom }
+    ]
+  }, [customProviders])
+
+  const handleProviderChange = (provider: ModelProvider): void => {
+    const current = form.getFieldsValue()
+    providerDraftsRef.current[selectedProvider] = {
+      apiKey: String(current.apiKey ?? ''),
+      baseUrl: String(current.baseUrl ?? ''),
+      model: String(current.model ?? '')
+    }
+    const nextValues = queryProviderSwitchFormValues(
+      provider,
+      { ...settings, customProviders },
+      providerDraftsRef.current
+    )
+    setSelectedProvider(provider)
+    form.setFieldsValue(nextValues)
+  }
+
+  const handleAddCustomProvider = (provider: CustomModelProvider): void => {
+    const nextProviders = [...customProviders, provider]
+    setAddProviderOpen(false)
+    handleProviderChange(provider.id)
+    // 为什么：customProviders 不在可见表单项中，需显式写入以便保存时带上
+    form.setFieldValue('customProviders', nextProviders)
+    message.success(`已添加供应商「${provider.label}」，请填写 API Key 后保存`)
+  }
+
+  const handleSaveSettings = async (values: AppSettings): Promise<void> => {
+    setSaving(true)
+    try {
+      // customProviders 由弹窗写入表单，提交时一并持久化
+      await postSettings(
+        querySettingsMainFormPatch({
+          ...values,
+          customProviders
+        })
+      )
+      message.success('设置已保存')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   /** 若用户曾保存自定义 model id，合并进选项避免 Select 显示异常 */
   const modelSelectOptions = useMemo(() => {
@@ -173,69 +238,90 @@ export function SettingsPage(): React.ReactElement {
       <div className={styles.body}>
         {tab === 'model' ? (
           <div className={styles.formCard} key="model">
-            <div className={styles.cardHeader}>
-              <div className={styles.cardHeading}>
-                <span className={styles.cardIcon}>
-                  <ApiOutlined />
-                </span>
-                <div>
-                  <Title level={4} className={styles.cardTitle}>
-                    模型与 API
-                  </Title>
-                  <Text type="secondary" className={styles.cardDesc}>
-                    默认兼容阿里云百炼，也可连接其他 OpenAI 兼容服务
-                  </Text>
-                </div>
-              </div>
-              <Tag className={styles.providerTag}>{providerOption.label}</Tag>
-            </div>
-
             {!loaded ? (
-              <div className={styles.formLoading}>
-                <Spin />
-                <Text type="secondary">正在加载本机配置…</Text>
-              </div>
+              <>
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardHeading}>
+                    <span className={styles.cardIcon}>
+                      <ApiOutlined />
+                    </span>
+                    <div>
+                      <Title level={4} className={styles.cardTitle}>
+                        模型与 API
+                      </Title>
+                      <Text type="secondary" className={styles.cardDesc}>
+                        默认兼容阿里云百炼，也可连接其他 OpenAI 兼容服务
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.formLoading}>
+                  <Spin />
+                  <Text type="secondary">正在加载本机配置…</Text>
+                </div>
+              </>
             ) : (
               <Form
                 form={form}
                 layout="vertical"
                 initialValues={settings}
                 className={styles.form}
-                onFinish={async (values: typeof settings) => {
-                  setSaving(true)
-                  try {
-                    // 只提交主表单字段，由 store 同步进默认连接，避免覆盖多模型面板
-                    await postSettings(querySettingsMainFormPatch(values))
-                    message.success('设置已保存')
-                  } finally {
-                    setSaving(false)
-                  }
-                }}
+                onFinish={(values) => void handleSaveSettings(values)}
               >
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardHeading}>
+                    <span className={styles.cardIcon}>
+                      <ApiOutlined />
+                    </span>
+                    <div>
+                      <Title level={4} className={styles.cardTitle}>
+                        模型与 API
+                      </Title>
+                      <Text type="secondary" className={styles.cardDesc}>
+                        内置百炼 / DeepSeek，也可添加自定义 OpenAI 兼容网关
+                      </Text>
+                    </div>
+                  </div>
+                  <div className={styles.cardActions}>
+                    <span className={styles.saveHint}>
+                      <RobotOutlined />
+                      <span className={styles.saveHintText}>下一条消息生效</span>
+                    </span>
+                    <Button
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
+                      loading={saving}
+                      className={styles.saveButton}
+                      onClick={() => void form.submit()}
+                    >
+                      保存设置
+                    </Button>
+                    <Tag className={styles.providerTag}>{providerOption.label}</Tag>
+                  </div>
+                </div>
+
                 <div className={styles.formGrid}>
-                  <Form.Item label="模型供应商" name="provider" rules={PROVIDER_RULES}>
-                    <Select
-                      options={MODEL_PROVIDER_OPTIONS.map((option) => ({
-                        value: option.value,
-                        label: option.label
-                      }))}
-                      onChange={(provider: ModelProvider) => {
-                        // 离开当前供应商前先缓存草稿，切回时才能回显未保存输入
-                        const current = form.getFieldsValue()
-                        providerDraftsRef.current[selectedProvider] = {
-                          apiKey: String(current.apiKey ?? ''),
-                          baseUrl: String(current.baseUrl ?? ''),
-                          model: String(current.model ?? '')
-                        }
-                        const nextValues = queryProviderSwitchFormValues(
-                          provider,
-                          settings,
-                          providerDraftsRef.current
-                        )
-                        setSelectedProvider(provider)
-                        form.setFieldsValue(nextValues)
-                      }}
-                    />
+                  <Form.Item
+                    className={styles.fullWidth}
+                    label="模型供应商"
+                    name="provider"
+                    rules={PROVIDER_RULES}
+                  >
+                    <div className={styles.providerRow}>
+                      <Select
+                        className={styles.providerSelect}
+                        options={providerSelectOptions}
+                        onChange={handleProviderChange}
+                      />
+                      <Button
+                        type="dashed"
+                        icon={<PlusOutlined />}
+                        className={styles.addProviderBtn}
+                        onClick={() => setAddProviderOpen(true)}
+                      >
+                        添加供应商
+                      </Button>
+                    </div>
                   </Form.Item>
 
                   <Form.Item
@@ -323,18 +409,15 @@ export function SettingsPage(): React.ReactElement {
                     <RobotOutlined />
                     <span>新设置将在下一条 Agent 消息中生效</span>
                   </div>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    icon={<CheckCircleOutlined />}
-                    loading={saving}
-                    className={styles.saveButton}
-                  >
-                    保存设置
-                  </Button>
                 </div>
               </Form>
             )}
+
+            <AddModelProviderModal
+              open={addProviderOpen}
+              onCancel={() => setAddProviderOpen(false)}
+              onSubmit={handleAddCustomProvider}
+            />
           </div>
         ) : null}
 

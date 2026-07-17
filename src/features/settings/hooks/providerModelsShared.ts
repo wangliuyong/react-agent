@@ -22,9 +22,11 @@ export function queryProviderModelsCacheKey(
 
 /** 解析用于拉取 /models 的凭证（补齐默认 Base URL） */
 export function queryProviderModelsRequest(
-  creds: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>
+  creds: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'> & {
+    customProviders?: AppSettings['customProviders']
+  }
 ): Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'> {
-  const providerMeta = queryProviderOption(creds.provider)
+  const providerMeta = queryProviderOption(creds.provider, creds.customProviders ?? [])
   return {
     provider: creds.provider,
     apiKey: creds.apiKey.trim(),
@@ -39,7 +41,9 @@ export function queryCanFetchProviderModels(apiKey: string): boolean {
 
 /** 调用主进程拉取平台模型列表（百炼多端点回退等在主进程实现） */
 export async function queryProviderModelsFromApi(
-  creds: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>
+  creds: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'> & {
+    customProviders?: AppSettings['customProviders']
+  }
 ): Promise<ModelOption[]> {
   return window.api.queryProviderModels(queryProviderModelsRequest(creds))
 }

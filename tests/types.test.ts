@@ -28,10 +28,11 @@ describe('模型供应商配置', () => {
     )
   })
 
-  it('供应商列表包含百炼与 DeepSeek', () => {
+  it('供应商列表包含百炼、DeepSeek 与 OpenAI 兼容', () => {
     expect(MODEL_PROVIDER_OPTIONS.map((option) => option.value)).toEqual([
       'dashscope',
-      'deepseek'
+      'deepseek',
+      'openai_compatible'
     ])
   })
 })

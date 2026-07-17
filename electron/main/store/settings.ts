@@ -3,9 +3,11 @@ import {
   DEFAULT_CONNECTION_ID,
   DEFAULT_SETTINGS,
   queryMergeDefaultRoleModelMap,
+  queryNormalizeCustomProviders,
   querySeedDefaultConnections,
   querySyncConnectionsProviderCredentials,
   type AppSettings,
+  type CustomModelProvider,
   type ModelCapability,
   type ModelConnection,
   type ModelProvider,
@@ -15,19 +17,31 @@ import { postLaunchAtLogin } from './launch-at-login'
 import { getSettingsPath } from './paths'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 
-function queryNormalizeProvider(raw: unknown, baseUrl: string): ModelProvider {
+function queryNormalizeProvider(
+  raw: unknown,
+  baseUrl: string,
+  customProviders: CustomModelProvider[]
+): ModelProvider {
   if (raw === 'deepseek' || raw === 'dashscope' || raw === 'openai_compatible') {
     return raw
+  }
+  const id = String(raw ?? '').trim()
+  if (id.startsWith('custom:') && customProviders.some((item) => item.id === id)) {
+    return id as ModelProvider
   }
   if (String(baseUrl).includes('api.deepseek.com')) return 'deepseek'
   return DEFAULT_SETTINGS.provider
 }
 
-function queryNormalizeConnection(raw: unknown, index: number): ModelConnection | null {
+function queryNormalizeConnection(
+  raw: unknown,
+  index: number,
+  customProviders: CustomModelProvider[]
+): ModelConnection | null {
   if (!raw || typeof raw !== 'object') return null
   const row = raw as Record<string, unknown>
   const id = String(row.id ?? `conn-${index}`).trim() || `conn-${index}`
-  const provider = queryNormalizeProvider(row.provider, String(row.baseUrl ?? ''))
+  const provider = queryNormalizeProvider(row.provider, String(row.baseUrl ?? ''), customProviders)
   const capabilities = Array.isArray(row.capabilities)
     ? (row.capabilities as unknown[])
         .map(String)
@@ -51,18 +65,23 @@ function queryNormalizeConnection(raw: unknown, index: number): ModelConnection 
  * 为什么：升级后保留用户已填 Key，避免设置页空白。
  */
 function queryMigrateLegacyConnections(
-  raw: Partial<AppSettings> & Record<string, unknown>
+  raw: Partial<AppSettings> & Record<string, unknown>,
+  customProviders: CustomModelProvider[]
 ): ModelConnection[] {
   const fromList = Array.isArray(raw.connections)
     ? (raw.connections as unknown[])
-        .map((item, i) => queryNormalizeConnection(item, i))
+        .map((item, i) => queryNormalizeConnection(item, i, customProviders))
         .filter((c): c is ModelConnection => Boolean(c))
     : []
 
   if (fromList.length > 0) {
     // 多连接结构下仍可能遗留顶层 apiKey；按 provider 回填空 Key 连接
     const legacyKey = String(raw.apiKey ?? '').trim()
-    const legacyProvider = queryNormalizeProvider(raw.provider, String(raw.baseUrl ?? ''))
+    const legacyProvider = queryNormalizeProvider(
+      raw.provider,
+      String(raw.baseUrl ?? ''),
+      customProviders
+    )
     if (!legacyKey) return fromList
     return fromList.map((conn) => {
       if (conn.apiKey.trim()) return conn
@@ -73,7 +92,11 @@ function queryMigrateLegacyConnections(
     })
   }
 
-  const provider = queryNormalizeProvider(raw.provider, String(raw.baseUrl ?? ''))
+  const provider = queryNormalizeProvider(
+    raw.provider,
+    String(raw.baseUrl ?? ''),
+    customProviders
+  )
   return [
     {
       ...DEFAULT_CONNECTION,
@@ -98,7 +121,10 @@ export function normalizeSettings(
   const merged = { ...DEFAULT_SETTINGS, ...raw }
   delete (merged as Record<string, unknown>).agentRuntime
 
-  const connections = querySeedDefaultConnections(queryMigrateLegacyConnections(raw))
+  const customProviders = queryNormalizeCustomProviders(raw.customProviders)
+  const connections = querySeedDefaultConnections(
+    queryMigrateLegacyConnections(raw, customProviders)
+  )
   const defaultConnectionId =
     String(raw.defaultConnectionId ?? '').trim() ||
     connections[0]?.id ||
@@ -126,7 +152,8 @@ export function normalizeSettings(
     model: primary.model,
     connections,
     defaultConnectionId: primary.id,
-    roleModelMap
+    roleModelMap,
+    customProviders
   }
   const syncedConnections = querySyncConnectionsProviderCredentials(connections, draftForSync)
 
@@ -140,7 +167,8 @@ export function normalizeSettings(
     roleModelMap,
     fullAccess: Boolean(merged.fullAccess),
     maxTurns: Number(merged.maxTurns) || DEFAULT_SETTINGS.maxTurns,
-    launchAtLogin: Boolean(merged.launchAtLogin)
+    launchAtLogin: Boolean(merged.launchAtLogin),
+    customProviders
   }
 }
 
