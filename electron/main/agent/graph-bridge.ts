@@ -16,6 +16,7 @@ import {
   isGraphInterrupt,
   isInterrupted
 } from '@langchain/langgraph'
+import { pauseRunningTasks, queryHasRunningTasks } from '../../../shared/pause-running-tasks'
 import type { AgentEvent, AgentRoleName, ChatMessage, Session, TaskItem } from '../../../shared/types'
 import { querySettings } from '../store/settings'
 import { querySession, postSession } from '../store/sessions'
@@ -62,6 +63,18 @@ function appendMessage(session: Session, msg: Omit<ChatMessage, 'id' | 'createdA
   return full
 }
 
+/**
+ * 中断时将落盘任务从 running 重置为 pending，并推送 task_update。
+ * 避免刷新后 hydrate 根据 running 任务误判会话仍在执行。
+ */
+export function pauseRunningSessionTasks(sessionId: string): void {
+  const session = querySession(sessionId)
+  if (!session?.tasks?.length || !queryHasRunningTasks(session.tasks)) return
+  session.tasks = pauseRunningTasks(session.tasks)
+  persistSession(session)
+  emitAgentEvent({ type: 'task_update', sessionId, tasks: session.tasks })
+}
+
 export function postGraphAbort(sessionId: string): void {
   abortMap.get(sessionId)?.abort()
   abortMap.delete(sessionId)
@@ -70,6 +83,8 @@ export function postGraphAbort(sessionId: string): void {
     waiter.reject(new Error('用户已中止'))
     continueWaiters.delete(sessionId)
   }
+  // 立即杀死并落盘暂停任务，不等 Agent 异步收尾
+  pauseRunningSessionTasks(sessionId)
 }
 
 export function postGraphContinue(sessionId: string): void {

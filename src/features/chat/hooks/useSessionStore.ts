@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { pauseRunningTasks } from '@shared/pause-running-tasks'
 import type { AgentEvent, ChatMessage, Session, SessionType, TaskItem } from '@shared/types'
 import {
   postAgentAbort,
@@ -208,14 +209,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const id = get().activeSessionId
     if (!id) return
     await postAgentAbort(id)
-    const session = get().sessions.find((s) => s.id === id)
-    set((state) => ({
-      runningSessionIds: withoutRunningSession(state.runningSessionIds, id),
-      running: false,
-      awaitUserReason: null,
-      // 不必等 done：有未完成任务时立刻可继续（刷新场景同理依赖 tasks 落盘）
-      canResume: queryHasIncompleteTasks(session?.tasks ?? [])
-    }))
+    set((state) => {
+      const session = state.sessions.find((s) => s.id === id)
+      const pausedTasks = pauseRunningTasks(session?.tasks ?? [])
+      return {
+        sessions: patchSession(state.sessions, id, (s) => ({ ...s, tasks: pausedTasks })),
+        runningSessionIds: withoutRunningSession(state.runningSessionIds, id),
+        running: false,
+        awaitUserReason: null,
+        // 不必等 done：有未完成任务时立刻可继续（刷新场景依赖主进程落盘）
+        canResume: queryHasIncompleteTasks(pausedTasks)
+      }
+    })
   },
 
   continueRun: async () => {
