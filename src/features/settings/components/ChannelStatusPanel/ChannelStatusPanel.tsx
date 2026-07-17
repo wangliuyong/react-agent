@@ -158,7 +158,11 @@ export function ChannelStatusPanel(): React.ReactElement {
                 {channel.label}
               </Text>
               <Text type="secondary" className={styles.channelKind}>
-                {isPublish ? '发布渠道' : '通知渠道'}
+                {isPublish
+                  ? channel.humanized
+                    ? '发布 · 拟人浏览器'
+                    : '发布 · SDK'
+                  : '通知渠道'}
               </Text>
             </div>
           </div>
@@ -171,7 +175,11 @@ export function ChannelStatusPanel(): React.ReactElement {
 
         <div className={styles.cardFooter}>
           <Text type="secondary" className={styles.localHint}>
-            {isPublish ? 'Cookie 缓存在本机 Profile' : '凭据仅保存在本机'}
+            {isPublish
+              ? channel.humanized
+                ? '拟人模式：Cookie 缓存在本机 Profile'
+                : 'SDK 模式：未接入时请开启拟人操作'
+              : '凭据仅保存在本机'}
           </Text>
           {canOpenLogin ? (
             <Button

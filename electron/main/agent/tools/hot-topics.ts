@@ -1,4 +1,7 @@
 import { WORKFLOW_CTX_PREFIX } from '../../workflow/tool-result'
+import { queryHttpJson } from '../../net/http-client'
+import { queryWithFallback } from '../../net/data-source'
+import { getBrowserService } from '../../browser/service'
 import type { AgentTool } from './types'
 
 export function queryEncodeWorkflowCtxResult(
@@ -13,25 +16,6 @@ function queryFormatList(items: string[], sourceLabel: string): string {
   return [`【${sourceLabel}】今日热点（共 ${items.length} 条）`, ...lines].join('\n')
 }
 
-async function queryFetchJson(
-  url: string,
-  headers: Record<string, string>
-): Promise<unknown> {
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      Accept: 'application/json,text/plain,*/*',
-      ...headers
-    },
-    signal: AbortSignal.timeout(20_000)
-  })
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`)
-  }
-  return res.json() as Promise<unknown>
-}
-
 function collectWeiboDescs(node: unknown, out: string[]): void {
   if (!node) return
   if (Array.isArray(node)) {
@@ -41,19 +25,22 @@ function collectWeiboDescs(node: unknown, out: string[]): void {
   if (typeof node !== 'object') return
   const row = node as Record<string, unknown>
   const title = String(row.desc || row.word || row.note || '').trim()
-  // 过滤广告位 / 空标题
   if (title && title.length < 40 && !title.includes('http')) out.push(title)
   if (row.card_group != null) collectWeiboDescs(row.card_group, out)
   if (row.cards != null) collectWeiboDescs(row.cards, out)
   if (row.data != null) collectWeiboDescs(row.data, out)
 }
 
-/** 微博热搜：依次尝试移动端容器接口与 ajax 热搜（任一成功即可） */
-async function queryWeiboHotTopics(): Promise<string[]> {
+/** 微博热搜 API（多 endpoint） */
+async function queryWeiboHotTopicsApi(): Promise<string[]> {
   const endpoints = [
     {
       url: 'https://m.weibo.cn/api/container/getIndex?containerid=106003type%3D25%26t%3D3%26disable_hot%3D1%26filter_type%3Drealtimehot',
-      headers: { Referer: 'https://m.weibo.cn/', 'MWeibo-Pwa': '1', 'X-Requested-With': 'XMLHttpRequest' }
+      headers: {
+        Referer: 'https://m.weibo.cn/',
+        'MWeibo-Pwa': '1',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
     },
     {
       url: 'https://weibo.com/ajax/side/hotSearch',
@@ -64,10 +51,9 @@ async function queryWeiboHotTopics(): Promise<string[]> {
   const errors: string[] = []
   for (const ep of endpoints) {
     try {
-      const data = await queryFetchJson(ep.url, ep.headers)
+      const data = await queryHttpJson(ep.url, { headers: ep.headers })
       const items: string[] = []
       collectWeiboDescs(data, items)
-      // ajax/side/hotSearch: data.realtime[].word
       const realtime = (data as { data?: { realtime?: Array<{ word?: string }> } })?.data
         ?.realtime
       if (Array.isArray(realtime)) {
@@ -83,10 +69,9 @@ async function queryWeiboHotTopics(): Promise<string[]> {
       errors.push(`${ep.url} → ${e instanceof Error ? e.message : String(e)}`)
     }
   }
-  throw new Error(errors.join('; ') || '微博热搜不可用')
+  throw new Error(errors.join('; ') || '微博热搜 API 不可用')
 }
 
-/** 递归收集百度 board 响应里带 word/query 的条目（结构偶有嵌套） */
 function collectBaiduWords(node: unknown, out: string[]): void {
   if (!node) return
   if (Array.isArray(node)) {
@@ -101,12 +86,11 @@ function collectBaiduWords(node: unknown, out: string[]): void {
   if (row.cards != null) collectBaiduWords(row.cards, out)
 }
 
-/** 百度热搜榜 board API */
-async function queryBaiduHotTopics(): Promise<string[]> {
+async function queryBaiduHotTopicsApi(): Promise<string[]> {
   const url = 'https://top.baidu.com/api/board?platform=wise&tab=realtime'
-  const data = (await queryFetchJson(url, {
-    Referer: 'https://top.baidu.com/board?tab=realtime'
-  })) as { success?: boolean; data?: unknown }
+  const data = await queryHttpJson<{ success?: boolean; data?: unknown }>(url, {
+    headers: { Referer: 'https://top.baidu.com/board?tab=realtime' }
+  })
   if (data.success === false) {
     throw new Error('百度热搜接口 success=false')
   }
@@ -120,15 +104,39 @@ async function queryBaiduHotTopics(): Promise<string[]> {
 }
 
 /**
- * 拉取今日热搜列表。
- * 成功/失败都不抛到流程外：通过 @@workflow_ctx@@ 写入 hotTopicsOk / hotTopics / hotSource，
- * 供条件边与后续 Agent（{{hotTopics}}）使用。
+ * 无头浏览器兜底：打开热搜页提取可见文本中的热点行。
+ * 为什么：API 限流或结构变更时仍可拿到部分榜单，且不弹出浏览器窗口。
+ */
+async function queryHotTopicsViaBrowser(source: 'weibo' | 'baidu'): Promise<string[]> {
+  const browser = getBrowserService()
+  const url =
+    source === 'weibo'
+      ? 'https://s.weibo.com/top/summary?cate=realtimehot'
+      : 'https://top.baidu.com/board?tab=realtime'
+  await browser.navigate(url, 'headless')
+  await browser.wait({ ms: 2000 }, 'headless')
+  const text = await browser.extractText({ maxLength: 30_000 }, 'headless')
+  const lines = text
+    .split(/\n+/)
+    .map((l) => l.replace(/^\d+[\s.、]*/, '').trim())
+    .filter((l) => l.length >= 2 && l.length <= 40 && !/登录|热搜|实时|百度|微博/.test(l))
+  const unique = Array.from(new Set(lines))
+  if (unique.length < 3) {
+    throw new Error(`无头浏览器提取热点过少（${unique.length}）`)
+  }
+  return unique.slice(0, 25)
+}
+
+/**
+ * 拉取今日热搜：API 优先，失败再无头浏览器。
+ * 成功/失败都不抛到流程外：通过 @@workflow_ctx@@ 写入 hotTopicsOk 等字段。
  */
 export const fetchHotTopicsTool: AgentTool = {
   name: 'fetch_hot_topics',
   description:
     '获取今日热点榜单。source=weibo 走微博热搜，source=baidu 走百度热搜。' +
-    '成功时写入 context.hotTopicsOk=1 与 hotTopics 文本；失败时 hotTopicsOk=0（不抛错，便于流程回退）。',
+    '优先调用公开 API；API 失败时自动用无头浏览器后台抓取（不弹窗）。' +
+    '成功时写入 context.hotTopicsOk=1 与 hotTopics 文本；失败时 hotTopicsOk=0。',
   permission: 'safe',
   parameters: {
     type: 'object',
@@ -156,25 +164,35 @@ export const fetchHotTopicsTool: AgentTool = {
       })
     }
 
-    try {
-      const raw =
-        source === 'weibo' ? await queryWeiboHotTopics() : await queryBaiduHotTopics()
-      const items = raw.slice(0, maxCount)
-      const label = source === 'weibo' ? '微博热搜' : '百度热搜'
-      const text = queryFormatList(items, label)
-      return queryEncodeWorkflowCtxResult(text, {
-        hotTopicsOk: '1',
-        hotSource: source,
-        hotTopics: text
-      })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      const failText = `获取${source === 'weibo' ? '微博' : '百度'}今日热点失败：${msg}`
-      return queryEncodeWorkflowCtxResult(failText, {
+    const label = source === 'weibo' ? '微博热搜' : '百度热搜'
+    const result = await queryWithFallback({
+      apiFetchers: [
+        source === 'weibo' ? queryWeiboHotTopicsApi : queryBaiduHotTopicsApi
+      ],
+      browserScraper: () => queryHotTopicsViaBrowser(source),
+      failLabel: `获取${label}失败`,
+      formatSuccess: (items, src) => {
+        const text = queryFormatList(items.slice(0, maxCount), label)
+        return src === 'browser' ? `${text}\n（来源：无头浏览器兜底）` : text
+      }
+    })
+
+    if (!result.ok || !result.data) {
+      return queryEncodeWorkflowCtxResult(result.message, {
         hotTopicsOk: '0',
         hotSource: source,
-        hotTopics: ''
+        hotTopics: '',
+        hotFetchSource: result.source
       })
     }
+
+    const items = result.data.slice(0, maxCount)
+    // formatSuccess 已把展示文案写入 message
+    return queryEncodeWorkflowCtxResult(result.message, {
+      hotTopicsOk: '1',
+      hotSource: source,
+      hotTopics: result.message,
+      hotFetchSource: result.source
+    })
   }
 }

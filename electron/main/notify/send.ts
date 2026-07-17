@@ -4,10 +4,17 @@ import {
 } from '../../../shared/publish-channels'
 import { queryPublishChannels } from '../store/channels'
 import { markdownToFeishuPost, postFeishuWebhookRichText } from './feishu-rich'
+import { postGenericWebhookText } from './webhook'
 
 export type NotifySendResult =
   | { ok: true; deduped?: boolean }
   | { ok: false; error: string }
+
+export interface NotifyFanoutResult {
+  results: Array<{ channelId: string } & NotifySendResult>
+  okCount: number
+  failCount: number
+}
 
 /** 相同渠道+标题+正文短时去重，防止 ReAct 连续两轮误发 */
 const NOTIFY_DEDUPE_MS = 120_000
@@ -25,12 +32,9 @@ export async function postNotifyMessage(args: {
   channelId: string
   title?: string
   content: string
-  /** 为 true 时将 Markdown 转为飞书 post 富文本（msg_type=post） */
   richText?: boolean
-  /** 富文本模式下 @ 提及 user_id（post 首行 tag=at），默认不 @ */
   atUserId?: 'all' | string
 }): Promise<NotifySendResult> {
-  // 为什么：发送前强制从磁盘刷新注册表，避免 UI 刚保存后 registry 仍是空 Webhook
   queryPublishChannels()
   const meta = queryPublishChannelMeta(args.channelId)
   if (normalizeChannelKind(meta.kind) !== 'notify') {
@@ -39,12 +43,10 @@ export async function postNotifyMessage(args: {
   if (meta.id === 'wechat_notify' || meta.id === 'qq_notify') {
     return { ok: false, error: `${meta.label} 通知能力尚未接入` }
   }
-  if (meta.id !== 'feishu') {
-    return { ok: false, error: `未知通知渠道：${meta.id}` }
-  }
+
   const webhookUrl = meta.notifyConfig?.webhookUrl?.trim()
   if (!webhookUrl) {
-    return { ok: false, error: '飞书 Webhook 未配置，请先在渠道页填写并保存' }
+    return { ok: false, error: `${meta.label} Webhook 未配置，请先在渠道页填写并保存` }
   }
 
   const dedupeKey = queryNotifyDedupeKey(args.channelId, args.title, args.content)
@@ -59,24 +61,36 @@ export async function postNotifyMessage(args: {
     : args.content
 
   try {
-    if (args.richText) {
-      const post = markdownToFeishuPost(args.content, {
-        atUserId: args.atUserId,
-        title: args.title
-      })
-      await postFeishuWebhookRichText({
+    if (meta.id === 'feishu') {
+      if (args.richText) {
+        const post = markdownToFeishuPost(args.content, {
+          atUserId: args.atUserId,
+          title: args.title
+        })
+        await postFeishuWebhookRichText({
+          webhookUrl,
+          secret: meta.notifyConfig?.secret,
+          post
+        })
+      } else {
+        const { postFeishuWebhookText } = await import('./feishu')
+        await postFeishuWebhookText({
+          webhookUrl,
+          secret: meta.notifyConfig?.secret,
+          text
+        })
+      }
+    } else if (meta.id === 'webhook') {
+      await postGenericWebhookText({
         webhookUrl,
         secret: meta.notifyConfig?.secret,
-        post
-      })
-    } else {
-      const { postFeishuWebhookText } = await import('./feishu')
-      await postFeishuWebhookText({
-        webhookUrl,
-        secret: meta.notifyConfig?.secret,
+        title: args.title,
         text
       })
+    } else {
+      return { ok: false, error: `未知通知渠道：${meta.id}` }
     }
+
     recentNotifyAt.set(dedupeKey, Date.now())
     console.info(`[notify] ok channelId=${meta.id} richText=${Boolean(args.richText)}`)
     return { ok: true }
@@ -88,7 +102,38 @@ export async function postNotifyMessage(args: {
 }
 
 /**
- * 定时任务成功后：将 Agent 最终输出转为飞书富文本并推送到配置的通知渠道。
+ * 多渠道并行扇出通知。
+ * 为什么：每日天气等场景需同时推飞书 + 通用 Webhook。
+ */
+export async function postNotifyMessageFanout(args: {
+  channelIds: string[]
+  title?: string
+  content: string
+  richText?: boolean
+  atUserId?: 'all' | string
+}): Promise<NotifyFanoutResult> {
+  const unique = Array.from(new Set(args.channelIds.map((id) => id.trim()).filter(Boolean)))
+  const settled = await Promise.all(
+    unique.map(async (channelId) => {
+      const result = await postNotifyMessage({
+        channelId,
+        title: args.title,
+        content: args.content,
+        richText: args.richText,
+        atUserId: args.atUserId
+      })
+      return { channelId, ...result }
+    })
+  )
+  return {
+    results: settled,
+    okCount: settled.filter((r) => r.ok).length,
+    failCount: settled.filter((r) => !r.ok).length
+  }
+}
+
+/**
+ * 定时任务成功后：将 Agent 最终输出转为富文本并推送到配置的通知渠道。
  */
 export async function postScheduleTaskNotify(args: {
   taskTitle: string
@@ -99,17 +144,17 @@ export async function postScheduleTaskNotify(args: {
   const body = content.trim()
   if (!body || notifyChannelIds.length === 0) return
 
-  for (const channelId of notifyChannelIds) {
-    const result = await postNotifyMessage({
-      channelId,
-      title: taskTitle,
-      content: body,
-      richText: true,
-      atUserId: 'all'
-    })
-    if (!result.ok) {
+  const fanout = await postNotifyMessageFanout({
+    channelIds: notifyChannelIds,
+    title: taskTitle,
+    content: body,
+    richText: true,
+    atUserId: 'all'
+  })
+  for (const r of fanout.results) {
+    if (!r.ok) {
       console.warn(
-        `[schedule-notify] fail task="${taskTitle}" channel=${channelId} error=${result.error}`
+        `[schedule-notify] fail task="${taskTitle}" channel=${r.channelId} error=${r.error}`
       )
     }
   }

@@ -1,0 +1,350 @@
+/**
+ * 媒体 Provider 可插拔抽象：文生图 / 图生视频 / TTS / 合成。
+ * 默认仅内置本地 ffmpeg 合成兜底；t2i/i2v/tts 未配置时返回明确提示。
+ */
+
+import { spawn } from 'child_process'
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
+import { join } from 'path'
+import { getVideosDir } from '../store/paths'
+import { querySettings } from '../store/settings'
+import { queryDashscopeTextToImageProvider } from './dashscope-t2i'
+import { postWritePlaceholderImage } from './placeholder-image'
+
+export interface TextToImageRequest {
+  prompt: string
+  /** 可选输出路径；缺省写入 videos/scenes */
+  outputPath?: string
+}
+
+export interface ImageToVideoRequest {
+  imagePath: string
+  prompt?: string
+  durationSec?: number
+  outputPath?: string
+}
+
+export interface TextToSpeechRequest {
+  text: string
+  outputPath?: string
+}
+
+export interface VideoComposeRequest {
+  /** 分镜图片或短视频路径（按顺序） */
+  scenePaths: string[]
+  /** 可选旁白音频 */
+  audioPath?: string
+  /** 每镜时长（秒），缺省 3 */
+  sceneDurationSec?: number
+  outputPath?: string
+  title?: string
+}
+
+export interface MediaProviderResult {
+  ok: boolean
+  path?: string
+  message: string
+}
+
+export interface TextToImageProvider {
+  id: string
+  generate(req: TextToImageRequest): Promise<MediaProviderResult>
+}
+
+export interface ImageToVideoProvider {
+  id: string
+  generate(req: ImageToVideoRequest): Promise<MediaProviderResult>
+}
+
+export interface TextToSpeechProvider {
+  id: string
+  synthesize(req: TextToSpeechRequest): Promise<MediaProviderResult>
+}
+
+export interface VideoComposeProvider {
+  id: string
+  compose(req: VideoComposeRequest): Promise<MediaProviderResult>
+}
+
+const t2iProviders = new Map<string, TextToImageProvider>()
+const i2vProviders = new Map<string, ImageToVideoProvider>()
+const ttsProviders = new Map<string, TextToSpeechProvider>()
+const composeProviders = new Map<string, VideoComposeProvider>()
+
+let activeT2i = 'placeholder'
+let activeI2v = 'placeholder'
+let activeTts = 'placeholder'
+let activeCompose = 'ffmpeg-local'
+
+export function postRegisterTextToImageProvider(provider: TextToImageProvider): void {
+  t2iProviders.set(provider.id, provider)
+}
+
+export function postRegisterImageToVideoProvider(provider: ImageToVideoProvider): void {
+  i2vProviders.set(provider.id, provider)
+}
+
+export function postRegisterTextToSpeechProvider(provider: TextToSpeechProvider): void {
+  ttsProviders.set(provider.id, provider)
+}
+
+export function postRegisterVideoComposeProvider(provider: VideoComposeProvider): void {
+  composeProviders.set(provider.id, provider)
+}
+
+function queryPlaceholderT2i(): TextToImageProvider {
+  return {
+    id: 'placeholder',
+    async generate(req) {
+      return {
+        ok: false,
+        message:
+          `文生图 Provider 未配置，无法根据「${req.prompt.slice(0, 40)}」生成画面。` +
+          '请在设置中接入可插拔图像 Provider 后重试。'
+      }
+    }
+  }
+}
+
+function queryPlaceholderI2v(): ImageToVideoProvider {
+  return {
+    id: 'placeholder',
+    async generate() {
+      return {
+        ok: false,
+        message: '图生视频 Provider 未配置。请在设置中接入可插拔视频 Provider 后重试。'
+      }
+    }
+  }
+}
+
+function queryPlaceholderTts(): TextToSpeechProvider {
+  return {
+    id: 'placeholder',
+    async synthesize() {
+      return {
+        ok: false,
+        message: 'TTS Provider 未配置。请在设置中接入语音合成 Provider 后重试。'
+      }
+    }
+  }
+}
+
+/** 检测本机是否有 ffmpeg */
+function queryFfmpegBin(): string | null {
+  const candidates = ['ffmpeg', '/usr/local/bin/ffmpeg', '/opt/homebrew/bin/ffmpeg']
+  for (const bin of candidates) {
+    try {
+      if (bin === 'ffmpeg') return 'ffmpeg'
+      if (existsSync(bin)) return bin
+    } catch {
+      // ignore
+    }
+  }
+  return 'ffmpeg'
+}
+
+function postRunFfmpeg(args: string[]): Promise<{ ok: boolean; message: string }> {
+  const bin = queryFfmpegBin()
+  if (!bin) {
+    return Promise.resolve({ ok: false, message: '未找到 ffmpeg，请先安装后再合成视频' })
+  }
+  return new Promise((resolve) => {
+    const child = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+    let stderr = ''
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString()
+    })
+    child.on('error', (err) => {
+      resolve({
+        ok: false,
+        message: `ffmpeg 启动失败：${err.message}。请确认已安装 ffmpeg 并在 PATH 中。`
+      })
+    })
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve({ ok: true, message: 'ffmpeg 合成成功' })
+      } else {
+        resolve({
+          ok: false,
+          message: `ffmpeg 退出码 ${code}：${stderr.slice(-500) || '未知错误'}`
+        })
+      }
+    })
+  })
+}
+
+/**
+ * 本地 ffmpeg 合成：将多张静图按时长拼成 mp4。
+ * 无外部厂商依赖，作为成片兜底；缺图时写入占位说明文件。
+ */
+function queryLocalFfmpegCompose(): VideoComposeProvider {
+  return {
+    id: 'ffmpeg-local',
+    async compose(req) {
+      const outDir = join(getVideosDir(), 'outputs')
+      mkdirSync(outDir, { recursive: true })
+      const outputPath =
+        req.outputPath?.trim() ||
+        join(outDir, `compose-${Date.now()}.mp4`)
+
+      if (!req.scenePaths.length) {
+        return { ok: false, message: 'compose 需要至少一张分镜素材路径' }
+      }
+
+      // 用 concat demuxer：每镜静图循环 sceneDurationSec
+      const duration = Math.max(1, req.sceneDurationSec ?? 3)
+      const listPath = join(outDir, `concat-${Date.now()}.txt`)
+      const lines = req.scenePaths.flatMap((p) => [
+        `file '${p.replace(/'/g, "'\\''")}'`,
+        `duration ${duration}`
+      ])
+      // concat demuxer 要求最后一张再写一次 file
+      const last = req.scenePaths[req.scenePaths.length - 1]
+      lines.push(`file '${last.replace(/'/g, "'\\''")}'`)
+      writeFileSync(listPath, lines.join('\n'), 'utf-8')
+
+      const args = [
+        '-y',
+        '-f',
+        'concat',
+        '-safe',
+        '0',
+        '-i',
+        listPath,
+        '-vf',
+        'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
+        '-pix_fmt',
+        'yuv420p',
+        outputPath
+      ]
+      if (req.audioPath && existsSync(req.audioPath)) {
+        args.splice(args.length - 1, 0, '-i', req.audioPath, '-shortest')
+      }
+
+      const run = await postRunFfmpeg(args)
+      if (!run.ok) {
+        // 无 ffmpeg 时仍落盘成片清单，便于用户后续用外部工具合成
+        const manifestPath = outputPath.replace(/\.mp4$/i, '.manifest.json')
+        writeFileSync(
+          manifestPath,
+          JSON.stringify(
+            {
+              title: req.title,
+              scenePaths: req.scenePaths,
+              audioPath: req.audioPath,
+              sceneDurationSec: duration,
+              error: run.message
+            },
+            null,
+            2
+          ),
+          'utf-8'
+        )
+        return {
+          ok: false,
+          path: manifestPath,
+          message: `${run.message}；已写入分镜清单：${manifestPath}`
+        }
+      }
+      return { ok: true, path: outputPath, message: `成片已生成：${outputPath}` }
+    }
+  }
+}
+
+function queryLocalPlaceholderT2i(): TextToImageProvider {
+  return {
+    id: 'local-placeholder',
+    async generate(req) {
+      const outputPath =
+        req.outputPath?.trim() ||
+        join(getVideosDir(), 'scenes', `placeholder-${Date.now()}.png`)
+      return postWritePlaceholderImage({
+        outputPath,
+        label: req.prompt.slice(0, 40)
+      })
+    }
+  }
+}
+
+function queryHasDashscopeKey(): boolean {
+  try {
+    const settings = querySettings()
+    return Boolean(
+      settings.connections?.some((c) => c.provider === 'dashscope' && c.apiKey.trim()) ||
+        (settings.provider === 'dashscope' && settings.apiKey.trim())
+    )
+  } catch {
+    return false
+  }
+}
+
+let mediaInited = false
+
+/**
+ * 注册内置 Provider（幂等）。
+ * 有百炼 Key 时优先万相文生图；否则用本地占位图，保证成片链路可跑通。
+ */
+export function initMediaProviders(): void {
+  if (mediaInited) return
+  mediaInited = true
+
+  postRegisterTextToImageProvider(queryPlaceholderT2i())
+  postRegisterTextToImageProvider(queryLocalPlaceholderT2i())
+  postRegisterTextToImageProvider(queryDashscopeTextToImageProvider())
+  postRegisterImageToVideoProvider(queryPlaceholderI2v())
+  postRegisterTextToSpeechProvider(queryPlaceholderTts())
+  postRegisterVideoComposeProvider(queryLocalFfmpegCompose())
+
+  activeT2i = queryHasDashscopeKey() ? 'dashscope-wanx' : 'local-placeholder'
+  activeI2v = 'placeholder'
+  activeTts = 'placeholder'
+  activeCompose = 'ffmpeg-local'
+}
+
+/** 按当前设置刷新文生图活跃 Provider（用户补 Key 后无需重启） */
+export function refreshActiveTextToImageProvider(): void {
+  initMediaProviders()
+  if (queryHasDashscopeKey()) {
+    activeT2i = 'dashscope-wanx'
+  } else if (activeT2i === 'dashscope-wanx' || activeT2i === 'placeholder') {
+    activeT2i = 'local-placeholder'
+  }
+}
+
+export function queryActiveMediaProviderIds(): {
+  t2i: string
+  i2v: string
+  tts: string
+  compose: string
+} {
+  return {
+    t2i: activeT2i,
+    i2v: activeI2v,
+    tts: activeTts,
+    compose: activeCompose
+  }
+}
+
+export function queryTextToImageProvider(): TextToImageProvider {
+  return t2iProviders.get(activeT2i) ?? queryPlaceholderT2i()
+}
+
+export function queryImageToVideoProvider(): ImageToVideoProvider {
+  return i2vProviders.get(activeI2v) ?? queryPlaceholderI2v()
+}
+
+export function queryTextToSpeechProvider(): TextToSpeechProvider {
+  return ttsProviders.get(activeTts) ?? queryPlaceholderTts()
+}
+
+export function queryVideoComposeProvider(): VideoComposeProvider {
+  return composeProviders.get(activeCompose) ?? queryLocalFfmpegCompose()
+}
+
+/** 分镜素材目录 */
+export function querySceneAssetsDir(sessionId?: string): string {
+  const dir = join(getVideosDir(), 'scenes', sessionId ?? 'default')
+  mkdirSync(dir, { recursive: true })
+  return dir
+}

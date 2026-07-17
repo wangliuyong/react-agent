@@ -1,7 +1,7 @@
 import { END, MemorySaver, START, StateGraph } from '@langchain/langgraph'
 import { SystemMessage, AIMessage } from '@langchain/core/messages'
 import type { BaseMessage } from '@langchain/core/messages'
-import type { AppSettings, AgentRoleName } from '../../../../shared/types'
+import type { AppSettings, AgentRoleName, ModelRoleKey } from '../../../../shared/types'
 import { createChatModel } from '../llm-langchain'
 import { withSessionTokenUsage } from '../token-usage'
 import { adaptAgentTools } from '../tools/langchain-adapter'
@@ -20,19 +20,28 @@ export interface BuildChatGraphParams {
   toolCtx: ToolContext
 }
 
+type PipelineRole = Exclude<AgentRoleName, 'supervisor'>
+
 /**
  * 构建聊天多智能体协作图：
- * START → supervisor → general | researcher → writer → publisher → END
+ * START → supervisor → general | publish管线 | video管线 → END
+ *
+ * publish: researcher → writer → publisher
+ * video:   scriptwriter → videographer → editor
  */
 export function buildChatGraph(params: BuildChatGraphParams) {
   const { settings, toolCtx } = params
-  const llm = withSessionTokenUsage(createChatModel(settings), toolCtx.sessionId)
   const recursionLimit = queryRecursionLimit(settings.maxTurns)
 
+  function queryRoleLlm(role: ModelRoleKey) {
+    return withSessionTokenUsage(createChatModel(settings, role), toolCtx.sessionId)
+  }
+
   async function runRoleAgent(
-    role: Exclude<AgentRoleName, 'supervisor'>,
+    role: PipelineRole,
     state: AgentGraphState
   ): Promise<Partial<AgentGraphState>> {
+    const llm = queryRoleLlm(role)
     const tools = adaptAgentTools(queryToolsForRole(role), { ctx: toolCtx })
     const roleInputMessages = trimMessagesToCharBudget(state.messages)
     const agent = createReactSubgraph({
@@ -45,7 +54,6 @@ export function buildChatGraph(params: BuildChatGraphParams) {
       { messages: roleInputMessages },
       { recursionLimit }
     )
-    // messagesStateReducer 会追加；只回传本角色新增的消息，避免整段历史重复
     const all = result.messages as BaseMessage[]
     const delta = all.slice(roleInputMessages.length)
     return {
@@ -55,6 +63,7 @@ export function buildChatGraph(params: BuildChatGraphParams) {
   }
 
   async function supervisorNode(state: AgentGraphState): Promise<Partial<AgentGraphState>> {
+    const llm = queryRoleLlm('supervisor')
     const latestUserMessage = queryLatestHumanMessage(state.messages)
     const reply = await llm.invoke(
       latestUserMessage
@@ -68,15 +77,19 @@ export function buildChatGraph(params: BuildChatGraphParams) {
           ? reply.content.map((c) => ('text' in c ? c.text : '')).join('')
           : String(reply.content ?? '')
 
-    let nextAgent = 'general'
+    const userText = lastUserText(state.messages)
+    let nextAgent: 'general' | 'researcher' | 'scriptwriter' = 'general'
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       const parsed = JSON.parse(jsonMatch?.[0] ?? text) as { next?: string }
       if (parsed.next === 'publish') nextAgent = 'researcher'
+      else if (parsed.next === 'video') nextAgent = 'scriptwriter'
       else nextAgent = 'general'
     } catch {
-      // 路由解析失败时用关键词兜底
-      if (/发布|小红书|抖音|热点|撰稿|配图|图文/.test(text + lastUserText(state.messages))) {
+      const blob = text + userText
+      if (/剧本|分镜|成片|生成视频|一句话.*视频|短剧|口播视频/.test(blob)) {
+        nextAgent = 'scriptwriter'
+      } else if (/发布|小红书|抖音|热点|撰稿|配图|图文/.test(blob)) {
         nextAgent = 'researcher'
       }
     }
@@ -94,15 +107,22 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     .addNode('researcher', async (state) => runRoleAgent('researcher', state))
     .addNode('writer', async (state) => runRoleAgent('writer', state))
     .addNode('publisher', async (state) => runRoleAgent('publisher', state))
+    .addNode('scriptwriter', async (state) => runRoleAgent('scriptwriter', state))
+    .addNode('videographer', async (state) => runRoleAgent('videographer', state))
+    .addNode('editor', async (state) => runRoleAgent('editor', state))
     .addEdge(START, 'supervisor')
     .addConditionalEdges('supervisor', (state) => state.nextAgent || 'general', {
       general: 'general',
-      researcher: 'researcher'
+      researcher: 'researcher',
+      scriptwriter: 'scriptwriter'
     })
     .addEdge('general', END)
     .addEdge('researcher', 'writer')
     .addEdge('writer', 'publisher')
     .addEdge('publisher', END)
+    .addEdge('scriptwriter', 'videographer')
+    .addEdge('videographer', 'editor')
+    .addEdge('editor', END)
 
   return graph.compile({ checkpointer: chatCheckpointer })
 }
@@ -122,7 +142,7 @@ export function buildStepReactGraph(params: {
   toolWhitelist?: string[]
 }) {
   const { settings, toolCtx, systemPrompt, toolWhitelist } = params
-  const llm = withSessionTokenUsage(createChatModel(settings), toolCtx.sessionId)
+  const llm = withSessionTokenUsage(createChatModel(settings, 'general'), toolCtx.sessionId)
   const tools = adaptAgentTools(queryToolsByWhitelist(toolWhitelist), { ctx: toolCtx })
   return createReactSubgraph({
     llm,

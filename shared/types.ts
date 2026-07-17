@@ -81,23 +81,73 @@ export const IpcChannels = {
   // 事件推送（main → renderer）
   onAgentEvent: 'event:agent',
   onBrowserFrame: 'event:browser-frame',
-  onScheduleUpdate: 'event:schedule-update'
+  onScheduleUpdate: 'event:schedule-update',
+  /** 在系统文件管理器中显示本地路径 */
+  postRevealPath: 'post:reveal-path'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 
 /** 应用设置（本地 JSON 缓存） */
-export type ModelProvider = 'dashscope' | 'deepseek'
+export type ModelProvider = 'dashscope' | 'deepseek' | 'openai_compatible'
+
+/** 模型能力标签：助手按任务自动选型时使用 */
+export type ModelCapability = 'chat' | 'reasoning' | 'vision' | 'longContext' | 'creative'
+
+/**
+ * 一条可复用的模型连接（供应商 + Key + 模型）。
+ * 为什么：全能助手需为编剧/视频/通用等角色配置不同模型，而非全局单模型。
+ */
+export interface ModelConnection {
+  id: string
+  /** 用户可见名称，如「百炼 Qwen Plus」 */
+  label: string
+  provider: ModelProvider
+  apiKey: string
+  baseUrl: string
+  model: string
+  /** 能力标签，助手自动选型时优先匹配 */
+  capabilities: ModelCapability[]
+}
+
+/**
+ * 角色 / 媒体任务 → 模型连接 id。
+ * 未映射时回退 defaultConnectionId 或首个连接。
+ * 注：字面量与 AgentRoleName 对齐，避免循环引用提前依赖。
+ */
+export type ModelRoleKey =
+  | 'supervisor'
+  | 'general'
+  | 'researcher'
+  | 'writer'
+  | 'publisher'
+  | 'scriptwriter'
+  | 'videographer'
+  | 'editor'
+  | 'script'
+  | 'storyboard'
+  | 'video'
+  | 'default'
+
+export type RoleModelMap = Partial<Record<ModelRoleKey, string>>
 
 export interface AppSettings {
-  /** 当前模型服务供应商 */
+  /**
+   * @deprecated 兼容旧单模型字段；归一化后同步到 connections[0]
+   */
   provider: ModelProvider
-  /** 当前供应商的 API Key */
+  /** @deprecated 见 connections */
   apiKey: string
-  /** OpenAI 兼容 baseURL */
+  /** @deprecated 见 connections */
   baseUrl: string
-  /** 默认模型，如 qwen-plus */
+  /** @deprecated 见 connections */
   model: string
+  /** 多模型连接列表；至少应有一条默认连接 */
+  connections: ModelConnection[]
+  /** 默认连接 id；缺省取 connections[0] */
+  defaultConnectionId: string
+  /** 角色/任务 → 连接映射 */
+  roleModelMap: RoleModelMap
   /** 完全访问：跳过部分敏感确认（发布前仍建议确认） */
   fullAccess: boolean
   /** Agent 最大工具轮次 */
@@ -106,11 +156,26 @@ export interface AppSettings {
   launchAtLogin: boolean
 }
 
+export const DEFAULT_CONNECTION_ID = 'conn-default'
+
+export const DEFAULT_CONNECTION: ModelConnection = {
+  id: DEFAULT_CONNECTION_ID,
+  label: '默认（阿里云百炼）',
+  provider: 'dashscope',
+  apiKey: '',
+  baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  model: 'qwen-plus',
+  capabilities: ['chat', 'reasoning', 'creative']
+}
+
 export const DEFAULT_SETTINGS: AppSettings = {
   provider: 'dashscope',
   apiKey: '',
   baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   model: 'qwen-plus',
+  connections: [{ ...DEFAULT_CONNECTION }],
+  defaultConnectionId: DEFAULT_CONNECTION_ID,
+  roleModelMap: {},
   fullAccess: false,
   maxTurns: 40,
   launchAtLogin: false
@@ -140,6 +205,13 @@ export const MODEL_PROVIDER_OPTIONS: ModelProviderOption[] = [
     defaultBaseUrl: 'https://api.deepseek.com',
     /** 与平台当前推荐一致；拉取 /models 失败时也用此默认 */
     defaultModel: 'deepseek-v4-flash'
+  },
+  {
+    value: 'openai_compatible',
+    label: 'OpenAI 兼容',
+    apiKeyLabel: 'API Key',
+    defaultBaseUrl: 'https://api.openai.com/v1',
+    defaultModel: 'gpt-4o-mini'
   }
 ]
 
@@ -250,6 +322,50 @@ export function queryModelOptions(provider: ModelProvider): ModelOption[] {
 /** 根据 model id 取展示名；未知模型回退为原始 id */
 export function queryModelLabel(model: string): string {
   return MODEL_OPTIONS.find((m) => m.value === model)?.label ?? model
+}
+
+/**
+ * 从 settings 解析应使用的模型连接。
+ * 优先级：purpose 映射 → defaultConnectionId → connections[0] → 旧单模型字段。
+ */
+export function queryModelConnection(
+  settings: AppSettings,
+  purpose?: ModelRoleKey
+): ModelConnection {
+  const connections =
+    settings.connections?.length > 0
+      ? settings.connections
+      : [
+          {
+            id: DEFAULT_CONNECTION_ID,
+            label: '默认',
+            provider: settings.provider,
+            apiKey: settings.apiKey,
+            baseUrl: settings.baseUrl,
+            model: settings.model,
+            capabilities: ['chat'] as ModelCapability[]
+          }
+        ]
+
+  if (purpose && settings.roleModelMap?.[purpose]) {
+    const mapped = connections.find((c) => c.id === settings.roleModelMap[purpose])
+    if (mapped) return mapped
+  }
+
+  const defaultId = settings.defaultConnectionId || connections[0]?.id
+  const byDefault = connections.find((c) => c.id === defaultId)
+  if (byDefault) return byDefault
+  return connections[0]
+}
+
+/** 按能力标签挑选连接；无匹配则回退 queryModelConnection */
+export function queryModelConnectionByCapability(
+  settings: AppSettings,
+  capability: ModelCapability
+): ModelConnection {
+  const connections = settings.connections ?? []
+  const hit = connections.find((c) => c.capabilities?.includes(capability) && c.apiKey.trim())
+  return hit ?? queryModelConnection(settings, 'default')
 }
 
 /** 聊天消息角色 */
@@ -408,6 +524,9 @@ export type AgentRoleName =
   | 'researcher'
   | 'writer'
   | 'publisher'
+  | 'scriptwriter'
+  | 'videographer'
+  | 'editor'
 
 export type AgentEvent =
   | { type: 'text_delta'; sessionId: string; delta: string }
@@ -857,6 +976,8 @@ export interface ElectronApi {
   postSelectImages: () => Promise<string[]>
   /** 在系统默认浏览器中打开链接 */
   postOpenExternal: (url: string) => Promise<void>
+  /** 在系统文件管理器中显示本地文件（成片/剧本等产物） */
+  postRevealPath: (filePath: string) => Promise<{ ok: true } | { ok: false; error: string }>
 }
 
 declare global {

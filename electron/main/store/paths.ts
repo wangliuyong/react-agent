@@ -18,7 +18,10 @@ export function getDataRoot(): string {
   ensureDir(join(root, 'publish-plans'))
   ensureDir(join(root, 'scheduled-tasks'))
   ensureDir(join(root, 'browser-profile'))
+  // 无头抓取使用独立 profile，避免与拟人发布抢 SingletonLock
+  ensureDir(join(root, 'browser-profile-headless'))
   ensureDir(join(root, 'artifacts'))
+  ensureDir(join(root, 'videos'))
   return root
 }
 
@@ -38,8 +41,20 @@ export function getBrowserProfileDir(): string {
   return join(getDataRoot(), 'browser-profile')
 }
 
+/** 无头后台抓取专用 profile（不与有头拟人发布共用） */
+export function getHeadlessBrowserProfileDir(): string {
+  return join(getDataRoot(), 'browser-profile-headless')
+}
+
 export function getArtifactsDir(): string {
   return join(getDataRoot(), 'artifacts')
+}
+
+/** 视频成片与分镜素材输出目录 */
+export function getVideosDir(): string {
+  const dir = join(getDataRoot(), 'videos')
+  ensureDir(dir)
+  return dir
 }
 
 /** 技能链接导入时的临时克隆/解压目录 */

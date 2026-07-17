@@ -1,5 +1,5 @@
 import { chromium, type BrowserContext, type Page } from 'playwright'
-import { getBrowserProfileDir } from '../store/paths'
+import { getBrowserProfileDir, getHeadlessBrowserProfileDir } from '../store/paths'
 import { getMainWindow } from '../window'
 import type { BrowserStatus } from '../../../shared/types'
 import { isProfileLockError, releaseBrowserProfileLock } from './profile-lock'
@@ -7,24 +7,30 @@ import { humanClickLocator, humanClickText, humanTypeInto, humanUploadFiles } fr
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
+/** 有头=拟人发布/登录；无头=后台数据抓取（不弹窗） */
+export type BrowserLaunchMode = 'headed' | 'headless'
+
 /**
- * Playwright 持久化浏览器服务。
- * - 使用 userDataDir 复用小红书/抖音登录 Cookie
- * - 启动前自动清理 SingletonLock / 残留 Chrome for Testing
- * - 有头窗口供用户直接查看；不再定时截帧（会触发窗口闪烁）
+ * 单个 Playwright 持久化上下文封装。
+ * headed / headless 各持一份，避免抢同一 profile 锁。
  */
-class BrowserService {
+class BrowserContextSlot {
   private context: BrowserContext | null = null
   private page: Page | null = null
   private lastUrl = ''
   private lastTitle = ''
   private starting: Promise<Page> | null = null
 
+  constructor(
+    private readonly mode: BrowserLaunchMode,
+    private readonly profileDir: string,
+    private readonly notifyOpen: boolean
+  ) {}
+
   async ensureStarted(): Promise<Page> {
     if (this.page && !this.page.isClosed()) {
       return this.page
     }
-    // 并发 ensureStarted 共用同一次启动，避免双开抢锁
     if (this.starting) {
       return this.starting
     }
@@ -39,24 +45,20 @@ class BrowserService {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         await this.close()
-        // 每次尝试前释放 profile 锁（含残留进程）
-        releaseBrowserProfileLock()
+        releaseBrowserProfileLock(this.profileDir)
         await sleep(attempt === 1 ? 200 : 600)
 
-        const profile = getBrowserProfileDir()
-        this.context = await chromium.launchPersistentContext(profile, {
-          headless: false,
+        this.context = await chromium.launchPersistentContext(this.profileDir, {
+          headless: this.mode === 'headless',
           viewport: { width: 1280, height: 800 },
           locale: 'zh-CN',
           args: [
             '--disable-blink-features=AutomationControlled',
-            // 降低「接管已有会话」概率
             '--no-first-run',
             '--no-default-browser-check'
           ]
         })
 
-        // 启动后立刻校验 context 仍存活（锁冲突时会马上被关掉）
         const pages = this.context.pages()
         this.page = pages[0] ?? (await this.context.newPage())
         if (this.page.isClosed()) {
@@ -86,16 +88,16 @@ class BrowserService {
           break
         }
         console.warn(
-          `[browser] launch attempt ${attempt}/${maxAttempts} failed (profile lock?), retrying…`,
+          `[browser:${this.mode}] launch attempt ${attempt}/${maxAttempts} failed, retrying…`,
           err instanceof Error ? err.message : err
         )
-        releaseBrowserProfileLock()
+        releaseBrowserProfileLock(this.profileDir)
         await sleep(800 * attempt)
       }
     }
     throw lastError instanceof Error
       ? lastError
-      : new Error(String(lastError ?? '浏览器启动失败'))
+      : new Error(String(lastError ?? `浏览器启动失败(${this.mode})`))
   }
 
   async navigate(url: string): Promise<void> {
@@ -107,6 +109,8 @@ class BrowserService {
     } catch {
       // ignore
     }
+    // 无头抓取不向 UI 推 browser_open，避免误导用户「弹出了浏览器」
+    if (!this.notifyOpen) return
     const win = getMainWindow()
     if (win && !win.isDestroyed()) {
       win.webContents.send('event:agent', {
@@ -169,6 +173,20 @@ class BrowserService {
     }
   }
 
+  /**
+   * 无头模式下从页面提取纯文本（数据兜底用）。
+   * 可选 CSS 选择器缩小范围。
+   */
+  async extractText(opts?: { selector?: string; maxLength?: number }): Promise<string> {
+    const page = await this.ensureStarted()
+    const maxLength = opts?.maxLength ?? 20_000
+    const locator = opts?.selector
+      ? page.locator(opts.selector).first()
+      : page.locator('body')
+    const text = await locator.innerText().catch(() => '')
+    return text.length > maxLength ? text.slice(0, maxLength) + '\n...[截断]' : text
+  }
+
   getPage(): Page | null {
     return this.page
   }
@@ -181,19 +199,102 @@ class BrowserService {
     }
   }
 
-  async clearProfileAndRestart(): Promise<void> {
-    await this.close()
-    releaseBrowserProfileLock()
-  }
-
   async close(): Promise<void> {
     if (this.context) {
       await this.context.close().catch(() => undefined)
     }
     this.context = null
     this.page = null
-    // 关闭后顺手清锁，避免异常退出留下 SingletonLock
-    releaseBrowserProfileLock()
+    releaseBrowserProfileLock(this.profileDir)
+  }
+}
+
+/**
+ * Playwright 浏览器服务（有头 + 无头双上下文）。
+ * - headed：拟人发布/登录，复用 Cookie profile
+ * - headless：后台数据抓取，独立 profile，不弹窗
+ */
+class BrowserService {
+  private readonly headed = new BrowserContextSlot(
+    'headed',
+    getBrowserProfileDir(),
+    true
+  )
+  private readonly headless = new BrowserContextSlot(
+    'headless',
+    getHeadlessBrowserProfileDir(),
+    false
+  )
+
+  private slot(mode: BrowserLaunchMode = 'headed'): BrowserContextSlot {
+    return mode === 'headless' ? this.headless : this.headed
+  }
+
+  /** 默认有头；数据兜底传 headless */
+  async ensureStarted(mode: BrowserLaunchMode = 'headed'): Promise<Page> {
+    return this.slot(mode).ensureStarted()
+  }
+
+  async navigate(url: string, mode: BrowserLaunchMode = 'headed'): Promise<void> {
+    return this.slot(mode).navigate(url)
+  }
+
+  async snapshot(maxLength = 12000, mode: BrowserLaunchMode = 'headed'): Promise<string> {
+    return this.slot(mode).snapshot(maxLength)
+  }
+
+  async click(
+    opts: { selector?: string; text?: string },
+    mode: BrowserLaunchMode = 'headed'
+  ): Promise<void> {
+    return this.slot(mode).click(opts)
+  }
+
+  async type(
+    opts: { selector?: string; text: string; clear?: boolean },
+    mode: BrowserLaunchMode = 'headed'
+  ): Promise<void> {
+    return this.slot(mode).type(opts)
+  }
+
+  async upload(
+    opts: { selector?: string; paths: string[] },
+    mode: BrowserLaunchMode = 'headed'
+  ): Promise<void> {
+    return this.slot(mode).upload(opts)
+  }
+
+  async wait(
+    opts: { ms?: number; selector?: string },
+    mode: BrowserLaunchMode = 'headed'
+  ): Promise<void> {
+    return this.slot(mode).wait(opts)
+  }
+
+  async extractText(
+    opts?: { selector?: string; maxLength?: number },
+    mode: BrowserLaunchMode = 'headless'
+  ): Promise<string> {
+    return this.slot(mode).extractText(opts)
+  }
+
+  getPage(mode: BrowserLaunchMode = 'headed'): Page | null {
+    return this.slot(mode).getPage()
+  }
+
+  /** UI 状态仅反映有头浏览器（用户可见的智能体浏览器） */
+  getStatus(): BrowserStatus {
+    return this.headed.getStatus()
+  }
+
+  async clearProfileAndRestart(): Promise<void> {
+    await this.close()
+    releaseBrowserProfileLock(getBrowserProfileDir())
+    releaseBrowserProfileLock(getHeadlessBrowserProfileDir())
+  }
+
+  async close(): Promise<void> {
+    await Promise.all([this.headed.close(), this.headless.close()])
   }
 }
 

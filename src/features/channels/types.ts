@@ -27,6 +27,7 @@ export function createEmptyChannel(kind: ChannelKind = 'publish'): PublishChanne
     publishTool: '',
     titleMaxLength: undefined,
     loginCheckUrl: '',
+    humanized: false,
     agentHint: '请在此描述 Agent 发布该渠道时的工具名与注意事项。'
   }
 }
@@ -59,6 +60,11 @@ export function channelMetaToInput(meta: PublishChannelMeta): PublishChannelUpse
     publishTool: meta.publishTool,
     titleMaxLength: meta.titleMaxLength,
     loginCheckUrl: meta.loginCheckUrl ?? '',
+    humanized: Boolean(meta.humanized),
+    sdkConfig: {
+      appId: meta.sdkConfig?.appId ?? '',
+      accessToken: meta.sdkConfig?.accessToken ?? ''
+    },
     notifyTool: meta.notifyTool,
     notifyConfig: {
       webhookUrl: meta.notifyConfig?.webhookUrl ?? '',

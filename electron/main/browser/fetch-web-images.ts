@@ -4,6 +4,7 @@ import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
 import { getArtifactsDir } from '../store/paths'
 import { getBrowserService } from './service'
+import { queryHttp } from '../net/http-client'
 
 export interface FetchWebImagesOptions {
   /** 内容来源页：打开后从页面提取大图 */
@@ -182,18 +183,16 @@ async function downloadImageToFile(
   outDir: string,
   index: number
 ): Promise<string | null> {
-  const res = await fetch(url, {
-    redirect: 'follow',
+  const res = await queryHttp(url, {
+    timeoutMs: 30_000,
     headers: {
       // 部分站点需常见 UA，否则拒下图
-      'User-Agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
       Referer: new URL(url).origin
     }
   })
-  if (!res.ok || !res.body) {
-    throw new Error(`HTTP ${res.status}`)
+  if (!res.body) {
+    throw new Error('响应无 body')
   }
 
   const contentType = res.headers.get('content-type') || ''

@@ -35,6 +35,8 @@ export const BUILTIN_SCHEDULE_TASK_IDS = {
   weeklyResearch: 'builtin-schedule-weekly-research',
   /** 每日 8:00 昨日热点简报并推送飞书 */
   dailyHotPush: 'builtin-schedule-daily-hot-push',
+  /** 每日 7:30 天气推送（可多通知渠道） */
+  dailyWeatherPush: 'builtin-schedule-daily-weather-push',
   /** 每日 8:30 执行飞书富文本推送流程 */
   feishuRichtextPush: 'builtin-schedule-feishu-richtext-push',
   /** 每周五 18:00 文娱推荐发布 */
@@ -164,6 +166,23 @@ export function createBuiltinScheduledTasks(now = Date.now()): ScheduledTask[] {
         '整理成 8 条要点简报，每条包含：标题、一句话说明、可参考的资讯来源或链接。' +
         '输出 Markdown 格式，文首加标题「昨日热点简报」，便于自动推送飞书。',
       /** 任务成功后主进程自动将正文转为飞书富文本推送 */
+      notifyChannels: ['feishu'],
+      createdAt: now,
+      updatedAt: now
+    },
+    {
+      id: BUILTIN_SCHEDULE_TASK_IDS.dailyWeatherPush,
+      title: '每日天气推送',
+      description: '每天 7:30 查询本地天气并推送到已配置通知渠道（支持多渠道）',
+      enabled: false,
+      repeat: 'daily',
+      timeOfDay: '07:30',
+      weekday: 1,
+      actionType: 'custom_prompt',
+      customPrompt:
+        '请调用 query_weather 获取今日天气（可不传 city，按本机定位）。' +
+        '整理成简洁中文简报（城市、天气、气温、湿度、穿衣建议一句），文首标题「今日天气」。' +
+        '若已配置多个通知渠道，可调用 notify_message 并传 channelIds 同时推送。',
       notifyChannels: ['feishu'],
       createdAt: now,
       updatedAt: now

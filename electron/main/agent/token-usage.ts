@@ -123,12 +123,13 @@ export function createSessionTokenUsageHandler(sessionId: string): BaseCallbackH
 /**
  * 为 ChatModel 注入会话级 token 统计 callback。
  * 聊天图与工作流单步 ReAct 共用。
+ * 为什么：LangChain withConfig 返回 Runnable 超类型，需断言回原模型类型供 createReactAgent 使用。
  */
-export function withSessionTokenUsage<T extends { withConfig: (config: object) => T }>(
+export function withSessionTokenUsage<T extends { withConfig: (config: object) => unknown }>(
   model: T,
   sessionId: string
 ): T {
   return model.withConfig({
     callbacks: [createSessionTokenUsageHandler(sessionId)]
-  })
+  }) as T
 }

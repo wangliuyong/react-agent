@@ -1,4 +1,5 @@
 import { createHmac } from 'crypto'
+import { queryHttpResponse } from '../net/http-client'
 
 /**
  * 飞书自定义机器人签名。
@@ -56,10 +57,11 @@ export async function postFeishuWebhook(opts: {
     body.timestamp = timestamp
     body.sign = queryFeishuSign(opts.secret.trim(), timestamp)
   }
-  const res = await fetch(opts.webhookUrl, {
+  const res = await queryHttpResponse(opts.webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body,
+    timeoutMs: 15_000
   })
   const data = (await res.json().catch(() => ({}))) as FeishuWebhookResponse
   const bizCode = data.code ?? data.StatusCode

@@ -8,10 +8,12 @@ import {
 } from '@shared/types'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
 import { ChannelStatusPanel } from '../ChannelStatusPanel'
+import { ModelConnectionsPanel } from '../ModelConnectionsPanel'
 import styles from './SettingsPage.module.css'
 import {
   queryProviderSwitchFormValues,
   querySettingsFormValues,
+  querySettingsMainFormPatch,
   queryShouldSyncSettingsForm,
   type ProviderFormDraftMap
 } from './settingsFormSync'
@@ -181,7 +183,8 @@ export function SettingsPage(): React.ReactElement {
               onFinish={async (values: typeof settings) => {
                 setSaving(true)
                 try {
-                  await postSettings(values)
+                  // 只提交主表单字段，由 store 同步进默认连接，避免覆盖多模型面板
+                  await postSettings(querySettingsMainFormPatch(values))
                   message.success('设置已保存')
                 } finally {
                   setSaving(false)
@@ -299,6 +302,8 @@ export function SettingsPage(): React.ReactElement {
             </Form>
           )}
         </div>
+
+        {loaded ? <ModelConnectionsPanel /> : null}
 
         {/* 应用行为：开机自启独立于模型表单，切换后立即生效 */}
         <div className={`${styles.formCard} ${styles.secondaryCard}`}>

@@ -40,6 +40,13 @@ export interface PublishChannelMeta {
   titleMaxLength?: number
   /** 登录检测 / 打开登录页时导航的创作者中心地址 */
   loginCheckUrl?: string
+  /**
+   * 拟人操作开关（默认 false）。
+   * true=打开有头浏览器拟人发布；false=调用平台 SDK（未接入时返回明确提示）。
+   */
+  humanized?: boolean
+  /** SDK 凭证占位（敏感信息仅存本地）；字段随厂商扩展 */
+  sdkConfig?: Record<string, string>
   /** 通知工具名；本期统一为 notify_message */
   notifyTool?: string
   /** 通知配置（webhook 等）；勿下发给 LLM */
@@ -57,6 +64,9 @@ export interface PublishChannelUpsertInput {
   publishTool?: string
   titleMaxLength?: number
   loginCheckUrl?: string
+  /** 拟人操作；缺省 false */
+  humanized?: boolean
+  sdkConfig?: Record<string, string>
   notifyTool?: string
   notifyConfig?: ChannelNotifyConfig
 }
@@ -68,11 +78,11 @@ export function normalizeChannelKind(raw: unknown): ChannelKind {
 
 /**
  * 通知渠道是否已配置到可在工作台选用。
- * 飞书需要 webhook；微信/QQ 占位永不视为已配置。
+ * 飞书 / 通用 Webhook 需要 webhookUrl；微信/QQ 占位永不视为已配置。
  */
 export function isNotifyChannelConfigured(meta: PublishChannelMeta): boolean {
   if (normalizeChannelKind(meta.kind) !== 'notify') return false
-  if (meta.id === 'feishu') {
+  if (meta.id === 'feishu' || meta.id === 'webhook') {
     return Boolean(meta.notifyConfig?.webhookUrl?.trim())
   }
   return false
@@ -84,28 +94,32 @@ export const DEFAULT_PUBLISH_CHANNELS: PublishChannelMeta[] = [
     id: 'xhs',
     kind: 'publish',
     label: '小红书',
-    description: '图文笔记发布，支持网页配图抓取与拟人化操作节奏控制。',
+    description: '图文笔记发布，支持网页配图抓取；可开启拟人浏览器或走 SDK 占位通道。',
     enabled: true,
     publishTool: 'xhs_publish_note',
     titleMaxLength: 20,
     loginCheckUrl: 'https://creator.xiaohongshu.com/publish/publish?source=official',
+    humanized: false,
     agentHint:
       '优先使用 xhs_publish_note（可传 imageSourceUrl 或先 fetch 再传 imagePaths）。' +
+      '渠道「拟人操作」关闭时走 SDK（未接入会提示）；开启后才用浏览器拟人发布。' +
       '内容须去同质化：每篇标题结构、正文段落、话题标签需差异化，禁止模板批量替换关键词。' +
-      '工具会自动浏览热身、随机延迟、配图微处理；遵守日≤2篇/周≤10篇、深夜0-6点不操作。',
+      '拟人模式下工具会自动浏览热身、随机延迟、配图微处理；遵守日≤2篇/周≤10篇、深夜0-6点不操作。',
     isBuiltin: true
   },
   {
     id: 'douyin',
     kind: 'publish',
     label: '抖音',
-    description: '创作者中心图文笔记发布，当前仅支持图文，视频后续接入。',
+    description: '创作者中心图文发布；可开启拟人浏览器或走 SDK 占位通道。视频后续接入。',
     enabled: true,
     publishTool: 'douyin_publish_note',
     titleMaxLength: 30,
     loginCheckUrl: 'https://creator.douyin.com/creator-micro/content/upload',
+    humanized: false,
     agentHint:
       '优先使用 douyin_publish_note 发布图文笔记（可传 imageSourceUrl 或先 fetch 再传 imagePaths）。' +
+      '渠道「拟人操作」关闭时走 SDK（未接入会提示）；开启后才用浏览器拟人发布。' +
       '当前仅支持图文，视频发布后续支持。',
     isBuiltin: true
   },
@@ -128,6 +142,17 @@ export const DEFAULT_PUBLISH_CHANNELS: PublishChannelMeta[] = [
     notifyTool: 'notify_message',
     notifyConfig: {},
     agentHint: '使用 notify_message，channelId 传 feishu；勿在参数中填写 webhook。',
+    isBuiltin: true
+  },
+  {
+    id: 'webhook',
+    kind: 'notify',
+    label: '通用 Webhook',
+    description: '向任意 HTTP Webhook 推送 JSON 文本通知（企业微信/钉钉等可自配）。',
+    enabled: true,
+    notifyTool: 'notify_message',
+    notifyConfig: {},
+    agentHint: '使用 notify_message，channelId 传 webhook；勿在参数中填写 webhook URL。',
     isBuiltin: true
   },
   {

@@ -3,6 +3,8 @@ import { join } from 'path'
 import { registerIpcHandlers } from './ipc'
 import { getDataRoot } from './store/paths'
 import { initPublishChannelRegistry } from './store/channels'
+import { initPublishAdapters } from './publish/register'
+import { initMediaProviders } from './media/provider'
 import { setMainWindow } from './window'
 import { getBrowserService } from './browser/service'
 import { releaseBrowserProfileLock } from './browser/profile-lock'
@@ -56,6 +58,8 @@ app.whenReady().then(() => {
   getDataRoot()
   initializeResources()
   initPublishChannelRegistry()
+  initPublishAdapters()
+  initMediaProviders()
   registerIpcHandlers()
   startScheduleService()
   // 启动时按本机配置同步系统登录项
@@ -83,6 +87,15 @@ app.on('before-quit', () => {
 
 ipcMain.handle('shell:open-external', async (_e, url: string) => {
   await shell.openExternal(url)
+})
+
+ipcMain.handle('post:reveal-path', async (_e, filePath: string) => {
+  const { existsSync } = await import('fs')
+  const target = String(filePath ?? '').trim()
+  if (!target) return { ok: false as const, error: '路径为空' }
+  if (!existsSync(target)) return { ok: false as const, error: '文件不存在' }
+  shell.showItemInFolder(target)
+  return { ok: true as const }
 })
 
 ipcMain.handle('dialog:select-images', async () => {

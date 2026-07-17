@@ -1,34 +1,112 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { DEFAULT_SETTINGS, type AppSettings, type ModelProvider } from '../../../shared/types'
+import {
+  DEFAULT_CONNECTION,
+  DEFAULT_CONNECTION_ID,
+  DEFAULT_SETTINGS,
+  type AppSettings,
+  type ModelCapability,
+  type ModelConnection,
+  type ModelProvider,
+  type RoleModelMap
+} from '../../../shared/types'
 import { postLaunchAtLogin } from './launch-at-login'
 import { getSettingsPath } from './paths'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
+
+function queryNormalizeProvider(raw: unknown, baseUrl: string): ModelProvider {
+  if (raw === 'deepseek' || raw === 'dashscope' || raw === 'openai_compatible') {
+    return raw
+  }
+  if (String(baseUrl).includes('api.deepseek.com')) return 'deepseek'
+  return DEFAULT_SETTINGS.provider
+}
+
+function queryNormalizeConnection(raw: unknown, index: number): ModelConnection | null {
+  if (!raw || typeof raw !== 'object') return null
+  const row = raw as Record<string, unknown>
+  const id = String(row.id ?? `conn-${index}`).trim() || `conn-${index}`
+  const provider = queryNormalizeProvider(row.provider, String(row.baseUrl ?? ''))
+  const capabilities = Array.isArray(row.capabilities)
+    ? (row.capabilities as unknown[])
+        .map(String)
+        .filter((c): c is ModelCapability =>
+          ['chat', 'reasoning', 'vision', 'longContext', 'creative'].includes(c)
+        )
+    : (['chat'] as ModelCapability[])
+  return {
+    id,
+    label: String(row.label ?? `连接 ${index + 1}`).trim() || `连接 ${index + 1}`,
+    provider,
+    apiKey: String(row.apiKey ?? ''),
+    baseUrl: String(row.baseUrl ?? ''),
+    model: String(row.model ?? 'qwen-plus'),
+    capabilities: capabilities.length ? capabilities : ['chat']
+  }
+}
 
 /**
- * 合并默认值并剥离已废弃字段。
- * 为什么：旧 settings.json 展开后仍可能带回 agentRuntime。
+ * 将旧单模型字段迁移为 connections[0]。
+ * 为什么：升级后保留用户已填 Key，避免设置页空白。
+ */
+function queryMigrateLegacyConnections(
+  raw: Partial<AppSettings> & Record<string, unknown>
+): ModelConnection[] {
+  const fromList = Array.isArray(raw.connections)
+    ? (raw.connections as unknown[])
+        .map((item, i) => queryNormalizeConnection(item, i))
+        .filter((c): c is ModelConnection => Boolean(c))
+    : []
+
+  if (fromList.length > 0) return fromList
+
+  const provider = queryNormalizeProvider(raw.provider, String(raw.baseUrl ?? ''))
+  return [
+    {
+      ...DEFAULT_CONNECTION,
+      id: DEFAULT_CONNECTION_ID,
+      label: provider === 'deepseek' ? '默认（DeepSeek）' : '默认（阿里云百炼）',
+      provider,
+      apiKey: String(raw.apiKey ?? ''),
+      baseUrl: String(raw.baseUrl ?? DEFAULT_CONNECTION.baseUrl),
+      model: String(raw.model ?? DEFAULT_CONNECTION.model),
+      capabilities: ['chat', 'reasoning', 'creative']
+    }
+  ]
+}
+
+/**
+ * 合并默认值、迁移多连接字段并剥离已废弃字段。
  */
 export function normalizeSettings(
   raw: Partial<AppSettings> & Record<string, unknown>
 ): AppSettings {
   const merged = { ...DEFAULT_SETTINGS, ...raw }
   delete (merged as Record<string, unknown>).agentRuntime
-  /**
-   * provider 是后续新增字段：旧配置若已直连 DeepSeek，则根据 Base URL 自动迁移；
-   * 其他旧配置继续归入百炼，保持原有行为。
-   */
-  const provider: ModelProvider =
-    raw.provider === 'deepseek' || raw.provider === 'dashscope'
-      ? raw.provider
-      : String(raw.baseUrl ?? '').includes('api.deepseek.com')
-        ? 'deepseek'
-        : DEFAULT_SETTINGS.provider
+
+  const connections = queryMigrateLegacyConnections(raw)
+  const defaultConnectionId =
+    String(raw.defaultConnectionId ?? '').trim() ||
+    connections[0]?.id ||
+    DEFAULT_CONNECTION_ID
+
+  const roleModelMap: RoleModelMap =
+    raw.roleModelMap && typeof raw.roleModelMap === 'object'
+      ? { ...(raw.roleModelMap as RoleModelMap) }
+      : {}
+
+  // 顶层 provider/apiKey 与默认连接保持同步，兼容旧 UI / IPC 调用方
+  const primary =
+    connections.find((c) => c.id === defaultConnectionId) ?? connections[0] ?? DEFAULT_CONNECTION
+
   return {
-    provider,
-    apiKey: merged.apiKey,
-    baseUrl: merged.baseUrl,
-    model: merged.model,
-    fullAccess: merged.fullAccess,
-    maxTurns: merged.maxTurns,
+    provider: primary.provider,
+    apiKey: primary.apiKey,
+    baseUrl: primary.baseUrl,
+    model: primary.model,
+    connections,
+    defaultConnectionId: primary.id,
+    roleModelMap,
+    fullAccess: Boolean(merged.fullAccess),
+    maxTurns: Number(merged.maxTurns) || DEFAULT_SETTINGS.maxTurns,
     launchAtLogin: Boolean(merged.launchAtLogin)
   }
 }
@@ -37,14 +115,14 @@ export function normalizeSettings(
 function readSettingsFile(): AppSettings {
   const path = getSettingsPath()
   if (!existsSync(path)) {
-    return { ...DEFAULT_SETTINGS }
+    return { ...DEFAULT_SETTINGS, connections: [{ ...DEFAULT_CONNECTION }] }
   }
   try {
     const raw = JSON.parse(readFileSync(path, 'utf-8')) as Partial<AppSettings> &
       Record<string, unknown>
     return normalizeSettings(raw)
   } catch {
-    return { ...DEFAULT_SETTINGS }
+    return { ...DEFAULT_SETTINGS, connections: [{ ...DEFAULT_CONNECTION }] }
   }
 }
 
@@ -52,17 +130,40 @@ function readSettingsFile(): AppSettings {
 export function querySettings(): AppSettings {
   const path = getSettingsPath()
   if (!existsSync(path)) {
-    // 直接写盘，不要走 postSettings（其内部会再 query，造成死递归）
-    writeFileSync(path, JSON.stringify(DEFAULT_SETTINGS, null, 2), 'utf-8')
-    return { ...DEFAULT_SETTINGS }
+    const initial = normalizeSettings({ ...DEFAULT_SETTINGS })
+    writeFileSync(path, JSON.stringify(initial, null, 2), 'utf-8')
+    return initial
   }
   return readSettingsFile()
 }
 
 export function postSettings(partial: Partial<AppSettings>): AppSettings {
-  const next = normalizeSettings({ ...readSettingsFile(), ...partial })
+  const current = readSettingsFile()
+  // 若只改了顶层 apiKey/model，同步回写默认连接
+  const nextPartial: Partial<AppSettings> & Record<string, unknown> = { ...current, ...partial }
+  if (
+    (partial.apiKey != null ||
+      partial.baseUrl != null ||
+      partial.model != null ||
+      partial.provider != null) &&
+    !partial.connections
+  ) {
+    const connections = [...current.connections]
+    const idx = connections.findIndex((c) => c.id === current.defaultConnectionId)
+    const target = idx >= 0 ? idx : 0
+    if (connections[target]) {
+      connections[target] = {
+        ...connections[target],
+        provider: partial.provider ?? connections[target].provider,
+        apiKey: partial.apiKey ?? connections[target].apiKey,
+        baseUrl: partial.baseUrl ?? connections[target].baseUrl,
+        model: partial.model ?? connections[target].model
+      }
+      nextPartial.connections = connections
+    }
+  }
+  const next = normalizeSettings(nextPartial)
   writeFileSync(getSettingsPath(), JSON.stringify(next, null, 2), 'utf-8')
-  // 每次保存后同步系统登录项，确保偏好与 OS 一致
   postLaunchAtLogin(next.launchAtLogin)
   return next
 }

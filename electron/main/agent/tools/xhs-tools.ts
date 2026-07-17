@@ -1,6 +1,10 @@
 import type { AgentTool } from './types'
 import { fetchWebImages } from '../../browser/fetch-web-images'
 import { publishXhsNote } from '../../browser/xhs-publish'
+import { queryPublishChannelMeta } from '../../../../shared/publish-channels'
+import { queryPublishChannels } from '../../store/channels'
+import { queryPublishAdapter } from '../../publish/adapter'
+import { initPublishAdapters } from '../../publish/register'
 
 /**
  * 从来源网页或图片直链下载配图到本地 artifacts。
@@ -56,12 +60,11 @@ export const fetchWebImagesTool: AgentTool = {
 export const xhsPublishNoteTool: AgentTool = {
   name: 'xhs_publish_note',
   description:
-    '在小红书创作平台发布图文笔记。发布前自动浏览发现页热身（刷笔记、停留、点赞），' +
-    '步骤间 2～10 秒随机延迟，贝塞尔曲线滚动/鼠标轨迹，配图自动微裁剪去同质化。' +
-    '遵守作息（0-6 点不操作）与日≤2篇/周≤10篇限制。' +
-    '配图优先使用 imagePaths（通常来自 fetch_web_images）；也可传 imageSourceUrl / imageUrls 由本工具内下载。' +
-    '用户本轮上传的附件仅为可选补充。' +
-    '若未登录会暂停等待扫码；聊天且非完全访问模式下点「发布」前会再次确认；任务/流程执行默认直接发布。',
+    '在小红书创作平台发布图文笔记。' +
+    '渠道「拟人操作」开启时：浏览热身、随机延迟、贝塞尔轨迹等拟人浏览器流程；' +
+    '关闭时：走平台 SDK（未接入会返回明确提示，不会静默打开浏览器）。' +
+    '配图优先使用 imagePaths（通常来自 fetch_web_images）；也可传 imageSourceUrl / imageUrls。' +
+    '若未登录（拟人模式）会暂停等待扫码。',
   permission: 'dangerous',
   parameters: {
     type: 'object',
@@ -91,10 +94,14 @@ export const xhsPublishNoteTool: AgentTool = {
     required: ['title', 'content']
   },
   async execute(args, ctx) {
+    initPublishAdapters()
+    // 为什么：发送前刷新注册表，确保刚改的拟人开关立即生效
+    queryPublishChannels()
+    const humanized = Boolean(queryPublishChannelMeta('xhs').humanized)
+
     let imagePaths =
       (args.imagePaths as string[] | undefined)?.filter(Boolean) ?? []
 
-    // 1) 显式路径 → 2) 来源页/直链下载 → 3) 用户附件（可选）
     if (!imagePaths.length) {
       const pageUrl = args.imageSourceUrl ? String(args.imageSourceUrl) : undefined
       const imageUrls = Array.isArray(args.imageUrls)
@@ -126,19 +133,26 @@ export const xhsPublishNoteTool: AgentTool = {
       )
     }
 
-    const result = await publishXhsNote({
+    if (!humanized) {
+      return queryPublishAdapter('xhs', false).publish({
+        title: String(args.title ?? ''),
+        content: String(args.content ?? ''),
+        imagePaths,
+        signal: ctx.signal,
+        emitAwaitUser: ctx.emitAwaitUser
+      })
+    }
+
+    return publishXhsNote({
       title: String(args.title ?? ''),
       content: String(args.content ?? ''),
       imagePaths,
-      // 未传时默认自动发布（与任务策略一致）；显式 false 才停在待发布
       autoPublish: args.autoPublish !== false,
       fullAccess: ctx.fullAccess,
       emitAwaitUser: ctx.emitAwaitUser,
       updateTasks: ctx.updateTasks,
       signal: ctx.signal
     })
-
-    return result
   }
 }
 

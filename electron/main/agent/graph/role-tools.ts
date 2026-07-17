@@ -8,6 +8,8 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
   researcher: [
     'use_skill',
     'fetch_hot_topics',
+    'query_weather',
+    'query_web_data',
     'fetch_web_images',
     'list_attachments',
     'read_file',
@@ -27,6 +29,30 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'browser_type',
     'browser_upload',
     'browser_wait',
+    'update_task_list',
+    'list_attachments'
+  ],
+  scriptwriter: [
+    'use_skill',
+    'list_attachments',
+    'read_file',
+    'write_file',
+    'generate_script',
+    'generate_storyboard',
+    'update_task_list'
+  ],
+  videographer: [
+    'use_skill',
+    'read_file',
+    'generate_scene_assets',
+    'update_task_list',
+    'list_attachments'
+  ],
+  editor: [
+    'use_skill',
+    'compose_video',
+    'notify_message',
+    'read_file',
     'update_task_list',
     'list_attachments'
   ]

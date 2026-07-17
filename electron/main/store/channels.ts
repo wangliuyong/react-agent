@@ -89,6 +89,12 @@ function normalizeChannel(raw: PublishChannelMeta): PublishChannelMeta {
     loginCheckUrl: raw.loginCheckUrl?.trim() || undefined,
     titleMaxLength:
       raw.titleMaxLength != null && raw.titleMaxLength > 0 ? raw.titleMaxLength : undefined,
+    // 拟人操作默认关闭；旧数据缺省视为 false
+    humanized: kind === 'publish' ? Boolean(raw.humanized) : undefined,
+    sdkConfig:
+      kind === 'publish' && raw.sdkConfig && typeof raw.sdkConfig === 'object'
+        ? { ...raw.sdkConfig }
+        : undefined,
     agentHint: (raw.agentHint ?? '').trim(),
     isBuiltin: raw.isBuiltin ?? DEFAULT_PUBLISH_CHANNELS.some((d) => d.id === raw.id),
     updatedAt: raw.updatedAt ?? Date.now()
@@ -180,6 +186,8 @@ export function postPublishChannel(input: PublishChannelUpsertInput): PublishCha
     publishTool: input.publishTool,
     titleMaxLength: input.titleMaxLength,
     loginCheckUrl: input.loginCheckUrl,
+    humanized: input.humanized,
+    sdkConfig: input.sdkConfig,
     notifyTool: input.notifyTool,
     notifyConfig: input.notifyConfig,
     agentHint: input.agentHint,

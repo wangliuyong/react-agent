@@ -7,6 +7,7 @@ import {
   extractMessageImages,
   stripImagePathsFromDisplayText
 } from '../../utils/message-images'
+import { ArtifactLinks } from '../ArtifactLinks'
 import styles from './MessageList.module.css'
 
 const { Text } = Typography
@@ -117,6 +118,7 @@ export function MessageList({
                       <>
                         <MessageImageGallery images={images} />
                         <ChatMarkdown source={m.content} className={styles.toolMarkdown} />
+                        <ArtifactLinks content={m.content} />
                       </>
                     )
                   }
@@ -188,6 +190,7 @@ function AssistantBody({
         <span className={styles.cursor} />
       ) : null}
       <MessageImageGallery images={images} />
+      <ArtifactLinks content={content} />
       {/执行完毕/.test(content) ? (
         <Alert type="success" showIcon message="执行完毕" className={styles.doneAlert} />
       ) : null}

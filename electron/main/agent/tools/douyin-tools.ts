@@ -1,17 +1,20 @@
 import type { AgentTool } from './types'
 import { fetchWebImages } from '../../browser/fetch-web-images'
 import { publishDouyinNote } from '../../browser/douyin-publish'
+import { queryPublishChannelMeta } from '../../../../shared/publish-channels'
+import { queryPublishChannels } from '../../store/channels'
+import { queryPublishAdapter } from '../../publish/adapter'
+import { initPublishAdapters } from '../../publish/register'
 
 /**
- * 抖音图文发布：配图策略与小红书一致，优先网页抓取。
+ * 抖音图文发布：按渠道「拟人操作」开关选择浏览器或 SDK 占位。
  */
 export const douyinPublishNoteTool: AgentTool = {
   name: 'douyin_publish_note',
   description:
-    '在抖音创作者中心发布图文笔记（非视频）。全程模拟用户鼠标移动/点击与键盘逐字输入。' +
-    '配图优先使用 imagePaths（通常来自 fetch_web_images）；也可传 imageSourceUrl / imageUrls 由本工具内下载。' +
-    '用户本轮上传的附件仅为可选补充。' +
-    '若未登录会暂停等待扫码；聊天且非完全访问模式下点「发布」前会再次确认；任务/流程执行默认直接发布。',
+    '在抖音创作者中心发布图文笔记（非视频）。' +
+    '渠道「拟人操作」开启时走浏览器拟人输入；关闭时走 SDK（未接入会明确提示）。' +
+    '配图优先使用 imagePaths（通常来自 fetch_web_images）。',
   permission: 'dangerous',
   parameters: {
     type: 'object',
@@ -41,6 +44,10 @@ export const douyinPublishNoteTool: AgentTool = {
     required: ['title', 'content']
   },
   async execute(args, ctx) {
+    initPublishAdapters()
+    queryPublishChannels()
+    const humanized = Boolean(queryPublishChannelMeta('douyin').humanized)
+
     let imagePaths =
       (args.imagePaths as string[] | undefined)?.filter(Boolean) ?? []
 
@@ -76,18 +83,25 @@ export const douyinPublishNoteTool: AgentTool = {
       )
     }
 
-    const result = await publishDouyinNote({
+    if (!humanized) {
+      return queryPublishAdapter('douyin', false).publish({
+        title: String(args.title ?? ''),
+        content: String(args.content ?? ''),
+        imagePaths,
+        signal: ctx.signal,
+        emitAwaitUser: ctx.emitAwaitUser
+      })
+    }
+
+    return publishDouyinNote({
       title: String(args.title ?? ''),
       content: String(args.content ?? ''),
       imagePaths,
-      // 未传时默认自动发布（与任务策略一致）；显式 false 才停在待发布
       autoPublish: args.autoPublish !== false,
       fullAccess: ctx.fullAccess,
       emitAwaitUser: ctx.emitAwaitUser,
       updateTasks: ctx.updateTasks,
       signal: ctx.signal
     })
-
-    return result
   }
 }

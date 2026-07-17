@@ -21,14 +21,32 @@ export function queryShouldSyncSettingsForm(loaded: boolean): boolean {
 
 /** 生成写入表单的完整快照，避免部分字段遗漏导致回显不完整。 */
 export function querySettingsFormValues(settings: AppSettings): AppSettings {
+  // 为什么：不把 connections 写入主表单，避免保存时用旧 connections 覆盖多模型面板
   return {
     provider: settings.provider,
     apiKey: settings.apiKey,
     baseUrl: settings.baseUrl,
     model: settings.model,
+    connections: settings.connections ?? [],
+    defaultConnectionId: settings.defaultConnectionId,
+    roleModelMap: settings.roleModelMap ?? {},
     fullAccess: settings.fullAccess,
     maxTurns: settings.maxTurns,
     launchAtLogin: settings.launchAtLogin
+  }
+}
+
+/** 主表单提交时只提交默认连接相关字段 */
+export function querySettingsMainFormPatch(
+  values: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl' | 'model' | 'fullAccess' | 'maxTurns'>
+): Partial<AppSettings> {
+  return {
+    provider: values.provider,
+    apiKey: values.apiKey,
+    baseUrl: values.baseUrl,
+    model: values.model,
+    fullAccess: values.fullAccess,
+    maxTurns: values.maxTurns
   }
 }
 

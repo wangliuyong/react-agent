@@ -64,6 +64,8 @@ function channelVisual(id: string): { icon: React.ReactNode; toneClass: string }
       return { icon: <VideoCameraOutlined />, toneClass: styles.tone_wechat }
     case 'feishu':
       return { icon: <SendOutlined />, toneClass: styles.tone_feishu }
+    case 'webhook':
+      return { icon: <ApiOutlined />, toneClass: styles.tone_default }
     case 'wechat_notify':
       return { icon: <WechatOutlined />, toneClass: styles.tone_wechat }
     case 'qq_notify':
@@ -219,10 +221,14 @@ export function ChannelsPage(): React.ReactElement {
         message.error('渠道 id 仅允许小写字母、数字、连字符和下划线')
         return Promise.reject(new Error('validation'))
       }
-      // 为什么：飞书必须有 Webhook；缺省会导致「保存成功但测试发送失败」
+      // 为什么：飞书/通用 Webhook 必须有 URL；缺省会导致「保存成功但测试发送失败」
       const webhookUrl = values.notifyConfig?.webhookUrl?.trim()
-      if (kind === 'notify' && normalizedId === 'feishu' && !webhookUrl) {
-        message.error('请填写飞书 Webhook URL')
+      if (
+        kind === 'notify' &&
+        (normalizedId === 'feishu' || normalizedId === 'webhook') &&
+        !webhookUrl
+      ) {
+        message.error('请填写 Webhook URL')
         return Promise.reject(new Error('validation'))
       }
       await saveChannel({
@@ -241,6 +247,14 @@ export function ChannelsPage(): React.ReactElement {
               }
             : undefined,
         loginCheckUrl: values.loginCheckUrl?.trim() || undefined,
+        humanized: kind === 'publish' ? Boolean(values.humanized) : undefined,
+        sdkConfig:
+          kind === 'publish'
+            ? {
+                appId: values.sdkConfig?.appId?.trim() || '',
+                accessToken: values.sdkConfig?.accessToken?.trim() || ''
+              }
+            : undefined,
         agentHint: (values.agentHint ?? '').trim(),
         titleMaxLength: values.titleMaxLength ?? undefined,
         enabled: values.enabled ?? true
@@ -650,6 +664,12 @@ export function ChannelsPage(): React.ReactElement {
                         {detailChannel.publishTool ?? '—'}
                       </span>
                     </div>
+                    <div className={styles.metaRow}>
+                      <span className={styles.metaLabel}>拟人操作</span>
+                      <span className={styles.metaValue}>
+                        {detailChannel.humanized ? '已开启（浏览器）' : '已关闭（SDK）'}
+                      </span>
+                    </div>
                     {detailChannel.titleMaxLength != null ? (
                       <div className={styles.metaRow}>
                         <span className={styles.metaLabel}>标题上限</span>
@@ -797,11 +817,33 @@ export function ChannelsPage(): React.ReactElement {
                 >
                   <Input placeholder="例如 bilibili_publish_note" />
                 </Form.Item>
+                <Form.Item
+                  name="humanized"
+                  label="拟人操作"
+                  valuePropName="checked"
+                  extra="关闭时走平台 SDK（未接入会提示）；开启后才用有头浏览器拟人发布"
+                >
+                  <Switch checkedChildren="开" unCheckedChildren="关" />
+                </Form.Item>
                 <Form.Item name="titleMaxLength" label="标题字数上限">
                   <InputNumber min={1} max={200} placeholder="可选" style={{ width: '100%' }} />
                 </Form.Item>
                 <Form.Item name="loginCheckUrl" label="创作者中心地址">
                   <Input placeholder="登录检测与打开登录页时使用，可选" />
+                </Form.Item>
+                <Form.Item
+                  name={['sdkConfig', 'appId']}
+                  label="SDK App ID"
+                  tooltip="平台开放平台应用 ID；拟人关闭且接入 SDK 后使用"
+                >
+                  <Input placeholder="可选，SDK 未接入前仅作占位保存" />
+                </Form.Item>
+                <Form.Item
+                  name={['sdkConfig', 'accessToken']}
+                  label="SDK Access Token"
+                  tooltip="敏感凭证仅存本机；正式接入 SDK 后由主进程读取"
+                >
+                  <Input.Password placeholder="可选" />
                 </Form.Item>
               </>
             )}

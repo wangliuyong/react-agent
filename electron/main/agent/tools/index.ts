@@ -10,6 +10,14 @@ import {
 import { xhsPublishNoteTool, updateTaskListTool, fetchWebImagesTool } from './xhs-tools'
 import { douyinPublishNoteTool } from './douyin-tools'
 import { fetchHotTopicsTool } from './hot-topics'
+import { queryWeatherTool } from './weather-tools'
+import { queryWebDataTool } from './web-data-tools'
+import {
+  generateScriptTool,
+  generateStoryboardTool,
+  generateSceneAssetsTool,
+  composeVideoTool
+} from './video-tools'
 import { notifyMessageTool } from './notify-tools'
 import { useSkillTool } from './skill-tools'
 import type { AgentTool } from './types'
@@ -24,6 +32,12 @@ export function getAllTools(): AgentTool[] {
     updateTaskListTool,
     fetchWebImagesTool,
     fetchHotTopicsTool,
+    queryWeatherTool,
+    queryWebDataTool,
+    generateScriptTool,
+    generateStoryboardTool,
+    generateSceneAssetsTool,
+    composeVideoTool,
     browserNavigateTool,
     browserSnapshotTool,
     browserClickTool,

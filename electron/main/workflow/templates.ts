@@ -444,6 +444,84 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
     },
     createdAt: 0,
     updatedAt: 0
+  },
+  {
+    id: 'tpl_one_shot_video',
+    title: '一句话成片',
+    description: '编剧写剧本与分镜 → 视频角色生成素材 → 剪辑师合成成片。',
+    templateKind: 'generic',
+    nodes: [
+      {
+        id: 'tpl_v_script',
+        type: 'agent',
+        title: '编剧：剧本与分镜',
+        prompt:
+          '根据用户输入的一句话或段落，创作短视频剧本并调用 generate_script；' +
+          '再拆成 4～8 个分镜，调用 generate_storyboard（每镜含 visual、narration、durationSec）。',
+        toolWhitelist: [
+          'list_attachments',
+          'read_file',
+          'generate_script',
+          'generate_storyboard',
+          'update_task_list'
+        ],
+        outputKeys: ['scriptPath', 'storyboardPath']
+      },
+      {
+        id: 'tpl_v_assets',
+        type: 'agent',
+        title: '视频：场景素材',
+        prompt:
+          '读取上游分镜，调用 generate_scene_assets 生成各镜画面/旁白。Provider 未配置时如实汇报。',
+        toolWhitelist: ['generate_scene_assets', 'read_file', 'update_task_list'],
+        outputKeys: ['sceneAssetPaths', 'sceneAssetsManifest']
+      },
+      {
+        id: 'tpl_v_compose',
+        type: 'agent',
+        title: '剪辑：合成成片',
+        prompt: '调用 compose_video 合成成片，向用户汇报 videoPath。',
+        toolWhitelist: ['compose_video', 'update_task_list'],
+        outputKeys: ['videoPath']
+      },
+      {
+        id: 'tpl_v_toast',
+        type: 'toast',
+        title: '成片完成提示',
+        level: 'success',
+        contentTemplate: '成片流程结束：{{videoPath}}'
+      }
+    ],
+    createdAt: 0,
+    updatedAt: 0
+  },
+  {
+    id: 'tpl_daily_weather_notify',
+    title: '每日天气 → 多渠道通知',
+    description: '查询天气后推送到飞书等通知渠道。',
+    templateKind: 'generic',
+    nodes: [
+      {
+        id: 'tpl_w_agent',
+        type: 'agent',
+        title: '查询天气',
+        prompt: '调用 query_weather 获取今日天气，将简报写入回复。',
+        toolWhitelist: ['query_weather', 'update_task_list'],
+        outputKeys: ['weatherText', 'weatherSummary']
+      },
+      {
+        id: 'tpl_w_notify',
+        type: 'notify',
+        title: '飞书通知',
+        channelId: 'feishu',
+        titleTemplate: '今日天气',
+        contentTemplate: '{{weatherText}}',
+        richText: true,
+        failSoft: true
+      }
+    ],
+    createdAt: 0,
+    updatedAt: 0
   }
 ]
 
