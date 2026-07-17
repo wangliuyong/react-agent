@@ -34,12 +34,12 @@
 
 .grid {
   display: grid;
-  /* 固定最多两列，避免宽屏下挤成三列卡片过窄 */
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
 .card {
+  min-width: 0;
   border: 1px solid var(--db-border-light) !important;
   border-radius: var(--db-radius-lg) !important;
   background: var(--db-bg-content) !important;
@@ -67,14 +67,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-width: 0;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--db-border-light);
+}
+
+.cardHead :global(.ant-space) {
+  flex-shrink: 0;
 }
 
 .labelInput {
   flex: 1;
   min-width: 0;
-  max-width: 280px;
+  max-width: 100%;
   font-weight: 650;
 }
 
@@ -89,8 +94,27 @@
 
 .fields {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px 12px;
+}
+
+.field {
+  min-width: 0;
+}
+
+.fields :global(.ant-select),
+.fields :global(.ant-input),
+.fields :global(.ant-input-affix-wrapper) {
+  width: 100%;
+  max-width: 100%;
+}
+
+.fields :global(.ant-select-selector) {
+  max-width: 100%;
+}
+
+.fields :global(.ant-select-selection-overflow) {
+  flex-wrap: wrap;
 }
 
 .fieldLabel {
@@ -128,6 +152,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
   padding: 14px 16px;
   border: 1px solid var(--db-border-light);
   border-radius: var(--db-radius-lg);
@@ -157,6 +182,12 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

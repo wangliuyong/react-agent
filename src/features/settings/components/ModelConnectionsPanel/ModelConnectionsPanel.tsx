@@ -231,7 +231,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
               </div>
 
               <div className={styles.fields}>
-                <div>
+                <div className={styles.field}>
                   <Text type="secondary" className={styles.fieldLabel}>
                     供应商
                   </Text>
@@ -242,7 +242,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
                     onChange={(v) => handleFieldChange(conn.id, 'provider', v)}
                   />
                 </div>
-                <div>
+                <div className={styles.field}>
                   <Text type="secondary" className={styles.fieldLabel}>
                     模型
                   </Text>
@@ -263,7 +263,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
                     </Text>
                   ) : null}
                 </div>
-                <div className={styles.span2}>
+                <div className={`${styles.field} ${styles.span2}`}>
                   <Text type="secondary" className={styles.fieldLabel}>
                     Base URL
                   </Text>
@@ -272,7 +272,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
                     onChange={(e) => handleFieldChange(conn.id, 'baseUrl', e.target.value)}
                   />
                 </div>
-                <div className={styles.span2}>
+                <div className={`${styles.field} ${styles.span2}`}>
                   <Text type="secondary" className={styles.fieldLabel}>
                     API Key
                   </Text>
@@ -282,7 +282,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
                     placeholder="仅存本机"
                   />
                 </div>
-                <div className={styles.span2}>
+                <div className={`${styles.field} ${styles.span2}`}>
                   <Text type="secondary" className={styles.fieldLabel}>
                     能力标签
                   </Text>
