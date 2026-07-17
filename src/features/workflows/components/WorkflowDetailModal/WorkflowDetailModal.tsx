@@ -42,7 +42,27 @@ export function WorkflowDetailModal({
       title={draft?.title?.trim() || '流程详情'}
       open={open}
       onCancel={onClose}
-      footer={null}
+      footer={
+        draft ? (
+          <div className={styles.footer}>
+            <Button onClick={onClose}>关闭</Button>
+            <Space>
+              <Button onClick={onSave} loading={saving}>
+                保存
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
+                loading={running || saving}
+                disabled={!draft.nodes.length}
+                onClick={onRun}
+              >
+                立即运行
+              </Button>
+            </Space>
+          </div>
+        ) : null
+      }
       width={760}
       destroyOnHidden
       className={styles.detailModal}
@@ -106,24 +126,6 @@ export function WorkflowDetailModal({
             <Button icon={<NodeIndexOutlined />} onClick={onOpenCanvas}>
               编辑画布
             </Button>
-          </div>
-
-          <div className={styles.footer}>
-            <Button onClick={onClose}>关闭</Button>
-            <Space>
-              <Button onClick={onSave} loading={saving}>
-                保存
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlayCircleOutlined />}
-                loading={running || saving}
-                disabled={!draft.nodes.length}
-                onClick={onRun}
-              >
-                立即运行
-              </Button>
-            </Space>
           </div>
         </div>
       )}

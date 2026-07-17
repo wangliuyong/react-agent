@@ -1,9 +1,12 @@
 /* 流程详情弹窗 — 结构对齐技能市场 detailModal */
 
 .detailModal :global(.ant-modal-body) {
-  max-height: 70vh;
-  overflow: auto;
   padding-top: 8px;
+}
+
+.detailModal :global(.ant-modal-footer) {
+  padding: 12px 24px;
+  border-top: 1px solid var(--db-border-light);
 }
 
 .detailBody {
@@ -125,7 +128,5 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-top: 4px;
-  border-top: 1px solid var(--db-border-light);
-  margin-top: 4px;
+  width: 100%;
 }

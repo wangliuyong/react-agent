@@ -220,8 +220,6 @@
 }
 
 .detailModal :global(.ant-modal-body) {
-  max-height: 72vh;
-  overflow: auto;
   padding-top: 8px;
 }
 

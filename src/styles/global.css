@@ -158,13 +158,47 @@ a {
 
 /* Modal / Popconfirm 二次确认：增强浮层阴影与遮罩对比 */
 .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 80px);
   box-shadow: var(--db-shadow-overlay) !important;
 }
 
-/* 所有弹窗内容区统一限高，超长表单/详情可滚动（对齐技能市场 70vh） */
+.ant-modal-header {
+  flex-shrink: 0;
+}
+
+/* 内容区滚动，底部操作栏（保存/取消）固定不随动 */
 .ant-modal-body {
-  max-height: 70vh;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(70vh, calc(100vh - 180px));
   overflow: auto;
+}
+
+.ant-modal-footer {
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+/* Drawer：正文滚动，footer 固定底部 */
+.ant-drawer-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.ant-drawer-header {
+  flex-shrink: 0;
+}
+
+.ant-drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ant-drawer-footer {
+  flex-shrink: 0;
 }
 
 .ant-popover-inner {

@@ -356,10 +356,8 @@
   margin-bottom: 0;
 }
 
-/* ── 详情弹窗：限制高度，内容过长可滚动 ── */
+/* ── 详情弹窗：内容滚动由全局 ant-modal-body 控制 ── */
 .detailModal :global(.ant-modal-body) {
-  max-height: 70vh;
-  overflow: auto;
   padding-top: 8px;
 }
 
