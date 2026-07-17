@@ -12,7 +12,10 @@ import type {
   SkillUpsertInput
 } from '../../shared/types'
 import { querySettings, postSettings } from './store/settings'
-import { queryProviderModels } from './store/provider-models'
+import {
+  queryProviderModels,
+  queryResolveProviderModelsCredentials
+} from './store/provider-models'
 import {
   querySessions,
   querySession,
@@ -55,6 +58,7 @@ import {
 } from './store/skills'
 import { querySkillImportPreview, postImportSkillFromUrl } from './store/skill-import'
 import { queryLocalImageDataUrl } from './store/local-image'
+import { queryLocalMediaUrl } from './store/local-media'
 import {
   queryAllChannelLoginStatuses,
   postOpenChannelLogin
@@ -102,7 +106,10 @@ export function registerIpcHandlers(): void {
     (
       _e,
       override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>
-    ) => queryProviderModels({ ...querySettings(), ...override })
+    ) => {
+      const saved = querySettings()
+      return queryProviderModels(queryResolveProviderModelsCredentials(saved, override))
+    }
   )
 
   ipcMain.handle(IpcChannels.querySessions, () => querySessions())
@@ -245,6 +252,9 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IpcChannels.queryLocalImageDataUrl, (_e, filePath: string) =>
     queryLocalImageDataUrl(filePath)
+  )
+  ipcMain.handle(IpcChannels.queryLocalMediaUrl, (_e, filePath: string) =>
+    queryLocalMediaUrl(filePath)
   )
 
   ipcMain.handle(IpcChannels.queryAgentRules, () => queryAgentRules())

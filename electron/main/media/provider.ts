@@ -10,6 +10,8 @@ import { getVideosDir } from '../store/paths'
 import { querySettings } from '../store/settings'
 import { queryDashscopeTextToImageProvider } from './dashscope-t2i'
 import { queryDashscopeTextToSpeechProvider } from './dashscope-tts'
+import { queryDashscopeImageToVideoProvider } from './dashscope-i2v'
+import { queryDashscopeTextToVideoProvider } from './dashscope-t2v'
 import { postWritePlaceholderImage } from './placeholder-image'
 
 export interface TextToImageRequest {
@@ -25,6 +27,14 @@ export interface ImageToVideoRequest {
   outputPath?: string
 }
 
+export interface TextToVideoRequest {
+  prompt: string
+  negativePrompt?: string
+  aspectRatio?: '9:16' | '16:9' | '1:1' | '4:3' | '3:4'
+  durationSec?: number
+  outputPath?: string
+}
+
 export interface TextToSpeechRequest {
   text: string
   outputPath?: string
@@ -33,9 +43,11 @@ export interface TextToSpeechRequest {
 export interface VideoComposeRequest {
   /** 分镜图片或短视频路径（按顺序） */
   scenePaths: string[]
-  /** 可选旁白音频 */
+  /** 可选旁白音频（单段） */
   audioPath?: string
-  /** 每镜时长（秒），缺省 3 */
+  /** 多镜旁白音频，将先 concat 再贴到成片 */
+  audioPaths?: string[]
+  /** 每镜时长（秒），缺省 3；仅对静图生效 */
   sceneDurationSec?: number
   outputPath?: string
   title?: string
@@ -57,6 +69,11 @@ export interface ImageToVideoProvider {
   generate(req: ImageToVideoRequest): Promise<MediaProviderResult>
 }
 
+export interface TextToVideoProvider {
+  id: string
+  generate(req: TextToVideoRequest): Promise<MediaProviderResult>
+}
+
 export interface TextToSpeechProvider {
   id: string
   synthesize(req: TextToSpeechRequest): Promise<MediaProviderResult>
@@ -69,11 +86,13 @@ export interface VideoComposeProvider {
 
 const t2iProviders = new Map<string, TextToImageProvider>()
 const i2vProviders = new Map<string, ImageToVideoProvider>()
+const t2vProviders = new Map<string, TextToVideoProvider>()
 const ttsProviders = new Map<string, TextToSpeechProvider>()
 const composeProviders = new Map<string, VideoComposeProvider>()
 
 let activeT2i = 'placeholder'
 let activeI2v = 'placeholder'
+let activeT2v = 'placeholder'
 let activeTts = 'placeholder'
 let activeCompose = 'ffmpeg-local'
 
@@ -83,6 +102,10 @@ export function postRegisterTextToImageProvider(provider: TextToImageProvider): 
 
 export function postRegisterImageToVideoProvider(provider: ImageToVideoProvider): void {
   i2vProviders.set(provider.id, provider)
+}
+
+export function postRegisterTextToVideoProvider(provider: TextToVideoProvider): void {
+  t2vProviders.set(provider.id, provider)
 }
 
 export function postRegisterTextToSpeechProvider(provider: TextToSpeechProvider): void {
@@ -114,6 +137,18 @@ function queryPlaceholderI2v(): ImageToVideoProvider {
       return {
         ok: false,
         message: '图生视频 Provider 未配置。请在设置中接入可插拔视频 Provider 后重试。'
+      }
+    }
+  }
+}
+
+function queryPlaceholderT2v(): TextToVideoProvider {
+  return {
+    id: 'placeholder',
+    async generate() {
+      return {
+        ok: false,
+        message: '文生视频 Provider 未配置。请在设置中接入可插拔视频 Provider 后重试。'
       }
     }
   }
@@ -175,9 +210,16 @@ function postRunFfmpeg(args: string[]): Promise<{ ok: boolean; message: string }
   })
 }
 
+function queryIsVideoPath(filePath: string): boolean {
+  return /\.(mp4|mov|webm|mkv)$/i.test(filePath)
+}
+
+function queryEscapeConcatPath(filePath: string): string {
+  return filePath.replace(/'/g, "'\\''")
+}
+
 /**
- * 本地 ffmpeg 合成：将多张静图按时长拼成 mp4。
- * 无外部厂商依赖，作为成片兜底；缺图时写入占位说明文件。
+ * 本地 ffmpeg 合成：静图按时长循环、视频片段直接 concat，可选多段旁白合并。
  */
 function queryLocalFfmpegCompose(): VideoComposeProvider {
   return {
@@ -193,16 +235,48 @@ function queryLocalFfmpegCompose(): VideoComposeProvider {
         return { ok: false, message: 'compose 需要至少一张分镜素材路径' }
       }
 
-      // 用 concat demuxer：每镜静图循环 sceneDurationSec
       const duration = Math.max(1, req.sceneDurationSec ?? 3)
-      const listPath = join(outDir, `concat-${Date.now()}.txt`)
-      const lines = req.scenePaths.flatMap((p) => [
-        `file '${p.replace(/'/g, "'\\''")}'`,
-        `duration ${duration}`
-      ])
-      // concat demuxer 要求最后一张再写一次 file
+      const ts = Date.now()
+
+      // 多段旁白先 concat 为临时 wav
+      let mergedAudio = req.audioPath
+      const audioList = (req.audioPaths ?? []).filter((p) => existsSync(p))
+      if (!mergedAudio && audioList.length === 1) {
+        mergedAudio = audioList[0]
+      } else if (!mergedAudio && audioList.length > 1) {
+        const audioListPath = join(outDir, `audio-concat-${ts}.txt`)
+        const audioLines = audioList.map((p) => `file '${queryEscapeConcatPath(p)}'`)
+        writeFileSync(audioListPath, audioLines.join('\n'), 'utf-8')
+        mergedAudio = join(outDir, `merged-audio-${ts}.wav`)
+        const audioRun = await postRunFfmpeg([
+          '-y',
+          '-f',
+          'concat',
+          '-safe',
+          '0',
+          '-i',
+          audioListPath,
+          '-c',
+          'copy',
+          mergedAudio
+        ])
+        if (!audioRun.ok) {
+          mergedAudio = audioList[0]
+        }
+      }
+
+      const listPath = join(outDir, `concat-${ts}.txt`)
+      const lines: string[] = []
+      for (const p of req.scenePaths) {
+        const escaped = queryEscapeConcatPath(p)
+        lines.push(`file '${escaped}'`)
+        if (!queryIsVideoPath(p)) {
+          lines.push(`duration ${duration}`)
+        }
+      }
       const last = req.scenePaths[req.scenePaths.length - 1]
-      lines.push(`file '${last.replace(/'/g, "'\\''")}'`)
+      lines.push(`file '${queryEscapeConcatPath(last)}'`)
+
       writeFileSync(listPath, lines.join('\n'), 'utf-8')
 
       const args = [
@@ -219,13 +293,12 @@ function queryLocalFfmpegCompose(): VideoComposeProvider {
         'yuv420p',
         outputPath
       ]
-      if (req.audioPath && existsSync(req.audioPath)) {
-        args.splice(args.length - 1, 0, '-i', req.audioPath, '-shortest')
+      if (mergedAudio && existsSync(mergedAudio)) {
+        args.splice(args.length - 1, 0, '-i', mergedAudio, '-shortest')
       }
 
       const run = await postRunFfmpeg(args)
       if (!run.ok) {
-        // 无 ffmpeg 时仍落盘成片清单，便于用户后续用外部工具合成
         const manifestPath = outputPath.replace(/\.mp4$/i, '.manifest.json')
         writeFileSync(
           manifestPath,
@@ -233,7 +306,8 @@ function queryLocalFfmpegCompose(): VideoComposeProvider {
             {
               title: req.title,
               scenePaths: req.scenePaths,
-              audioPath: req.audioPath,
+              audioPath: mergedAudio,
+              audioPaths: req.audioPaths,
               sceneDurationSec: duration,
               error: run.message
             },
@@ -284,7 +358,7 @@ let mediaInited = false
 
 /**
  * 注册内置 Provider（幂等）。
- * 有百炼 Key 时优先万相文生图 + Qwen-TTS；否则文生图用本地占位、TTS 仍为占位提示。
+ * 有百炼 Key 时优先万相文生图 + 图生/文生视频 + Qwen-TTS；否则文生图用本地占位。
  */
 export function initMediaProviders(): void {
   if (mediaInited) return
@@ -294,15 +368,14 @@ export function initMediaProviders(): void {
   postRegisterTextToImageProvider(queryLocalPlaceholderT2i())
   postRegisterTextToImageProvider(queryDashscopeTextToImageProvider())
   postRegisterImageToVideoProvider(queryPlaceholderI2v())
+  postRegisterImageToVideoProvider(queryDashscopeImageToVideoProvider())
+  postRegisterTextToVideoProvider(queryPlaceholderT2v())
+  postRegisterTextToVideoProvider(queryDashscopeTextToVideoProvider())
   postRegisterTextToSpeechProvider(queryPlaceholderTts())
   postRegisterTextToSpeechProvider(queryDashscopeTextToSpeechProvider())
   postRegisterVideoComposeProvider(queryLocalFfmpegCompose())
 
-  const hasDash = queryHasDashscopeKey()
-  activeT2i = hasDash ? 'dashscope-wanx' : 'local-placeholder'
-  activeI2v = 'placeholder'
-  activeTts = hasDash ? 'dashscope-qwen-tts' : 'placeholder'
-  activeCompose = 'ffmpeg-local'
+  refreshActiveVideoProviders()
 }
 
 /** 按当前设置刷新文生图活跃 Provider（用户补 Key 后无需重启） */
@@ -321,15 +394,28 @@ export function refreshActiveTextToSpeechProvider(): void {
   activeTts = queryHasDashscopeKey() ? 'dashscope-qwen-tts' : 'placeholder'
 }
 
+/** 按当前设置刷新图生/文生视频 Provider */
+export function refreshActiveVideoProviders(): void {
+  initMediaProviders()
+  const hasDash = queryHasDashscopeKey()
+  activeT2i = hasDash ? 'dashscope-wanx' : 'local-placeholder'
+  activeI2v = hasDash ? 'dashscope-wan-i2v' : 'placeholder'
+  activeT2v = hasDash ? 'dashscope-wan-t2v' : 'placeholder'
+  activeTts = hasDash ? 'dashscope-qwen-tts' : 'placeholder'
+  activeCompose = 'ffmpeg-local'
+}
+
 export function queryActiveMediaProviderIds(): {
   t2i: string
   i2v: string
+  t2v: string
   tts: string
   compose: string
 } {
   return {
     t2i: activeT2i,
     i2v: activeI2v,
+    t2v: activeT2v,
     tts: activeTts,
     compose: activeCompose
   }
@@ -341,6 +427,10 @@ export function queryTextToImageProvider(): TextToImageProvider {
 
 export function queryImageToVideoProvider(): ImageToVideoProvider {
   return i2vProviders.get(activeI2v) ?? queryPlaceholderI2v()
+}
+
+export function queryTextToVideoProvider(): TextToVideoProvider {
+  return t2vProviders.get(activeT2v) ?? queryPlaceholderT2v()
 }
 
 export function queryTextToSpeechProvider(): TextToSpeechProvider {

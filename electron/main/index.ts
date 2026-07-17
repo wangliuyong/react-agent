@@ -12,6 +12,13 @@ import { startScheduleService } from './schedule/scheduler'
 import { initializeResources } from './store/resources'
 import { querySettings } from './store/settings'
 import { postLaunchAtLogin } from './store/launch-at-login'
+import {
+  postRegisterMediaProtocolHandler,
+  registerMediaScheme
+} from './store/register-media-protocol'
+
+// 必须在 app ready 前注册自定义协议
+registerMediaScheme()
 
 let mainWindow: BrowserWindow | null = null
 
@@ -60,6 +67,7 @@ app.whenReady().then(() => {
   initPublishChannelRegistry()
   initPublishAdapters()
   initMediaProviders()
+  postRegisterMediaProtocolHandler()
   registerIpcHandlers()
   startScheduleService()
   // 启动时按本机配置同步系统登录项

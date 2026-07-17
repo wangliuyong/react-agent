@@ -1,0 +1,1 @@
+export { MessageAudioPlayer } from './MessageAudioPlayer'

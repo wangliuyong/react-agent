@@ -58,7 +58,22 @@ function queryMigrateLegacyConnections(
         .filter((c): c is ModelConnection => Boolean(c))
     : []
 
-  if (fromList.length > 0) return fromList
+  if (fromList.length > 0) {
+    // 多连接结构下仍可能遗留顶层 apiKey；回填默认连接，避免 /models 读到空 Key
+    const legacyKey = String(raw.apiKey ?? '').trim()
+    if (!legacyKey) return fromList
+    const defaultId =
+      String(raw.defaultConnectionId ?? '').trim() ||
+      fromList[0]?.id ||
+      DEFAULT_CONNECTION_ID
+    return fromList.map((conn) => {
+      if (conn.apiKey.trim()) return conn
+      if (conn.id === defaultId || conn.id === DEFAULT_CONNECTION_ID) {
+        return { ...conn, apiKey: legacyKey }
+      }
+      return conn
+    })
+  }
 
   const provider = queryNormalizeProvider(raw.provider, String(raw.baseUrl ?? ''))
   return [

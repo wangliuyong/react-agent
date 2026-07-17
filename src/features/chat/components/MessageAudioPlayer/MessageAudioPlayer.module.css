@@ -1,0 +1,28 @@
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 360px;
+}
+
+.player {
+  width: 100%;
+  height: 36px;
+  border-radius: var(--db-radius-md);
+}
+
+.label {
+  font-size: 10px;
+  color: var(--db-text-secondary);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

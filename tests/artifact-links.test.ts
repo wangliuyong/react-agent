@@ -1,5 +1,11 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { queryArtifactPaths } from '../src/features/chat/components/ArtifactLinks/ArtifactLinks'
+
+const localMediaSource = readFileSync(
+  new URL('../electron/main/store/local-media.ts', import.meta.url),
+  'utf8'
+)
 
 describe('queryArtifactPaths', () => {
   it('提取成片与剧本绝对路径', () => {
@@ -28,5 +34,12 @@ describe('queryArtifactPaths', () => {
 
   it('无路径时返回空数组', () => {
     expect(queryArtifactPaths('没有本地文件')).toEqual([])
+  })
+})
+
+describe('local-media 协议', () => {
+  it('生成 media://local URL', () => {
+    expect(localMediaSource).toContain('media://local/')
+    expect(localMediaSource).toContain('queryLocalMediaUrl')
   })
 })

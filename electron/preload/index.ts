@@ -95,6 +95,8 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.postImportSkillFromUrl, url, targetId),
   queryLocalImageDataUrl: (filePath: string) =>
     ipcRenderer.invoke(IpcChannels.queryLocalImageDataUrl, filePath),
+  queryLocalMediaUrl: (filePath: string) =>
+    ipcRenderer.invoke(IpcChannels.queryLocalMediaUrl, filePath),
 
   queryAgentRules: () => ipcRenderer.invoke(IpcChannels.queryAgentRules),
   postAgentRule: (input: AgentRuleUpsertInput) =>

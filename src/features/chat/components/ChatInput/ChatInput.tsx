@@ -1,13 +1,13 @@
 import {
   queryModelCategory,
   queryModelLabel,
-  queryModelOptions,
-  type ModelOption
+  queryModelOptions
 } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
+import { useProviderModels } from '@/features/settings/hooks/useProviderModels'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
 import { TypingIndicator } from '../TypingIndicator'
-import { postSelectImages, queryProviderModels } from '../../api'
+import { postSelectImages } from '../../api'
 import styles from './ChatInput.module.css'
 
 const { Text } = Typography
@@ -42,38 +42,16 @@ export function ChatInput({
   const [text, setText] = useState('')
   const [paths, setPaths] = useState<string[]>([])
   const [modelSwitching, setModelSwitching] = useState(false)
-  /** DeepSeek 等平台动态模型；null 表示使用本地静态列表 */
-  const [remoteModels, setRemoteModels] = useState<ModelOption[] | null>(null)
-  const [modelsLoading, setModelsLoading] = useState(false)
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
 
-  /**
-   * 百炼 / DeepSeek 等模型随平台版本变化，聊天框优先展示平台 /models 实时列表。
-   * 拉取失败时回退静态 MODEL_OPTIONS，保证仍可切换。
-   */
-  useEffect(() => {
-    if (!settings.apiKey.trim()) {
-      setRemoteModels(null)
-      setModelsLoading(false)
-      return
-    }
-    let cancelled = false
-    setModelsLoading(true)
-    void queryProviderModels()
-      .then((models) => {
-        if (!cancelled && models.length > 0) setRemoteModels(models)
-      })
-      .catch(() => {
-        if (!cancelled) setRemoteModels(null)
-      })
-      .finally(() => {
-        if (!cancelled) setModelsLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [settings.provider, settings.apiKey, settings.baseUrl])
+  /** 与设置页共用 useProviderModels，优先展示平台 /models 实时列表 */
+  const { remoteModels, loading: modelsLoading } = useProviderModels({
+    enabled: true,
+    provider: settings.provider,
+    apiKey: settings.apiKey,
+    baseUrl: settings.baseUrl
+  })
 
   /** 参考样式：以 120k 为展示上限 */
   const tokenDisplayMax = 120_000

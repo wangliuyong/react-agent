@@ -11,6 +11,7 @@ import {
   type ModelRoleKey,
   type RoleModelMap
 } from '@shared/types'
+import { useConnectionProviderModels } from '../../hooks/useConnectionProviderModels'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
 import styles from './ModelConnectionsPanel.module.css'
 
@@ -47,11 +48,6 @@ function queryNewConnectionId(): string {
   return `conn-${Date.now().toString(36)}`
 }
 
-/** 同一供应商 + Base URL + Key 共用一份平台模型缓存 */
-function queryModelsCacheKey(conn: Pick<ModelConnection, 'provider' | 'baseUrl' | 'apiKey'>): string {
-  return `${conn.provider}|${conn.baseUrl.trim()}|${conn.apiKey.trim()}`
-}
-
 function querySelectOptions(
   models: ModelOption[],
   currentModel: string,
@@ -77,7 +73,7 @@ function querySelectOptions(
 /**
  * 多模型连接与角色映射配置面板。
  * 本地草稿编辑，保存时一次性写入，避免逐键击打 IPC。
- * 模型下拉优先走供应商平台 /models（百炼 / DeepSeek 等）。
+ * 模型下拉与「模型与 API」Tab 共用 useConnectionProviderModels 拉取逻辑。
  */
 export function ModelConnectionsPanel(): React.ReactElement {
   const settings = useSettingsStore((s) => s.settings)
@@ -92,9 +88,9 @@ export function ModelConnectionsPanel(): React.ReactElement {
   const [roleModelMap, setRoleModelMap] = useState<RoleModelMap>(
     settings.roleModelMap ?? {}
   )
-  /** cacheKey → 平台模型列表；null 表示拉取失败，回退静态 */
-  const [modelsByKey, setModelsByKey] = useState<Record<string, ModelOption[] | null>>({})
-  const [loadingKeys, setLoadingKeys] = useState<Record<string, boolean>>({})
+
+  const { queryRemoteModels, queryIsLoading, queryModelHint } =
+    useConnectionProviderModels(connections)
 
   useEffect(() => {
     setConnections(
@@ -103,68 +99,6 @@ export function ModelConnectionsPanel(): React.ReactElement {
     setDefaultConnectionId(settings.defaultConnectionId)
     setRoleModelMap(settings.roleModelMap ?? {})
   }, [settings.connections, settings.defaultConnectionId, settings.roleModelMap])
-
-  /**
-   * 按连接凭证去重后拉取 /models；无 Key 时不请求，下拉用静态兜底。
-   */
-  useEffect(() => {
-    const unique = new Map<string, ModelConnection>()
-    for (const conn of connections) {
-      if (!conn.apiKey.trim()) continue
-      const key = queryModelsCacheKey(conn)
-      if (!unique.has(key)) unique.set(key, conn)
-    }
-
-    const controllers: Array<() => void> = []
-    for (const [cacheKey, conn] of unique) {
-      // 已成功或已失败（null）都不再重复打；仅未请求过的 key 才拉
-      if (cacheKey in modelsByKey || loadingKeys[cacheKey]) continue
-
-      let cancelled = false
-      setLoadingKeys((prev) => ({ ...prev, [cacheKey]: true }))
-      const timer = window.setTimeout(() => {
-        void window.api
-          .queryProviderModels({
-            provider: conn.provider,
-            apiKey: conn.apiKey,
-            baseUrl: conn.baseUrl || queryProviderOption(conn.provider).defaultBaseUrl
-          })
-          .then((models) => {
-            if (!cancelled) {
-              setModelsByKey((prev) => ({
-                ...prev,
-                [cacheKey]: models.length > 0 ? models : null
-              }))
-            }
-          })
-          .catch(() => {
-            if (!cancelled) {
-              setModelsByKey((prev) => ({ ...prev, [cacheKey]: null }))
-            }
-          })
-          .finally(() => {
-            if (!cancelled) {
-              setLoadingKeys((prev) => ({ ...prev, [cacheKey]: false }))
-            }
-          })
-      }, 350)
-
-      controllers.push(() => {
-        cancelled = true
-        window.clearTimeout(timer)
-      })
-    }
-
-    return () => {
-      for (const cancel of controllers) cancel()
-    }
-    // 仅在凭证集合变化时拉取；modelsByKey / loadingKeys 不放入依赖以免循环
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    connections
-      .map((c) => `${c.id}:${c.provider}:${c.baseUrl}:${c.apiKey.trim() ? '1' : '0'}:${c.apiKey}`)
-      .join('|')
-  ])
 
   const handleSave = async (): Promise<void> => {
     if (connections.length === 0) {
@@ -195,7 +129,6 @@ export function ModelConnectionsPanel(): React.ReactElement {
       prev.map((c) => {
         if (c.id !== id) return c
         const next = { ...c, [field]: value }
-        // 切换供应商时同步默认 Base URL，并清掉模型缓存依赖
         if (field === 'provider') {
           const meta = queryProviderOption(value as ModelProvider)
           next.baseUrl = meta.defaultBaseUrl
@@ -243,14 +176,14 @@ export function ModelConnectionsPanel(): React.ReactElement {
 
       <div className={styles.grid}>
         {connections.map((conn, index) => {
-          const cacheKey = queryModelsCacheKey(conn)
-          const remote = conn.apiKey.trim() ? modelsByKey[cacheKey] : null
+          const remote = queryRemoteModels(conn)
           const modelOptions = querySelectOptions(
-            remote ?? queryModelOptions(conn.provider),
+            Array.isArray(remote) ? remote : queryModelOptions(conn.provider),
             conn.model,
             conn.provider
           )
-          const modelsLoading = Boolean(loadingKeys[cacheKey])
+          const modelsLoading = queryIsLoading(conn)
+          const modelHint = queryModelHint(conn)
 
           return (
             <Card
@@ -324,6 +257,11 @@ export function ModelConnectionsPanel(): React.ReactElement {
                     placeholder={conn.apiKey.trim() ? '从平台选择模型' : '先填写 API Key'}
                     onChange={(v) => handleFieldChange(conn.id, 'model', v)}
                   />
+                  {modelHint ? (
+                    <Text type="secondary" className={styles.modelHint}>
+                      {modelHint}
+                    </Text>
+                  ) : null}
                 </div>
                 <div className={styles.span2}>
                   <Text type="secondary" className={styles.fieldLabel}>

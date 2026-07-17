@@ -64,6 +64,8 @@ export const IpcChannels = {
   querySkillImportPreview: 'query:skill-import-preview',
   postImportSkillFromUrl: 'post:skill-import-from-url',
   queryLocalImageDataUrl: 'query:local-image-data-url',
+  /** 本地音视频 → media:// URL，供聊天内联播放 */
+  queryLocalMediaUrl: 'query:local-media-url',
   // Agent 用户规则（持久指令，注入 SYSTEM_PROMPT）
   queryAgentRules: 'query:agent-rules',
   postAgentRule: 'post:agent-rule',
@@ -1259,6 +1261,7 @@ export interface ElectronApi {
   querySkillImportPreview: (url: string) => Promise<SkillImportPreview>
   postImportSkillFromUrl: (url: string, targetId?: string) => Promise<ProjectSkillDetail>
   queryLocalImageDataUrl: (filePath: string) => Promise<string | null>
+  queryLocalMediaUrl: (filePath: string) => Promise<string | null>
   queryAgentRules: () => Promise<AgentRule[]>
   postAgentRule: (input: AgentRuleUpsertInput) => Promise<AgentRule>
   postDeleteAgentRule: (id: string) => Promise<void>

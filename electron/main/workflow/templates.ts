@@ -456,8 +456,9 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         type: 'agent',
         title: '编剧：剧本与分镜',
         prompt:
-          '根据用户输入的一句话或段落，创作短视频剧本并调用 generate_script；' +
-          '再拆成 4～8 个分镜，调用 generate_storyboard（每镜含 visual、narration、durationSec）。',
+          '根据用户输入创作短视频剧本并调用 generate_script；' +
+          '再拆成 4～8 镜，默认竖版 9:16，调用 generate_storyboard。' +
+          '每镜含 visual、narration、durationSec、cameraMotion、style、negativePrompt、aspectRatio、lighting。',
         toolWhitelist: [
           'list_attachments',
           'read_file',
@@ -472,7 +473,8 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         type: 'agent',
         title: '视频：场景素材',
         prompt:
-          '读取上游分镜，调用 generate_scene_assets 生成各镜画面/旁白。百炼 Key 已配时走万相+Qwen-TTS；未配置时如实汇报。',
+          '读取上游分镜，调用 generate_scene_assets。流程：万相文生图关键帧 → 图生视频（失败则文生视频兜底）→ Qwen-TTS 旁白。' +
+          '素材 mp4/wav 路径会在聊天内可预览；如实汇报每镜成败。',
         toolWhitelist: ['generate_scene_assets', 'read_file', 'update_task_list'],
         outputKeys: ['sceneAssetPaths', 'sceneAssetsManifest']
       },
@@ -480,7 +482,8 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         id: 'tpl_v_compose',
         type: 'agent',
         title: '剪辑：合成成片',
-        prompt: '调用 compose_video 合成成片，向用户汇报 videoPath。',
+        prompt:
+          '调用 compose_video 合成成片，向用户汇报 videoPath。提醒用户可在聊天内直接播放成片；核查音画同步与叙事连贯。',
         toolWhitelist: ['compose_video', 'update_task_list'],
         outputKeys: ['videoPath']
       },

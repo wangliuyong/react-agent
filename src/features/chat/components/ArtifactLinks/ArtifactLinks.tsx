@@ -35,11 +35,19 @@ function queryArtifactLabel(filePath: string): string {
 
 interface ArtifactLinksProps {
   content: string
+  /** 已在播放器/画廊中展示的路径，不再显示产物按钮 */
+  excludePaths?: string[]
 }
 
 /** 展示组件：检测消息中的本地产物路径并提供打开文件位置 */
-export function ArtifactLinks({ content }: ArtifactLinksProps): React.ReactElement | null {
-  const paths = useMemo(() => queryArtifactPaths(content), [content])
+export function ArtifactLinks({
+  content,
+  excludePaths = []
+}: ArtifactLinksProps): React.ReactElement | null {
+  const paths = useMemo(() => {
+    const exclude = new Set(excludePaths)
+    return queryArtifactPaths(content).filter((p) => !exclude.has(p))
+  }, [content, excludePaths])
   const [busy, setBusy] = useState<string | null>(null)
 
   if (paths.length === 0) return null

@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  queryDashscopeModelsBaseUrlCandidates,
   queryModelsEndpoint,
   queryModelOptionsFromListResponse,
-  queryProviderModels
+  queryNormalizeDashscopeCompatBaseUrl,
+  queryProviderModels,
+  queryResolveProviderModelsCredentials
 } from '../electron/main/store/provider-models'
+import { normalizeSettings } from '../electron/main/store/settings'
+import { DEFAULT_CONNECTION_ID } from '../shared/types'
 
 describe('从平台拉取模型列表', () => {
   it('根据 Base URL 拼出 OpenAI 兼容的 /models 地址', () => {
@@ -19,6 +24,24 @@ describe('从平台拉取模型列表', () => {
     expect(queryModelsEndpoint('https://dashscope.aliyuncs.com/compatible-mode/v1')).toBe(
       'https://dashscope.aliyuncs.com/compatible-mode/v1/models'
     )
+  })
+
+  it('百炼 Base URL 缺 /v1 时自动补齐', () => {
+    expect(queryNormalizeDashscopeCompatBaseUrl('https://dashscope.aliyuncs.com/compatible-mode')).toBe(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1'
+    )
+    expect(queryNormalizeDashscopeCompatBaseUrl('')).toBe(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1'
+    )
+  })
+
+  it('百炼候选端点包含国内 / 国际 / Coding Plan', () => {
+    const candidates = queryDashscopeModelsBaseUrlCandidates(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1'
+    )
+    expect(candidates[0]).toBe('https://dashscope.aliyuncs.com/compatible-mode/v1')
+    expect(candidates).toContain('https://dashscope-intl.aliyuncs.com/compatible-mode/v1')
+    expect(candidates).toContain('https://coding.dashscope.aliyuncs.com/v1')
   })
 
   it('将平台返回的模型 id 转为可选 ModelOption，并补齐已知文案与类型', () => {
@@ -48,7 +71,6 @@ describe('从平台拉取模型列表', () => {
   })
 
   it('按 DeepSeek 文档调用 GET /models 并解析示例响应', async () => {
-    // 文档：https://api-docs.deepseek.com/zh-cn/api/list-models
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -116,6 +138,98 @@ describe('从平台拉取模型列表', () => {
     expect(models[0]?.label).toBe('Qwen Plus')
     expect(models[0]?.category).toBe('文本对话')
     expect(models[2]?.category).toBe('高速对话')
+  })
+
+  it('百炼国内端点 401 时自动尝试国际站', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('dashscope.aliyuncs.com/compatible-mode')) {
+        return {
+          ok: false,
+          status: 401,
+          text: async () =>
+            JSON.stringify({
+              error: { message: 'Incorrect API key provided.', code: 'invalid_api_key' }
+            })
+        }
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          object: 'list',
+          data: [{ id: 'qwen-plus', object: 'model' }]
+        })
+      }
+    })
+
+    const models = await queryProviderModels(
+      {
+        provider: 'dashscope',
+        apiKey: 'sk-intl',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+      },
+      fetchMock as unknown as typeof fetch
+    )
+
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(1)
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('dashscope-intl'))).toBe(
+      true
+    )
+    expect(models.map((m) => m.value)).toEqual(['qwen-plus'])
+  })
+
+  it('顶层 Key 为空时从同供应商连接解析凭证', () => {
+    const resolved = queryResolveProviderModelsCredentials(
+      {
+        provider: 'dashscope',
+        apiKey: '',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        model: 'qwen-plus',
+        connections: [
+          {
+            id: 'conn-fast',
+            label: '快速',
+            provider: 'dashscope',
+            apiKey: 'sk-from-conn',
+            baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+            model: 'qwen-turbo',
+            capabilities: ['chat']
+          }
+        ],
+        defaultConnectionId: 'conn-fast',
+        roleModelMap: {},
+        fullAccess: false,
+        maxTurns: 40,
+        launchAtLogin: false
+      },
+      { provider: 'dashscope' }
+    )
+
+    expect(resolved.apiKey).toBe('sk-from-conn')
+    expect(resolved.baseUrl).toBe('https://dashscope.aliyuncs.com/compatible-mode/v1')
+  })
+
+  it('多连接迁移时保留遗留顶层 apiKey', () => {
+    const settings = normalizeSettings({
+      apiKey: 'sk-legacy',
+      provider: 'dashscope',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model: 'qwen-plus',
+      defaultConnectionId: DEFAULT_CONNECTION_ID,
+      connections: [
+        {
+          id: DEFAULT_CONNECTION_ID,
+          label: '默认',
+          provider: 'dashscope',
+          apiKey: '',
+          baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+          model: 'qwen-plus',
+          capabilities: ['chat']
+        }
+      ]
+    })
+
+    expect(settings.apiKey).toBe('sk-legacy')
+    expect(settings.connections[0]?.apiKey).toBe('sk-legacy')
   })
 })
 

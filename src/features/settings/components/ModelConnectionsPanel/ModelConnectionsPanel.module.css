@@ -99,6 +99,13 @@
   font-size: 12px;
 }
 
+.modelHint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .span2 {
   grid-column: 1 / -1;
 }

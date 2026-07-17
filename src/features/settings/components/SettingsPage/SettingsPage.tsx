@@ -4,7 +4,6 @@ import {
   queryModelOptions,
   queryProviderOption,
   type AppSettings,
-  type ModelOption,
   type ModelProvider
 } from '@shared/types'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
@@ -18,6 +17,8 @@ import {
   queryShouldSyncSettingsForm,
   type ProviderFormDraftMap
 } from './settingsFormSync'
+import { useProviderModels } from '../../hooks/useProviderModels'
+import { queryProviderModelsStatusHint } from '../../hooks/providerModelsShared'
 import { BASE_URL_RULES, MODEL_RULES, PROVIDER_RULES } from './settingsValidation'
 
 const { Title, Paragraph, Text } = Typography
@@ -40,10 +41,6 @@ export function SettingsPage(): React.ReactElement {
   const [tab, setTab] = useState<SettingsTab>('model')
   const [form] = Form.useForm<AppSettings>()
   const [selectedProvider, setSelectedProvider] = useState<ModelProvider>(settings.provider)
-  /** 平台 /models 动态列表；null 表示尚未成功拉取，下拉用静态兜底 */
-  const [remoteModels, setRemoteModels] = useState<ModelOption[] | null>(null)
-  const [modelsLoading, setModelsLoading] = useState(false)
-  const [modelsError, setModelsError] = useState<string | null>(null)
   /** 手动刷新计数，便于用户点击「刷新模型」重拉 */
   const [modelsRefreshToken, setModelsRefreshToken] = useState(0)
   /**
@@ -64,6 +61,18 @@ export function SettingsPage(): React.ReactElement {
     String(settings.baseUrl ?? '').trim() ||
     providerOption.defaultBaseUrl
 
+  const {
+    remoteModels,
+    loading: modelsLoading,
+    error: modelsError
+  } = useProviderModels({
+    enabled: loaded && tab === 'model',
+    provider: selectedProvider,
+    apiKey: draftApiKey,
+    baseUrl: draftBaseUrl,
+    refreshToken: modelsRefreshToken
+  })
+
   /**
    * 为什么：供应商切换需要 Form.useForm + setFieldsValue；
    * 但 FormInstance 会保留首次挂载时的值，hydrate 后仅靠 initialValues / remount key 无法可靠回显。
@@ -81,64 +90,6 @@ export function SettingsPage(): React.ReactElement {
       model: values.model
     }
   }, [loaded, settings, form])
-
-  /**
-   * 「默认模型」下拉：始终优先走供应商平台 GET /models（百炼 / DeepSeek / 兼容网关）。
-   * 进入「模型与 API」Tab、改 Key/地址、或点刷新时重新拉取。
-   */
-  useEffect(() => {
-    if (!loaded || tab !== 'model') return
-
-    if (!draftApiKey) {
-      setRemoteModels(null)
-      setModelsLoading(false)
-      setModelsError(null)
-      return
-    }
-
-    let cancelled = false
-    setRemoteModels(null)
-    setModelsError(null)
-    const timer = window.setTimeout(() => {
-      setModelsLoading(true)
-      void window.api
-        .queryProviderModels({
-          provider: selectedProvider,
-          apiKey: draftApiKey,
-          baseUrl: draftBaseUrl
-        })
-        .then((models) => {
-          if (cancelled) return
-          if (models.length > 0) {
-            setRemoteModels(models)
-            setModelsError(null)
-          } else {
-            setRemoteModels(null)
-            setModelsError('平台返回空列表，已使用本地兜底')
-          }
-        })
-        .catch((err) => {
-          if (cancelled) return
-          setRemoteModels(null)
-          setModelsError(err instanceof Error ? err.message : '拉取模型列表失败')
-        })
-        .finally(() => {
-          if (!cancelled) setModelsLoading(false)
-        })
-    }, 400)
-
-    return () => {
-      cancelled = true
-      window.clearTimeout(timer)
-    }
-  }, [
-    loaded,
-    tab,
-    selectedProvider,
-    draftApiKey,
-    draftBaseUrl,
-    modelsRefreshToken
-  ])
 
   /** 若用户曾保存自定义 model id，合并进选项避免 Select 显示异常 */
   const modelSelectOptions = useMemo(() => {
@@ -164,15 +115,12 @@ export function SettingsPage(): React.ReactElement {
     return options
   }, [selectedProvider, settings.model, settings.provider, remoteModels])
 
-  const modelListExtra = !draftApiKey
-    ? '填写 API Key 后将从平台 /models 拉取可选模型'
-    : modelsLoading
-      ? '正在从平台拉取模型列表…'
-      : remoteModels
-        ? `已从平台加载 ${remoteModels.length} 个模型（可搜索）`
-        : modelsError
-          ? `${modelsError}；当前显示本地兜底列表`
-          : '填写 API Key 后可从平台拉取可选模型'
+  const modelListExtra = queryProviderModelsStatusHint({
+    apiKey: draftApiKey,
+    loading: modelsLoading,
+    remoteCount: remoteModels?.length ?? null,
+    error: modelsError
+  })
 
   const connectionCount = settings.connections?.length ?? 0
   const tabHint =

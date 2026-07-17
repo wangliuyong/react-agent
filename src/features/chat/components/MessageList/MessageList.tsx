@@ -1,13 +1,7 @@
 import type { ChatMessage, TaskItem } from '@shared/types'
 import { queryAgentPhase, queryAgentStatusLabel } from '../../utils/agent-status'
-import { ChatMarkdown } from '../ChatMarkdown'
-import { MessageImageGallery } from '../MessageImageGallery'
+import { MessageRichContent, queryMediaCountLabel } from '../MessageRichContent'
 import { TypingIndicator } from '../TypingIndicator'
-import {
-  extractMessageImages,
-  stripImagePathsFromDisplayText
-} from '../../utils/message-images'
-import { ArtifactLinks } from '../ArtifactLinks'
 import styles from './MessageList.module.css'
 
 const { Text } = Typography
@@ -20,7 +14,7 @@ interface MessageListProps {
   activeToolName?: string | null
 }
 
-/** 展示组件：消息列表 + 工具结果折叠 + Markdown 预览 + 图片预览 */
+/** 展示组件：消息列表 + 工具结果折叠 + Markdown 预览 + 图片/音视频预览 */
 export function MessageList({
   messages,
   streamingText,
@@ -91,20 +85,22 @@ export function MessageList({
 
       {displayMessages.map((m, index) => {
         if (m.role === 'user') {
-          const images = extractMessageImages(m.content, m.attachmentPaths)
-          const text = stripImagePathsFromDisplayText(m.content, images)
           return (
             <div key={m.id} className={`${styles.row} ${styles.rowUser}`}>
               <span className={styles.label}>你</span>
               <div className={styles.userBubble}>
-                {text ? <ChatMarkdown source={text} className={styles.userMarkdown} /> : null}
-                <MessageImageGallery images={images} />
+                <MessageRichContent
+                  content={m.content}
+                  attachmentPaths={m.attachmentPaths}
+                  markdownClassName={styles.userMarkdown}
+                  showDoneAlert={false}
+                />
               </div>
             </div>
           )
         }
         if (m.role === 'tool') {
-          const images = extractMessageImages(m.content)
+          const mediaLabel = queryMediaCountLabel(m.content)
           return (
             <div key={m.id} className={styles.row}>
               <Collapse
@@ -113,13 +109,13 @@ export function MessageList({
                 items={[
                   {
                     key: '1',
-                    label: `工具结果 · ${m.toolName ?? 'tool'}${images.length ? ` · ${images.length} 张图` : ''}`,
+                    label: `工具结果 · ${m.toolName ?? 'tool'}${mediaLabel}`,
                     children: (
-                      <>
-                        <MessageImageGallery images={images} />
-                        <ChatMarkdown source={m.content} className={styles.toolMarkdown} />
-                        <ArtifactLinks content={m.content} />
-                      </>
+                      <MessageRichContent
+                        content={m.content}
+                        markdownClassName={styles.toolMarkdown}
+                        showDoneAlert={false}
+                      />
                     )
                   }
                 ]}
@@ -179,21 +175,5 @@ function AssistantBody({
   }
   if (!content) return <Text type="secondary">…</Text>
 
-  const images = extractMessageImages(content)
-  const displayText = stripImagePathsFromDisplayText(content, images)
-
-  return (
-    <>
-      {displayText ? (
-        <ChatMarkdown source={displayText} streaming={streaming} />
-      ) : streaming ? (
-        <span className={styles.cursor} />
-      ) : null}
-      <MessageImageGallery images={images} />
-      <ArtifactLinks content={content} />
-      {/执行完毕/.test(content) ? (
-        <Alert type="success" showIcon message="执行完毕" className={styles.doneAlert} />
-      ) : null}
-    </>
-  )
+  return <MessageRichContent content={content} streaming={streaming} />
 }

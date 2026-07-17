@@ -1,6 +1,5 @@
 /**
- * 视频管线工具：剧本/分镜落盘 → 场景素材 → 成片合成。
- * 创意写作由 scriptwriter 角色 LLM 完成；本文件负责结构化持久化与媒体 Provider 调用。
+ * 视频管线工具：剧本/分镜落盘 → 场景素材（T2I→I2V/T2V→TTS）→ 成片合成。
  */
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'fs'
@@ -8,23 +7,36 @@ import { join } from 'path'
 import { queryEncodeWorkflowCtxResult } from './hot-topics'
 import {
   querySceneAssetsDir,
+  queryImageToVideoProvider,
   queryTextToImageProvider,
   queryTextToSpeechProvider,
+  queryTextToVideoProvider,
   queryVideoComposeProvider,
   refreshActiveTextToImageProvider,
-  refreshActiveTextToSpeechProvider
+  refreshActiveTextToSpeechProvider,
+  refreshActiveVideoProviders
 } from '../../media/provider'
 import { getVideosDir } from '../../store/paths'
 import type { AgentTool } from './types'
 
 export interface StoryboardShot {
   id: string
-  /** 画面描述（给文生图） */
+  /** 画面描述（给文生图/文生视频） */
   visual: string
   /** 旁白/台词 */
   narration?: string
   /** 建议时长秒 */
   durationSec?: number
+  /** 镜头运镜：推/拉/环绕/跟拍 */
+  cameraMotion?: string
+  /** 风格：写实/电影/动画 */
+  style?: string
+  /** 负面提示词 */
+  negativePrompt?: string
+  /** 画幅 9:16 / 16:9 / 1:1 */
+  aspectRatio?: string
+  /** 光影色调 */
+  lighting?: string
 }
 
 export interface StoryboardDoc {
@@ -33,10 +45,35 @@ export interface StoryboardDoc {
   shots: StoryboardShot[]
 }
 
+const DEFAULT_NEGATIVE =
+  '低分辨率、扭曲人脸、肢体崩坏、闪烁、跳帧、多余手指、比例不良'
+
 function queryProjectDir(sessionId: string): string {
   const dir = join(getVideosDir(), 'projects', sessionId)
   mkdirSync(dir, { recursive: true })
   return dir
+}
+
+/** 组装单镜精细化提示词 */
+function queryEnrichedVisualPrompt(shot: StoryboardShot): string {
+  const parts = [shot.visual]
+  if (shot.cameraMotion?.trim()) parts.push(`镜头：${shot.cameraMotion.trim()}`)
+  if (shot.style?.trim()) parts.push(`风格：${shot.style.trim()}`)
+  if (shot.lighting?.trim()) parts.push(`光影：${shot.lighting.trim()}`)
+  return parts.join('，')
+}
+
+function queryMotionPrompt(shot: StoryboardShot): string {
+  const motion = shot.cameraMotion?.trim() || '镜头缓慢推进'
+  return `${motion}，画面自然流畅，${shot.visual.slice(0, 200)}`
+}
+
+function queryAspectRatio(shot: StoryboardShot): '9:16' | '16:9' | '1:1' | '4:3' | '3:4' {
+  const raw = shot.aspectRatio?.trim()
+  if (raw === '9:16' || raw === '16:9' || raw === '1:1' || raw === '4:3' || raw === '3:4') {
+    return raw
+  }
+  return '9:16'
 }
 
 /** 将剧本正文落盘，供后续分镜/成片引用 */
@@ -87,7 +124,8 @@ export const generateScriptTool: AgentTool = {
 export const generateStoryboardTool: AgentTool = {
   name: 'generate_storyboard',
   description:
-    '根据剧本生成并保存分镜表（JSON）。每镜含 visual（画面描述）、narration（旁白）、durationSec。' +
+    '根据剧本生成并保存分镜表（JSON）。每镜含 visual、narration、durationSec、' +
+    'cameraMotion（推/拉/环绕/跟拍）、style（写实/电影/动画）、negativePrompt、aspectRatio（9:16/16:9）、lighting。' +
     '写入 context.storyboardPath。后续由视频角色调用 generate_scene_assets。',
   permission: 'sensitive',
   parameters: {
@@ -104,7 +142,12 @@ export const generateStoryboardTool: AgentTool = {
             id: { type: 'string' },
             visual: { type: 'string' },
             narration: { type: 'string' },
-            durationSec: { type: 'number' }
+            durationSec: { type: 'number' },
+            cameraMotion: { type: 'string' },
+            style: { type: 'string' },
+            negativePrompt: { type: 'string' },
+            aspectRatio: { type: 'string' },
+            lighting: { type: 'string' }
           },
           required: ['id', 'visual']
         }
@@ -121,7 +164,12 @@ export const generateStoryboardTool: AgentTool = {
         id: String(row.id ?? `shot-${i + 1}`),
         visual: String(row.visual ?? '').trim(),
         narration: row.narration != null ? String(row.narration) : undefined,
-        durationSec: row.durationSec != null ? Number(row.durationSec) : 3
+        durationSec: row.durationSec != null ? Number(row.durationSec) : 3,
+        cameraMotion: row.cameraMotion != null ? String(row.cameraMotion) : undefined,
+        style: row.style != null ? String(row.style) : undefined,
+        negativePrompt: row.negativePrompt != null ? String(row.negativePrompt) : undefined,
+        aspectRatio: row.aspectRatio != null ? String(row.aspectRatio) : undefined,
+        lighting: row.lighting != null ? String(row.lighting) : undefined
       }
     }).filter((s) => s.visual)
 
@@ -154,15 +202,14 @@ export const generateStoryboardTool: AgentTool = {
 }
 
 /**
- * 按分镜调用文生图 / TTS Provider 生成素材。
- * Provider 未配置时会写入占位说明，不中断整条管线（便于后续只补合成）。
+ * 按分镜调用 T2I → I2V（失败则 T2V 兜底）→ TTS 生成素材。
  */
 export const generateSceneAssetsTool: AgentTool = {
   name: 'generate_scene_assets',
   description:
-    '读取 storyboardPath（或缺省用本会话 storyboard.json），为每镜生成画面/旁白素材。' +
-    '优先百炼万相文生图 + Qwen-TTS（需已配置百炼 API Key）；文生图失败时回退本地占位图。' +
-    '写入 context.sceneAssetPaths / sceneAudioPaths（JSON 数组字符串）。',
+    '读取 storyboardPath，为每镜生成关键帧/动效视频/旁白。' +
+    '流程：万相文生图 → 万相图生视频；I2V 失败时文生视频兜底；旁白走 Qwen-TTS。' +
+    '写入 context.sceneAssetPaths / sceneVideoPaths / sceneAudioPaths。',
   permission: 'sensitive',
   parameters: {
     type: 'object',
@@ -175,8 +222,10 @@ export const generateSceneAssetsTool: AgentTool = {
     required: []
   },
   async execute(args, ctx) {
+    refreshActiveVideoProviders()
     refreshActiveTextToImageProvider()
     refreshActiveTextToSpeechProvider()
+
     const defaultPath = join(queryProjectDir(ctx.sessionId), 'storyboard.json')
     const storyboardPath = String(args.storyboardPath ?? defaultPath).trim()
     if (!existsSync(storyboardPath)) {
@@ -186,37 +235,84 @@ export const generateSceneAssetsTool: AgentTool = {
     const doc = JSON.parse(readFileSync(storyboardPath, 'utf-8')) as StoryboardDoc
     const sceneDir = querySceneAssetsDir(ctx.sessionId)
     const t2i = queryTextToImageProvider()
+    const i2v = queryImageToVideoProvider()
+    const t2v = queryTextToVideoProvider()
     const tts = queryTextToSpeechProvider()
 
-    const assetPaths: string[] = []
+    const sceneAssetPaths: string[] = []
+    const sceneVideoPaths: string[] = []
+    const sceneImagePaths: string[] = []
     const audioPaths: string[] = []
     const notes: string[] = []
     let imageOk = 0
+    let videoOk = 0
     let voiceOk = 0
     let voiceTotal = 0
 
     for (const shot of doc.shots ?? []) {
+      const enrichedPrompt = queryEnrichedVisualPrompt(shot)
       const imageOut = join(sceneDir, `${shot.id}.png`)
-      const img = await t2i.generate({ prompt: shot.visual, outputPath: imageOut })
+      const videoOut = join(sceneDir, `${shot.id}.mp4`)
+      const duration = Math.min(15, Math.max(2, shot.durationSec ?? 5))
+
+      const img = await t2i.generate({ prompt: enrichedPrompt, outputPath: imageOut })
+      let imagePath: string | undefined
       if (img.ok && img.path) {
-        assetPaths.push(img.path)
+        imagePath = img.path
+        sceneImagePaths.push(img.path)
         imageOk += 1
-        notes.push(`${shot.id} 画面：${img.path}`)
+        notes.push(`${shot.id} 关键帧：${img.path}`)
       } else {
-        // 为什么：文生图失败时仍生成可合成的占位 PNG，避免成片步骤无图
         const { postWritePlaceholderImage } = await import('../../media/placeholder-image')
         const stubImg = await postWritePlaceholderImage({
           outputPath: imageOut,
           label: shot.id
         })
         if (stubImg.ok && stubImg.path) {
-          assetPaths.push(stubImg.path)
-          notes.push(`${shot.id} 画面回退占位图（原因：${img.message}）→ ${stubImg.path}`)
+          imagePath = stubImg.path
+          sceneImagePaths.push(stubImg.path)
+          notes.push(`${shot.id} 关键帧回退占位图（${img.message}）→ ${stubImg.path}`)
         } else {
-          const stub = join(sceneDir, `${shot.id}.txt`)
-          writeFileSync(stub, `VISUAL:\n${shot.visual}\n\nNOTE:\n${img.message}`, 'utf-8')
-          notes.push(`${shot.id} 画面失败：${img.message}；占位图也失败：${stubImg.message}`)
+          notes.push(`${shot.id} 关键帧失败：${img.message}`)
         }
+      }
+
+      let composePath: string | undefined = imagePath
+      if (imagePath) {
+        const motionPrompt = queryMotionPrompt(shot)
+        const i2vResult = await i2v.generate({
+          imagePath,
+          prompt: motionPrompt,
+          durationSec: duration,
+          outputPath: videoOut
+        })
+        if (i2vResult.ok && i2vResult.path) {
+          sceneVideoPaths.push(i2vResult.path)
+          composePath = i2vResult.path
+          videoOk += 1
+          notes.push(`${shot.id} 图生视频：${i2vResult.path}`)
+        } else {
+          notes.push(`${shot.id} 图生视频失败：${i2vResult.message}，尝试文生视频兜底`)
+          const t2vResult = await t2v.generate({
+            prompt: enrichedPrompt,
+            negativePrompt: shot.negativePrompt ?? DEFAULT_NEGATIVE,
+            aspectRatio: queryAspectRatio(shot),
+            durationSec: duration,
+            outputPath: videoOut
+          })
+          if (t2vResult.ok && t2vResult.path) {
+            sceneVideoPaths.push(t2vResult.path)
+            composePath = t2vResult.path
+            videoOk += 1
+            notes.push(`${shot.id} 文生视频兜底：${t2vResult.path}`)
+          } else {
+            notes.push(`${shot.id} 文生视频也失败：${t2vResult.message}，合成将使用静图`)
+          }
+        }
+      }
+
+      if (composePath) {
+        sceneAssetPaths.push(composePath)
       }
 
       if (shot.narration?.trim()) {
@@ -239,16 +335,28 @@ export const generateSceneAssetsTool: AgentTool = {
     const manifestPath = join(sceneDir, 'assets-manifest.json')
     writeFileSync(
       manifestPath,
-      JSON.stringify({ storyboardPath, assetPaths, audioPaths, notes }, null, 2),
+      JSON.stringify(
+        {
+          storyboardPath,
+          sceneAssetPaths,
+          sceneVideoPaths,
+          sceneImagePaths,
+          audioPaths,
+          notes
+        },
+        null,
+        2
+      ),
       'utf-8'
     )
 
     return queryEncodeWorkflowCtxResult(
-      `场景素材处理完成（画面 ${imageOk}/${doc.shots.length}，旁白 ${voiceOk}/${voiceTotal}）\n` +
+      `场景素材处理完成（关键帧 ${imageOk}/${doc.shots.length}，视频 ${videoOk}/${doc.shots.length}，旁白 ${voiceOk}/${voiceTotal}）\n` +
         notes.join('\n'),
       {
-        sceneAssetsOk: assetPaths.length > 0 ? '1' : '0',
-        sceneAssetPaths: JSON.stringify(assetPaths),
+        sceneAssetsOk: sceneAssetPaths.length > 0 ? '1' : '0',
+        sceneAssetPaths: JSON.stringify(sceneAssetPaths),
+        sceneVideoPaths: JSON.stringify(sceneVideoPaths),
         sceneAudioPaths: JSON.stringify(audioPaths),
         sceneAssetsManifest: manifestPath
       }
@@ -256,12 +364,12 @@ export const generateSceneAssetsTool: AgentTool = {
   }
 }
 
-/** 将分镜素材合成为成片（本地 ffmpeg 兜底） */
+/** 将分镜素材合成为成片（本地 ffmpeg） */
 export const composeVideoTool: AgentTool = {
   name: 'compose_video',
   description:
-    '将场景图片/短视频合成为成片。可传 scenePaths；缺省读取本会话 assets-manifest。' +
-    '默认使用本地 ffmpeg 合成 Provider。写入 context.videoPath。',
+    '将场景视频片段/静图合成为成片。可传 scenePaths；缺省读取本会话 assets-manifest。' +
+    '支持多段旁白 concat。写入 context.videoPath。',
   permission: 'sensitive',
   parameters: {
     type: 'object',
@@ -269,40 +377,40 @@ export const composeVideoTool: AgentTool = {
       scenePaths: {
         type: 'array',
         items: { type: 'string' },
-        description: '分镜素材绝对路径列表'
+        description: '分镜素材绝对路径列表（优先 mp4）'
       },
       audioPath: { type: 'string', description: '可选整片旁白音频' },
       title: { type: 'string', description: '成片标题' },
-      sceneDurationSec: { type: 'number', description: '每镜时长秒，默认 3' }
+      sceneDurationSec: { type: 'number', description: '静图每镜时长秒，默认 3' }
     },
     required: []
   },
   async execute(args, ctx) {
-    refreshActiveTextToImageProvider()
-    refreshActiveTextToSpeechProvider()
+    refreshActiveVideoProviders()
     let scenePaths = Array.isArray(args.scenePaths)
       ? (args.scenePaths as unknown[]).map(String).filter(Boolean)
       : []
 
     let audioPath =
       args.audioPath != null ? String(args.audioPath).trim() || undefined : undefined
+    let audioPaths: string[] = []
 
-    if (!scenePaths.length || !audioPath) {
-      const manifestPath = join(querySceneAssetsDir(ctx.sessionId), 'assets-manifest.json')
-      if (existsSync(manifestPath)) {
-        const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
-          assetPaths?: string[]
-          audioPaths?: string[]
-        }
-        if (!scenePaths.length) scenePaths = manifest.assetPaths ?? []
-        // 多镜旁白时先用首段；完整时间轴对齐后续可在 compose 增强
-        if (!audioPath && manifest.audioPaths?.length) {
-          audioPath = manifest.audioPaths[0]
-        }
+    const manifestPath = join(querySceneAssetsDir(ctx.sessionId), 'assets-manifest.json')
+    if (existsSync(manifestPath)) {
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
+        sceneAssetPaths?: string[]
+        sceneVideoPaths?: string[]
+        audioPaths?: string[]
+      }
+      if (!scenePaths.length) {
+        scenePaths = manifest.sceneAssetPaths ?? manifest.sceneVideoPaths ?? []
+      }
+      audioPaths = manifest.audioPaths ?? []
+      if (!audioPath && audioPaths.length === 1) {
+        audioPath = audioPaths[0]
       }
     }
 
-    // 无图片时尝试用分镜 visual 文本文件路径（ffmpeg 可能失败，但会落 manifest）
     if (!scenePaths.length) {
       return '缺少 scenePaths，且会话内无 assets-manifest。请先 generate_scene_assets。'
     }
@@ -311,6 +419,7 @@ export const composeVideoTool: AgentTool = {
     const result = await compose.compose({
       scenePaths,
       audioPath,
+      audioPaths: audioPath ? undefined : audioPaths,
       title: args.title != null ? String(args.title) : undefined,
       sceneDurationSec: args.sceneDurationSec != null ? Number(args.sceneDurationSec) : 3,
       outputPath: join(queryProjectDir(ctx.sessionId), `final-${Date.now()}.mp4`)

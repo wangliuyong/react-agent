@@ -1,0 +1,1 @@
+export { MessageVideoPlayer } from './MessageVideoPlayer'

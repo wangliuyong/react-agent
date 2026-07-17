@@ -49,6 +49,11 @@ export async function queryLocalImageDataUrl(filePath: string): Promise<string |
   return window.api.queryLocalImageDataUrl(filePath)
 }
 
+/** 读取本地音视频为 media:// URL，供聊天内联播放 */
+export async function queryLocalMediaUrl(filePath: string): Promise<string | null> {
+  return window.api.queryLocalMediaUrl(filePath)
+}
+
 /** 从当前供应商平台拉取可用模型（百炼 / DeepSeek 等 OpenAI 兼容 /models） */
 export async function queryProviderModels(
   override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>
