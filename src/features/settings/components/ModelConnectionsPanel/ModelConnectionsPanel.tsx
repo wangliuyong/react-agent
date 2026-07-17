@@ -1,8 +1,12 @@
 import type { CSSProperties } from 'react'
 import {
   DEFAULT_CONNECTION,
+  queryModelOptionDisplayLabel,
+  queryModelOptions,
+  queryProviderOption,
   type ModelCapability,
   type ModelConnection,
+  type ModelOption,
   type ModelProvider,
   type ModelRoleKey,
   type RoleModelMap
@@ -43,10 +47,37 @@ function queryNewConnectionId(): string {
   return `conn-${Date.now().toString(36)}`
 }
 
+/** 同一供应商 + Base URL + Key 共用一份平台模型缓存 */
+function queryModelsCacheKey(conn: Pick<ModelConnection, 'provider' | 'baseUrl' | 'apiKey'>): string {
+  return `${conn.provider}|${conn.baseUrl.trim()}|${conn.apiKey.trim()}`
+}
+
+function querySelectOptions(
+  models: ModelOption[],
+  currentModel: string,
+  provider: ModelProvider
+): { value: string; label: string }[] {
+  const options = models.map((m) => ({
+    value: m.value,
+    label: queryModelOptionDisplayLabel(m)
+  }))
+  if (currentModel && !models.some((m) => m.value === currentModel)) {
+    options.unshift({
+      value: currentModel,
+      label: queryModelOptionDisplayLabel({
+        provider,
+        value: currentModel,
+        label: currentModel
+      })
+    })
+  }
+  return options
+}
+
 /**
  * 多模型连接与角色映射配置面板。
  * 本地草稿编辑，保存时一次性写入，避免逐键击打 IPC。
- * 卡片网格气质对齐技能市场。
+ * 模型下拉优先走供应商平台 /models（百炼 / DeepSeek 等）。
  */
 export function ModelConnectionsPanel(): React.ReactElement {
   const settings = useSettingsStore((s) => s.settings)
@@ -61,6 +92,9 @@ export function ModelConnectionsPanel(): React.ReactElement {
   const [roleModelMap, setRoleModelMap] = useState<RoleModelMap>(
     settings.roleModelMap ?? {}
   )
+  /** cacheKey → 平台模型列表；null 表示拉取失败，回退静态 */
+  const [modelsByKey, setModelsByKey] = useState<Record<string, ModelOption[] | null>>({})
+  const [loadingKeys, setLoadingKeys] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     setConnections(
@@ -69,6 +103,68 @@ export function ModelConnectionsPanel(): React.ReactElement {
     setDefaultConnectionId(settings.defaultConnectionId)
     setRoleModelMap(settings.roleModelMap ?? {})
   }, [settings.connections, settings.defaultConnectionId, settings.roleModelMap])
+
+  /**
+   * 按连接凭证去重后拉取 /models；无 Key 时不请求，下拉用静态兜底。
+   */
+  useEffect(() => {
+    const unique = new Map<string, ModelConnection>()
+    for (const conn of connections) {
+      if (!conn.apiKey.trim()) continue
+      const key = queryModelsCacheKey(conn)
+      if (!unique.has(key)) unique.set(key, conn)
+    }
+
+    const controllers: Array<() => void> = []
+    for (const [cacheKey, conn] of unique) {
+      // 已成功或已失败（null）都不再重复打；仅未请求过的 key 才拉
+      if (cacheKey in modelsByKey || loadingKeys[cacheKey]) continue
+
+      let cancelled = false
+      setLoadingKeys((prev) => ({ ...prev, [cacheKey]: true }))
+      const timer = window.setTimeout(() => {
+        void window.api
+          .queryProviderModels({
+            provider: conn.provider,
+            apiKey: conn.apiKey,
+            baseUrl: conn.baseUrl || queryProviderOption(conn.provider).defaultBaseUrl
+          })
+          .then((models) => {
+            if (!cancelled) {
+              setModelsByKey((prev) => ({
+                ...prev,
+                [cacheKey]: models.length > 0 ? models : null
+              }))
+            }
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setModelsByKey((prev) => ({ ...prev, [cacheKey]: null }))
+            }
+          })
+          .finally(() => {
+            if (!cancelled) {
+              setLoadingKeys((prev) => ({ ...prev, [cacheKey]: false }))
+            }
+          })
+      }, 350)
+
+      controllers.push(() => {
+        cancelled = true
+        window.clearTimeout(timer)
+      })
+    }
+
+    return () => {
+      for (const cancel of controllers) cancel()
+    }
+    // 仅在凭证集合变化时拉取；modelsByKey / loadingKeys 不放入依赖以免循环
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    connections
+      .map((c) => `${c.id}:${c.provider}:${c.baseUrl}:${c.apiKey.trim() ? '1' : '0'}:${c.apiKey}`)
+      .join('|')
+  ])
 
   const handleSave = async (): Promise<void> => {
     if (connections.length === 0) {
@@ -96,7 +192,17 @@ export function ModelConnectionsPanel(): React.ReactElement {
     value: unknown
   ): void => {
     setConnections((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, [field]: value } : c))
+      prev.map((c) => {
+        if (c.id !== id) return c
+        const next = { ...c, [field]: value }
+        // 切换供应商时同步默认 Base URL，并清掉模型缓存依赖
+        if (field === 'provider') {
+          const meta = queryProviderOption(value as ModelProvider)
+          next.baseUrl = meta.defaultBaseUrl
+          next.model = meta.defaultModel
+        }
+        return next
+      })
     )
   }
 
@@ -108,7 +214,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
             模型连接
           </Title>
           <Text type="secondary" className={styles.desc}>
-            为不同角色 / 任务绑定不同模型；未映射时使用默认连接
+            Agent 按角色自动选型；模型列表来自平台 /models，填写 API Key 后自动刷新
           </Text>
         </div>
         <Space wrap>
@@ -136,107 +242,124 @@ export function ModelConnectionsPanel(): React.ReactElement {
       </div>
 
       <div className={styles.grid}>
-        {connections.map((conn, index) => (
-          <Card
-            key={conn.id}
-            variant="borderless"
-            className={styles.card}
-            style={{ '--card-index': index } as CSSProperties}
-          >
-            <div className={styles.cardHead}>
-              <Input
-                value={conn.label}
-                onChange={(e) => handleFieldChange(conn.id, 'label', e.target.value)}
-                placeholder="连接名称"
-                className={styles.labelInput}
-              />
-              <Space size={4}>
-                {defaultConnectionId === conn.id ? (
-                  <Tag className={styles.defaultTag}>默认</Tag>
-                ) : (
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => setDefaultConnectionId(conn.id)}
-                  >
-                    设为默认
-                  </Button>
-                )}
-                <Button
-                  type="text"
-                  danger
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  disabled={connections.length <= 1}
-                  onClick={() => {
-                    setConnections((prev) => {
-                      const next = prev.filter((c) => c.id !== conn.id)
-                      if (defaultConnectionId === conn.id && next[0]) {
-                        setDefaultConnectionId(next[0].id)
-                      }
-                      return next
-                    })
-                  }}
-                />
-              </Space>
-            </div>
+        {connections.map((conn, index) => {
+          const cacheKey = queryModelsCacheKey(conn)
+          const remote = conn.apiKey.trim() ? modelsByKey[cacheKey] : null
+          const modelOptions = querySelectOptions(
+            remote ?? queryModelOptions(conn.provider),
+            conn.model,
+            conn.provider
+          )
+          const modelsLoading = Boolean(loadingKeys[cacheKey])
 
-            <div className={styles.fields}>
-              <div>
-                <Text type="secondary" className={styles.fieldLabel}>
-                  供应商
-                </Text>
-                <Select
-                  style={{ width: '100%' }}
-                  value={conn.provider}
-                  options={PROVIDER_OPTIONS}
-                  onChange={(v) => handleFieldChange(conn.id, 'provider', v)}
-                />
-              </div>
-              <div>
-                <Text type="secondary" className={styles.fieldLabel}>
-                  模型
-                </Text>
+          return (
+            <Card
+              key={conn.id}
+              variant="borderless"
+              className={styles.card}
+              style={{ '--card-index': index } as CSSProperties}
+            >
+              <div className={styles.cardHead}>
                 <Input
-                  value={conn.model}
-                  onChange={(e) => handleFieldChange(conn.id, 'model', e.target.value)}
-                  placeholder="qwen-plus"
+                  value={conn.label}
+                  onChange={(e) => handleFieldChange(conn.id, 'label', e.target.value)}
+                  placeholder="连接名称"
+                  className={styles.labelInput}
                 />
+                <Space size={4}>
+                  {defaultConnectionId === conn.id ? (
+                    <Tag className={styles.defaultTag}>默认</Tag>
+                  ) : (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => setDefaultConnectionId(conn.id)}
+                    >
+                      设为默认
+                    </Button>
+                  )}
+                  <Button
+                    type="text"
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    disabled={connections.length <= 1}
+                    onClick={() => {
+                      setConnections((prev) => {
+                        const next = prev.filter((c) => c.id !== conn.id)
+                        if (defaultConnectionId === conn.id && next[0]) {
+                          setDefaultConnectionId(next[0].id)
+                        }
+                        return next
+                      })
+                    }}
+                  />
+                </Space>
               </div>
-              <div className={styles.span2}>
-                <Text type="secondary" className={styles.fieldLabel}>
-                  Base URL
-                </Text>
-                <Input
-                  value={conn.baseUrl}
-                  onChange={(e) => handleFieldChange(conn.id, 'baseUrl', e.target.value)}
-                />
+
+              <div className={styles.fields}>
+                <div>
+                  <Text type="secondary" className={styles.fieldLabel}>
+                    供应商
+                  </Text>
+                  <Select
+                    style={{ width: '100%' }}
+                    value={conn.provider}
+                    options={PROVIDER_OPTIONS}
+                    onChange={(v) => handleFieldChange(conn.id, 'provider', v)}
+                  />
+                </div>
+                <div>
+                  <Text type="secondary" className={styles.fieldLabel}>
+                    模型
+                  </Text>
+                  <Select
+                    showSearch
+                    allowClear={false}
+                    optionFilterProp="label"
+                    style={{ width: '100%' }}
+                    value={conn.model || undefined}
+                    options={modelOptions}
+                    loading={modelsLoading}
+                    placeholder={conn.apiKey.trim() ? '从平台选择模型' : '先填写 API Key'}
+                    onChange={(v) => handleFieldChange(conn.id, 'model', v)}
+                  />
+                </div>
+                <div className={styles.span2}>
+                  <Text type="secondary" className={styles.fieldLabel}>
+                    Base URL
+                  </Text>
+                  <Input
+                    value={conn.baseUrl}
+                    onChange={(e) => handleFieldChange(conn.id, 'baseUrl', e.target.value)}
+                  />
+                </div>
+                <div className={styles.span2}>
+                  <Text type="secondary" className={styles.fieldLabel}>
+                    API Key
+                  </Text>
+                  <Input.Password
+                    value={conn.apiKey}
+                    onChange={(e) => handleFieldChange(conn.id, 'apiKey', e.target.value)}
+                    placeholder="仅存本机"
+                  />
+                </div>
+                <div className={styles.span2}>
+                  <Text type="secondary" className={styles.fieldLabel}>
+                    能力标签
+                  </Text>
+                  <Select
+                    mode="multiple"
+                    style={{ width: '100%' }}
+                    value={conn.capabilities}
+                    options={CAPABILITY_OPTIONS}
+                    onChange={(v) => handleFieldChange(conn.id, 'capabilities', v)}
+                  />
+                </div>
               </div>
-              <div className={styles.span2}>
-                <Text type="secondary" className={styles.fieldLabel}>
-                  API Key
-                </Text>
-                <Input.Password
-                  value={conn.apiKey}
-                  onChange={(e) => handleFieldChange(conn.id, 'apiKey', e.target.value)}
-                  placeholder="仅存本机"
-                />
-              </div>
-              <div className={styles.span2}>
-                <Text type="secondary" className={styles.fieldLabel}>
-                  能力标签
-                </Text>
-                <Select
-                  mode="multiple"
-                  style={{ width: '100%' }}
-                  value={conn.capabilities}
-                  options={CAPABILITY_OPTIONS}
-                  onChange={(v) => handleFieldChange(conn.id, 'capabilities', v)}
-                />
-              </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          )
+        })}
       </div>
 
       <div className={styles.roleSection}>
@@ -245,7 +368,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
             角色 / 任务 → 模型
           </Title>
           <Text type="secondary" className={styles.desc}>
-            未指定时回落到默认连接
+            Supervisor 路由到角色后使用对应连接；清空某一项会恢复该角色的推荐映射
           </Text>
         </div>
         <div className={styles.roleGrid}>

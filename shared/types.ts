@@ -158,24 +158,254 @@ export interface AppSettings {
 
 export const DEFAULT_CONNECTION_ID = 'conn-default'
 
-export const DEFAULT_CONNECTION: ModelConnection = {
-  id: DEFAULT_CONNECTION_ID,
-  label: '默认（阿里云百炼）',
-  provider: 'dashscope',
-  apiKey: '',
-  baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  model: 'qwen-plus',
-  capabilities: ['chat', 'reasoning', 'creative']
+/** 内置默认连接 id：Agent 按角色/任务选型时使用 */
+export const DEFAULT_CONNECTION_IDS = {
+  default: 'conn-default',
+  fast: 'conn-fast',
+  reason: 'conn-reason',
+  creative: 'conn-creative',
+  media: 'conn-media'
+} as const
+
+const DASHSCOPE_COMPAT_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+
+/**
+ * 按种子凭证生成一套默认多模型连接。
+ * 为什么：Supervisor 按角色路由后，各角色通过 roleModelMap 落到不同模型；
+ * 用户可在设置页改模型 / 改映射，也可删减连接。
+ */
+export function queryBuildDefaultConnections(seed?: {
+  apiKey?: string
+  provider?: ModelProvider
+  baseUrl?: string
+}): ModelConnection[] {
+  const apiKey = seed?.apiKey?.trim() ?? ''
+  const provider = seed?.provider ?? 'dashscope'
+  const baseUrl =
+    seed?.baseUrl?.trim() ||
+    (provider === 'deepseek'
+      ? 'https://api.deepseek.com'
+      : provider === 'openai_compatible'
+        ? 'https://api.openai.com/v1'
+        : DASHSCOPE_COMPAT_BASE)
+
+  if (provider === 'deepseek') {
+    return [
+      {
+        id: DEFAULT_CONNECTION_IDS.default,
+        label: '通用对话（DeepSeek Flash）',
+        provider: 'deepseek',
+        apiKey,
+        baseUrl,
+        model: 'deepseek-v4-flash',
+        capabilities: ['chat']
+      },
+      {
+        id: DEFAULT_CONNECTION_IDS.fast,
+        label: '路由调度（DeepSeek Flash）',
+        provider: 'deepseek',
+        apiKey,
+        baseUrl,
+        model: 'deepseek-v4-flash',
+        capabilities: ['chat']
+      },
+      {
+        id: DEFAULT_CONNECTION_IDS.reason,
+        label: '调研推理（DeepSeek Pro）',
+        provider: 'deepseek',
+        apiKey,
+        baseUrl,
+        model: 'deepseek-v4-pro',
+        capabilities: ['reasoning', 'chat']
+      },
+      {
+        id: DEFAULT_CONNECTION_IDS.creative,
+        label: '创作编剧（DeepSeek Flash）',
+        provider: 'deepseek',
+        apiKey,
+        baseUrl,
+        model: 'deepseek-v4-flash',
+        capabilities: ['creative', 'chat']
+      },
+      // 媒体（万相/TTS）仍走百炼 HTTP，单独留一条空 Key 连接便于用户补填
+      {
+        id: DEFAULT_CONNECTION_IDS.media,
+        label: '媒体生成（百炼 · 万相/TTS）',
+        provider: 'dashscope',
+        apiKey: '',
+        baseUrl: DASHSCOPE_COMPAT_BASE,
+        model: 'qwen-plus',
+        capabilities: ['vision', 'chat']
+      }
+    ]
+  }
+
+  // 默认：阿里云百炼（与主设置页默认供应商一致）
+  return [
+    {
+      id: DEFAULT_CONNECTION_IDS.default,
+      label: '通用对话（Qwen Plus）',
+      provider: 'dashscope',
+      apiKey,
+      baseUrl: baseUrl || DASHSCOPE_COMPAT_BASE,
+      model: 'qwen-plus',
+      capabilities: ['chat']
+    },
+    {
+      id: DEFAULT_CONNECTION_IDS.fast,
+      label: '路由调度（Qwen Turbo）',
+      provider: 'dashscope',
+      apiKey,
+      baseUrl: baseUrl || DASHSCOPE_COMPAT_BASE,
+      model: 'qwen-turbo',
+      capabilities: ['chat']
+    },
+    {
+      id: DEFAULT_CONNECTION_IDS.reason,
+      label: '调研推理（Qwen Max）',
+      provider: 'dashscope',
+      apiKey,
+      baseUrl: baseUrl || DASHSCOPE_COMPAT_BASE,
+      model: 'qwen-max',
+      capabilities: ['reasoning', 'chat', 'longContext']
+    },
+    {
+      id: DEFAULT_CONNECTION_IDS.creative,
+      label: '创作编剧（Qwen Plus）',
+      provider: 'dashscope',
+      apiKey,
+      baseUrl: baseUrl || DASHSCOPE_COMPAT_BASE,
+      model: 'qwen-plus',
+      capabilities: ['creative', 'chat']
+    },
+    {
+      id: DEFAULT_CONNECTION_IDS.media,
+      label: '媒体生成（百炼 · 万相/TTS）',
+      provider: 'dashscope',
+      apiKey,
+      baseUrl: baseUrl || DASHSCOPE_COMPAT_BASE,
+      model: 'qwen-plus',
+      capabilities: ['vision', 'chat']
+    }
+  ]
+}
+
+/** 兼容旧代码：单条默认连接 = 默认套装中的「通用对话」 */
+export const DEFAULT_CONNECTION: ModelConnection = queryBuildDefaultConnections()[0]
+
+/**
+ * 角色 / 任务 → 默认连接。
+ * Agent 图按角色调用 createChatModel(settings, role) 时读取此映射。
+ */
+export const DEFAULT_ROLE_MODEL_MAP: RoleModelMap = {
+  supervisor: DEFAULT_CONNECTION_IDS.fast,
+  general: DEFAULT_CONNECTION_IDS.default,
+  researcher: DEFAULT_CONNECTION_IDS.reason,
+  writer: DEFAULT_CONNECTION_IDS.creative,
+  publisher: DEFAULT_CONNECTION_IDS.default,
+  scriptwriter: DEFAULT_CONNECTION_IDS.creative,
+  videographer: DEFAULT_CONNECTION_IDS.media,
+  editor: DEFAULT_CONNECTION_IDS.default,
+  script: DEFAULT_CONNECTION_IDS.creative,
+  storyboard: DEFAULT_CONNECTION_IDS.creative,
+  video: DEFAULT_CONNECTION_IDS.media,
+  default: DEFAULT_CONNECTION_IDS.default
+}
+
+const DEFAULT_TEMPLATE_IDS = new Set<string>(Object.values(DEFAULT_CONNECTION_IDS))
+
+/**
+ * 幂等补齐内置连接模板：保留用户已改动的同 id 连接，补全缺失模板。
+ * 若用户已自建非模板连接（多条自定义），则不自动扩容，避免打扰。
+ */
+export function querySeedDefaultConnections(
+  existing: ModelConnection[]
+): ModelConnection[] {
+  if (existing.length === 0) {
+    return queryBuildDefaultConnections()
+  }
+
+  const onlyTemplatesOrSingle =
+    existing.length === 1 || existing.every((c) => DEFAULT_TEMPLATE_IDS.has(c.id))
+  if (!onlyTemplatesOrSingle) {
+    return existing
+  }
+
+  const primary = existing[0]
+  const templates = queryBuildDefaultConnections({
+    apiKey: primary.apiKey,
+    provider: primary.provider,
+    baseUrl: primary.baseUrl
+  })
+  const byId = new Map(existing.map((c) => [c.id, c]))
+  const merged: ModelConnection[] = []
+
+  for (const template of templates) {
+    const prev = byId.get(template.id)
+    if (prev) {
+      // 保留用户改过的 label/model/capabilities；空 Key 时继承主连接 Key（同供应商）
+      merged.push({
+        ...template,
+        ...prev,
+        apiKey:
+          prev.apiKey.trim() ||
+          (prev.provider === primary.provider ? primary.apiKey : prev.apiKey),
+        capabilities: prev.capabilities?.length ? prev.capabilities : template.capabilities
+      })
+      byId.delete(template.id)
+    } else {
+      merged.push({
+        ...template,
+        apiKey:
+          template.provider === primary.provider
+            ? primary.apiKey
+            : template.apiKey
+      })
+    }
+  }
+
+  // 追加用户额外保留的同模板套装外连接（理论上 onlyTemplates 时为空）
+  for (const leftover of byId.values()) {
+    merged.push(leftover)
+  }
+  return merged
+}
+
+/**
+ * 合并角色映射：用户已填的键优先；缺失键用默认映射（连接不存在则回退 fallbackId）。
+ */
+export function queryMergeDefaultRoleModelMap(
+  existing: RoleModelMap | undefined,
+  connectionIds: Set<string>,
+  fallbackId: string
+): RoleModelMap {
+  const next: RoleModelMap = { ...DEFAULT_ROLE_MODEL_MAP }
+  for (const [role, connId] of Object.entries(DEFAULT_ROLE_MODEL_MAP) as [
+    ModelRoleKey,
+    string
+  ][]) {
+    if (!connectionIds.has(connId)) {
+      next[role] = fallbackId
+    }
+  }
+  if (existing) {
+    for (const [role, connId] of Object.entries(existing) as [ModelRoleKey, string][]) {
+      if (connId && connectionIds.has(connId)) {
+        next[role] = connId
+      }
+    }
+  }
+  return next
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   provider: 'dashscope',
   apiKey: '',
-  baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  baseUrl: DASHSCOPE_COMPAT_BASE,
   model: 'qwen-plus',
-  connections: [{ ...DEFAULT_CONNECTION }],
+  connections: queryBuildDefaultConnections(),
   defaultConnectionId: DEFAULT_CONNECTION_ID,
-  roleModelMap: {},
+  roleModelMap: { ...DEFAULT_ROLE_MODEL_MAP },
   fullAccess: false,
   maxTurns: 40,
   launchAtLogin: false
@@ -224,6 +454,79 @@ export interface ModelOption {
   label: string
   /** 简短说明，用于下拉提示 */
   description?: string
+  /**
+   * 模型类型（文本对话 / 视觉理解 / 语音合成等）。
+   * 下拉项优先展示，便于从平台长列表中快速筛选。
+   */
+  category?: string
+}
+
+/**
+ * 根据模型 id 推断类型文案。
+ * 为什么：百炼 /models 常只返回 id，用命名约定区分对话、视觉、语音、向量等。
+ */
+export function queryModelCategory(modelId: string): string {
+  const id = modelId.trim().toLowerCase()
+  if (!id) return '未知'
+
+  if (
+    /(^|[-_/])(vl|vision|qvq|ocr|image-understand|visual)([-_/]|$)/.test(id) ||
+    id.includes('qwen-vl') ||
+    id.includes('qwen2-vl') ||
+    id.includes('qwen2.5-vl')
+  ) {
+    return '视觉理解'
+  }
+  if (
+    /(tts|cosyvoice|speech|audio|asr|paraformer|sambert)/.test(id) ||
+    id.includes('qwen-audio')
+  ) {
+    return '语音'
+  }
+  if (/(wanx|wan2\.|t2i|text2image|image-synthesis|flux|stable-diffusion)/.test(id)) {
+    return '文生图'
+  }
+  if (/(i2v|image2video|video-generation|animate|kling)/.test(id)) {
+    return '图生视频'
+  }
+  if (/(embedding|text-embedding|bge-)/.test(id)) {
+    return '向量嵌入'
+  }
+  if (/rerank/.test(id)) {
+    return '重排序'
+  }
+  if (/(coder|code)/.test(id)) {
+    return '代码'
+  }
+  if (/math/.test(id)) {
+    return '数学'
+  }
+  if (/omni/.test(id)) {
+    return '全模态'
+  }
+  if (/(long|longcontext)/.test(id)) {
+    return '长文本'
+  }
+  if (
+    /(reasoner|reasoning|thinking|r1|qwq)/.test(id) ||
+    id.includes('deepseek-r1')
+  ) {
+    return '深度推理'
+  }
+  if (/(turbo|flash)/.test(id)) {
+    return '高速对话'
+  }
+  if (/(max|plus|pro|chat)/.test(id) || /^qwen/.test(id) || /^deepseek/.test(id)) {
+    return '文本对话'
+  }
+  return '通用模型'
+}
+
+/** 下拉展示：名称 · 类型 — 说明 */
+export function queryModelOptionDisplayLabel(option: ModelOption): string {
+  const category = option.category || queryModelCategory(option.value)
+  const head = `${option.label} · ${category}`
+  return option.description ? `${head} — ${option.description}` : head
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [

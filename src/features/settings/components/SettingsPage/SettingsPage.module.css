@@ -191,6 +191,12 @@
   font-size: 12px;
 }
 
+.modelLabelRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .providerTag {
   flex-shrink: 0;
   margin: 0 !important;

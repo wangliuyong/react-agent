@@ -1,4 +1,5 @@
 import {
+  queryModelCategory,
   queryModelOptions,
   queryProviderOption,
   type AppSettings,
@@ -6,7 +7,7 @@ import {
   type ModelProvider
 } from '../../../shared/types'
 
-/** OpenAI 兼容 /models 列表项 */
+/** OpenAI 兼容 /models 列表项（百炼等可能附带 owned_by） */
 export interface ProviderModelListItem {
   id?: string
   object?: string
@@ -27,30 +28,45 @@ export function queryModelsEndpoint(baseUrl: string): string {
 
 /**
  * 将平台返回转为聊天/设置页可用的 ModelOption。
- * 为什么：平台只给 id，展示名先用 id，避免硬编码过期文案。
+ * 补齐本地已知文案，并写入模型类型便于下拉展示。
  */
 export function queryModelOptionsFromListResponse(
   provider: ModelProvider,
   payload: ProviderModelListResponse
 ): ModelOption[] {
-  const ids = (payload.data ?? [])
-    .map((item) => item.id?.trim())
-    .filter((id): id is string => Boolean(id))
+  const items = (payload.data ?? []).filter((item) => Boolean(item.id?.trim()))
+  const seen = new Set<string>()
+  const uniqueItems: ProviderModelListItem[] = []
+  for (const item of items) {
+    const id = item.id!.trim()
+    if (seen.has(id)) continue
+    seen.add(id)
+    uniqueItems.push(item)
+  }
 
-  // 去重，保持平台返回顺序（避免依赖 downlevelIteration）
-  const uniqueIds = Array.from(new Set(ids))
-  return uniqueIds.map((id) => ({
-    provider,
-    value: id,
-    label: id
-  }))
+  const staticByValue = new Map(
+    queryModelOptions(provider).map((option) => [option.value, option])
+  )
+  return uniqueItems.map((item) => {
+    const id = item.id!.trim()
+    const known = staticByValue.get(id)
+    const category = queryModelCategory(id)
+    const ownedBy = item.owned_by?.trim()
+    return {
+      provider,
+      value: id,
+      label: known?.label ?? id,
+      description: known?.description ?? (ownedBy ? `来源 ${ownedBy}` : undefined),
+      category
+    }
+  })
 }
 
 type FetchLike = typeof fetch
 
 /**
  * 从当前供应商 OpenAI 兼容接口拉取可用模型。
- * DeepSeek 等平台会随版本调整模型 id，静态列表容易过期。
+ * 百炼 / DeepSeek / 兼容网关均支持 GET {baseUrl}/models。
  */
 export async function queryProviderModels(
   settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>,
@@ -72,7 +88,15 @@ export async function queryProviderModels(
   })
 
   if (!response.ok) {
-    throw new Error(`获取模型列表失败（HTTP ${response.status}）`)
+    let detail = ''
+    try {
+      detail = (await response.text()).slice(0, 200)
+    } catch {
+      /* ignore */
+    }
+    throw new Error(
+      `获取模型列表失败（HTTP ${response.status}）${detail ? `：${detail}` : ''}`
+    )
   }
 
   const payload = (await response.json()) as ProviderModelListResponse

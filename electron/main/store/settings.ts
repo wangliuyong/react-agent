@@ -2,6 +2,8 @@ import {
   DEFAULT_CONNECTION,
   DEFAULT_CONNECTION_ID,
   DEFAULT_SETTINGS,
+  queryMergeDefaultRoleModelMap,
+  querySeedDefaultConnections,
   type AppSettings,
   type ModelCapability,
   type ModelConnection,
@@ -75,6 +77,7 @@ function queryMigrateLegacyConnections(
 
 /**
  * 合并默认值、迁移多连接字段并剥离已废弃字段。
+ * 首次/仅单连接用户会幂等补齐默认连接套装与角色映射，用户已改项优先保留。
  */
 export function normalizeSettings(
   raw: Partial<AppSettings> & Record<string, unknown>
@@ -82,20 +85,25 @@ export function normalizeSettings(
   const merged = { ...DEFAULT_SETTINGS, ...raw }
   delete (merged as Record<string, unknown>).agentRuntime
 
-  const connections = queryMigrateLegacyConnections(raw)
+  const connections = querySeedDefaultConnections(queryMigrateLegacyConnections(raw))
   const defaultConnectionId =
     String(raw.defaultConnectionId ?? '').trim() ||
     connections[0]?.id ||
     DEFAULT_CONNECTION_ID
 
-  const roleModelMap: RoleModelMap =
+  const connectionIds = new Set(connections.map((c) => c.id))
+  const primary =
+    connections.find((c) => c.id === defaultConnectionId) ?? connections[0] ?? DEFAULT_CONNECTION
+
+  const rawRoleMap: RoleModelMap =
     raw.roleModelMap && typeof raw.roleModelMap === 'object'
       ? { ...(raw.roleModelMap as RoleModelMap) }
       : {}
-
-  // 顶层 provider/apiKey 与默认连接保持同步，兼容旧 UI / IPC 调用方
-  const primary =
-    connections.find((c) => c.id === defaultConnectionId) ?? connections[0] ?? DEFAULT_CONNECTION
+  const roleModelMap = queryMergeDefaultRoleModelMap(
+    rawRoleMap,
+    connectionIds,
+    primary.id
+  )
 
   return {
     provider: primary.provider,
@@ -115,14 +123,14 @@ export function normalizeSettings(
 function readSettingsFile(): AppSettings {
   const path = getSettingsPath()
   if (!existsSync(path)) {
-    return { ...DEFAULT_SETTINGS, connections: [{ ...DEFAULT_CONNECTION }] }
+    return normalizeSettings({ ...DEFAULT_SETTINGS })
   }
   try {
     const raw = JSON.parse(readFileSync(path, 'utf-8')) as Partial<AppSettings> &
       Record<string, unknown>
     return normalizeSettings(raw)
   } catch {
-    return { ...DEFAULT_SETTINGS, connections: [{ ...DEFAULT_CONNECTION }] }
+    return normalizeSettings({ ...DEFAULT_SETTINGS })
   }
 }
 
@@ -148,16 +156,39 @@ export function postSettings(partial: Partial<AppSettings>): AppSettings {
       partial.provider != null) &&
     !partial.connections
   ) {
-    const connections = [...current.connections]
+    const connections = current.connections.map((c) => ({ ...c }))
     const idx = connections.findIndex((c) => c.id === current.defaultConnectionId)
     const target = idx >= 0 ? idx : 0
-    if (connections[target]) {
+    const primary = connections[target]
+    if (primary) {
+      const prevKey = primary.apiKey
+      const nextProvider = partial.provider ?? primary.provider
+      const nextKey = partial.apiKey ?? primary.apiKey
+      const nextBase = partial.baseUrl ?? primary.baseUrl
       connections[target] = {
-        ...connections[target],
-        provider: partial.provider ?? connections[target].provider,
-        apiKey: partial.apiKey ?? connections[target].apiKey,
-        baseUrl: partial.baseUrl ?? connections[target].baseUrl,
-        model: partial.model ?? connections[target].model
+        ...primary,
+        provider: nextProvider,
+        apiKey: nextKey,
+        baseUrl: nextBase,
+        model: partial.model ?? primary.model
+      }
+
+      // 默认套装里同供应商的空 Key / 旧 Key 兄弟连接一并更新，免得到处重填
+      if (partial.apiKey != null || partial.baseUrl != null || partial.provider != null) {
+        for (let i = 0; i < connections.length; i++) {
+          if (i === target) continue
+          const row = connections[i]
+          const sameProvider = row.provider === nextProvider
+          const shareableKey = !row.apiKey.trim() || row.apiKey === prevKey
+          if (sameProvider && shareableKey) {
+            connections[i] = {
+              ...row,
+              apiKey: nextKey,
+              baseUrl: partial.baseUrl != null ? nextBase : row.baseUrl,
+              provider: nextProvider
+            }
+          }
+        }
       }
       nextPartial.connections = connections
     }

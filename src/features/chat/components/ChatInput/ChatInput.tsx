@@ -1,4 +1,9 @@
-import { queryModelLabel, queryModelOptions, type ModelOption } from '@shared/types'
+import {
+  queryModelCategory,
+  queryModelLabel,
+  queryModelOptions,
+  type ModelOption
+} from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
 import { TypingIndicator } from '../TypingIndicator'
@@ -44,11 +49,11 @@ export function ChatInput({
   const postSettings = useSettingsStore((s) => s.postSettings)
 
   /**
-   * DeepSeek 模型随平台版本变化，聊天框优先展示平台 /models 实时列表。
+   * 百炼 / DeepSeek 等模型随平台版本变化，聊天框优先展示平台 /models 实时列表。
    * 拉取失败时回退静态 MODEL_OPTIONS，保证仍可切换。
    */
   useEffect(() => {
-    if (settings.provider !== 'deepseek' || !settings.apiKey.trim()) {
+    if (!settings.apiKey.trim()) {
       setRemoteModels(null)
       setModelsLoading(false)
       return
@@ -98,14 +103,19 @@ export function ChatInput({
     }
   }
 
-  /** 下拉项：优先平台列表；若当前模型不在列表（历史自定义），追加一项以便展示 */
+  /** 下拉项：优先平台列表；展示名称 + 模型类型；历史自定义模型追加一项 */
   const modelMenuItems = useMemo(() => {
     const providerModels = remoteModels ?? queryModelOptions(settings.provider)
     const items = providerModels.map((m) => ({
       key: m.value,
       label: (
         <div className={styles.modelMenuItem}>
-          <Text>{m.label}</Text>
+          <div className={styles.modelMenuTitleRow}>
+            <Text>{m.label}</Text>
+            <Text type="secondary" className={styles.modelMenuCategory}>
+              {m.category || queryModelCategory(m.value)}
+            </Text>
+          </div>
           {m.description ? (
             <Text type="secondary" className={styles.modelMenuDesc}>
               {m.description}
@@ -120,7 +130,12 @@ export function ChatInput({
         key: settings.model,
         label: (
           <div className={styles.modelMenuItem}>
-            <Text>{settings.model}</Text>
+            <div className={styles.modelMenuTitleRow}>
+              <Text>{settings.model}</Text>
+              <Text type="secondary" className={styles.modelMenuCategory}>
+                {queryModelCategory(settings.model)}
+              </Text>
+            </div>
             <Text type="secondary" className={styles.modelMenuDesc}>
               当前自定义模型
             </Text>

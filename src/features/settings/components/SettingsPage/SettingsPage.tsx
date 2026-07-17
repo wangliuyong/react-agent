@@ -1,5 +1,6 @@
 import {
   MODEL_PROVIDER_OPTIONS,
+  queryModelOptionDisplayLabel,
   queryModelOptions,
   queryProviderOption,
   type AppSettings,
@@ -39,9 +40,12 @@ export function SettingsPage(): React.ReactElement {
   const [tab, setTab] = useState<SettingsTab>('model')
   const [form] = Form.useForm<AppSettings>()
   const [selectedProvider, setSelectedProvider] = useState<ModelProvider>(settings.provider)
-  /** DeepSeek 平台动态模型；null 表示使用静态兜底 */
+  /** 平台 /models 动态列表；null 表示尚未成功拉取，下拉用静态兜底 */
   const [remoteModels, setRemoteModels] = useState<ModelOption[] | null>(null)
   const [modelsLoading, setModelsLoading] = useState(false)
+  const [modelsError, setModelsError] = useState<string | null>(null)
+  /** 手动刷新计数，便于用户点击「刷新模型」重拉 */
+  const [modelsRefreshToken, setModelsRefreshToken] = useState(0)
   /**
    * 按供应商缓存表单草稿：切换时暂存当前输入，切回时可恢复，
    * 避免「已配置 API Key 被清空」且无法回显。
@@ -51,6 +55,14 @@ export function SettingsPage(): React.ReactElement {
   const watchedApiKey = Form.useWatch('apiKey', form)
   const watchedBaseUrl = Form.useWatch('baseUrl', form)
   const providerOption = queryProviderOption(selectedProvider)
+
+  /** 表单空串时回退已保存设置 / 供应商默认地址，避免打到错误 endpoint */
+  const draftApiKey =
+    String(watchedApiKey ?? '').trim() || String(settings.apiKey ?? '').trim()
+  const draftBaseUrl =
+    String(watchedBaseUrl ?? '').trim() ||
+    String(settings.baseUrl ?? '').trim() ||
+    providerOption.defaultBaseUrl
 
   /**
    * 为什么：供应商切换需要 Form.useForm + setFieldsValue；
@@ -71,35 +83,44 @@ export function SettingsPage(): React.ReactElement {
   }, [loaded, settings, form])
 
   /**
-   * DeepSeek 默认模型列表从平台 /models 拉取；
-   * 使用表单草稿 Key / Base URL，便于保存前即可预览可选模型。
-   * 防抖避免输入 API Key 时频繁打平台接口。
+   * 「默认模型」下拉：始终优先走供应商平台 GET /models（百炼 / DeepSeek / 兼容网关）。
+   * 进入「模型与 API」Tab、改 Key/地址、或点刷新时重新拉取。
    */
   useEffect(() => {
-    if (!loaded || selectedProvider !== 'deepseek') {
-      setRemoteModels(null)
-      setModelsLoading(false)
-      return
-    }
+    if (!loaded || tab !== 'model') return
 
-    const apiKey = String(watchedApiKey ?? settings.apiKey).trim()
-    const baseUrl = String(watchedBaseUrl ?? settings.baseUrl).trim()
-    if (!apiKey) {
+    if (!draftApiKey) {
       setRemoteModels(null)
       setModelsLoading(false)
+      setModelsError(null)
       return
     }
 
     let cancelled = false
+    setRemoteModels(null)
+    setModelsError(null)
     const timer = window.setTimeout(() => {
       setModelsLoading(true)
       void window.api
-        .queryProviderModels({ provider: 'deepseek', apiKey, baseUrl })
-        .then((models) => {
-          if (!cancelled && models.length > 0) setRemoteModels(models)
+        .queryProviderModels({
+          provider: selectedProvider,
+          apiKey: draftApiKey,
+          baseUrl: draftBaseUrl
         })
-        .catch(() => {
-          if (!cancelled) setRemoteModels(null)
+        .then((models) => {
+          if (cancelled) return
+          if (models.length > 0) {
+            setRemoteModels(models)
+            setModelsError(null)
+          } else {
+            setRemoteModels(null)
+            setModelsError('平台返回空列表，已使用本地兜底')
+          }
+        })
+        .catch((err) => {
+          if (cancelled) return
+          setRemoteModels(null)
+          setModelsError(err instanceof Error ? err.message : '拉取模型列表失败')
         })
         .finally(() => {
           if (!cancelled) setModelsLoading(false)
@@ -112,28 +133,46 @@ export function SettingsPage(): React.ReactElement {
     }
   }, [
     loaded,
+    tab,
     selectedProvider,
-    watchedApiKey,
-    watchedBaseUrl,
-    settings.apiKey,
-    settings.baseUrl
+    draftApiKey,
+    draftBaseUrl,
+    modelsRefreshToken
   ])
 
   /** 若用户曾保存自定义 model id，合并进选项避免 Select 显示异常 */
   const modelSelectOptions = useMemo(() => {
-    const providerModels = remoteModels ?? queryModelOptions(selectedProvider)
+    const fromApi = remoteModels != null
+    const providerModels = fromApi ? remoteModels : queryModelOptions(selectedProvider)
     const options = providerModels.map((m) => ({
       value: m.value,
-      label: m.description ? `${m.label} — ${m.description}` : m.label
+      label: queryModelOptionDisplayLabel(m)
     }))
     if (
       selectedProvider === settings.provider &&
       !providerModels.some((m) => m.value === settings.model)
     ) {
-      options.unshift({ value: settings.model, label: settings.model })
+      options.unshift({
+        value: settings.model,
+        label: queryModelOptionDisplayLabel({
+          provider: selectedProvider,
+          value: settings.model,
+          label: settings.model
+        })
+      })
     }
     return options
   }, [selectedProvider, settings.model, settings.provider, remoteModels])
+
+  const modelListExtra = !draftApiKey
+    ? '填写 API Key 后将从平台 /models 拉取可选模型'
+    : modelsLoading
+      ? '正在从平台拉取模型列表…'
+      : remoteModels
+        ? `已从平台加载 ${remoteModels.length} 个模型（可搜索）`
+        : modelsError
+          ? `${modelsError}；当前显示本地兜底列表`
+          : '填写 API Key 后可从平台拉取可选模型'
 
   const connectionCount = settings.connections?.length ?? 0
   const tabHint =
@@ -275,21 +314,34 @@ export function SettingsPage(): React.ReactElement {
                   </Form.Item>
 
                   <Form.Item
-                    label="默认模型"
+                    label={
+                      <span className={styles.modelLabelRow}>
+                        默认模型
+                        <Button
+                          type="link"
+                          size="small"
+                          icon={<ReloadOutlined />}
+                          disabled={!draftApiKey || modelsLoading}
+                          loading={modelsLoading}
+                          onClick={() => setModelsRefreshToken((n) => n + 1)}
+                        >
+                          从平台刷新
+                        </Button>
+                      </span>
+                    }
                     name="model"
                     rules={MODEL_RULES}
-                    extra={
-                      selectedProvider === 'deepseek'
-                        ? '选项来自 DeepSeek 平台 /models，填写 API Key 后自动刷新'
-                        : undefined
-                    }
+                    extra={modelListExtra}
                   >
                     <Select
                       showSearch
                       optionFilterProp="label"
                       options={modelSelectOptions}
-                      placeholder="选择模型"
+                      placeholder={draftApiKey ? '从平台选择模型' : '先填写 API Key'}
                       loading={modelsLoading}
+                      notFoundContent={
+                        modelsLoading ? '加载中…' : draftApiKey ? '暂无模型' : '请先填写 API Key'
+                      }
                     />
                   </Form.Item>
 
