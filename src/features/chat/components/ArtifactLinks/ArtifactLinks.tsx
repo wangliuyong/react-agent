@@ -3,8 +3,12 @@
  */
 import styles from './ArtifactLinks.module.css'
 
+/**
+ * 匹配本地绝对路径。允许路径中含空格（如 macOS 的 Application Support），
+ * 以引号/括号/换行作为边界，并以已知产物扩展名结尾。
+ */
 const PATH_RE =
-  /((?:\/|[A-Za-z]:\\)[^\s"'`）)\]]+\.(?:mp4|mov|mkv|webm|md|json|png|jpg|jpeg|wav))/gi
+  /((?:\/|[A-Za-z]:\\)[^"'`）)\]\n]+?\.(?:mp4|mov|mkv|webm|md|json|png|jpg|jpeg|wav))/gi
 
 export function queryArtifactPaths(content: string): string[] {
   const found: string[] = []

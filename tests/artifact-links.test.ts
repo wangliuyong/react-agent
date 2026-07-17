@@ -12,6 +12,20 @@ describe('queryArtifactPaths', () => {
     ])
   })
 
+  it('支持含空格的 macOS Application Support 路径', () => {
+    const scriptPath =
+      '/Users/wly/Library/Application Support/lingxi/react-agent-data/videos/projects/s1/script.md'
+    const text = `剧本已保存：${scriptPath}`
+    expect(queryArtifactPaths(text)).toEqual([scriptPath])
+  })
+
+  it('从 workflow_ctx JSON 中提取含空格路径', () => {
+    const scriptPath =
+      '/Users/wly/Library/Application Support/lingxi/react-agent-data/videos/projects/s1/script.md'
+    const text = `@@workflow_ctx@@{"message":"剧本已保存：${scriptPath}","patch":{"scriptPath":"${scriptPath}"}}`
+    expect(queryArtifactPaths(text)).toEqual([scriptPath])
+  })
+
   it('无路径时返回空数组', () => {
     expect(queryArtifactPaths('没有本地文件')).toEqual([])
   })
