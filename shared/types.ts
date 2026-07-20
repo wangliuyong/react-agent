@@ -1037,6 +1037,14 @@ export type AgentEvent =
   | { type: 'done'; sessionId: string; reason: string }
   | { type: 'error'; sessionId: string; message: string }
   | { type: 'agent_role'; sessionId: string; role: AgentRoleName }
+  /** 任务内容驱动换模：当前使用的连接/能力 */
+  | {
+      type: 'model_switch'
+      sessionId: string
+      capability: ModelCapability
+      model: string
+      connectionLabel: string
+    }
   /** 任务/流程每次执行新建会话时推送，渲染进程据此在侧边栏展示新对话 */
   | { type: 'session_started'; sessionId: string; session: Session }
   /** 工作流 Toast 节点触发，渲染进程展示 Ant Design message */

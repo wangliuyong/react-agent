@@ -17,16 +17,21 @@ import {
   isInterrupted
 } from '@langchain/langgraph'
 import { pauseRunningTasks, queryHasRunningTasks } from '../../../shared/pause-running-tasks'
-import type { AgentEvent, AgentRoleName, ChatMessage, Session, TaskItem } from '../../../shared/types'
+import type { AgentEvent, AgentRoleName, ChatMessage, ModelCapability, Session, TaskItem } from '../../../shared/types'
 import { querySettings } from '../store/settings'
 import { querySession, postSession } from '../store/sessions'
 import { getMainWindow } from '../window'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
 import type { ToolContext } from './tools/types'
-import { buildChatGraph, buildStepReactGraph } from './graph/chat-graph'
+import {
+  buildChatGraph,
+  buildStepReactGraph,
+  type CapabilityBox
+} from './graph/chat-graph'
 import { buildRoleSystemPrompt } from './graph/prompts'
 import { queryRecursionLimit } from './graph/react-subgraph'
 import { trimMessagesToCharBudget } from './token-budget'
+import { queryResolveModelConnection } from './model-router'
 
 function uuidv4(): string {
   return crypto.randomUUID()
@@ -124,8 +129,27 @@ function buildToolContext(
   sessionId: string,
   attachmentPaths: string[],
   signal: AbortSignal,
-  fullAccess: boolean
+  fullAccess: boolean,
+  capabilityBox?: CapabilityBox
 ): ToolContext {
+  const postActiveCapability = (capability: ModelCapability) => {
+    if (capabilityBox) {
+      capabilityBox.current = capability
+    }
+    const settings = querySettings()
+    const connection = queryResolveModelConnection(settings, {
+      role: 'general',
+      capability
+    })
+    emitAgentEvent({
+      type: 'model_switch',
+      sessionId,
+      capability,
+      model: connection.model,
+      connectionLabel: connection.label
+    })
+  }
+
   return {
     sessionId,
     fullAccess,
@@ -140,7 +164,11 @@ function buildToolContext(
       current.tasks = updater(current.tasks) as TaskItem[]
       persistSession(current)
       emitAgentEvent({ type: 'task_update', sessionId, tasks: current.tasks })
-    }
+    },
+    queryActiveCapability: capabilityBox
+      ? () => capabilityBox.current || undefined
+      : undefined,
+    postActiveCapability: capabilityBox ? postActiveCapability : undefined
   }
 }
 
@@ -330,16 +358,31 @@ export async function runLangGraphChat(params: {
   persistSession(session)
   emitAgentEvent({ type: 'message', sessionId, message: userMsg })
 
+  const capabilityBox: CapabilityBox = { current: '' }
   const toolCtx = buildToolContext(
     sessionId,
     attachmentPaths,
     controller.signal,
-    settings.fullAccess
+    settings.fullAccess,
+    capabilityBox
   )
 
   let graph
   try {
-    graph = buildChatGraph({ settings, toolCtx })
+    graph = buildChatGraph({
+      settings,
+      toolCtx,
+      capabilityBox,
+      onModelResolved: ({ capability, model, connectionLabel }) => {
+        emitAgentEvent({
+          type: 'model_switch',
+          sessionId,
+          capability,
+          model,
+          connectionLabel
+        })
+      }
+    })
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     emitAgentEvent({ type: 'error', sessionId, message })
@@ -387,13 +430,15 @@ export async function runLangGraphChat(params: {
       attachmentPaths: string[]
       activeAgent: AgentRoleName
       nextAgent: string
+      activeCapability: ModelCapability | ''
     }
     | Command = {
     messages: hasCheckpoint ? [human] : [...prior, human],
     sessionId,
     attachmentPaths,
     activeAgent: 'supervisor' as AgentRoleName,
-    nextAgent: 'general'
+    nextAgent: 'general',
+    activeCapability: ''
   }
 
   try {
@@ -535,11 +580,13 @@ export async function runLangGraphStep(params: {
   emitAgentEvent({ type: 'message', sessionId, message: userMsg })
 
   // 任务/工作流步骤：跳过危险工具与「点发布前」确认；未登录仍会 emitAwaitUser 暂停
+  const capabilityBox: CapabilityBox = { current: '' }
   const toolCtx = buildToolContext(
     sessionId,
     attachmentPaths,
     controller.signal,
-    true
+    true,
+    capabilityBox
   )
 
   let agent
@@ -548,7 +595,19 @@ export async function runLangGraphStep(params: {
       settings,
       toolCtx,
       systemPrompt: buildRoleSystemPrompt('general'),
-      toolWhitelist
+      toolWhitelist,
+      stepPrompt: prompt,
+      attachmentPaths,
+      capabilityBox,
+      onModelResolved: ({ capability, model, connectionLabel }) => {
+        emitAgentEvent({
+          type: 'model_switch',
+          sessionId,
+          capability,
+          model,
+          connectionLabel
+        })
+      }
     })
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)

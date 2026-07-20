@@ -7,6 +7,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
   general: null,
   researcher: [
     'use_skill',
+    'switch_model',
     'fetch_hot_topics',
     'query_weather',
     'query_web_data',
@@ -17,9 +18,17 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'browser_navigate',
     'browser_snapshot'
   ],
-  writer: ['use_skill', 'update_task_list', 'read_file', 'write_file', 'list_attachments'],
+  writer: [
+    'use_skill',
+    'switch_model',
+    'update_task_list',
+    'read_file',
+    'write_file',
+    'list_attachments'
+  ],
   publisher: [
     'use_skill',
+    'switch_model',
     'xhs_publish_note',
     'douyin_publish_note',
     'notify_message',
@@ -34,6 +43,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
   ],
   scriptwriter: [
     'use_skill',
+    'switch_model',
     'list_attachments',
     'read_file',
     'write_file',
@@ -43,6 +53,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
   ],
   videographer: [
     'use_skill',
+    'switch_model',
     'read_file',
     'generate_scene_assets',
     'update_task_list',
@@ -50,6 +61,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
   ],
   editor: [
     'use_skill',
+    'switch_model',
     'compose_video',
     'notify_message',
     'read_file',

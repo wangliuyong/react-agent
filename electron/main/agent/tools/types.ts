@@ -1,4 +1,4 @@
-import type { TaskItem } from '../../../../shared/types'
+import type { ModelCapability, TaskItem } from '../../../../shared/types'
 
 /** 工具权限级别：敏感操作需用户确认或完全访问模式 */
 export type ToolPermission = 'safe' | 'sensitive' | 'dangerous'
@@ -13,6 +13,13 @@ export interface ToolContext {
   /** 更新任务清单（含 workflow skipped） */
   updateTasks: (updater: (tasks: TaskItem[]) => TaskItem[]) => void
   signal?: AbortSignal
+  /** 读取当前任务模型能力（供 switch_model / 路由模型使用） */
+  queryActiveCapability?: () => ModelCapability | undefined
+  /**
+   * 写入当前任务模型能力，并应同步推送 model_switch 事件。
+   * 为什么：ReAct 中途换模后 UI 与下一轮 LLM 选型需一致。
+   */
+  postActiveCapability?: (capability: ModelCapability) => void
 }
 
 export interface AgentTool {

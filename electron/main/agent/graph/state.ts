@@ -1,6 +1,6 @@
 import { Annotation, messagesStateReducer } from '@langchain/langgraph'
 import type { BaseMessage } from '@langchain/core/messages'
-import type { AgentRoleName, TaskItem } from '../../../../shared/types'
+import type { AgentRoleName, ModelCapability, TaskItem } from '../../../../shared/types'
 
 /** 聊天 / 多智能体协作图状态 */
 export const AgentGraphAnnotation = Annotation.Root({
@@ -17,6 +17,14 @@ export const AgentGraphAnnotation = Annotation.Root({
   nextAgent: Annotation<string>({
     reducer: (_prev, next) => next,
     default: () => 'general'
+  }),
+  /**
+   * 当前任务模型能力；空字符串表示未显式指定（走 roleModelMap）。
+   * Supervisor / 规则推断 / switch_model 写入。
+   */
+  activeCapability: Annotation<ModelCapability | ''>({
+    reducer: (_prev, next) => next,
+    default: () => '' as const
   }),
   attachmentPaths: Annotation<string[]>({
     reducer: (_prev, next) => next,

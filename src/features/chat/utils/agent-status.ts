@@ -6,6 +6,8 @@ interface AgentStatusInput {
   streamingText: string
   activeToolName: string | null
   awaitUserReason: string | null
+  /** 当前任务选用的模型连接展示名 */
+  activeModelLabel?: string | null
 }
 
 /** 常用工具名 → 用户可读文案 */
@@ -30,7 +32,11 @@ const TOOL_LABELS: Record<string, string> = {
   web_search: '搜索网络',
   read_file: '读取文件',
   write_file: '写入文件',
-  list_dir: '浏览目录'
+  list_dir: '浏览目录',
+  switch_model: '切换模型',
+  update_task_list: '更新任务',
+  list_attachments: '查看附件',
+  use_skill: '加载技能'
 }
 
 /** 将 tool 名格式化为可读文案 */
@@ -49,13 +55,16 @@ export function queryAgentPhase(input: AgentStatusInput): AgentPhase {
 /** 推导顶栏 / 输入区状态文案；idle 时返回 null */
 export function queryAgentStatusLabel(input: AgentStatusInput): string | null {
   const phase = queryAgentPhase(input)
+  const modelSuffix = input.activeModelLabel?.trim()
+    ? ` · ${input.activeModelLabel.trim()}`
+    : ''
   switch (phase) {
     case 'thinking':
-      return '正在思考…'
+      return `正在思考${modelSuffix}…`
     case 'streaming':
-      return '正在生成回复…'
+      return `正在生成回复${modelSuffix}…`
     case 'tool':
-      return `正在${queryToolLabel(input.activeToolName!)}…`
+      return `正在${queryToolLabel(input.activeToolName!)}${modelSuffix}…`
     default:
       return null
   }

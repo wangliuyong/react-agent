@@ -24,6 +24,8 @@ interface ChatInputProps {
   running?: boolean
   streamingText?: string
   activeToolName?: string | null
+  /** 当前任务选用的模型连接名 */
+  activeModelLabel?: string | null
   awaitUserReason?: string | null
   tokenUsed?: number
   onSend: (text: string, paths: string[]) => void
@@ -65,6 +67,7 @@ export function ChatInput({
   running,
   streamingText = '',
   activeToolName = null,
+  activeModelLabel = null,
   awaitUserReason,
   tokenUsed = 0,
   onSend,
@@ -102,9 +105,10 @@ export function ChatInput({
         running: Boolean(running),
         streamingText,
         activeToolName,
-        awaitUserReason: awaitUserReason ?? null
+        awaitUserReason: awaitUserReason ?? null,
+        activeModelLabel
       }),
-    [running, streamingText, activeToolName, awaitUserReason]
+    [running, streamingText, activeToolName, awaitUserReason, activeModelLabel]
   )
 
   /** 切换模型并给出 Toast 反馈 */

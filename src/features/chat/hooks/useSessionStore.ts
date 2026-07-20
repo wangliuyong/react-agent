@@ -24,6 +24,8 @@ interface SessionState {
   streamingText: string
   /** 当前正在执行的工具名（tool_start ~ tool_result 之间） */
   activeToolName: string | null
+  /** 当前任务选用的模型连接展示名（model_switch 事件更新） */
+  activeModelLabel: string | null
   hydrate: () => Promise<void>
   setActive: (id: string | null) => void
   createSession: (type?: SessionType) => Promise<Session>
@@ -111,6 +113,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   canResume: false,
   streamingText: '',
   activeToolName: null,
+  activeModelLabel: null,
 
   getActiveSession: () => {
     const { sessions, activeSessionId } = get()
@@ -153,6 +156,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       running,
       streamingText: '',
       awaitUserReason: null,
+      activeToolName: null,
+      activeModelLabel: null,
       canResume: queryCanResumeFromSession(session, running)
     })
   },
@@ -200,7 +205,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       awaitUserReason: null,
       canResume: false,
       streamingText: '',
-      activeToolName: null
+      activeToolName: null,
+      activeModelLabel: null
     }))
     await postAgentChat(activeSessionId, content, attachmentPaths)
   },
@@ -273,6 +279,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     return window.api.onAgentEvent((event: AgentEvent) => {
       // agent_role 仅驱动状态文案，不改正文列表
       if (event.type === 'agent_role') {
+        return
+      }
+
+      if (event.type === 'model_switch') {
+        const activeId = get().activeSessionId
+        if (event.sessionId === activeId) {
+          set({
+            activeModelLabel: event.connectionLabel || event.model
+          })
+        }
         return
       }
 
@@ -434,7 +450,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   running: false,
                   awaitUserReason: null,
                   streamingText: '',
-                  activeToolName: null
+                  activeToolName: null,
+                  activeModelLabel: null
                 }
               : {})
           }
@@ -448,7 +465,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         set((state) => ({
           runningSessionIds: withoutRunningSession(state.runningSessionIds, event.sessionId),
           ...(event.sessionId === activeId
-            ? { running: false, activeToolName: null }
+            ? { running: false, activeToolName: null, activeModelLabel: null }
             : {})
         }))
         return

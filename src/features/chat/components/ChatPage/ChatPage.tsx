@@ -21,6 +21,7 @@ export function ChatPage(): React.ReactElement {
   const awaitUserReason = useSessionStore((s) => s.awaitUserReason)
   const streamingText = useSessionStore((s) => s.streamingText)
   const activeToolName = useSessionStore((s) => s.activeToolName)
+  const activeModelLabel = useSessionStore((s) => s.activeModelLabel)
   const sendMessage = useSessionStore((s) => s.sendMessage)
   const abort = useSessionStore((s) => s.abort)
   const continueRun = useSessionStore((s) => s.continueRun)
@@ -57,7 +58,8 @@ export function ChatPage(): React.ReactElement {
     running,
     streamingText,
     activeToolName,
-    awaitUserReason
+    awaitUserReason,
+    activeModelLabel
   })
 
   const taskWorkflowSucceeded = queryIsTaskWorkflowSucceeded(session, running, awaitUserReason)
@@ -156,6 +158,7 @@ export function ChatPage(): React.ReactElement {
         running={running}
         streamingText={streamingText}
         activeToolName={activeToolName}
+        activeModelLabel={activeModelLabel}
         awaitUserReason={awaitUserReason}
         tokenUsed={session?.tokenUsed ?? 0}
         onSend={(text, paths) => void sendMessage(text, paths)}

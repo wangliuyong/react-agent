@@ -1,8 +1,13 @@
 import { END, MemorySaver, START, StateGraph } from '@langchain/langgraph'
 import { SystemMessage, AIMessage } from '@langchain/core/messages'
 import type { BaseMessage } from '@langchain/core/messages'
-import type { AppSettings, AgentRoleName, ModelRoleKey } from '../../../../shared/types'
-import { createChatModel } from '../llm-langchain'
+import type {
+  AppSettings,
+  AgentRoleName,
+  ModelCapability,
+  ModelRoleKey
+} from '../../../../shared/types'
+import { createCapabilityRoutedModel, createChatModel } from '../llm-langchain'
 import { withSessionTokenUsage } from '../token-usage'
 import { adaptAgentTools } from '../tools/langchain-adapter'
 import type { ToolContext } from '../tools/types'
@@ -11,13 +16,33 @@ import { buildRoleSystemPrompt } from './prompts'
 import { queryToolsForRole, queryToolsByWhitelist } from './role-tools'
 import { createReactSubgraph, queryRecursionLimit } from './react-subgraph'
 import { queryLatestHumanMessage, trimMessagesToCharBudget } from '../token-budget'
+import {
+  queryInferModelCapability,
+  queryInferSupervisorNext,
+  queryParseSupervisorRoute,
+  queryPipelineEntryRole,
+  queryResolveModelConnection
+} from '../model-router'
 
 /** 进程内唯一 checkpointer；thread_id = sessionId */
 export const chatCheckpointer = new MemorySaver()
 
+/** 可变能力盒：与 graph state / ToolContext 共享，供 ReAct 动态选型 */
+export interface CapabilityBox {
+  current: ModelCapability | ''
+}
+
 export interface BuildChatGraphParams {
   settings: AppSettings
   toolCtx: ToolContext
+  /** 与 toolCtx.postActiveCapability 写入同一引用 */
+  capabilityBox: CapabilityBox
+  /** 能力变更时通知 UI（supervisor 初次选型 / 角色入口） */
+  onModelResolved?: (payload: {
+    capability: ModelCapability
+    model: string
+    connectionLabel: string
+  }) => void
 }
 
 type PipelineRole = Exclude<AgentRoleName, 'supervisor'>
@@ -30,22 +55,46 @@ type PipelineRole = Exclude<AgentRoleName, 'supervisor'>
  * video:   scriptwriter → videographer → editor
  */
 export function buildChatGraph(params: BuildChatGraphParams) {
-  const { settings, toolCtx } = params
+  const { settings, toolCtx, capabilityBox, onModelResolved } = params
   const recursionLimit = queryRecursionLimit(settings.maxTurns)
 
-  function queryRoleLlm(role: ModelRoleKey) {
-    return withSessionTokenUsage(createChatModel(settings, role), toolCtx.sessionId)
+  function postResolveForRole(role: ModelRoleKey, capability: ModelCapability | '') {
+    const conn = queryResolveModelConnection(settings, {
+      role,
+      capability: capability || undefined
+    })
+    if (capability) {
+      onModelResolved?.({
+        capability,
+        model: conn.model,
+        connectionLabel: conn.label
+      })
+    }
+  }
+
+  function queryRoleLlmFactory(role: ModelRoleKey) {
+    const factory = createCapabilityRoutedModel(settings, role, () => capabilityBox.current)
+    return () => withSessionTokenUsage(factory(), toolCtx.sessionId)
   }
 
   async function runRoleAgent(
     role: PipelineRole,
     state: AgentGraphState
   ): Promise<Partial<AgentGraphState>> {
-    const llm = queryRoleLlm(role)
+    // 管线后续角色继承 supervisor 写入的 capability；若仍为空则按最新用户话规则补齐
+    if (!capabilityBox.current) {
+      const inferred = queryInferModelCapability(
+        lastUserText(state.messages),
+        state.attachmentPaths
+      )
+      capabilityBox.current = inferred
+    }
+    postResolveForRole(role, capabilityBox.current)
+
     const tools = adaptAgentTools(queryToolsForRole(role), { ctx: toolCtx })
     const roleInputMessages = trimMessagesToCharBudget(state.messages)
     const agent = createReactSubgraph({
-      llm,
+      llm: queryRoleLlmFactory(role),
       tools,
       systemPrompt: buildRoleSystemPrompt(role),
       name: `role_${role}`
@@ -58,12 +107,13 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     const delta = all.slice(roleInputMessages.length)
     return {
       messages: delta,
-      activeAgent: role
+      activeAgent: role,
+      activeCapability: capabilityBox.current
     }
   }
 
   async function supervisorNode(state: AgentGraphState): Promise<Partial<AgentGraphState>> {
-    const llm = queryRoleLlm('supervisor')
+    const llm = withSessionTokenUsage(createChatModel(settings, 'supervisor'), toolCtx.sessionId)
     const latestUserMessage = queryLatestHumanMessage(state.messages)
     const reply = await llm.invoke(
       latestUserMessage
@@ -78,26 +128,23 @@ export function buildChatGraph(params: BuildChatGraphParams) {
           : String(reply.content ?? '')
 
     const userText = lastUserText(state.messages)
-    let nextAgent: 'general' | 'researcher' | 'scriptwriter' = 'general'
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
-      const parsed = JSON.parse(jsonMatch?.[0] ?? text) as { next?: string }
-      if (parsed.next === 'publish') nextAgent = 'researcher'
-      else if (parsed.next === 'video') nextAgent = 'scriptwriter'
-      else nextAgent = 'general'
-    } catch {
-      const blob = text + userText
-      if (/剧本|分镜|成片|生成视频|一句话.*视频|短剧|口播视频/.test(blob)) {
-        nextAgent = 'scriptwriter'
-      } else if (/发布|小红书|抖音|热点|撰稿|配图|图文/.test(blob)) {
-        nextAgent = 'researcher'
-      }
-    }
+    const parsed = queryParseSupervisorRoute(text)
+    const nextTarget = parsed?.next ?? queryInferSupervisorNext(text, userText)
+    const nextAgent = queryPipelineEntryRole(nextTarget)
+
+    // Supervisor capability 优先；缺失则规则推断
+    const capability: ModelCapability =
+      parsed?.capability ??
+      queryInferModelCapability(userText, state.attachmentPaths)
+
+    capabilityBox.current = capability
+    postResolveForRole(nextAgent, capability)
 
     return {
       nextAgent,
       activeAgent: 'supervisor',
-      messages: [new AIMessage({ content: `[路由] → ${nextAgent}` })]
+      activeCapability: capability,
+      messages: [new AIMessage({ content: `[路由] → ${nextAgent} · ${capability}` })]
     }
   }
 
@@ -134,18 +181,64 @@ function lastUserText(messages: BaseMessage[]): string {
 
 /**
  * 工作流单步 / 受限 ReAct：独立小图（不走 supervisor）。
+ * 入口用规则推断 capability；支持 switch_model 中途换模。
  */
 export function buildStepReactGraph(params: {
   settings: AppSettings
   toolCtx: ToolContext
   systemPrompt: string
   toolWhitelist?: string[]
+  /** 步骤提示词，用于规则推断 */
+  stepPrompt?: string
+  attachmentPaths?: string[]
+  capabilityBox?: CapabilityBox
+  onModelResolved?: BuildChatGraphParams['onModelResolved']
 }) {
-  const { settings, toolCtx, systemPrompt, toolWhitelist } = params
-  const llm = withSessionTokenUsage(createChatModel(settings, 'general'), toolCtx.sessionId)
+  const {
+    settings,
+    toolCtx,
+    systemPrompt,
+    toolWhitelist,
+    stepPrompt = '',
+    attachmentPaths = [],
+    onModelResolved
+  } = params
+
+  const capabilityBox = params.capabilityBox ?? { current: '' as ModelCapability | '' }
+  if (!capabilityBox.current) {
+    capabilityBox.current = queryInferModelCapability(stepPrompt, attachmentPaths)
+  }
+
+  // 将 box 接到 ToolContext（若调用方尚未接线）
+  if (!toolCtx.postActiveCapability) {
+    toolCtx.postActiveCapability = (capability) => {
+      capabilityBox.current = capability
+    }
+  }
+  if (!toolCtx.queryActiveCapability) {
+    toolCtx.queryActiveCapability = () => capabilityBox.current || undefined
+  }
+
+  const conn = queryResolveModelConnection(settings, {
+    role: 'general',
+    capability: capabilityBox.current || undefined
+  })
+  if (capabilityBox.current) {
+    onModelResolved?.({
+      capability: capabilityBox.current,
+      model: conn.model,
+      connectionLabel: conn.label
+    })
+  }
+
+  const factory = createCapabilityRoutedModel(
+    settings,
+    'general',
+    () => capabilityBox.current
+  )
   const tools = adaptAgentTools(queryToolsByWhitelist(toolWhitelist), { ctx: toolCtx })
   return createReactSubgraph({
-    llm,
+    llm: () => withSessionTokenUsage(factory(), toolCtx.sessionId),
     tools,
     systemPrompt,
     checkpointer: chatCheckpointer,
