@@ -1,4 +1,5 @@
 import type { ChatMessage, TaskItem } from '@shared/types'
+import { VirtualList } from '@/components/VirtualList'
 import { queryAgentPhase, queryAgentStatusLabel } from '../../utils/agent-status'
 import { MessageRichContent, queryMediaCountLabel } from '../MessageRichContent'
 import { TypingIndicator } from '../TypingIndicator'
@@ -16,7 +17,30 @@ interface MessageListProps {
   awaitUserReason?: string | null
 }
 
-/** 展示组件：消息列表 + 工具结果折叠 + Markdown 预览 + 图片/音视频预览 */
+/** 虚拟行类型：将消息、流式输出与 pending 态统一为可滚动条目 */
+type MessageVirtualRow =
+  | { kind: 'message'; id: string; message: ChatMessage }
+  | { kind: 'streaming'; id: string; text: string }
+  | {
+      kind: 'pending'
+      id: string
+      phase: ReturnType<typeof queryAgentPhase>
+      activeToolName: string | null
+      statusLabel: string | null
+    }
+
+/** 按角色预估行高，减少首屏跳动；实际高度由 measureElement 校正 */
+function estimateMessageRowSize(row: MessageVirtualRow): number {
+  if (row.kind === 'streaming' || row.kind === 'pending') return 72
+  if (row.message.role === 'user') return 88
+  if (row.message.role === 'tool') return 56
+  const len = row.message.content.length
+  if (len < 120) return 120
+  if (len < 400) return 200
+  return 320
+}
+
+/** 展示组件：消息列表 + 工具结果折叠 + Markdown 预览 + 图片/音视频预览（虚拟滚动） */
 export function MessageList({
   messages,
   streamingText,
@@ -25,7 +49,6 @@ export function MessageList({
   activeToolName = null,
   awaitUserReason = null
 }: MessageListProps): React.ReactElement {
-  const bottomRef = useRef<HTMLDivElement>(null)
   const visible = messages.filter((m) => m.role !== 'system')
 
   const phase = queryAgentPhase({
@@ -48,9 +71,9 @@ export function MessageList({
   const lastAssistant = [...visible].reverse().find((m) => m.role === 'assistant')
   const trailingPlaceholderId =
     running &&
-      phase !== 'idle' &&
-      lastAssistant?.role === 'assistant' &&
-      !lastAssistant.content.trim()
+    phase !== 'idle' &&
+    lastAssistant?.role === 'assistant' &&
+    !lastAssistant.content.trim()
       ? lastAssistant.id
       : null
 
@@ -61,14 +84,116 @@ export function MessageList({
   const showPending =
     Boolean(trailingPlaceholderId) && running && !streamingText && phase !== 'idle'
 
-  /** 新消息 / 流式输出时自动滚到底部 */
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [messages.length, streamingText, running, activeToolName])
+  /** 合并为虚拟列表数据源 */
+  const virtualRows = useMemo<MessageVirtualRow[]>(() => {
+    const rows: MessageVirtualRow[] = displayMessages.map((message) => ({
+      kind: 'message',
+      id: message.id,
+      message
+    }))
+
+    if (streamingText) {
+      rows.push({ kind: 'streaming', id: '__streaming__', text: streamingText })
+    }
+
+    if (showPending) {
+      rows.push({
+        kind: 'pending',
+        id: '__pending__',
+        phase,
+        activeToolName,
+        statusLabel
+      })
+    }
+
+    return rows
+  }, [displayMessages, streamingText, showPending, phase, activeToolName, statusLabel])
+
+  const renderVirtualRow = useCallback((row: MessageVirtualRow) => {
+    if (row.kind === 'streaming') {
+      return (
+        <div className={`${styles.row} ${styles.rowAssistant}`}>
+          <span className={styles.label}>灵犀</span>
+          <div className={`${styles.assistantCard} ${styles.assistantCardStreaming}`}>
+            <AssistantBody content={row.text} streaming />
+          </div>
+        </div>
+      )
+    }
+
+    if (row.kind === 'pending') {
+      return (
+        <div className={`${styles.row} ${styles.rowAssistant}`}>
+          <span className={styles.label}>灵犀</span>
+          <div className={styles.pendingWrap}>
+            {row.phase === 'tool' && row.activeToolName ? (
+              <div className={styles.toolRunning}>
+                <ToolOutlined className={styles.toolIcon} spin />
+                <span>{row.statusLabel}</span>
+              </div>
+            ) : (
+              <TypingIndicator label={row.statusLabel ?? '正在思考…'} />
+            )}
+          </div>
+        </div>
+      )
+    }
+
+    const m = row.message
+    if (m.role === 'user') {
+      return (
+        <div className={`${styles.row} ${styles.rowUser}`}>
+          <span className={styles.label}>你</span>
+          <div className={styles.userBubble}>
+            <MessageRichContent
+              content={m.content}
+              attachmentPaths={m.attachmentPaths}
+              markdownClassName={styles.userMarkdown}
+              showDoneAlert={false}
+            />
+          </div>
+        </div>
+      )
+    }
+
+    if (m.role === 'tool') {
+      const mediaLabel = queryMediaCountLabel(m.content)
+      return (
+        <div className={styles.row}>
+          <Collapse
+            size="small"
+            className={styles.toolBlock}
+            items={[
+              {
+                key: '1',
+                label: `工具结果 · ${m.toolName ?? 'tool'}${mediaLabel}`,
+                children: (
+                  <MessageRichContent
+                    content={m.content}
+                    markdownClassName={styles.toolMarkdown}
+                    showDoneAlert={false}
+                  />
+                )
+              }
+            ]}
+          />
+        </div>
+      )
+    }
+
+    return (
+      <div className={`${styles.row} ${styles.rowAssistant}`}>
+        <span className={styles.label}>灵犀</span>
+        <div className={styles.assistantCard}>
+          <AssistantBody content={m.content} />
+        </div>
+      </div>
+    )
+  }, [])
 
   return (
-    <div className={styles.list}>
-      {tasks.length > 0 && (
+    <div className={styles.root}>
+      {tasks.length > 0 ? (
         <div className={styles.taskInline}>
           {tasks.map((t) => (
             <span
@@ -89,85 +214,26 @@ export function MessageList({
             </span>
           ))}
         </div>
-      )}
-
-      {displayMessages.map((m, index) => {
-        if (m.role === 'user') {
-          return (
-            <div key={m.id} className={`${styles.row} ${styles.rowUser}`}>
-              <span className={styles.label}>你</span>
-              <div className={styles.userBubble}>
-                <MessageRichContent
-                  content={m.content}
-                  attachmentPaths={m.attachmentPaths}
-                  markdownClassName={styles.userMarkdown}
-                  showDoneAlert={false}
-                />
-              </div>
-            </div>
-          )
-        }
-        if (m.role === 'tool') {
-          const mediaLabel = queryMediaCountLabel(m.content)
-          return (
-            <div key={m.id} className={styles.row}>
-              <Collapse
-                size="small"
-                className={styles.toolBlock}
-                items={[
-                  {
-                    key: '1',
-                    label: `工具结果 · ${m.toolName ?? 'tool'}${mediaLabel}`,
-                    children: (
-                      <MessageRichContent
-                        content={m.content}
-                        markdownClassName={styles.toolMarkdown}
-                        showDoneAlert={false}
-                      />
-                    )
-                  }
-                ]}
-              />
-            </div>
-          )
-        }
-        return (
-          <div key={m.id} className={`${styles.row} ${styles.rowAssistant}`}>
-            {/* {index < 2 ? (<span className={styles.label}>灵犀</span>) : null} */}
-            <span className={styles.label}>灵犀</span>
-            <div className={styles.assistantCard}>
-              <AssistantBody content={m.content} />
-            </div>
-          </div>
-        )
-      })}
-
-      {streamingText ? (
-        <div className={`${styles.row} ${styles.rowAssistant}`}>
-          <span className={styles.label}>灵犀</span>
-          <div className={`${styles.assistantCard} ${styles.assistantCardStreaming}`}>
-            <AssistantBody content={streamingText} streaming />
-          </div>
-        </div>
       ) : null}
 
-      {showPending ? (
-        <div className={`${styles.row} ${styles.rowAssistant}`}>
-          <span className={styles.label}>灵犀</span>
-          <div className={styles.pendingWrap}>
-            {phase === 'tool' && activeToolName ? (
-              <div className={styles.toolRunning}>
-                <ToolOutlined className={styles.toolIcon} spin />
-                <span>{statusLabel}</span>
-              </div>
-            ) : (
-              <TypingIndicator label={statusLabel ?? '正在思考…'} />
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      <div ref={bottomRef} className={styles.scrollAnchor} />
+      <VirtualList
+        className={styles.viewport}
+        innerClassName={styles.listInner}
+        items={virtualRows}
+        gap={16}
+        overscan={8}
+        estimateSize={(_index, row) => estimateMessageRowSize(row)}
+        getItemKey={(row) => row.id}
+        renderItem={(row) => renderVirtualRow(row)}
+        stickToBottom
+        stickToBottomDeps={[
+          virtualRows.length,
+          streamingText,
+          running,
+          activeToolName,
+          showPending
+        ]}
+      />
     </div>
   )
 }
