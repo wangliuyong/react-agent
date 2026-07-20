@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { pauseRunningTasks } from '@shared/pause-running-tasks'
 import type { AgentEvent, ChatMessage, Session, SessionType, TaskItem } from '@shared/types'
+import { queryLatestWorkflowRunBySession } from '@/features/business/api'
+import { postResumeWorkflow } from '@/features/workflows/api'
 import {
   postAgentAbort,
   postAgentChat,
@@ -10,6 +12,8 @@ import {
   postSession,
   querySessions
 } from '../api'
+import { querySessionType } from '../utils/querySessionType'
+import { queryShouldResumeViaWorkflow } from '../utils/queryShouldResumeViaWorkflow'
 import { useAppStore } from '@/stores/app-store'
 
 interface SessionState {
@@ -246,11 +250,33 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!activeSessionId) return
 
     const session = sessions.find((s) => s.id === activeSessionId)
-    const incomplete = (session?.tasks ?? []).filter(
+    if (!session) return
+
+    const incomplete = (session.tasks ?? []).filter(
       (t) => t.status === 'pending' || t.status === 'running'
     )
     if (!incomplete.length) {
       set({ canResume: false })
+      return
+    }
+
+    set({ canResume: false })
+
+    // 流程 / 定时 / 发布会话：走工作流引擎恢复，避免仅向 Agent 发消息却无法推进节点
+    const sessionType = querySessionType(session)
+    const workflowRun = await queryLatestWorkflowRunBySession(activeSessionId)
+    if (queryShouldResumeViaWorkflow(sessionType, workflowRun)) {
+      get().beginExternalRun(activeSessionId)
+      try {
+        await postResumeWorkflow(workflowRun.id)
+      } catch (err) {
+        set((state) => ({
+          runningSessionIds: withoutRunningSession(state.runningSessionIds, activeSessionId),
+          running: false,
+          canResume: true
+        }))
+        message.error(err instanceof Error ? err.message : '恢复流程执行失败')
+      }
       return
     }
 
@@ -259,7 +285,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       .join('\n')
     const content = `请从上次中断处继续，完成以下未完成任务：\n${lines}`
 
-    set({ canResume: false })
     await get().sendMessage(content)
   },
 
