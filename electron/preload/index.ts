@@ -93,6 +93,8 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.querySkillImportPreview, url),
   postImportSkillFromUrl: (url: string, targetId?: string) =>
     ipcRenderer.invoke(IpcChannels.postImportSkillFromUrl, url, targetId),
+  postSummarizeSkillFromSession: (sessionId: string) =>
+    ipcRenderer.invoke(IpcChannels.postSummarizeSkillFromSession, sessionId),
   queryLocalImageDataUrl: (filePath: string) =>
     ipcRenderer.invoke(IpcChannels.queryLocalImageDataUrl, filePath),
   queryLocalMediaUrl: (filePath: string) =>

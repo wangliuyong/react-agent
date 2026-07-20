@@ -125,6 +125,7 @@ export function ChatPage(): React.ReactElement {
 
       <TaskChecklist
         tasks={session?.tasks ?? []}
+        sessionId={session?.id ?? null}
         visible={Boolean(session?.tasks?.length)}
         running={running}
         awaitUserReason={awaitUserReason}

@@ -57,6 +57,7 @@ import {
   postInstallSkillTemplate
 } from './store/skills'
 import { querySkillImportPreview, postImportSkillFromUrl } from './store/skill-import'
+import { postSummarizeSkillFromSession } from './store/skill-summarize'
 import { queryLocalImageDataUrl } from './store/local-image'
 import { queryLocalMediaUrl } from './store/local-media'
 import {
@@ -249,6 +250,9 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IpcChannels.postImportSkillFromUrl, (_e, url: string, targetId?: string) =>
     postImportSkillFromUrl(url, targetId)
+  )
+  ipcMain.handle(IpcChannels.postSummarizeSkillFromSession, (_e, sessionId: string) =>
+    postSummarizeSkillFromSession(sessionId)
   )
   ipcMain.handle(IpcChannels.queryLocalImageDataUrl, (_e, filePath: string) =>
     queryLocalImageDataUrl(filePath)

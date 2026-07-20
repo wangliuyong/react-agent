@@ -1,10 +1,16 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import type { TaskItem } from '@shared/types'
+import { useAppStore } from '@/stores/app-store'
 import {
   queryChecklistTaskStatus,
   type ChecklistTaskStatus
 } from './task-status'
 import styles from './TaskChecklist.module.css'
+import { SummarizeSkillModal } from './SummarizeSkillModal'
+import {
+  queryCanSummarizeTasksToSkill,
+  querySuccessfulTaskCount
+} from '@shared/query-can-summarize-tasks'
 
 /** 默认距顶部偏移（位于 header 下方，相对锚定容器） */
 const DEFAULT_TOP = 100
@@ -20,6 +26,8 @@ const POSITION_STORAGE_KEY = 'react-agent:task-checklist-position'
 interface TaskChecklistProps {
   tasks: TaskItem[]
   visible: boolean
+  /** 当前会话 id，用于总结为技能 */
+  sessionId?: string | null
   /** Agent 是否正在执行（含工具调用与流式输出） */
   running?: boolean
   /** 等待用户介入时的原因说明；有值时展示「继续」 */
@@ -132,6 +140,7 @@ const { Text } = Typography
 export function TaskChecklist({
   tasks,
   visible,
+  sessionId = null,
   running = false,
   awaitUserReason = null,
   canResume = false,
@@ -140,6 +149,8 @@ export function TaskChecklist({
   onResume
 }: TaskChecklistProps): React.ReactElement | null {
   const rootRef = useRef<HTMLDivElement>(null)
+  /** 总结为技能弹窗 */
+  const [summarizeOpen, setSummarizeOpen] = useState(false)
   /** 垂直位置（视口坐标，fixed top） */
   const [positionY, setPositionY] = useState<number>(DEFAULT_TOP)
   const [dragging, setDragging] = useState(false)
@@ -308,6 +319,23 @@ export function TaskChecklist({
     (running && Boolean(onAbort)) ||
     (canResume && Boolean(onResume))
 
+  /** 是否展示「总结为技能」入口 */
+  const canSummarizeToSkill = queryCanSummarizeTasksToSkill(tasks, running, awaitUserReason)
+  const successfulStepCount = querySuccessfulTaskCount(tasks)
+
+  const setView = useAppStore((s) => s.setView)
+
+  /** 总结为技能弹窗（收起/展开态均需挂载） */
+  const summarizeModal = (
+    <SummarizeSkillModal
+      open={summarizeOpen}
+      sessionId={sessionId}
+      successfulStepCount={successfulStepCount}
+      onClose={() => setSummarizeOpen(false)}
+      onPublished={() => setView('skills')}
+    />
+  )
+
   if (!visible || tasks.length === 0) return null
 
   const rootClass = [
@@ -326,12 +354,13 @@ export function TaskChecklist({
     } as CSSProperties
 
     return (
-      <div
-        ref={rootRef}
-        className={rootClass}
-        style={{ top: positionY }}
-      >
-        <button
+      <>
+        <div
+          ref={rootRef}
+          className={rootClass}
+          style={{ top: positionY }}
+        >
+          <button
           type="button"
           className={[
             styles.orb,
@@ -370,7 +399,9 @@ export function TaskChecklist({
             <UnorderedListOutlined />
           </span>
         </button>
-      </div>
+        </div>
+        {summarizeModal}
+      </>
     )
   }
 
@@ -525,7 +556,30 @@ export function TaskChecklist({
             )}
           </div>
         ) : null}
+
+        {canSummarizeToSkill && sessionId ? (
+          <div
+            className={styles.summarizeBar}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Text type="secondary" className={styles.summarizeHint}>
+              {successfulStepCount} 个步骤已成功，可总结为可复用技能
+            </Text>
+            <Button
+              type="primary"
+              size="small"
+              ghost
+              icon={<BulbOutlined />}
+              className={styles.actionBtn}
+              onClick={() => setSummarizeOpen(true)}
+            >
+              总结为技能
+            </Button>
+          </div>
+        ) : null}
       </Card>
+
+      {summarizeModal}
     </div>
   )
 }

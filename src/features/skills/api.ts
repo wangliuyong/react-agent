@@ -57,3 +57,8 @@ export async function postImportSkillFromUrl(
 ): Promise<ProjectSkillDetail> {
   return window.api.postImportSkillFromUrl(url, targetId)
 }
+
+/** 从会话成功步骤总结技能草稿（任务清单 → 技能市场） */
+export async function postSummarizeSkillFromSession(sessionId: string): Promise<SkillUpsertInput> {
+  return window.api.postSummarizeSkillFromSession(sessionId)
+}

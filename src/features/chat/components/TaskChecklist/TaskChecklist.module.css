@@ -637,3 +637,23 @@
 .actionBtn {
   flex-shrink: 0;
 }
+
+/* ── 总结为技能 ── */
+.summarizeBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 12px 8px;
+  padding: 8px 10px;
+  border-radius: var(--db-radius-sm);
+  border: 1px dashed var(--db-primary);
+  background: var(--db-primary-muted);
+}
+
+.summarizeHint {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.4;
+}

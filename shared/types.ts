@@ -63,6 +63,8 @@ export const IpcChannels = {
   postInstallSkillTemplate: 'post:skill-template:install',
   querySkillImportPreview: 'query:skill-import-preview',
   postImportSkillFromUrl: 'post:skill-import-from-url',
+  /** 从会话成功步骤总结技能草稿（LLM + 规则兜底） */
+  postSummarizeSkillFromSession: 'post:skill-summarize-from-session',
   queryLocalImageDataUrl: 'query:local-image-data-url',
   /** 本地音视频 → media:// URL，供聊天内联播放 */
   queryLocalMediaUrl: 'query:local-media-url',
@@ -1504,6 +1506,8 @@ export interface ElectronApi {
   postInstallSkillTemplate: (templateId: string, targetId?: string) => Promise<ProjectSkillDetail>
   querySkillImportPreview: (url: string) => Promise<SkillImportPreview>
   postImportSkillFromUrl: (url: string, targetId?: string) => Promise<ProjectSkillDetail>
+  /** 从会话成功步骤总结技能草稿，供任务清单「发布到技能市场」预览编辑 */
+  postSummarizeSkillFromSession: (sessionId: string) => Promise<SkillUpsertInput>
   queryLocalImageDataUrl: (filePath: string) => Promise<string | null>
   queryLocalMediaUrl: (filePath: string) => Promise<string | null>
   queryAgentRules: () => Promise<AgentRule[]>

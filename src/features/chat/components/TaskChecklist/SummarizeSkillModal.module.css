@@ -1,0 +1,29 @@
+.hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: var(--db-radius-sm);
+  background: var(--db-primary-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--db-text-secondary);
+}
+
+.hintIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--db-primary);
+}
+
+.form {
+  margin-top: 4px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
