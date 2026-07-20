@@ -24,6 +24,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'update_task_list',
     'read_file',
     'write_file',
+    'generate_image',
     'list_attachments'
   ],
   publisher: [

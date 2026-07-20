@@ -13,8 +13,9 @@ import type { AgentTool } from './types'
 export const switchModelTool: AgentTool = {
   name: 'switch_model',
   description:
-    '当任务类型明显变化时切换模型能力（如从闲聊转为深度推理、创作或看图）。' +
+    '当任务类型明显变化时切换模型能力（如从闲聊转为深度推理、创作或看图理解）。' +
     `可选 capability：${MODEL_CAPABILITIES.join('、')}。` +
+    '注意：vision 只用于理解用户附带的图片，不能生成图片；文生图请用 generate_image。' +
     '切换后继续当前任务，无需向用户解释底层模型名。',
   permission: 'safe',
   parameters: {

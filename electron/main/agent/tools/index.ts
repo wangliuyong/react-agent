@@ -21,6 +21,7 @@ import {
 import { notifyMessageTool } from './notify-tools'
 import { useSkillTool } from './skill-tools'
 import { switchModelTool } from './model-tools'
+import { generateImageTool } from './image-tools'
 import type { AgentTool } from './types'
 
 /** 注册全部工具；新增能力只在此追加，不改 Loop */
@@ -32,6 +33,7 @@ export function getAllTools(): AgentTool[] {
     readFileTool,
     writeFileTool,
     updateTaskListTool,
+    generateImageTool,
     fetchWebImagesTool,
     fetchHotTopicsTool,
     queryWeatherTool,
