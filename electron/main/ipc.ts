@@ -184,8 +184,8 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.postAgentAbort, (_e, sessionId: string) => {
     postGraphAbort(sessionId)
   })
-  ipcMain.handle(IpcChannels.postAgentContinue, (_e, sessionId: string) => {
-    postGraphContinue(sessionId)
+  ipcMain.handle(IpcChannels.postAgentContinue, (_e, sessionId: string, userInput?: string) => {
+    postGraphContinue(sessionId, userInput)
   })
 
   ipcMain.handle(IpcChannels.queryBrowserStatus, () => getBrowserService().getStatus())

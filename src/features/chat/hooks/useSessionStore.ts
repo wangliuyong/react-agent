@@ -42,7 +42,7 @@ interface SessionState {
   removeSession: (id: string) => Promise<void>
   sendMessage: (content: string, attachmentPaths?: string[]) => Promise<void>
   abort: () => Promise<void>
-  continueRun: () => Promise<void>
+  continueRun: (userInput?: string) => Promise<void>
   /** 中断后从任务清单未完成的步骤重新拉起 Agent */
   resumeRun: () => Promise<void>
   /**
@@ -307,7 +307,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     })
   },
 
-  continueRun: async () => {
+  continueRun: async (userInput?: string) => {
     const id = get().activeSessionId
     if (!id) return
     set((state) => ({
@@ -317,7 +317,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       runningSessionIds: withRunningSession(state.runningSessionIds, id),
       running: true
     }))
-    await postAgentContinue(id)
+    await postAgentContinue(id, userInput)
   },
 
   resumeRun: async () => {

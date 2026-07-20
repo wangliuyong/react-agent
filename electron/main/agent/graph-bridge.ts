@@ -38,7 +38,10 @@ function uuidv4(): string {
 }
 
 const abortMap = new Map<string, AbortController>()
-const continueWaiters = new Map<string, { resolve: () => void; reject: (e: Error) => void }>()
+const continueWaiters = new Map<
+  string,
+  { resolve: (input?: string) => void; reject: (e: Error) => void }
+>()
 
 export function emitAgentEvent(event: AgentEvent): void {
   const win = getMainWindow()
@@ -92,12 +95,40 @@ export function postGraphAbort(sessionId: string): void {
   pauseRunningSessionTasks(sessionId)
 }
 
-export function postGraphContinue(sessionId: string): void {
+export function postGraphContinue(sessionId: string, userInput?: string): void {
   const waiter = continueWaiters.get(sessionId)
   if (waiter) {
-    waiter.resolve()
+    const trimmed = userInput?.trim()
+    waiter.resolve(trimmed || undefined)
     continueWaiters.delete(sessionId)
   }
+}
+
+/**
+ * 用户点「继续」或「发送并继续」时，若有补充说明则写入会话消息。
+ * @returns 去除首尾空白后的用户说明；无输入时 undefined
+ */
+export function appendUserContinueMessage(
+  sessionId: string,
+  userInput?: string
+): string | undefined {
+  const trimmed = userInput?.trim()
+  if (!trimmed) return undefined
+  const session = querySession(sessionId)
+  if (!session) return trimmed
+  const userMsg = appendMessage(session, { role: 'user', content: trimmed })
+  persistSession(session)
+  emitAgentEvent({ type: 'message', sessionId, message: userMsg })
+  return trimmed
+}
+
+/** LangGraph Command resume 载荷：有用户说明时用字符串，否则 true */
+export function queryGraphResumePayload(
+  sessionId: string,
+  userInput?: string
+): string | boolean {
+  const trimmed = appendUserContinueMessage(sessionId, userInput)
+  return trimmed ?? true
 }
 
 export function bindGraphSessionAbort(sessionId: string): AbortController {
@@ -118,11 +149,20 @@ export function getGraphAbortSignal(sessionId: string): AbortSignal | undefined 
 export async function waitForGraphUserContinue(
   sessionId: string,
   reason: string
-): Promise<void> {
+): Promise<string | undefined> {
   emitAgentEvent({ type: 'await_user', sessionId, reason })
-  await new Promise<void>((resolve, reject) => {
+  return new Promise<string | undefined>((resolve, reject) => {
     continueWaiters.set(sessionId, { resolve, reject })
   })
+}
+
+/** 等待用户确认后构造 LangGraph resume Command（含可选用户说明） */
+async function waitForGraphUserResumeCommand(
+  sessionId: string,
+  reason: string
+): Promise<Command> {
+  const userInput = await waitForGraphUserContinue(sessionId, reason)
+  return new Command({ resume: queryGraphResumePayload(sessionId, userInput) })
 }
 
 function buildToolContext(
@@ -482,7 +522,7 @@ export async function runLangGraphChat(params: {
       }
 
       /** 本轮 stream 是否因 __interrupt__ chunk 而需要 resume */
-      let needResume = false
+      let resumeCommand: Command | null = null
 
       try {
         // Command 泛型与图节点联合类型不完全对齐，运行时 resume 合法
@@ -498,12 +538,11 @@ export async function runLangGraphChat(params: {
           // values 流可能直接吐出 { __interrupt__: [...] }，需在循环内识别
           const chunkReason = queryInterruptReasonFromChunk(state)
           if (chunkReason) {
-            await waitForGraphUserContinue(sessionId, chunkReason)
+            resumeCommand = await waitForGraphUserResumeCommand(sessionId, chunkReason)
             if (controller.signal.aborted) {
               emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
               return
             }
-            needResume = true
             break
           }
           if (state && typeof state === 'object' && 'messages' in state) {
@@ -514,19 +553,19 @@ export async function runLangGraphChat(params: {
             }
           }
         }
-        if (needResume) {
-          input = new Command({ resume: true })
+        if (resumeCommand) {
+          input = resumeCommand
           continue
         }
       } catch (streamErr) {
         const reason = extractInterruptReason(streamErr)
         if (reason) {
-          await waitForGraphUserContinue(sessionId, reason)
+          const cmd = await waitForGraphUserResumeCommand(sessionId, reason)
           if (controller.signal.aborted) {
             emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
             return
           }
-          input = new Command({ resume: true })
+          input = cmd
           continue
         }
         throw streamErr
@@ -536,12 +575,12 @@ export async function runLangGraphChat(params: {
       const snap = await graph.getState(config)
       const interruptReason = queryInterruptReasonFromState(snap)
       if (interruptReason) {
-        await waitForGraphUserContinue(sessionId, interruptReason)
+        const cmd = await waitForGraphUserResumeCommand(sessionId, interruptReason)
         if (controller.signal.aborted) {
           emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
           return
         }
-        input = new Command({ resume: true })
+        input = cmd
         continue
       }
 
@@ -666,7 +705,7 @@ export async function runLangGraphStep(params: {
     // eslint-disable-next-line no-constant-condition
     while (true) {
       if (controller.signal.aborted) return 'aborted'
-      let needResume = false
+      let resumeCommand: Command | null = null
       try {
         const stream = await agent.stream(input as Parameters<typeof agent.stream>[0], {
           ...config,
@@ -676,9 +715,8 @@ export async function runLangGraphStep(params: {
           if (controller.signal.aborted) return 'aborted'
           const chunkReason = queryInterruptReasonFromChunk(state)
           if (chunkReason) {
-            await waitForGraphUserContinue(sessionId, chunkReason)
+            resumeCommand = await waitForGraphUserResumeCommand(sessionId, chunkReason)
             if (controller.signal.aborted) return 'aborted'
-            needResume = true
             break
           }
           if (state && typeof state === 'object' && 'messages' in state) {
@@ -689,16 +727,16 @@ export async function runLangGraphStep(params: {
             )
           }
         }
-        if (needResume) {
-          input = new Command({ resume: true })
+        if (resumeCommand) {
+          input = resumeCommand
           continue
         }
       } catch (streamErr) {
         const reason = extractInterruptReason(streamErr)
         if (reason) {
-          await waitForGraphUserContinue(sessionId, reason)
+          const cmd = await waitForGraphUserResumeCommand(sessionId, reason)
           if (controller.signal.aborted) return 'aborted'
-          input = new Command({ resume: true })
+          input = cmd
           continue
         }
         throw streamErr
@@ -707,9 +745,9 @@ export async function runLangGraphStep(params: {
       const snap = await agent.getState(config)
       const interruptReason = queryInterruptReasonFromState(snap)
       if (interruptReason) {
-        await waitForGraphUserContinue(sessionId, interruptReason)
+        const cmd = await waitForGraphUserResumeCommand(sessionId, interruptReason)
         if (controller.signal.aborted) return 'aborted'
-        input = new Command({ resume: true })
+        input = cmd
         continue
       }
 

@@ -36,8 +36,11 @@ export async function postAgentAbort(sessionId: string): Promise<void> {
   return window.api.postAgentAbort(sessionId)
 }
 
-export async function postAgentContinue(sessionId: string): Promise<void> {
-  return window.api.postAgentContinue(sessionId)
+export async function postAgentContinue(
+  sessionId: string,
+  userInput?: string
+): Promise<void> {
+  return window.api.postAgentContinue(sessionId, userInput)
 }
 
 export async function postSelectImages(): Promise<string[]> {

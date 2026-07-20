@@ -270,7 +270,11 @@ async function executeToolNode(
     attachmentPaths: [],
     emitAwaitUser: async (reason) => {
       if (onAwaitUser) await onAwaitUser()
-      await waitForGraphUserContinue(sessionId, reason)
+      const userInput = await waitForGraphUserContinue(sessionId, reason)
+      const trimmed = userInput?.trim()
+      if (trimmed) {
+        appendWorkflowMessage(session, { role: 'user', content: trimmed })
+      }
     },
     updateTasks: () => {
       /* 引擎权威维护 tasks */
@@ -431,9 +435,19 @@ async function executeLeafNode(
      * 与工具确认一致：直接 promise 等待并推送 await_user 事件。
      * 勿用 LangGraph interrupt()——外层 stream 常漏检，会出现「已写等待确认文案但无继续按钮」。
      */
-    await waitForGraphUserContinue(sessionId, reason)
+    const userInput = await waitForGraphUserContinue(sessionId, reason)
     if (signal.aborted) throw new Error('__aborted__')
-    return patchRun(run, { status: 'running' })
+    let nextContext = run.context
+    const trimmed = userInput?.trim()
+    if (trimmed) {
+      appendWorkflowMessage(session, { role: 'user', content: trimmed })
+      nextContext = patchAgentOutputToContext(
+        run.context,
+        trimmed,
+        node.outputKeys?.length ? node.outputKeys : ['userInput']
+      )
+    }
+    return patchRun(run, { context: nextContext, status: 'running' })
   }
 
   if (node.type === 'tool') {

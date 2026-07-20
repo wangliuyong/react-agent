@@ -60,6 +60,7 @@ interface FormValues {
   toolName?: string
   argsJson?: string
   reason?: string
+  outputKeys?: string
   /** notify */
   channelId?: string
   titleTemplate?: string
@@ -97,7 +98,11 @@ function nodeToFormValues(node: WorkflowNode): FormValues {
     }
   }
   if (node.type === 'await_user') {
-    return { ...base, reason: node.reason }
+    return {
+      ...base,
+      reason: node.reason,
+      outputKeys: node.outputKeys?.join(', ') ?? ''
+    }
   }
   if (node.type === 'notify') {
     return {
@@ -263,11 +268,16 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
   }
 
   if (values.type === 'await_user') {
+    const outputKeys = (values.outputKeys ?? '')
+      .split(/[,，\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
     const node: WorkflowAwaitNode = {
       id,
       type: 'await_user',
       title,
-      reason: (values.reason ?? '').trim() || '请确认后继续'
+      reason: (values.reason ?? '').trim() || '请确认后继续',
+      ...(outputKeys.length ? { outputKeys } : {})
     }
     return node
   }
@@ -596,9 +606,18 @@ export function WorkflowNodeEditModal({
         )}
 
         {type === 'await_user' && (
-          <Form.Item name="reason" label="确认说明">
-            <Input.TextArea rows={3} placeholder="展示给用户的暂停原因" />
-          </Form.Item>
+          <>
+            <Form.Item name="reason" label="确认说明">
+              <Input.TextArea rows={3} placeholder="展示给用户的暂停原因" />
+            </Form.Item>
+            <Form.Item
+              name="outputKeys"
+              label="写入 context 的键名"
+              tooltip="用户补充说明写入流程上下文，供下游 {{contextKey}} 引用；留空默认 userInput"
+            >
+              <Input placeholder="例如 userInput, feedback" />
+            </Form.Item>
+          </>
         )}
 
         {type === 'notify' && (

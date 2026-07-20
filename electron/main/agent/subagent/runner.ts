@@ -259,7 +259,8 @@ async function runSubagentJob(params: Required<
     params
 
   const bridge = await queryGraphBridge()
-  const { emitAgentEvent, getGraphAbortSignal, waitForGraphUserContinue } = bridge
+  const { emitAgentEvent, getGraphAbortSignal, waitForGraphUserContinue, queryGraphResumePayload } =
+    bridge
 
   const def = querySubagentDefinition(agentType)
   if (!def) {
@@ -387,7 +388,7 @@ async function runSubagentJob(params: Required<
         throw new Error('用户已中止')
       }
 
-      let needResume = false
+      let resumeCommand: Command | null = null
       try {
         const stream = await agent.stream(input as Parameters<typeof agent.stream>[0], {
           ...config,
@@ -400,12 +401,14 @@ async function runSubagentJob(params: Required<
           }
           const chunkReason = queryInterruptReasonFromChunk(state)
           if (chunkReason) {
-            await waitForGraphUserContinue(parentSessionId, chunkReason)
+            const userInput = await waitForGraphUserContinue(parentSessionId, chunkReason)
             if (parentSignal?.aborted) {
               finish('aborted', '用户已中止')
               throw new Error('用户已中止')
             }
-            needResume = true
+            resumeCommand = new Command({
+              resume: queryGraphResumePayload(parentSessionId, userInput)
+            })
             break
           }
           if (state && typeof state === 'object' && 'messages' in state) {
@@ -419,8 +422,8 @@ async function runSubagentJob(params: Required<
             )
           }
         }
-        if (needResume) {
-          input = new Command({ resume: true })
+        if (resumeCommand) {
+          input = resumeCommand
           continue
         }
       } catch (streamErr) {
@@ -430,12 +433,12 @@ async function runSubagentJob(params: Required<
         }
         const reason = extractInterruptReason(streamErr)
         if (reason) {
-          await waitForGraphUserContinue(parentSessionId, reason)
+          const userInput = await waitForGraphUserContinue(parentSessionId, reason)
           if (parentSignal?.aborted) {
             finish('aborted', '用户已中止')
             throw new Error('用户已中止')
           }
-          input = new Command({ resume: true })
+          input = new Command({ resume: queryGraphResumePayload(parentSessionId, userInput) })
           continue
         }
         throw streamErr
@@ -444,12 +447,12 @@ async function runSubagentJob(params: Required<
       const snap = await agent.getState(config)
       const interruptReason = queryInterruptReasonFromState(snap)
       if (interruptReason) {
-        await waitForGraphUserContinue(parentSessionId, interruptReason)
+        const userInput = await waitForGraphUserContinue(parentSessionId, interruptReason)
         if (parentSignal?.aborted) {
           finish('aborted', '用户已中止')
           throw new Error('用户已中止')
         }
-        input = new Command({ resume: true })
+        input = new Command({ resume: queryGraphResumePayload(parentSessionId, userInput) })
         continue
       }
 

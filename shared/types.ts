@@ -1251,12 +1251,14 @@ export interface WorkflowToolNode {
   outputKeys?: string[]
 }
 
-/** 人工确认节点：复用 await_user / continue */
+/** 人工确认节点：复用 await_user / continue；用户补充说明写入 context */
 export interface WorkflowAwaitNode {
   id: string
   type: 'await_user'
   title: string
   reason: string
+  /** 用户输入写入 context 的键名，默认 userInput */
+  outputKeys?: string[]
 }
 
 /** Toast 级别，对应 Ant Design message */
@@ -1478,7 +1480,7 @@ export interface ElectronApi {
   postImportBuiltinScheduledTasks: () => Promise<ScheduledTask[]>
   postAgentChat: (req: AgentChatRequest) => Promise<void>
   postAgentAbort: (sessionId: string) => Promise<void>
-  postAgentContinue: (sessionId: string) => Promise<void>
+  postAgentContinue: (sessionId: string, userInput?: string) => Promise<void>
   queryBrowserStatus: () => Promise<BrowserStatus>
   postBrowserStart: () => Promise<BrowserStatus>
   postBrowserClose: () => Promise<BrowserStatus>

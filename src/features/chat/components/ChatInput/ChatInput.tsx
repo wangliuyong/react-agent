@@ -30,7 +30,7 @@ interface ChatInputProps {
   tokenUsed?: number
   onSend: (text: string, paths: string[]) => void
   onAbort: () => void
-  onContinue: () => void
+  onContinue: (userInput?: string) => void
 }
 
 /**
@@ -150,15 +150,26 @@ export function ChatInput({
     return options
   }, [remoteModels, settings.model, modelSearch])
 
+  const awaitingUser = Boolean(awaitUserReason)
+
   const handleSend = (): void => {
     const value = text.trim()
-    if (!value || disabled || running) return
+    if (!value || disabled) return
+    // 确认挂起时：发送说明并继续流程（无需再点「继续」）
+    if (awaitingUser) {
+      onContinue(value)
+      setText('')
+      setPaths([])
+      return
+    }
+    if (running) return
     onSend(value, paths)
     setText('')
     setPaths([])
   }
 
-  const inputDisabled = disabled || running
+  /** 确认态仍允许输入；普通运行中禁用 */
+  const inputDisabled = disabled || (running && !awaitingUser)
 
   return (
     <div className={styles.wrap}>
@@ -166,7 +177,7 @@ export function ChatInput({
         {awaitUserReason ? (
           <div className={styles.awaitBar}>
             <Text className={styles.awaitText}>{awaitUserReason}</Text>
-            <Button type="primary" icon={<PlayCircleOutlined />} onClick={onContinue}>
+            <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => onContinue()}>
               继续
             </Button>
           </div>
@@ -195,11 +206,13 @@ export function ChatInput({
           <textarea
             className={styles.textarea}
             placeholder={
-              running
-                ? 'Agent 正在处理，请稍候…'
-                : disabled
-                  ? (sendDisabledHint ?? '当前不可发送消息')
-                  : '描述你的任务，Enter 发送，Shift+Enter 换行…'
+              awaitingUser
+                ? '可补充说明后 Enter 发送并继续；也可直接点上方「继续」'
+                : running
+                  ? 'Agent 正在处理，请稍候…'
+                  : disabled
+                    ? (sendDisabledHint ?? '当前不可发送消息')
+                    : '描述你的任务，Enter 发送，Shift+Enter 换行…'
             }
             value={text}
             rows={2}
@@ -290,7 +303,7 @@ export function ChatInput({
                   {running ? '处理中' : `${tokenDisplayUsed}/${tokenDisplayMaxK}k`}
                 </Text>
               </div>
-              {running ? (
+              {running && !awaitingUser ? (
                 <Button
                   danger
                   shape="circle"
@@ -303,9 +316,13 @@ export function ChatInput({
                   title={
                     disabled
                       ? (sendDisabledHint ?? '当前不可发送消息')
-                      : !text.trim()
-                        ? '请输入消息内容'
-                        : '发送'
+                      : awaitingUser
+                        ? !text.trim()
+                          ? '输入说明后发送并继续'
+                          : '发送并继续'
+                        : !text.trim()
+                          ? '请输入消息内容'
+                          : '发送'
                   }
                 >
                   <Button
@@ -313,11 +330,22 @@ export function ChatInput({
                     shape="circle"
                     className={styles.sendBtn}
                     icon={<SendOutlined />}
-                    disabled={!text.trim() || disabled}
+                    disabled={!text.trim() || disabled || (running && !awaitingUser)}
                     onClick={handleSend}
                   />
                 </Tooltip>
               )}
+              {running && awaitingUser ? (
+                <Tooltip title="中止当前流程">
+                  <Button
+                    danger
+                    shape="circle"
+                    className={styles.stopBtn}
+                    icon={<PauseCircleOutlined />}
+                    onClick={onAbort}
+                  />
+                </Tooltip>
+              ) : null}
             </Space>
           </div>
         </div>

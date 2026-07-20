@@ -120,10 +120,14 @@ function normalizeLeaf(
   }
 
   if (raw.type === 'await_user') {
+    const awaitNode = raw as WorkflowAwaitNode
     return {
       ...base,
       type: 'await_user',
-      reason: String((raw as WorkflowAwaitNode).reason || '').trim() || '请确认后继续'
+      reason: String(awaitNode.reason || '').trim() || '请确认后继续',
+      outputKeys: Array.isArray(awaitNode.outputKeys)
+        ? awaitNode.outputKeys.map(String).filter(Boolean)
+        : undefined
     }
   }
 

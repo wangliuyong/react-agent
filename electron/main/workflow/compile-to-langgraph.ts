@@ -9,7 +9,7 @@ import type {
   WorkflowDefinition
 } from '../../../shared/types'
 import { WorkflowGraphAnnotation, type WorkflowGraphState } from '../agent/graph/state'
-import { waitForGraphUserContinue } from '../agent/graph-bridge'
+import { waitForGraphUserContinue, queryGraphResumePayload } from '../agent/graph-bridge'
 import {
   executeTopLevelNodeForGraph,
   finalizeWorkflowRun,
@@ -86,17 +86,17 @@ export async function executeWorkflowWithLangGraph(
                 updatedAt: Date.now()
               })
             }
-            await waitForGraphUserContinue(session.id, reason)
+            const userInput = await waitForGraphUserContinue(session.id, reason)
             if (signal.aborted) {
               finalizeWorkflowRun(runId, session.id, 'aborted')
               return
             }
             needResume = true
+            input = new Command({ resume: queryGraphResumePayload(session.id, userInput) })
             break
           }
         }
         if (needResume) {
-          input = new Command({ resume: true })
           continue
         }
       } catch (e) {
@@ -111,12 +111,12 @@ export async function executeWorkflowWithLangGraph(
               updatedAt: Date.now()
             })
           }
-          await waitForGraphUserContinue(session.id, reason)
+          const userInput = await waitForGraphUserContinue(session.id, reason)
           if (signal.aborted) {
             finalizeWorkflowRun(runId, session.id, 'aborted')
             return
           }
-          input = new Command({ resume: true })
+          input = new Command({ resume: queryGraphResumePayload(session.id, userInput) })
           continue
         }
         throw e
@@ -125,12 +125,12 @@ export async function executeWorkflowWithLangGraph(
       const snap = await graph.getState(config)
       if (hasInterrupt(snap)) {
         const reason = extractReasonFromState(snap) || '等待用户确认'
-        await waitForGraphUserContinue(session.id, reason)
+        const userInput = await waitForGraphUserContinue(session.id, reason)
         if (signal.aborted) {
           finalizeWorkflowRun(runId, session.id, 'aborted')
           return
         }
-        input = new Command({ resume: true })
+        input = new Command({ resume: queryGraphResumePayload(session.id, userInput) })
         continue
       }
 

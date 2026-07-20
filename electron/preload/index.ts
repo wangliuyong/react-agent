@@ -58,8 +58,8 @@ const api: ElectronApi = {
   postAgentChat: (req: AgentChatRequest) => ipcRenderer.invoke(IpcChannels.postAgentChat, req),
   postAgentAbort: (sessionId: string) =>
     ipcRenderer.invoke(IpcChannels.postAgentAbort, sessionId),
-  postAgentContinue: (sessionId: string) =>
-    ipcRenderer.invoke(IpcChannels.postAgentContinue, sessionId),
+  postAgentContinue: (sessionId: string, userInput?: string) =>
+    ipcRenderer.invoke(IpcChannels.postAgentContinue, sessionId, userInput),
 
   queryBrowserStatus: () => ipcRenderer.invoke(IpcChannels.queryBrowserStatus),
   postBrowserStart: () => ipcRenderer.invoke(IpcChannels.postBrowserStart),
