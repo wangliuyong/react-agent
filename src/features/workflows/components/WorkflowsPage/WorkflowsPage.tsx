@@ -1,4 +1,8 @@
-import type { WorkflowCanvas as WorkflowCanvasModel, WorkflowDefinition } from '@shared/types'
+import type {
+  AgentEvent,
+  WorkflowCanvas as WorkflowCanvasModel,
+  WorkflowDefinition
+} from '@shared/types'
 import { useWorkflowsStore } from '../../hooks/useWorkflowsStore'
 import { WorkflowCard } from '../WorkflowCard'
 import { WorkflowDetailModal } from '../WorkflowDetailModal'
@@ -11,6 +15,13 @@ const { Title, Text } = Typography
 
 type WorkflowKindFilter = 'all' | 'generic' | 'publish'
 type WorkflowSort = 'updated_desc' | 'name_asc' | 'name_desc'
+
+/** 从 task_update 中提取当前 running 节点，驱动画布连线流动 */
+function queryActiveNodeIdsFromTasks(
+  tasks: Array<{ id: string; status: string }>
+): string[] {
+  return tasks.filter((t) => t.status === 'running').map((t) => t.id)
+}
 
 function matchWorkflowQuery(wf: WorkflowDefinition, query: string): boolean {
   const q = query.trim().toLowerCase()
@@ -54,10 +65,46 @@ export function WorkflowsPage(): React.ReactElement {
   const [canvasDrawerOpen, setCanvasDrawerOpen] = useState(false)
   const [draft, setDraft] = useState<WorkflowDefinition | null>(null)
   const [saving, setSaving] = useState(false)
+  /** 画布内「立即运行」绑定的会话；有值表示留在画布看执行动画 */
+  const [canvasRunSessionId, setCanvasRunSessionId] = useState<string | null>(null)
+  const [canvasActiveNodeIds, setCanvasActiveNodeIds] = useState<string[]>([])
 
   useEffect(() => {
     void hydrate()
   }, [hydrate])
+
+  /**
+   * 画布运行期间订阅 Agent 事件：用 task_update 驱动连线流动，done/error 结束动画。
+   */
+  useEffect(() => {
+    if (!canvasRunSessionId) return
+    const unbind = window.api.onAgentEvent((event: AgentEvent) => {
+      if (event.sessionId !== canvasRunSessionId) return
+
+      if (event.type === 'task_update') {
+        setCanvasActiveNodeIds(queryActiveNodeIdsFromTasks(event.tasks))
+        return
+      }
+
+      if (event.type === 'done') {
+        setCanvasActiveNodeIds([])
+        setCanvasRunSessionId(null)
+        if (event.reason === 'workflow_success') {
+          message.success('流程执行完成')
+        } else if (event.reason === 'aborted') {
+          message.warning('流程已中止')
+        }
+        return
+      }
+
+      if (event.type === 'error') {
+        setCanvasActiveNodeIds([])
+        setCanvasRunSessionId(null)
+        message.error(event.message || '流程执行失败')
+      }
+    })
+    return unbind
+  }, [canvasRunSessionId])
 
   const filtered = useMemo(() => {
     let list = workflows
@@ -90,6 +137,8 @@ export function WorkflowsPage(): React.ReactElement {
     setDetailOpen(false)
     setCanvasDrawerOpen(false)
     setDraft(null)
+    setCanvasActiveNodeIds([])
+    setCanvasRunSessionId(null)
   }
 
   const openCanvasDrawer = (): void => {
@@ -99,6 +148,9 @@ export function WorkflowsPage(): React.ReactElement {
 
   const closeCanvasDrawer = (): void => {
     setCanvasDrawerOpen(false)
+    // 关闭抽屉时清除动画态；后台会话仍可继续跑
+    setCanvasActiveNodeIds([])
+    setCanvasRunSessionId(null)
   }
 
   const patchDraft = (
@@ -156,9 +208,17 @@ export function WorkflowsPage(): React.ReactElement {
     }
   }
 
-  const handleRun = async (workflowId?: string): Promise<void> => {
+  /**
+   * 启动流程。
+   * @param options.stayOnCanvas 为 true 时留在画布，用连线流动展示执行过程（不跳转 chat）
+   */
+  const handleRun = async (
+    workflowId?: string,
+    options?: { stayOnCanvas?: boolean }
+  ): Promise<void> => {
     const id = workflowId ?? draft?.id
     if (!id) return
+    const stayOnCanvas = Boolean(options?.stayOnCanvas)
 
     setSaving(true)
     try {
@@ -187,6 +247,14 @@ export function WorkflowsPage(): React.ReactElement {
       const sessionId = await runWorkflow(targetId)
       await hydrateSessions()
       beginExternalRun(sessionId)
+
+      if (stayOnCanvas) {
+        setCanvasRunSessionId(sessionId)
+        setCanvasActiveNodeIds([])
+        message.success('流程已启动，可在画布查看执行动画')
+        return
+      }
+
       closeDetail()
       setView('chat')
       message.success('流程已启动，已跳转到会话')
@@ -306,11 +374,12 @@ export function WorkflowsPage(): React.ReactElement {
         open={canvasDrawerOpen}
         draft={draft}
         saving={saving}
-        running={running}
+        running={running || Boolean(canvasRunSessionId)}
+        activeNodeIds={canvasActiveNodeIds}
         onClose={closeCanvasDrawer}
         onCanvasChange={handleCanvasChange}
         onSave={() => void handleSave()}
-        onRun={() => void handleRun()}
+        onRun={() => void handleRun(undefined, { stayOnCanvas: true })}
       />
     </div>
   )

@@ -69,6 +69,11 @@ interface WorkflowCanvasProps {
   onChange: (next: { nodes: WorkflowNode[]; canvas: WorkflowCanvasModel }) => void
   isFullscreen?: boolean
   fullscreenContainer?: HTMLElement | null
+  /**
+   * 正在执行的节点 id。
+   * 指向这些节点的入边会开启流动动画；空数组表示默认静止。
+   */
+  activeNodeIds?: string[]
 }
 
 function queryEdgeLabel(e: WorkflowCanvasEdge): string | undefined {
@@ -115,20 +120,28 @@ function toRfNodes(
   return [...terminalNodes, ...leafNodes]
 }
 
-function toRfEdges(canvas: WorkflowCanvasModel): Edge[] {
+function toRfEdges(canvas: WorkflowCanvasModel, activeNodeIds: string[] = []): Edge[] {
+  const active = new Set(activeNodeIds)
   return canvas.edges.map((e) => {
     const label = queryEdgeLabel(e)
     const conditional = edgeHasCondition(e)
+    const isActive = active.has(e.target)
     return {
       id: e.id,
       source: e.source,
       target: e.target,
       label,
-      animated: true,
-      className: conditional ? 'wf-edge-conditional' : 'wf-edge-default',
+      // 默认静止；仅执行到该目标节点时流动
+      animated: isActive,
+      className: [
+        conditional ? 'wf-edge-conditional' : 'wf-edge-default',
+        isActive ? 'wf-edge-executing' : ''
+      ]
+        .filter(Boolean)
+        .join(' '),
       markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
       style: {
-        strokeWidth: 1,
+        strokeWidth: isActive ? 2 : 1,
         strokeDasharray: conditional ? '4 3' : undefined
       },
       labelStyle: { fontSize: 6, fill: 'var(--db-text-secondary)' },
@@ -178,9 +191,10 @@ function queryCanvasFromRf(
   }
 }
 
+/** 新建/编辑连线样式：默认无流动动画 */
 function queryEdgeStyle(conditional = false): Partial<Edge> {
   return {
-    animated: true,
+    animated: false,
     className: conditional ? 'wf-edge-conditional' : 'wf-edge-default',
     markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
     style: {
@@ -202,7 +216,8 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
       canvas: canvasProp,
       onChange,
       isFullscreen = false,
-      fullscreenContainer = null
+      fullscreenContainer = null,
+      activeNodeIds = []
     },
     ref
   ): React.ReactElement {
@@ -230,8 +245,35 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
       )
     )
     const [rfEdges, setEdges, onEdgesChangeInternal] = useEdgesState(
-      toRfEdges(initialCanvas)
+      toRfEdges(initialCanvas, activeNodeIds)
     )
+
+    /**
+     * 执行进度变化时，只更新入边的流动态，避免整图重置拖拽/选中。
+     * target === 当前执行节点 → animated。
+     */
+    useEffect(() => {
+      const active = new Set(activeNodeIds)
+      setEdges((eds) =>
+        eds.map((e) => {
+          const isActive = active.has(e.target)
+          const baseClass = e.className?.includes('wf-edge-conditional')
+            ? 'wf-edge-conditional'
+            : 'wf-edge-default'
+          const nextClass = isActive ? `${baseClass} wf-edge-executing` : baseClass
+          if (e.animated === isActive && e.className === nextClass) return e
+          return {
+            ...e,
+            animated: isActive,
+            className: nextClass,
+            style: {
+              ...e.style,
+              strokeWidth: isActive ? 2 : 1
+            }
+          }
+        })
+      )
+    }, [activeNodeIds, setEdges])
 
     const emitChange = useCallback(
       (nextNodes: WorkflowCanvasRfNode[], nextEdges: Edge[]) => {
@@ -290,7 +332,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
           }
         )
       )
-      setEdges(toRfEdges(canvas))
+      setEdges(toRfEdges(canvas, activeNodeIds))
       setGraphError(null)
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workflowId])

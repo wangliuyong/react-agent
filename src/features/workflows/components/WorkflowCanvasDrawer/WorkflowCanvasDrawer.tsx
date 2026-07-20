@@ -16,6 +16,8 @@ interface WorkflowCanvasDrawerProps {
   draft: WorkflowDefinition | null
   saving: boolean
   running: boolean
+  /** 画布内运行时，当前执行节点 id（驱动连线流动动画） */
+  activeNodeIds?: string[]
   onClose: () => void
   onCanvasChange: (next: {
     nodes: WorkflowDefinition['nodes']
@@ -40,6 +42,7 @@ export function WorkflowCanvasDrawer({
   draft,
   saving,
   running,
+  activeNodeIds = [],
   onClose,
   onCanvasChange,
   onSave,
@@ -176,6 +179,7 @@ export function WorkflowCanvasDrawer({
                 onChange={onCanvasChange}
                 isFullscreen={isFullscreen}
                 fullscreenContainer={isFullscreen ? canvasPanelRef.current : null}
+                activeNodeIds={activeNodeIds}
               />
             </div>
           </div>

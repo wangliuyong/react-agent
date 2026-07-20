@@ -64,6 +64,28 @@
   stroke: var(--db-warning);
 }
 
+/* 执行中：入边流动高亮（配合 React Flow animated） */
+.canvas :global(.react-flow__edge.wf-edge-executing .react-flow__edge-path) {
+  stroke: var(--db-primary) !important;
+  stroke-width: 2 !important;
+  filter: drop-shadow(0 0 5px var(--db-primary-glow));
+}
+
+.canvas :global(.react-flow__edge.wf-edge-executing.wf-edge-conditional .react-flow__edge-path) {
+  stroke: var(--db-warning) !important;
+  filter: drop-shadow(0 0 5px rgba(255, 125, 0, 0.45));
+}
+
+.canvas :global(.react-flow__edge.wf-edge-executing marker path) {
+  fill: var(--db-primary) !important;
+  stroke: var(--db-primary) !important;
+}
+
+.canvas :global(.react-flow__edge.wf-edge-executing.wf-edge-conditional marker path) {
+  fill: var(--db-warning) !important;
+  stroke: var(--db-warning) !important;
+}
+
 /* 选中连线：统一高亮主色 + 略粗 + 柔光 */
 .canvas :global(.react-flow__edge.selected .react-flow__edge-path) {
   stroke: var(--db-primary) !important;
