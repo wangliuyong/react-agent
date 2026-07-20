@@ -29,7 +29,8 @@ export function MessageList({
   activeToolName = null,
   awaitUserReason = null
 }: MessageListProps): React.ReactElement {
-  const bottomRef = useRef<HTMLDivElement>(null)
+  /** 列表层滚动容器，自动滚底时直接操作此节点 */
+  const listRef = useRef<HTMLDivElement>(null)
   const visible = messages.filter((m) => m.role !== 'system')
 
   const phase = queryAgentPhase({
@@ -67,13 +68,15 @@ export function MessageList({
 
   const showThinking = thinkingText.trim().length > 0
 
-  /** 新消息 / 流式输出 / 思考过程时自动滚到底部（scrollIntoView 由 ChatPage.body 承载滚动） */
+  /** 新消息 / 流式输出 / 思考过程时在 .list 层自动滚到底部 */
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    const listEl = listRef.current
+    if (!listEl) return
+    listEl.scrollTo({ top: listEl.scrollHeight, behavior: 'smooth' })
   }, [messages.length, streamingText, thinkingText, running, activeToolName])
 
   return (
-    <div className={styles.list}>
+    <div ref={listRef} className={styles.list}>
       {tasks.length > 0 && (
         <div className={styles.taskInline}>
           {tasks.map((t) => (
@@ -184,8 +187,6 @@ export function MessageList({
           </div>
         </div>
       ) : null}
-
-      <div ref={bottomRef} className={styles.scrollAnchor} />
     </div>
   )
 }
