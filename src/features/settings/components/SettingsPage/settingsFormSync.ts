@@ -1,6 +1,10 @@
 import {
+  queryAllProviderOptions,
   queryProviderCredentialsFromSettings,
+  queryProviderOption,
   type AppSettings,
+  type CustomModelProvider,
+  type ModelConnection,
   type ModelProvider
 } from '@shared/types'
 
@@ -89,5 +93,62 @@ export function queryProviderSwitchFormValues(
     apiKey: creds.apiKey,
     baseUrl: creds.baseUrl,
     model: creds.model
+  }
+}
+
+/** 从已保存设置初始化各供应商凭证草稿 */
+export function queryInitialProviderDrafts(settings: AppSettings): ProviderFormDraftMap {
+  const drafts: ProviderFormDraftMap = {}
+  const customProviders = settings.customProviders ?? []
+  for (const option of queryAllProviderOptions(customProviders)) {
+    drafts[option.value] = queryProviderCredentialsFromSettings(settings, option.value)
+  }
+  return drafts
+}
+
+/** 将各供应商草稿同步回多模型连接中同 provider 的连接行 */
+export function queryApplyProviderDraftsToConnections(
+  connections: ModelConnection[],
+  drafts: ProviderFormDraftMap,
+  customProviders: CustomModelProvider[]
+): ModelConnection[] {
+  return connections.map((conn) => {
+    const draft = drafts[conn.provider]
+    if (!draft) return conn
+    const meta = queryProviderOption(conn.provider, customProviders)
+    return {
+      ...conn,
+      apiKey: draft.apiKey.trim() ? draft.apiKey : conn.apiKey,
+      baseUrl: (draft.baseUrl || conn.baseUrl || meta.defaultBaseUrl).trim(),
+      model: (draft.model || conn.model || meta.defaultModel).trim()
+    }
+  })
+}
+
+/** 模型与 API 面板一次性保存：当前选用供应商写顶层，其余凭证写回连接 */
+export function queryModelApiSavePatch(params: {
+  activeProvider: ModelProvider
+  drafts: ProviderFormDraftMap
+  settings: AppSettings
+  maxTurns: number
+  fullAccess: boolean
+  customProviders: CustomModelProvider[]
+}): Partial<AppSettings> {
+  const { activeProvider, drafts, settings, maxTurns, fullAccess, customProviders } = params
+  const activeDraft =
+    drafts[activeProvider] ?? queryProviderCredentialsFromSettings(settings, activeProvider)
+  return {
+    provider: activeProvider,
+    apiKey: activeDraft.apiKey,
+    baseUrl: activeDraft.baseUrl,
+    model: activeDraft.model,
+    maxTurns,
+    fullAccess,
+    customProviders,
+    connections: queryApplyProviderDraftsToConnections(
+      settings.connections ?? [],
+      drafts,
+      customProviders
+    )
   }
 }

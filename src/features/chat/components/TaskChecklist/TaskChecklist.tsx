@@ -40,6 +40,8 @@ interface TaskChecklistProps {
   onContinue?: () => void
   /** 中断后从任务清单继续执行 */
   onResume?: () => void
+  /** 点击流程节点时定位到关联聊天记录 */
+  onTaskClick?: (task: TaskItem) => void
 }
 
 /** 从 localStorage 读取垂直位置；兼容旧版相对 page 的 offset */
@@ -146,7 +148,8 @@ export function TaskChecklist({
   canResume = false,
   onAbort,
   onContinue,
-  onResume
+  onResume,
+  onTaskClick
 }: TaskChecklistProps): React.ReactElement | null {
   const rootRef = useRef<HTMLDivElement>(null)
   /** 总结为技能弹窗 */
@@ -323,6 +326,23 @@ export function TaskChecklist({
   const canSummarizeToSkill = queryCanSummarizeTasksToSkill(tasks, running, awaitUserReason)
   const successfulStepCount = querySuccessfulTaskCount(tasks)
 
+  /** 点击任务行：跳转至该步骤关联的首条聊天记录 */
+  const handleTaskRowClick = useCallback(
+    (task: TaskItem) => {
+      onTaskClick?.(task)
+    },
+    [onTaskClick]
+  )
+
+  const handleTaskRowKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLLIElement>, task: TaskItem) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      onTaskClick?.(task)
+    },
+    [onTaskClick]
+  )
+
   const setView = useAppStore((s) => s.setView)
 
   /** 总结为技能弹窗（收起/展开态均需挂载） */
@@ -474,11 +494,19 @@ export function TaskChecklist({
                 data-status={displayStatus}
                 className={[
                   queryTaskRowClass(displayStatus),
-                  item.parentId ? styles.taskRowChild : ''
+                  item.parentId ? styles.taskRowChild : '',
+                  onTaskClick ? styles.taskRowClickable : ''
                 ]
                   .filter(Boolean)
                   .join(' ')}
                 style={{ '--task-index': index } as CSSProperties}
+                role={onTaskClick ? 'button' : undefined}
+                tabIndex={onTaskClick ? 0 : undefined}
+                title={onTaskClick ? '点击查看关联聊天记录' : undefined}
+                onClick={onTaskClick ? () => handleTaskRowClick(item) : undefined}
+                onKeyDown={
+                  onTaskClick ? (event) => handleTaskRowKeyDown(event, item) : undefined
+                }
               >
                 <span className={styles.statusIcon}>
                   <TaskStatusIcon status={displayStatus} />

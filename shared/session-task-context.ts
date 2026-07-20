@@ -40,7 +40,7 @@ function queryContextSliceForTask(
  * 按任务标题 / 工具名 / 工作流步骤标记，匹配与该节点相关的消息。
  * 工作流引擎会在 Agent 步骤前写入「【工作流步骤】标题」类内容。
  */
-function queryRelatedMessagesForTask(session: Session, task: TaskItem): ChatMessage[] {
+export function queryRelatedMessagesForTask(session: Session, task: TaskItem): ChatMessage[] {
   const title = task.title.trim()
   if (!title) return []
 

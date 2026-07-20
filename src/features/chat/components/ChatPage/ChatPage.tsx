@@ -1,3 +1,5 @@
+import type { TaskItem } from '@shared/types'
+import { queryRelatedMessagesForTask } from '@shared/session-task-context'
 import { useBrowserControl } from '@/features/browser'
 import type { ChatMode } from '@/features/business'
 import { useSettingsStore } from '@/features/settings'
@@ -67,6 +69,27 @@ export function ChatPage(): React.ReactElement {
     ? '任务流程已执行完毕，如需新任务请新建会话'
     : undefined
 
+  /** 任务清单点击后滚动定位的消息目标 */
+  const [scrollToMessage, setScrollToMessage] = useState<{
+    id: string
+    token: number
+  } | null>(null)
+
+  /** 根据任务节点解析首条关联消息并触发聊天区滚动 */
+  const handleTaskClick = useCallback(
+    (task: TaskItem) => {
+      if (!session) return
+      const related = queryRelatedMessagesForTask(session, task)
+      const anchor = related.find((msg) => msg.role !== 'system')
+      if (!anchor) {
+        message.info('该步骤暂无关联聊天记录')
+        return
+      }
+      setScrollToMessage({ id: anchor.id, token: Date.now() })
+    },
+    [session]
+  )
+
   return (
     <div className={styles.page} data-task-checklist-anchor>
       <header className={`${styles.header} app-drag`}>
@@ -133,6 +156,7 @@ export function ChatPage(): React.ReactElement {
         onAbort={() => void abort()}
         onContinue={() => void continueRun()}
         onResume={() => void resumeRun()}
+        onTaskClick={handleTaskClick}
       />
 
       <div className={styles.body} data-empty={isEmpty}>
@@ -150,6 +174,8 @@ export function ChatPage(): React.ReactElement {
             running={running}
             activeToolName={activeToolName}
             awaitUserReason={awaitUserReason}
+            scrollToMessageId={scrollToMessage?.id ?? null}
+            scrollToMessageToken={scrollToMessage?.token}
           />
         )}
       </div>
