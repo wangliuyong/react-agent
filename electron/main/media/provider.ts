@@ -279,6 +279,9 @@ function queryLocalFfmpegCompose(): VideoComposeProvider {
 
       writeFileSync(listPath, lines.join('\n'), 'utf-8')
 
+      // ffmpeg 顺序：全局选项 → 全部输入 → 输出选项（含 -filter:v）→ 输出文件
+      // 不可把第二个 -i 插到 -vf 之后，否则 filter 会被误绑到音频输入
+      const hasAudio = Boolean(mergedAudio && existsSync(mergedAudio))
       const args = [
         '-y',
         '-f',
@@ -287,15 +290,14 @@ function queryLocalFfmpegCompose(): VideoComposeProvider {
         '0',
         '-i',
         listPath,
-        '-vf',
+        ...(hasAudio ? ['-i', mergedAudio as string] : []),
+        '-filter:v',
         'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
         '-pix_fmt',
         'yuv420p',
+        ...(hasAudio ? ['-shortest'] : []),
         outputPath
       ]
-      if (mergedAudio && existsSync(mergedAudio)) {
-        args.splice(args.length - 1, 0, '-i', mergedAudio, '-shortest')
-      }
 
       const run = await postRunFfmpeg(args)
       if (!run.ok) {
