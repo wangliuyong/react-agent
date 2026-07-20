@@ -1,6 +1,10 @@
 import { useRef } from 'react'
 import type { MenuProps } from 'antd'
-import type { WorkflowCanvas as WorkflowCanvasModel, WorkflowDefinition } from '@shared/types'
+import type {
+  TaskItemStatus,
+  WorkflowCanvas as WorkflowCanvasModel,
+  WorkflowDefinition
+} from '@shared/types'
 import { DB_THEME } from '@/styles/theme-tokens'
 import { useElementFullscreen } from '@/hooks/useElementFullscreen'
 import {
@@ -18,6 +22,8 @@ interface WorkflowCanvasDrawerProps {
   running: boolean
   /** 画布内运行时，当前执行节点 id（驱动连线流动动画） */
   activeNodeIds?: string[]
+  /** 各节点执行态；完成后仍保留，节点自行展示成功/失败 */
+  nodeStatuses?: Record<string, TaskItemStatus>
   onClose: () => void
   onCanvasChange: (next: {
     nodes: WorkflowDefinition['nodes']
@@ -43,6 +49,7 @@ export function WorkflowCanvasDrawer({
   saving,
   running,
   activeNodeIds = [],
+  nodeStatuses = {},
   onClose,
   onCanvasChange,
   onSave,
@@ -180,6 +187,7 @@ export function WorkflowCanvasDrawer({
                 isFullscreen={isFullscreen}
                 fullscreenContainer={isFullscreen ? canvasPanelRef.current : null}
                 activeNodeIds={activeNodeIds}
+                nodeStatuses={nodeStatuses}
               />
             </div>
           </div>

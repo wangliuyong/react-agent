@@ -25,6 +25,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type {
+  TaskItemStatus,
   WorkflowCanvas as WorkflowCanvasModel,
   WorkflowCanvasEdge,
   WorkflowLeafNode,
@@ -74,6 +75,8 @@ interface WorkflowCanvasProps {
    * 指向这些节点的入边会开启流动动画；空数组表示默认静止。
    */
   activeNodeIds?: string[]
+  /** 各叶子节点执行态；完成/失败后由节点自行展示对应样式 */
+  nodeStatuses?: Record<string, TaskItemStatus>
 }
 
 function queryEdgeLabel(e: WorkflowCanvasEdge): string | undefined {
@@ -95,7 +98,8 @@ function toRfNodes(
   leaves: WorkflowLeafNode[],
   terminals: WorkflowTerminalNode[],
   canvas: WorkflowCanvasModel,
-  handlers: { onEdit: (id: string) => void; onDelete: (id: string) => void }
+  handlers: { onEdit: (id: string) => void; onDelete: (id: string) => void },
+  nodeStatuses: Record<string, TaskItemStatus> = {}
 ): WorkflowCanvasRfNode[] {
   const leafNodes: WorkflowRfNode[] = leaves.map((leaf) => ({
     id: leaf.id,
@@ -103,6 +107,7 @@ function toRfNodes(
     position: canvas.positions[leaf.id] ?? { x: 80, y: 80 },
     data: {
       leaf,
+      execStatus: nodeStatuses[leaf.id],
       onEdit: handlers.onEdit,
       onDelete: handlers.onDelete
     }
@@ -217,7 +222,8 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
       onChange,
       isFullscreen = false,
       fullscreenContainer = null,
-      activeNodeIds = []
+      activeNodeIds = [],
+      nodeStatuses = {}
     },
     ref
   ): React.ReactElement {
@@ -241,7 +247,8 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
         {
           onEdit: (id) => onEditRef.current(id),
           onDelete: (id) => onDeleteRef.current(id)
-        }
+        },
+        nodeStatuses
       )
     )
     const [rfEdges, setEdges, onEdgesChangeInternal] = useEdgesState(
@@ -274,6 +281,27 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
         })
       )
     }, [activeNodeIds, setEdges])
+
+    /**
+     * 节点执行态变化时，只 patch leaf 节点的 execStatus，保留位置与选中。
+     */
+    useEffect(() => {
+      setNodes((ns) =>
+        ns.map((n): WorkflowCanvasRfNode => {
+          if (n.type !== 'workflow') return n
+          const nextStatus = nodeStatuses[n.id]
+          const prevStatus = n.data.execStatus
+          if (prevStatus === nextStatus) return n
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              execStatus: nextStatus
+            }
+          }
+        })
+      )
+    }, [nodeStatuses, setNodes])
 
     const emitChange = useCallback(
       (nextNodes: WorkflowCanvasRfNode[], nextEdges: Edge[]) => {
@@ -329,7 +357,8 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
           {
             onEdit: (id) => onEditRef.current(id),
             onDelete: (id) => onDeleteRef.current(id)
-          }
+          },
+          nodeStatuses
         )
       )
       setEdges(toRfEdges(canvas, activeNodeIds))

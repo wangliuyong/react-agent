@@ -12,7 +12,8 @@
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease,
-    transform 0.15s ease;
+    transform 0.15s ease,
+    background 0.15s ease;
 }
 
 .node:active {
@@ -50,8 +51,17 @@
   border-left: 1.5px solid #f59e0b;
 }
 
+.body {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
 .title {
   display: block;
+  flex: 1;
+  min-width: 0;
   font-size: 6.5px;
   font-weight: 650;
   color: var(--db-text);
@@ -60,6 +70,74 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   letter-spacing: -0.01em;
+}
+
+.statusMark {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 6px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* 执行中：呼吸高亮 */
+.status_running {
+  border-color: var(--db-primary);
+  box-shadow: 0 0 0 1.5px var(--db-primary-muted);
+  animation: wfNodePulse 1.2s ease-in-out infinite;
+}
+
+.status_running .statusMark {
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+}
+
+/* 成功终态 */
+.status_done {
+  border-color: #22c55e;
+  background: color-mix(in srgb, #22c55e 8%, var(--db-bg-content));
+}
+
+.status_done .statusMark {
+  background: #22c55e;
+  color: #fff;
+}
+
+/* 失败终态 */
+.status_failed {
+  border-color: #ef4444;
+  background: color-mix(in srgb, #ef4444 8%, var(--db-bg-content));
+}
+
+.status_failed .statusMark {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* 跳过 */
+.status_skipped {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.status_skipped .statusMark {
+  background: var(--db-border-light);
+  color: var(--db-text-secondary);
+}
+
+@keyframes wfNodePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1.5px var(--db-primary-muted);
+  }
+  50% {
+    box-shadow: 0 0 0 3px var(--db-primary-muted);
+  }
 }
 
 .handle {

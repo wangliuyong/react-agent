@@ -12,6 +12,7 @@ import {
   postSession,
   querySessions
 } from '../api'
+import { queryAwaitUserReasonFromMessages } from '../utils/queryAwaitUserReasonFromMessages'
 import { querySessionType } from '../utils/querySessionType'
 import { queryShouldResumeViaWorkflow } from '../utils/queryShouldResumeViaWorkflow'
 import { useAppStore } from '@/stores/app-store'
@@ -23,6 +24,11 @@ interface SessionState {
   runningSessionIds: Set<string>
   running: boolean
   awaitUserReason: string | null
+  /**
+   * 各会话挂起确认原因（含非当前会话）。
+   * await_user 事件只对当前会话写 awaitUserReason 时，切换会话会丢提示；用此表兜底。
+   */
+  pendingAwaitReasons: Record<string, string>
   /** 用户主动中断且仍有未完成任务时，可点「继续」恢复执行 */
   canResume: boolean
   streamingText: string
@@ -108,12 +114,51 @@ function queryRunningSessionIdsFromSessions(sessions: Session[]): Set<string> {
   return ids
 }
 
+/** 写入某会话的挂起确认原因（不可变） */
+function withPendingAwaitReason(
+  map: Record<string, string>,
+  sessionId: string,
+  reason: string
+): Record<string, string> {
+  if (map[sessionId] === reason) return map
+  return { ...map, [sessionId]: reason }
+}
+
+/** 清除某会话的挂起确认原因（不可变） */
+function withoutPendingAwaitReason(
+  map: Record<string, string>,
+  sessionId: string
+): Record<string, string> {
+  if (!(sessionId in map)) return map
+  const next = { ...map }
+  delete next[sessionId]
+  return next
+}
+
+/**
+ * 解析当前会话应展示的确认文案：内存表优先，其次从消息回填。
+ * 仅在会话仍标记为执行中时回填，避免历史「等待确认」误亮按钮。
+ */
+function queryActiveAwaitUserReason(
+  sessionId: string | null,
+  session: Session | null | undefined,
+  pendingAwaitReasons: Record<string, string>,
+  running: boolean
+): string | null {
+  if (!sessionId) return null
+  const fromMap = pendingAwaitReasons[sessionId]
+  if (fromMap) return fromMap
+  if (!running || !session) return null
+  return queryAwaitUserReasonFromMessages(session.messages)
+}
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   sessions: [],
   activeSessionId: null,
   runningSessionIds: new Set<string>(),
   running: false,
   awaitUserReason: null,
+  pendingAwaitReasons: {},
   canResume: false,
   streamingText: '',
   activeToolName: null,
@@ -143,12 +188,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     for (const id of Array.from(persistedRunningIds)) {
       runningSessionIds.add(id)
     }
+    const running = syncActiveRunning(activeSessionId, runningSessionIds)
+    const pendingAwaitReasons = get().pendingAwaitReasons
     set({
       sessions,
       activeSessionId,
       runningSessionIds,
-      running: syncActiveRunning(activeSessionId, runningSessionIds),
-      canResume: queryCanResumeFromSession(active, syncActiveRunning(activeSessionId, runningSessionIds))
+      running,
+      awaitUserReason: queryActiveAwaitUserReason(
+        activeSessionId,
+        active,
+        pendingAwaitReasons,
+        running
+      ),
+      canResume: queryCanResumeFromSession(active, running)
     })
   },
 
@@ -159,7 +212,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       activeSessionId: id,
       running,
       streamingText: '',
-      awaitUserReason: null,
+      // 切换会话时从挂起表 / 消息回填确认条，避免「等待确认」文案在、按钮却没了
+      awaitUserReason: queryActiveAwaitUserReason(
+        id,
+        session,
+        get().pendingAwaitReasons,
+        running
+      ),
       activeToolName: null,
       activeModelLabel: null,
       canResume: queryCanResumeFromSession(session, running)
@@ -188,11 +247,21 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const runningSessionIds = withoutRunningSession(state.runningSessionIds, id)
       const nextActiveId =
         state.activeSessionId === id ? (sessions[0]?.id ?? null) : state.activeSessionId
+      const nextActive = sessions.find((s) => s.id === nextActiveId)
+      const running = syncActiveRunning(nextActiveId, runningSessionIds)
+      const pendingAwaitReasons = withoutPendingAwaitReason(state.pendingAwaitReasons, id)
       return {
         sessions,
         runningSessionIds,
+        pendingAwaitReasons,
         activeSessionId: nextActiveId,
-        running: syncActiveRunning(nextActiveId, runningSessionIds)
+        running,
+        awaitUserReason: queryActiveAwaitUserReason(
+          nextActiveId,
+          nextActive,
+          pendingAwaitReasons,
+          running
+        )
       }
     })
   },
@@ -207,6 +276,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       runningSessionIds: withRunningSession(state.runningSessionIds, activeSessionId),
       running: true,
       awaitUserReason: null,
+      pendingAwaitReasons: withoutPendingAwaitReason(
+        state.pendingAwaitReasons,
+        activeSessionId
+      ),
       canResume: false,
       streamingText: '',
       activeToolName: null,
@@ -227,6 +300,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         runningSessionIds: withoutRunningSession(state.runningSessionIds, id),
         running: false,
         awaitUserReason: null,
+        pendingAwaitReasons: withoutPendingAwaitReason(state.pendingAwaitReasons, id),
         // 不必等 done：有未完成任务时立刻可继续（刷新场景依赖主进程落盘）
         canResume: queryHasIncompleteTasks(pausedTasks)
       }
@@ -238,6 +312,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!id) return
     set((state) => ({
       awaitUserReason: null,
+      pendingAwaitReasons: withoutPendingAwaitReason(state.pendingAwaitReasons, id),
       canResume: false,
       runningSessionIds: withRunningSession(state.runningSessionIds, id),
       running: true
@@ -293,7 +368,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       activeSessionId: sessionId,
       runningSessionIds: withRunningSession(state.runningSessionIds, sessionId),
       running: true,
-      awaitUserReason: null,
+      // 保留该会话已挂起的确认原因，避免清掉即将展示的确认条
+      awaitUserReason: state.pendingAwaitReasons[sessionId] ?? null,
       canResume: false,
       streamingText: '',
       activeToolName: null
@@ -456,9 +532,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
 
       if (event.type === 'await_user') {
-        if (event.sessionId === activeId) {
-          set({ awaitUserReason: event.reason })
-        }
+        // 任意会话都记入挂起表；当前会话同步点亮确认条
+        set((state) => {
+          const pendingAwaitReasons = withPendingAwaitReason(
+            state.pendingAwaitReasons,
+            event.sessionId,
+            event.reason
+          )
+          return {
+            pendingAwaitReasons,
+            ...(event.sessionId === state.activeSessionId
+              ? { awaitUserReason: event.reason }
+              : {})
+          }
+        })
         return
       }
 
@@ -468,8 +555,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             state.runningSessionIds,
             event.sessionId
           )
+          const pendingAwaitReasons = withoutPendingAwaitReason(
+            state.pendingAwaitReasons,
+            event.sessionId
+          )
           return {
             runningSessionIds,
+            pendingAwaitReasons,
             ...(event.sessionId === activeId
               ? {
                   running: false,
@@ -506,8 +598,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
               updatedAt: Date.now()
             })),
             runningSessionIds: withoutRunningSession(state.runningSessionIds, event.sessionId),
+            pendingAwaitReasons: withoutPendingAwaitReason(
+              state.pendingAwaitReasons,
+              event.sessionId
+            ),
             ...(event.sessionId === activeId
-              ? { running: false, activeToolName: null, activeModelLabel: null }
+              ? {
+                  running: false,
+                  awaitUserReason: null,
+                  activeToolName: null,
+                  activeModelLabel: null
+                }
               : {})
           }
         })

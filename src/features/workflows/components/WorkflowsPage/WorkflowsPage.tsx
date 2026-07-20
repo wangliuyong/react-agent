@@ -1,5 +1,7 @@
 import type {
   AgentEvent,
+  TaskItem,
+  TaskItemStatus,
   WorkflowCanvas as WorkflowCanvasModel,
   WorkflowDefinition
 } from '@shared/types'
@@ -16,11 +18,21 @@ const { Title, Text } = Typography
 type WorkflowKindFilter = 'all' | 'generic' | 'publish'
 type WorkflowSort = 'updated_desc' | 'name_asc' | 'name_desc'
 
+/** 画布节点执行态：nodeId → status */
+export type WorkflowNodeStatusMap = Record<string, TaskItemStatus>
+
 /** 从 task_update 中提取当前 running 节点，驱动画布连线流动 */
-function queryActiveNodeIdsFromTasks(
-  tasks: Array<{ id: string; status: string }>
-): string[] {
+function queryActiveNodeIdsFromTasks(tasks: TaskItem[]): string[] {
   return tasks.filter((t) => t.status === 'running').map((t) => t.id)
+}
+
+/** 将 task 列表转为节点状态表，供画布节点展示成功/失败等终态 */
+function queryNodeStatusesFromTasks(tasks: TaskItem[]): WorkflowNodeStatusMap {
+  const map: WorkflowNodeStatusMap = {}
+  for (const t of tasks) {
+    map[t.id] = t.status
+  }
+  return map
 }
 
 function matchWorkflowQuery(wf: WorkflowDefinition, query: string): boolean {
@@ -68,13 +80,17 @@ export function WorkflowsPage(): React.ReactElement {
   /** 画布内「立即运行」绑定的会话；有值表示留在画布看执行动画 */
   const [canvasRunSessionId, setCanvasRunSessionId] = useState<string | null>(null)
   const [canvasActiveNodeIds, setCanvasActiveNodeIds] = useState<string[]>([])
+  /** 各节点执行态；流程结束后仍保留，便于查看成功/失败 */
+  const [canvasNodeStatuses, setCanvasNodeStatuses] = useState<WorkflowNodeStatusMap>({})
 
   useEffect(() => {
     void hydrate()
   }, [hydrate])
 
   /**
-   * 画布运行期间订阅 Agent 事件：用 task_update 驱动连线流动，done/error 结束动画。
+   * 画布运行期间订阅 Agent 事件：
+   * - task_update 驱动连线流动 + 节点状态
+   * - done/error 停止流动，但保留终态（成功/失败）供节点自行展示
    */
   useEffect(() => {
     if (!canvasRunSessionId) return
@@ -83,6 +99,7 @@ export function WorkflowsPage(): React.ReactElement {
 
       if (event.type === 'task_update') {
         setCanvasActiveNodeIds(queryActiveNodeIdsFromTasks(event.tasks))
+        setCanvasNodeStatuses(queryNodeStatusesFromTasks(event.tasks))
         return
       }
 
@@ -138,6 +155,7 @@ export function WorkflowsPage(): React.ReactElement {
     setCanvasDrawerOpen(false)
     setDraft(null)
     setCanvasActiveNodeIds([])
+    setCanvasNodeStatuses({})
     setCanvasRunSessionId(null)
   }
 
@@ -148,8 +166,9 @@ export function WorkflowsPage(): React.ReactElement {
 
   const closeCanvasDrawer = (): void => {
     setCanvasDrawerOpen(false)
-    // 关闭抽屉时清除动画态；后台会话仍可继续跑
+    // 关闭抽屉时清除动画与节点态；后台会话仍可继续跑
     setCanvasActiveNodeIds([])
+    setCanvasNodeStatuses({})
     setCanvasRunSessionId(null)
   }
 
@@ -251,6 +270,7 @@ export function WorkflowsPage(): React.ReactElement {
       if (stayOnCanvas) {
         setCanvasRunSessionId(sessionId)
         setCanvasActiveNodeIds([])
+        setCanvasNodeStatuses({})
         message.success('流程已启动，可在画布查看执行动画')
         return
       }
@@ -376,6 +396,7 @@ export function WorkflowsPage(): React.ReactElement {
         saving={saving}
         running={running || Boolean(canvasRunSessionId)}
         activeNodeIds={canvasActiveNodeIds}
+        nodeStatuses={canvasNodeStatuses}
         onClose={closeCanvasDrawer}
         onCanvasChange={handleCanvasChange}
         onSave={() => void handleSave()}

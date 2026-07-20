@@ -39,7 +39,7 @@ import {
   queryDecodeWorkflowToolResult,
   queryMarkdownHeadingTitle
 } from './tool-result'
-import { isGraphInterrupt, interrupt } from '@langchain/langgraph'
+import { isGraphInterrupt } from '@langchain/langgraph'
 
 /** 同一时刻每个会话只跑一个工作流 */
 const runningBySession = new Set<string>()
@@ -427,13 +427,11 @@ async function executeLeafNode(
       content: `等待确认：${node.reason || node.title}`
     })
     const reason = node.reason || node.title
-    // LangGraph 节点内：interrupt；图外/legacy：promise waiter
-    try {
-      interrupt({ type: 'await_user', sessionId, reason })
-    } catch (e) {
-      if (isGraphInterrupt(e)) throw e
-      await waitForGraphUserContinue(sessionId, reason)
-    }
+    /**
+     * 与工具确认一致：直接 promise 等待并推送 await_user 事件。
+     * 勿用 LangGraph interrupt()——外层 stream 常漏检，会出现「已写等待确认文案但无继续按钮」。
+     */
+    await waitForGraphUserContinue(sessionId, reason)
     if (signal.aborted) throw new Error('__aborted__')
     return patchRun(run, { status: 'running' })
   }
@@ -691,6 +689,8 @@ async function executeTopLevelNode(
       return run
     } catch (e) {
       if (e instanceof Error && e.message === '__aborted__') throw e
+      // GraphInterrupt 是挂起而非失败，原样上抛供外层 resume，勿标 failed
+      if (isGraphInterrupt(e)) throw e
       statusMap.set(node.id, 'failed')
       persistSessionTasks(session, buildTasks(specs, statusMap))
       throw e

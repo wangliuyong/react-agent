@@ -12,6 +12,8 @@ interface MessageListProps {
   tasks: TaskItem[]
   running?: boolean
   activeToolName?: string | null
+  /** 等待用户确认时隐藏思考态，避免与确认条冲突 */
+  awaitUserReason?: string | null
 }
 
 /** 展示组件：消息列表 + 工具结果折叠 + Markdown 预览 + 图片/音视频预览 */
@@ -20,17 +22,23 @@ export function MessageList({
   streamingText,
   tasks,
   running = false,
-  activeToolName = null
+  activeToolName = null,
+  awaitUserReason = null
 }: MessageListProps): React.ReactElement {
   const bottomRef = useRef<HTMLDivElement>(null)
   const visible = messages.filter((m) => m.role !== 'system')
 
-  const phase = queryAgentPhase({ running, streamingText, activeToolName, awaitUserReason: null })
+  const phase = queryAgentPhase({
+    running,
+    streamingText,
+    activeToolName,
+    awaitUserReason
+  })
   const statusLabel = queryAgentStatusLabel({
     running,
     streamingText,
     activeToolName,
-    awaitUserReason: null
+    awaitUserReason
   })
 
   /**

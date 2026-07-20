@@ -261,7 +261,10 @@ function extractReasonFromState(state: {
   return null
 }
 
-/** 工作流 await_user 辅助（供外部需要显式 interrupt 时调用） */
+/**
+ * @deprecated 工作流 await_user 已改为 waitForGraphUserContinue，勿再使用 interrupt。
+ * 保留导出以免旧动态 import 断裂。
+ */
 export function interruptAwaitUser(sessionId: string, reason: string): void {
   interrupt({ type: 'await_user', sessionId, reason })
 }

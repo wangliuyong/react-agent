@@ -148,6 +148,7 @@ export function ChatPage(): React.ReactElement {
             tasks={session?.tasks ?? []}
             running={running}
             activeToolName={activeToolName}
+            awaitUserReason={awaitUserReason}
           />
         )}
       </div>
