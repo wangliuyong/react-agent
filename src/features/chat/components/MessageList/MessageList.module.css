@@ -8,6 +8,9 @@
 .viewport {
   flex: 1;
   min-height: 0;
+  /* margin: 16px auto; */
+  margin-top: 16px;
+  margin-bottom: 16px;
 }
 
 .listInner {
