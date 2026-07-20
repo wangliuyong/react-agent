@@ -152,14 +152,20 @@ export function ChatInput({
 
   const awaitingUser = Boolean(awaitUserReason)
 
+  /** 确认挂起：带上输入框内容继续（空则仅继续） */
+  const handleContinue = (): void => {
+    const value = text.trim()
+    onContinue(value || undefined)
+    setText('')
+    setPaths([])
+  }
+
   const handleSend = (): void => {
     const value = text.trim()
     if (!value || disabled) return
-    // 确认挂起时：发送说明并继续流程（无需再点「继续」）
+    // 确认挂起时：发送说明并继续流程
     if (awaitingUser) {
-      onContinue(value)
-      setText('')
-      setPaths([])
+      handleContinue()
       return
     }
     if (running) return
@@ -177,7 +183,7 @@ export function ChatInput({
         {awaitUserReason ? (
           <div className={styles.awaitBar}>
             <Text className={styles.awaitText}>{awaitUserReason}</Text>
-            <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => onContinue()}>
+            <Button type="primary" icon={<PlayCircleOutlined />} onClick={handleContinue}>
               继续
             </Button>
           </div>
@@ -207,7 +213,7 @@ export function ChatInput({
             className={styles.textarea}
             placeholder={
               awaitingUser
-                ? '可补充说明后 Enter 发送并继续；也可直接点上方「继续」'
+                ? '可输入补充说明，Enter 或点「继续」一并提交给 Agent'
                 : running
                   ? 'Agent 正在处理，请稍候…'
                   : disabled

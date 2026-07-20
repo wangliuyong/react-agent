@@ -279,29 +279,52 @@ function queryLocalFfmpegCompose(): VideoComposeProvider {
 
       writeFileSync(listPath, lines.join('\n'), 'utf-8')
 
-      // ffmpeg 顺序：全局选项 → 全部输入 → 输出选项（含 -filter:v）→ 输出文件
-      // 不可把第二个 -i 插到 -vf 之后，否则 filter 会被误绑到音频输入
+      // ffmpeg 顺序：全局选项 → 全部 -i 输入 → 输出选项（filter / map）→ 输出文件
+      // 有旁白时用 filter_complex + 显式 -map，避免第二个 -i 与 -filter:v 顺序歧义
+      const scaleFilter =
+        'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2'
       const hasAudio = Boolean(mergedAudio && existsSync(mergedAudio))
-      const args = [
-        '-y',
-        '-f',
-        'concat',
-        '-safe',
-        '0',
-        '-i',
-        listPath,
-        ...(hasAudio ? ['-i', mergedAudio as string] : []),
-        '-filter:v',
-        'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
-        '-pix_fmt',
-        'yuv420p',
-        ...(hasAudio ? ['-shortest'] : []),
-        outputPath
-      ]
+      const args = hasAudio
+        ? [
+            '-y',
+            '-f',
+            'concat',
+            '-safe',
+            '0',
+            '-i',
+            listPath,
+            '-i',
+            mergedAudio as string,
+            '-filter_complex',
+            `[0:v]${scaleFilter}[vout]`,
+            '-map',
+            '[vout]',
+            '-map',
+            '1:a:0',
+            '-pix_fmt',
+            'yuv420p',
+            '-shortest',
+            outputPath
+          ]
+        : [
+            '-y',
+            '-f',
+            'concat',
+            '-safe',
+            '0',
+            '-i',
+            listPath,
+            '-filter:v',
+            scaleFilter,
+            '-pix_fmt',
+            'yuv420p',
+            outputPath
+          ]
 
       const run = await postRunFfmpeg(args)
       if (!run.ok) {
         const manifestPath = outputPath.replace(/\.mp4$/i, '.manifest.json')
+        const ffmpegCommand = `ffmpeg ${args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)).join(' ')}`
         writeFileSync(
           manifestPath,
           JSON.stringify(
@@ -311,6 +334,7 @@ function queryLocalFfmpegCompose(): VideoComposeProvider {
               audioPath: mergedAudio,
               audioPaths: req.audioPaths,
               sceneDurationSec: duration,
+              ffmpegCommand,
               error: run.message
             },
             null,

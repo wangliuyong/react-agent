@@ -17,18 +17,18 @@ describe('ffmpeg 合成视频片段', () => {
     expect(providerSource).toContain('audioPaths')
   })
 
-  it('compose 参数先列齐全部 -i，再写 -filter:v', () => {
+  it('compose 参数先列齐全部 -i，再写 filter / map', () => {
     // 从 compose 参数组装处截取，避免误匹配其它 ffmpeg 调用
     const composeBlock = providerSource.slice(
       providerSource.indexOf('// ffmpeg 顺序'),
       providerSource.indexOf('const run = await postRunFfmpeg(args)')
     )
-    expect(composeBlock).toContain("...(hasAudio ? ['-i', mergedAudio as string] : [])")
-    expect(composeBlock).toContain("'-filter:v'")
-    expect(composeBlock.indexOf("'-i'")).toBeLessThan(composeBlock.indexOf("'-filter:v'"))
-    expect(composeBlock.indexOf("hasAudio ? ['-i'")).toBeLessThan(
-      composeBlock.indexOf("'-filter:v'")
-    )
+    expect(composeBlock).toContain('mergedAudio as string')
+    expect(composeBlock).toContain("'-filter_complex'")
+    expect(composeBlock).toContain("'-map'")
+    expect(composeBlock).toContain("'[vout]'")
+    expect(composeBlock).toContain("'1:a:0'")
+    expect(composeBlock.indexOf("'-i'")).toBeLessThan(composeBlock.indexOf("'-filter_complex'"))
     // 禁止再把音频 -i splice 到输出选项中间
     expect(composeBlock).not.toContain('args.splice')
   })

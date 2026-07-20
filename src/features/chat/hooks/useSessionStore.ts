@@ -310,14 +310,32 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   continueRun: async (userInput?: string) => {
     const id = get().activeSessionId
     if (!id) return
-    set((state) => ({
-      awaitUserReason: null,
-      pendingAwaitReasons: withoutPendingAwaitReason(state.pendingAwaitReasons, id),
-      canResume: false,
-      runningSessionIds: withRunningSession(state.runningSessionIds, id),
-      running: true
-    }))
-    await postAgentContinue(id, userInput)
+    const trimmed = userInput?.trim()
+    set((state) => {
+      const next: Partial<SessionState> = {
+        awaitUserReason: null,
+        pendingAwaitReasons: withoutPendingAwaitReason(state.pendingAwaitReasons, id),
+        canResume: false,
+        runningSessionIds: withRunningSession(state.runningSessionIds, id),
+        running: true
+      }
+      // 乐观写入用户说明，避免等主进程 message 事件才出现在列表
+      if (trimmed) {
+        const userMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'user',
+          content: trimmed,
+          createdAt: Date.now()
+        }
+        next.sessions = patchSession(state.sessions, id, (session) => ({
+          ...session,
+          messages: [...session.messages, userMsg],
+          updatedAt: Date.now()
+        }))
+      }
+      return next
+    })
+    await postAgentContinue(id, trimmed)
   },
 
   resumeRun: async () => {
