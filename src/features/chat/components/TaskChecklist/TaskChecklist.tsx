@@ -558,24 +558,33 @@ export function TaskChecklist({
         ) : null}
 
         {canSummarizeToSkill && sessionId ? (
-          <div
-            className={styles.summarizeBar}
+          <button
+            type="button"
+            className={styles.summarizeCard}
+            aria-label={`将 ${successfulStepCount} 个成功步骤总结为技能`}
             onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => setSummarizeOpen(true)}
           >
-            <Text type="secondary" className={styles.summarizeHint}>
-              {successfulStepCount} 个步骤已成功，可总结为可复用技能
-            </Text>
-            <Button
-              type="primary"
-              size="small"
-              ghost
-              icon={<BulbOutlined />}
-              className={styles.actionBtn}
-              onClick={() => setSummarizeOpen(true)}
-            >
-              总结为技能
-            </Button>
-          </div>
+            <div className={styles.summarizeCardHead}>
+              <div className={styles.summarizeCardTitleRow}>
+                <span className={styles.summarizeCardIcon} aria-hidden>
+                  <ThunderboltOutlined />
+                </span>
+                <span className={styles.summarizeCardTitle}>总结为技能</span>
+                <span className={styles.summarizeStepBadge}>{successfulStepCount} 步</span>
+              </div>
+              <p className={styles.summarizeCardDesc}>
+                将成功步骤提炼为可复用 Agent 技能，发布到技能市场
+              </p>
+            </div>
+            <div className={styles.summarizeCardFooter}>
+              <span className={styles.summarizeCardMeta}>@本次任务</span>
+              <span className={styles.summarizeCardAction}>
+                开始总结
+                <RightOutlined className={styles.summarizeCardActionIcon} aria-hidden />
+              </span>
+            </div>
+          </button>
         ) : null}
       </Card>
 

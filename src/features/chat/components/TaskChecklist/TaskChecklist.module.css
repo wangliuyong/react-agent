@@ -638,22 +638,157 @@
   flex-shrink: 0;
 }
 
-/* ── 总结为技能 ── */
-.summarizeBar {
+/* ── 总结为技能：迷你技能卡片（对齐技能市场 card 结构） ── */
+.summarizeCard {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: calc(100% - 24px);
+  margin: 8px 12px 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-lg);
+  background: var(--db-bg-content);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+  animation: summarizeCardIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.summarizeCard:hover {
+  border-color: var(--db-primary-border-active);
+  box-shadow: 0 4px 20px var(--db-primary-shadow);
+  transform: translateY(-1px);
+}
+
+.summarizeCard:hover .summarizeCardTitle {
+  color: var(--db-primary);
+}
+
+.summarizeCard:hover .summarizeCardAction {
+  color: var(--db-primary);
+}
+
+.summarizeCard:active {
+  transform: translateY(0);
+}
+
+.summarizeCard:focus-visible {
+  outline: 2px solid var(--db-primary-border-active);
+  outline-offset: 2px;
+}
+
+@keyframes summarizeCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.summarizeCardHead {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.summarizeCardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.summarizeCardIcon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--db-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 14px;
+}
+
+.summarizeCardTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--db-text);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  transition: color 0.15s ease;
+}
+
+.summarizeStepBadge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--db-radius-pill);
+  background: var(--db-primary);
+  color: var(--db-on-primary);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.summarizeCardDesc {
+  margin: 0;
+  padding-left: 36px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--db-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.summarizeCardFooter {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin: 6px 12px 8px;
-  padding: 8px 10px;
-  border-radius: var(--db-radius-sm);
-  border: 1px dashed var(--db-primary);
-  background: var(--db-primary-muted);
+  padding-top: 8px;
+  border-top: 1px solid var(--db-border-light);
 }
 
-.summarizeHint {
-  flex: 1;
-  min-width: 0;
+.summarizeCardMeta {
   font-size: 11px;
-  line-height: 1.4;
+  color: var(--db-text-secondary);
+}
+
+.summarizeCardAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--db-text-tertiary);
+  transition: color 0.15s ease;
+}
+
+.summarizeCardActionIcon {
+  font-size: 9px;
+  transition: transform 0.15s ease;
+}
+
+.summarizeCard:hover .summarizeCardActionIcon {
+  transform: translateX(2px);
 }
