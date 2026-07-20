@@ -1,7 +1,9 @@
 import {
+  MODEL_OPTIONS,
   queryModelCategory,
   queryModelLabel,
-  queryModelOptions
+  queryModelOptionDisplayLabel,
+  type ModelOption
 } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
 import { useProviderModels } from '@/features/settings/hooks/useProviderModels'
@@ -11,6 +13,9 @@ import { postSelectImages } from '../../api'
 import styles from './ChatInput.module.css'
 
 const { Text } = Typography
+
+/** 下拉可视区高度，避免模型过多撑满屏幕 */
+const MODEL_SELECT_LIST_HEIGHT = 280
 
 interface ChatInputProps {
   disabled?: boolean
@@ -24,6 +29,33 @@ interface ChatInputProps {
   onSend: (text: string, paths: string[]) => void
   onAbort: () => void
   onContinue: () => void
+}
+
+/**
+ * 合并平台列表与内置全量模型，按 value 去重。
+ * 为什么：聊天切换模型不应被当前供应商静态列表卡住，平台返回优先展示。
+ */
+function queryMergedModelOptions(
+  remoteModels: ModelOption[] | null,
+  currentModel: string
+): ModelOption[] {
+  const seen = new Set<string>()
+  const merged: ModelOption[] = []
+  for (const m of [...(remoteModels ?? []), ...MODEL_OPTIONS]) {
+    const id = m.value.trim()
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+    merged.push(m)
+  }
+  if (currentModel.trim() && !seen.has(currentModel.trim())) {
+    merged.unshift({
+      provider: 'openai_compatible',
+      value: currentModel,
+      label: currentModel,
+      category: queryModelCategory(currentModel)
+    })
+  }
+  return merged
 }
 
 /** 底部输入条：附件 / 完全访问 / 模型 / 发送 */
@@ -42,15 +74,21 @@ export function ChatInput({
   const [text, setText] = useState('')
   const [paths, setPaths] = useState<string[]>([])
   const [modelSwitching, setModelSwitching] = useState(false)
+  /** 搜索关键字：用于把未在列表中的模型 id 临时加入可选项 */
+  const [modelSearch, setModelSearch] = useState('')
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
 
-  /** 与设置页共用 useProviderModels，优先展示平台 /models 实时列表 */
+  /**
+   * 与设置页共用拉取逻辑；凭证不变只拉一次。
+   * 为什么：流式输出会频繁重渲染，不能把 /models 绑在渲染周期上。
+   */
   const { remoteModels, loading: modelsLoading } = useProviderModels({
     enabled: true,
     provider: settings.provider,
     apiKey: settings.apiKey,
-    baseUrl: settings.baseUrl
+    baseUrl: settings.baseUrl,
+    customProviders: settings.customProviders
   })
 
   /** 参考样式：以 120k 为展示上限 */
@@ -71,60 +109,42 @@ export function ChatInput({
 
   /** 切换模型并给出 Toast 反馈 */
   const handleModelChange = async (model: string): Promise<void> => {
-    if (model === settings.model) return
+    const next = model.trim()
+    if (!next || next === settings.model) return
     setModelSwitching(true)
     try {
-      await postSettings({ model })
-      message.success(`已切换至 ${queryModelLabel(model)}`)
+      await postSettings({ model: next })
+      message.success(`已切换至 ${queryModelLabel(next)}`)
+      setModelSearch('')
     } finally {
       setModelSwitching(false)
     }
   }
 
-  /** 下拉项：优先平台列表；展示名称 + 模型类型；历史自定义模型追加一项 */
-  const modelMenuItems = useMemo(() => {
-    const providerModels = remoteModels ?? queryModelOptions(settings.provider)
-    const items = providerModels.map((m) => ({
-      key: m.value,
-      label: (
-        <div className={styles.modelMenuItem}>
-          <div className={styles.modelMenuTitleRow}>
-            <Text>{m.label}</Text>
-            <Text type="secondary" className={styles.modelMenuCategory}>
-              {m.category || queryModelCategory(m.value)}
-            </Text>
-          </div>
-          {m.description ? (
-            <Text type="secondary" className={styles.modelMenuDesc}>
-              {m.description}
-            </Text>
-          ) : null}
-        </div>
-      ),
-      onClick: () => void handleModelChange(m.value)
+  /**
+   * 可搜索选项：平台列表 ∪ 内置全量模型 ∪ 当前搜索关键字（自定义 id）。
+   * 不受当前供应商过滤限制，便于网关挂载任意模型。
+   */
+  const modelSelectOptions = useMemo(() => {
+    const merged = queryMergedModelOptions(remoteModels, settings.model)
+    const options = merged.map((m) => ({
+      value: m.value,
+      label: queryModelOptionDisplayLabel(m),
+      // 供 filterOption 检索：名称 / id / 类型 / 说明
+      searchText: [m.label, m.value, m.category || queryModelCategory(m.value), m.description]
+        .filter(Boolean)
+        .join(' ')
     }))
-    if (!providerModels.some((m) => m.value === settings.model)) {
-      items.unshift({
-        key: settings.model,
-        label: (
-          <div className={styles.modelMenuItem}>
-            <div className={styles.modelMenuTitleRow}>
-              <Text>{settings.model}</Text>
-              <Text type="secondary" className={styles.modelMenuCategory}>
-                {queryModelCategory(settings.model)}
-              </Text>
-            </div>
-            <Text type="secondary" className={styles.modelMenuDesc}>
-              当前自定义模型
-            </Text>
-          </div>
-        ),
-        onClick: () => {}
+    const q = modelSearch.trim()
+    if (q && !options.some((o) => o.value === q)) {
+      options.unshift({
+        value: q,
+        label: `${q}（自定义）`,
+        searchText: q
       })
     }
-    return items
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleModelChange 依赖 settings.model
-  }, [settings.model, settings.provider, remoteModels])
+    return options
+  }, [remoteModels, settings.model, modelSearch])
 
   const handleSend = (): void => {
     const value = text.trim()
@@ -230,26 +250,33 @@ export function ChatInput({
                 title={
                   running
                     ? '任务运行中，请结束后再切换模型'
-                    : settings.provider === 'deepseek'
-                      ? '选择 DeepSeek 平台模型'
-                      : '选择大模型'
+                    : '搜索或选择模型，也可直接输入模型 id'
                 }
               >
-                <Dropdown
+                <Select
+                  showSearch
+                  size="small"
+                  className={styles.modelSelect}
+                  popupClassName={styles.modelSelectPopup}
                   disabled={inputDisabled || running}
-                  menu={{ selectedKeys: [settings.model], items: modelMenuItems }}
-                  trigger={['click']}
-                >
-                  <Button
-                    type="text"
-                    size="small"
-                    className={styles.modelBtn}
-                    loading={modelSwitching || modelsLoading}
-                  >
-                    {queryModelLabel(settings.model)}
-                    <DownOutlined className={styles.modelChevron} />
-                  </Button>
-                </Dropdown>
+                  loading={modelSwitching || modelsLoading}
+                  value={settings.model}
+                  options={modelSelectOptions}
+                  listHeight={MODEL_SELECT_LIST_HEIGHT}
+                  popupMatchSelectWidth={320}
+                  placeholder="搜索模型"
+                  optionFilterProp="searchText"
+                  filterOption={(input, option) => {
+                    const hay = String(option?.searchText ?? option?.label ?? '').toLowerCase()
+                    return hay.includes(input.trim().toLowerCase())
+                  }}
+                  onSearch={setModelSearch}
+                  onChange={(v) => void handleModelChange(String(v))}
+                  onDropdownVisibleChange={(open) => {
+                    if (!open) setModelSearch('')
+                  }}
+                  suffixIcon={<DownOutlined className={styles.modelChevron} />}
+                />
               </Tooltip>
             </Space>
             <Space size={10}>

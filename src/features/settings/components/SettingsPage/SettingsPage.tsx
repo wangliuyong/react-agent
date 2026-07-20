@@ -78,6 +78,8 @@ export function SettingsPage(): React.ReactElement {
     apiKey: draftApiKey,
     baseUrl: draftBaseUrl,
     customProviders,
+    // 设置页不自动拉 /models，仅「从平台刷新」触发，避免输入 Key 时反复请求
+    autoFetch: false,
     refreshToken: modelsRefreshToken
   })
 

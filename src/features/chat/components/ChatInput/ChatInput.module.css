@@ -169,50 +169,52 @@
   opacity: 0.45;
 }
 
-.modelBtn {
-  font-size: 12px !important;
-  padding: 2px 10px !important;
-  height: auto !important;
-  border-radius: var(--db-radius-pill);
-  background: var(--db-hover);
-  color: var(--db-text-secondary) !important;
-  font-weight: 500 !important;
+.modelSelect {
+  min-width: 132px;
+  max-width: 220px;
 }
 
-.modelBtn:hover:not(:disabled) {
+.modelSelect :global(.ant-select-selector) {
+  border: none !important;
+  border-radius: var(--db-radius-pill) !important;
+  background: var(--db-hover) !important;
+  box-shadow: none !important;
+  padding-inline: 10px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--db-text-secondary) !important;
+  height: 26px !important;
+}
+
+.modelSelect:hover:not(.ant-select-disabled) :global(.ant-select-selector) {
   background: var(--db-primary-muted) !important;
   color: var(--db-primary) !important;
 }
 
+.modelSelect :global(.ant-select-selection-item) {
+  font-size: 12px !important;
+  line-height: 24px !important;
+}
+
+.modelSelect :global(.ant-select-selection-search-input) {
+  font-size: 12px !important;
+}
+
 .modelChevron {
   font-size: 9px;
-  margin-left: 4px;
   opacity: 0.55;
+  color: var(--db-text-secondary);
 }
 
-.modelMenuItem {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 180px;
+/* 限制下拉最大高度；listHeight 控制虚拟列表，此处兜底滚动 */
+.modelSelectPopup {
+  max-height: 320px;
 }
 
-.modelMenuTitleRow {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.modelMenuCategory {
-  flex-shrink: 0;
-  font-size: 11px !important;
-  line-height: 1.3;
-}
-
-.modelMenuDesc {
-  font-size: 11px !important;
-  line-height: 1.3;
+.modelSelectPopup :global(.ant-select-item-option-content) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .token {
