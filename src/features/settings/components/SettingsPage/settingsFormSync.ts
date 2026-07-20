@@ -36,6 +36,7 @@ export function querySettingsFormValues(settings: AppSettings): AppSettings {
     roleModelMap: settings.roleModelMap ?? {},
     rolePromptOverrides: settings.rolePromptOverrides ?? {},
     fullAccess: settings.fullAccess,
+    thinkingEnabled: settings.thinkingEnabled,
     maxTurns: settings.maxTurns,
     launchAtLogin: settings.launchAtLogin,
     customProviders: settings.customProviders ?? []
@@ -132,9 +133,18 @@ export function queryModelApiSavePatch(params: {
   settings: AppSettings
   maxTurns: number
   fullAccess: boolean
+  thinkingEnabled: boolean
   customProviders: CustomModelProvider[]
 }): Partial<AppSettings> {
-  const { activeProvider, drafts, settings, maxTurns, fullAccess, customProviders } = params
+  const {
+    activeProvider,
+    drafts,
+    settings,
+    maxTurns,
+    fullAccess,
+    thinkingEnabled,
+    customProviders
+  } = params
   const activeDraft =
     drafts[activeProvider] ?? queryProviderCredentialsFromSettings(settings, activeProvider)
   return {
@@ -144,6 +154,7 @@ export function queryModelApiSavePatch(params: {
     model: activeDraft.model,
     maxTurns,
     fullAccess,
+    thinkingEnabled,
     customProviders,
     connections: queryApplyProviderDraftsToConnections(
       settings.connections ?? [],

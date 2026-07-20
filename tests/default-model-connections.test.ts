@@ -135,6 +135,7 @@ describe('默认多模型连接与角色映射', () => {
       defaultConnectionId: 'conn-dashscope',
       roleModelMap: {},
       fullAccess: false,
+      thinkingEnabled: false,
       maxTurns: 40,
       launchAtLogin: false
     }
@@ -163,6 +164,7 @@ describe('默认多模型连接与角色映射', () => {
       defaultConnectionId: DEFAULT_CONNECTION_IDS.default,
       roleModelMap: {},
       fullAccess: false,
+      thinkingEnabled: false,
       maxTurns: 40,
       launchAtLogin: false
     }
@@ -185,6 +187,7 @@ describe('queryModelConnection 回退', () => {
       defaultConnectionId: DEFAULT_CONNECTION_IDS.default,
       roleModelMap: { general: 'missing-id' },
       fullAccess: false,
+      thinkingEnabled: false,
       maxTurns: 40,
       launchAtLogin: false
     } satisfies AppSettings

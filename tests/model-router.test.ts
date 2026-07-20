@@ -28,6 +28,7 @@ function queryTestSettings(overrides?: Partial<AppSettings>): AppSettings {
       writer: DEFAULT_CONNECTION_IDS.creative
     },
     fullAccess: false,
+    thinkingEnabled: false,
     maxTurns: 40,
     launchAtLogin: false,
     customProviders: [],

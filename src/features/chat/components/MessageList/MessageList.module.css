@@ -8,12 +8,15 @@
 .viewport {
   flex: 1;
   min-height: 0;
-  /* margin: 16px auto; */
+  overflow: auto;
   margin-top: 16px;
   margin-bottom: 16px;
 }
 
 .listInner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   max-width: 820px;
   margin: 0 auto;
   width: 100%;
@@ -149,6 +152,26 @@
     opacity: 1;
     width: 64px;
   }
+}
+
+/* 思考过程展示块：用于展示模型 reasoning / agent 决策过程（与最终回答区分） */
+.rowThinking {
+  align-items: flex-start;
+}
+
+.thinkingBox {
+  width: 100%;
+  background: var(--db-bg-content);
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-lg);
+  padding: 12px 14px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+}
+
+.thinkingMarkdown {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--db-text-secondary);
 }
 
 .pendingWrap {

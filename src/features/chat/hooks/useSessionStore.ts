@@ -32,6 +32,8 @@ interface SessionState {
   /** 用户主动中断且仍有未完成任务时，可点「继续」恢复执行 */
   canResume: boolean
   streamingText: string
+  /** 模型推理 / Agent 思考过程（流式增量拼接） */
+  thinkingText: string
   /** 当前正在执行的工具名（tool_start ~ tool_result 之间） */
   activeToolName: string | null
   /** 当前任务选用的模型连接展示名（model_switch 事件更新） */
@@ -179,6 +181,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   pendingAwaitReasons: {},
   canResume: false,
   streamingText: '',
+  thinkingText: '',
   activeToolName: null,
   activeModelLabel: null,
 
@@ -419,6 +422,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       awaitUserReason: state.pendingAwaitReasons[sessionId] ?? null,
       canResume: false,
       streamingText: '',
+      thinkingText: '',
       activeToolName: null
     }))
   },
@@ -474,6 +478,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   awaitUserReason: null,
                   canResume: false,
                   streamingText: '',
+                  thinkingText: '',
                   activeToolName: null
                 }
               : {})
@@ -484,12 +489,28 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
       const activeId = get().activeSessionId
 
+      if (event.type === 'thinking_delta') {
+        set((s) => ({
+          runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
+          ...(event.sessionId === activeId
+            ? {
+                // 如果上一轮已停止（s.running === false），清空旧思考缓存
+                thinkingText: s.running ? s.thinkingText + event.delta : event.delta,
+                activeToolName: null,
+                running: true
+              }
+            : {})
+        }))
+        return
+      }
+
       if (event.type === 'text_delta') {
         set((s) => ({
           runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
           ...(event.sessionId === activeId
             ? {
                 streamingText: s.streamingText + event.delta,
+                thinkingText: s.running ? s.thinkingText : '',
                 activeToolName: null,
                 running: true
               }
@@ -505,6 +526,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             ? {
                 activeToolName: event.toolName,
                 streamingText: '',
+                thinkingText: s.running ? s.thinkingText : '',
                 running: true
               }
             : {})

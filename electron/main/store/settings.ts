@@ -180,6 +180,7 @@ export function normalizeSettings(
     roleModelMap,
     rolePromptOverrides,
     fullAccess: Boolean(merged.fullAccess),
+    thinkingEnabled: Boolean(merged.thinkingEnabled),
     maxTurns: Number(merged.maxTurns) || DEFAULT_SETTINGS.maxTurns,
     launchAtLogin: Boolean(merged.launchAtLogin),
     customProviders

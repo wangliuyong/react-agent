@@ -180,6 +180,8 @@ export interface AppSettings {
   rolePromptOverrides: RolePromptOverrides
   /** 完全访问：跳过部分敏感确认（发布前仍建议确认） */
   fullAccess: boolean
+  /** DeepSeek 等模型的 thinking/推理过程输出开关（影响 reasoning_content 注入） */
+  thinkingEnabled: boolean
   /** Agent 最大工具轮次 */
   maxTurns: number
   /** 登录系统后自动启动应用 */
@@ -440,6 +442,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   roleModelMap: { ...DEFAULT_ROLE_MODEL_MAP },
   rolePromptOverrides: {},
   fullAccess: false,
+  thinkingEnabled: false,
   maxTurns: 40,
   launchAtLogin: false,
   customProviders: []

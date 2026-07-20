@@ -41,6 +41,7 @@ export function ModelApiPanel(): React.ReactElement {
   const [providerDrafts, setProviderDrafts] = useState<ProviderFormDraftMap>({})
   const [maxTurns, setMaxTurns] = useState(settings.maxTurns)
   const [fullAccess, setFullAccess] = useState(settings.fullAccess)
+  const [thinkingEnabled, setThinkingEnabled] = useState(settings.thinkingEnabled)
   const [customProviders, setCustomProviders] = useState<CustomModelProvider[]>(
     settings.customProviders ?? []
   )
@@ -64,6 +65,7 @@ export function ModelApiPanel(): React.ReactElement {
     setProviderDrafts(queryInitialProviderDrafts(settings))
     setMaxTurns(settings.maxTurns)
     setFullAccess(settings.fullAccess)
+    setThinkingEnabled(settings.thinkingEnabled)
     setCustomProviders(settings.customProviders ?? [])
   }, [loaded, settings])
 
@@ -82,6 +84,7 @@ export function ModelApiPanel(): React.ReactElement {
           settings,
           maxTurns,
           fullAccess,
+          thinkingEnabled,
           customProviders
         })
       )
@@ -358,6 +361,21 @@ export function ModelApiPanel(): React.ReactElement {
             </div>
             <div className={styles.runtimeControl}>
               <Switch checked={fullAccess} onChange={setFullAccess} />
+            </div>
+          </Card>
+
+          <Card variant="borderless" className={styles.runtimeCard}>
+            <span className={styles.runtimeIcon}>
+              <BulbOutlined />
+            </span>
+            <div className={styles.runtimeContent}>
+              <span className={styles.runtimeTitle}>思考模式</span>
+              <Text type="secondary" className={styles.runtimeDesc}>
+                允许部分模型输出 thinking / reasoning 过程（DeepSeek 可能影响多轮工具调用）
+              </Text>
+            </div>
+            <div className={styles.runtimeControl}>
+              <Switch checked={thinkingEnabled} onChange={setThinkingEnabled} />
             </div>
           </Card>
         </div>

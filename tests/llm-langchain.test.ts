@@ -35,6 +35,7 @@ function querySettingsWithConnection(opts: {
     ],
     defaultConnectionId: DEFAULT_CONNECTION_ID,
     roleModelMap: {},
+    thinkingEnabled: false,
     fullAccess: false,
     maxTurns: 40,
     launchAtLogin: false

@@ -27,9 +27,12 @@ export function queryChatModelConfig(
   /**
    * DeepSeek V4 默认 thinking=enabled；工具多轮必须回传 reasoning_content。
    * ChatOpenAI 出站消息不会带上该字段，ReAct 第二轮会 HTTP 400。
+   * 这里用 thinkingEnabled 开关控制 whether 注入 thinking 参数：
+   * - thinkingEnabled=false：显式关闭，避免第二轮缺少 reasoning_content
+   * - thinkingEnabled=true：允许模型输出 reasoning_content（可能触发上面的第二轮问题）
    */
   const modelKwargs =
-    connection.provider === 'deepseek'
+    connection.provider === 'deepseek' && !settings.thinkingEnabled
       ? { thinking: { type: 'disabled' as const } }
       : undefined
 

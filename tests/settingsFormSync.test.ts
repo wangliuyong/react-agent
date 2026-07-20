@@ -28,6 +28,7 @@ const SAVED_SETTINGS: AppSettings = {
   roleModelMap: {},
   rolePromptOverrides: {},
   fullAccess: true,
+  thinkingEnabled: false,
   maxTurns: 28,
   launchAtLogin: false,
   customProviders: []
