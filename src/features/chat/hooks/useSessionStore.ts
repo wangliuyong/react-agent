@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { pauseRunningTasks } from '@shared/pause-running-tasks'
+import { pauseRunningTasks, queryHasRunningTasks } from '@shared/pause-running-tasks'
 import type { AgentEvent, ChatMessage, Session, SessionType, TaskItem } from '@shared/types'
 import { queryLatestWorkflowRunBySession } from '@/features/business/api'
 import { postResumeWorkflow } from '@/features/workflows/api'
@@ -9,7 +9,7 @@ import {
   postAgentContinue,
   postCreateSession,
   postDeleteSession,
-  postSession,
+  querySession,
   querySessions
 } from '../api'
 import { queryAwaitUserReasonFromMessages } from '../utils/queryAwaitUserReasonFromMessages'
@@ -152,6 +152,24 @@ function queryActiveAwaitUserReason(
   return queryAwaitUserReasonFromMessages(session.messages)
 }
 
+/** 是否已完成首次 hydrate（区分冷启动恢复与 done 后的增量同步） */
+let sessionStoreHydratedOnce = false
+
+/**
+ * 进程内已无执行标记时，将落盘仍为 running 的任务视为暂停。
+ * 避免 done / 中断后全量 hydrate 再次把界面锁进「执行中」。
+ */
+function querySessionsWithStaleRunningPaused(
+  sessions: Session[],
+  runningSessionIds: Set<string>
+): Session[] {
+  return sessions.map((s) => {
+    if (runningSessionIds.has(s.id)) return s
+    if (!queryHasRunningTasks(s.tasks ?? [])) return s
+    return { ...s, tasks: pauseRunningTasks(s.tasks ?? []) }
+  })
+}
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   sessions: [],
   activeSessionId: null,
@@ -177,31 +195,35 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       (prevId && sessions.some((s) => s.id === prevId) ? prevId : null) ??
       sessions[0]?.id ??
       null
-    const active = sessions.find((s) => s.id === activeSessionId)
     const sessionIdSet = new Set(sessions.map((s) => s.id))
     const persistedRunningIds = queryRunningSessionIdsFromSessions(sessions)
-    // 合并进程内标记与落盘任务，避免 hydrate 冲掉后台仍在执行的会话
+    // 合并进程内标记；仅冷启动时从落盘 running 任务恢复，避免 done 后 hydrate 误判仍在执行
     const runningSessionIds = new Set<string>()
     for (const id of Array.from(get().runningSessionIds)) {
       if (sessionIdSet.has(id)) runningSessionIds.add(id)
     }
-    for (const id of Array.from(persistedRunningIds)) {
-      runningSessionIds.add(id)
+    if (!sessionStoreHydratedOnce) {
+      for (const id of Array.from(persistedRunningIds)) {
+        runningSessionIds.add(id)
+      }
     }
+    sessionStoreHydratedOnce = true
+    const normalizedSessions = querySessionsWithStaleRunningPaused(sessions, runningSessionIds)
+    const activeNormalized = normalizedSessions.find((s) => s.id === activeSessionId)
     const running = syncActiveRunning(activeSessionId, runningSessionIds)
     const pendingAwaitReasons = get().pendingAwaitReasons
     set({
-      sessions,
+      sessions: normalizedSessions,
       activeSessionId,
       runningSessionIds,
       running,
       awaitUserReason: queryActiveAwaitUserReason(
         activeSessionId,
-        active,
+        activeNormalized,
         pendingAwaitReasons,
         running
       ),
-      canResume: queryCanResumeFromSession(active, running)
+      canResume: queryCanResumeFromSession(activeNormalized, running)
     })
   },
 
@@ -267,10 +289,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   sendMessage: async (content, attachmentPaths) => {
-    let { activeSessionId } = get()
+    let { activeSessionId, runningSessionIds } = get()
     if (!activeSessionId) {
       const session = await get().createSession()
       activeSessionId = session.id
+    } else if (runningSessionIds.has(activeSessionId)) {
+      message.warning('当前会话正在执行中，请稍候或点击中断')
+      return
     }
     set((state) => ({
       runningSessionIds: withRunningSession(state.runningSessionIds, activeSessionId),
@@ -339,8 +364,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   resumeRun: async () => {
-    const { activeSessionId, sessions } = get()
+    const { activeSessionId, sessions, runningSessionIds } = get()
     if (!activeSessionId) return
+    if (runningSessionIds.has(activeSessionId)) {
+      message.warning('任务正在执行中，请勿重复继续')
+      return
+    }
 
     const session = sessions.find((s) => s.id === activeSessionId)
     if (!session) return
@@ -510,9 +539,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           }),
           streamingText: event.sessionId === activeId ? '' : get().streamingText
         }))
-        // 异步落盘最新会话（防抖可后续优化）
-        const updated = get().sessions.find((s) => s.id === event.sessionId)
-        if (updated) void postSession(updated)
         return
       }
 
@@ -591,8 +617,23 @@ export const useSessionStore = create<SessionState>((set, get) => ({
               : {})
           }
         })
-        // hydrate 会按落盘 tasks 恢复 canResume（中断 / 刷新后均可继续）
-        void get().hydrate()
+        // 单会话增量同步，避免 done 后全量 hydrate 同步读盘阻塞主线程
+        void (async () => {
+          const diskSession = await querySession(event.sessionId)
+          if (!diskSession) return
+          set((state) => {
+            const sessions = querySessionsWithStaleRunningPaused(
+              patchSession(state.sessions, event.sessionId, () => diskSession),
+              state.runningSessionIds
+            )
+            const active = sessions.find((s) => s.id === state.activeSessionId)
+            const running = syncActiveRunning(state.activeSessionId, state.runningSessionIds)
+            return {
+              sessions,
+              canResume: queryCanResumeFromSession(active, running)
+            }
+          })
+        })()
         return
       }
 
