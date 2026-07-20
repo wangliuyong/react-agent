@@ -40,8 +40,6 @@ interface TaskChecklistProps {
   onContinue?: () => void
   /** 中断后从任务清单继续执行 */
   onResume?: () => void
-  /** 点击流程节点时定位到关联聊天记录 */
-  onTaskClick?: (task: TaskItem) => void
 }
 
 /** 从 localStorage 读取垂直位置；兼容旧版相对 page 的 offset */
@@ -148,8 +146,7 @@ export function TaskChecklist({
   canResume = false,
   onAbort,
   onContinue,
-  onResume,
-  onTaskClick
+  onResume
 }: TaskChecklistProps): React.ReactElement | null {
   const rootRef = useRef<HTMLDivElement>(null)
   /** 总结为技能弹窗 */
@@ -326,23 +323,6 @@ export function TaskChecklist({
   const canSummarizeToSkill = queryCanSummarizeTasksToSkill(tasks, running, awaitUserReason)
   const successfulStepCount = querySuccessfulTaskCount(tasks)
 
-  /** 点击任务行：跳转至该步骤关联的首条聊天记录 */
-  const handleTaskRowClick = useCallback(
-    (task: TaskItem) => {
-      onTaskClick?.(task)
-    },
-    [onTaskClick]
-  )
-
-  const handleTaskRowKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLLIElement>, task: TaskItem) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return
-      event.preventDefault()
-      onTaskClick?.(task)
-    },
-    [onTaskClick]
-  )
-
   const setView = useAppStore((s) => s.setView)
 
   /** 总结为技能弹窗（收起/展开态均需挂载） */
@@ -381,44 +361,44 @@ export function TaskChecklist({
           style={{ top: positionY }}
         >
           <button
-          type="button"
-          className={[
-            styles.orb,
-            styles.orbEdge_right,
-            hasRunningTask || running ? styles.orbRunning : '',
-            progress.done === progress.total && progress.total > 0 ? styles.orbDone : ''
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          style={ringStyle}
-          aria-label={`展开任务清单 ${progress.done}/${progress.total}`}
-          title="点击展开任务清单"
-          onPointerDown={handleDragStart}
-          onPointerMove={handleDragMove}
-          onPointerUp={handleDragEnd}
-          onPointerCancel={handleDragEnd}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              movedDuringDragRef.current = false
-              handleExpandFromOrb()
-            }
-          }}
-        >
-          <span className={styles.orbRing} aria-hidden />
-          <span className={styles.orbCore}>
-            {hasRunningTask || running ? (
-              <LoadingOutlined className={styles.orbSpinner} spin />
-            ) : (
-              <span className={styles.orbCount}>
-                {progress.done}/{progress.total}
-              </span>
-            )}
-          </span>
-          <span className={styles.orbHint} aria-hidden>
-            <UnorderedListOutlined />
-          </span>
-        </button>
+            type="button"
+            className={[
+              styles.orb,
+              styles.orbEdge_right,
+              hasRunningTask || running ? styles.orbRunning : '',
+              progress.done === progress.total && progress.total > 0 ? styles.orbDone : ''
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={ringStyle}
+            aria-label={`展开任务清单 ${progress.done}/${progress.total}`}
+            title="点击展开任务清单"
+            onPointerDown={handleDragStart}
+            onPointerMove={handleDragMove}
+            onPointerUp={handleDragEnd}
+            onPointerCancel={handleDragEnd}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                movedDuringDragRef.current = false
+                handleExpandFromOrb()
+              }
+            }}
+          >
+            <span className={styles.orbRing} aria-hidden />
+            <span className={styles.orbCore}>
+              {hasRunningTask || running ? (
+                <LoadingOutlined className={styles.orbSpinner} spin />
+              ) : (
+                <span className={styles.orbCount}>
+                  {progress.done}/{progress.total}
+                </span>
+              )}
+            </span>
+            <span className={styles.orbHint} aria-hidden>
+              <UnorderedListOutlined />
+            </span>
+          </button>
         </div>
         {summarizeModal}
       </>
@@ -494,19 +474,11 @@ export function TaskChecklist({
                 data-status={displayStatus}
                 className={[
                   queryTaskRowClass(displayStatus),
-                  item.parentId ? styles.taskRowChild : '',
-                  onTaskClick ? styles.taskRowClickable : ''
+                  item.parentId ? styles.taskRowChild : ''
                 ]
                   .filter(Boolean)
                   .join(' ')}
                 style={{ '--task-index': index } as CSSProperties}
-                role={onTaskClick ? 'button' : undefined}
-                tabIndex={onTaskClick ? 0 : undefined}
-                title={onTaskClick ? '点击查看关联聊天记录' : undefined}
-                onClick={onTaskClick ? () => handleTaskRowClick(item) : undefined}
-                onKeyDown={
-                  onTaskClick ? (event) => handleTaskRowKeyDown(event, item) : undefined
-                }
               >
                 <span className={styles.statusIcon}>
                   <TaskStatusIcon status={displayStatus} />

@@ -414,15 +414,6 @@
   background: var(--db-hover);
 }
 
-.taskRowClickable {
-  cursor: pointer;
-}
-
-.taskRowClickable:focus-visible {
-  outline: 2px solid var(--db-primary-border-md);
-  outline-offset: 1px;
-}
-
 /*
  * 时间轴竖线：图标列始终左对齐（子步骤只缩进文案），实线贯穿至下一图标，
  * 避免渐变淡出 / 子步骤 padding 错位造成的缺口。

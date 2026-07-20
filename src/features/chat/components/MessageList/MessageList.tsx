@@ -15,10 +15,6 @@ interface MessageListProps {
   activeToolName?: string | null
   /** 等待用户确认时隐藏思考态，避免与确认条冲突 */
   awaitUserReason?: string | null
-  /** 任务清单点击后定位到的消息 id */
-  scrollToMessageId?: string | null
-  /** 与 scrollToMessageId 配合，每次变化触发重新滚动 */
-  scrollToMessageToken?: number
 }
 
 /** 虚拟行类型：将消息、流式输出与 pending 态统一为可滚动条目 */
@@ -26,12 +22,12 @@ type MessageVirtualRow =
   | { kind: 'message'; id: string; message: ChatMessage }
   | { kind: 'streaming'; id: string; text: string }
   | {
-      kind: 'pending'
-      id: string
-      phase: ReturnType<typeof queryAgentPhase>
-      activeToolName: string | null
-      statusLabel: string | null
-    }
+    kind: 'pending'
+    id: string
+    phase: ReturnType<typeof queryAgentPhase>
+    activeToolName: string | null
+    statusLabel: string | null
+  }
 
 /** 按角色预估行高，减少首屏跳动；实际高度由 measureElement 校正 */
 function estimateMessageRowSize(row: MessageVirtualRow): number {
@@ -44,11 +40,6 @@ function estimateMessageRowSize(row: MessageVirtualRow): number {
   return 320
 }
 
-/** 拼接消息行样式，支持任务跳转后的短暂高亮 */
-function queryMessageRowClass(...parts: Array<string | false | undefined>): string {
-  return parts.filter(Boolean).join(' ')
-}
-
 /** 展示组件：消息列表 + 工具结果折叠 + Markdown 预览 + 图片/音视频预览（虚拟滚动） */
 export function MessageList({
   messages,
@@ -56,9 +47,7 @@ export function MessageList({
   tasks,
   running = false,
   activeToolName = null,
-  awaitUserReason = null,
-  scrollToMessageId = null,
-  scrollToMessageToken
+  awaitUserReason = null
 }: MessageListProps): React.ReactElement {
   const visible = messages.filter((m) => m.role !== 'system')
 
@@ -82,9 +71,9 @@ export function MessageList({
   const lastAssistant = [...visible].reverse().find((m) => m.role === 'assistant')
   const trailingPlaceholderId =
     running &&
-    phase !== 'idle' &&
-    lastAssistant?.role === 'assistant' &&
-    !lastAssistant.content.trim()
+      phase !== 'idle' &&
+      lastAssistant?.role === 'assistant' &&
+      !lastAssistant.content.trim()
       ? lastAssistant.id
       : null
 
@@ -120,33 +109,10 @@ export function MessageList({
     return rows
   }, [displayMessages, streamingText, showPending, phase, activeToolName, statusLabel])
 
-  /** 根据任务清单传入的消息 id 解析虚拟列表行索引 */
-  const scrollTarget = useMemo(() => {
-    if (!scrollToMessageId || scrollToMessageToken === undefined) return null
-    const index = virtualRows.findIndex(
-      (row) => row.kind === 'message' && row.message.id === scrollToMessageId
-    )
-    if (index < 0) return null
-    return { index, messageId: scrollToMessageId }
-  }, [scrollToMessageId, scrollToMessageToken, virtualRows])
-
-  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
-
-  /** 滚动完成后短暂高亮目标消息，便于用户在长对话中定位 */
-  useEffect(() => {
-    if (!scrollTarget) return
-    setHighlightedMessageId(scrollTarget.messageId)
-    const timer = window.setTimeout(() => setHighlightedMessageId(null), 2400)
-    return () => window.clearTimeout(timer)
-  }, [scrollTarget])
-
   const renderVirtualRow = useCallback((row: MessageVirtualRow) => {
-    const isHighlighted = row.kind === 'message' && row.message.id === highlightedMessageId
-    const highlightClass = isHighlighted ? styles.rowHighlighted : ''
-
     if (row.kind === 'streaming') {
       return (
-        <div className={queryMessageRowClass(styles.row, styles.rowAssistant, highlightClass)}>
+        <div className={`${styles.row} ${styles.rowAssistant}`}>
           <span className={styles.label}>灵犀</span>
           <div className={`${styles.assistantCard} ${styles.assistantCardStreaming}`}>
             <AssistantBody content={row.text} streaming />
@@ -157,7 +123,7 @@ export function MessageList({
 
     if (row.kind === 'pending') {
       return (
-        <div className={queryMessageRowClass(styles.row, styles.rowAssistant, highlightClass)}>
+        <div className={`${styles.row} ${styles.rowAssistant}`}>
           <span className={styles.label}>灵犀</span>
           <div className={styles.pendingWrap}>
             {row.phase === 'tool' && row.activeToolName ? (
@@ -176,7 +142,7 @@ export function MessageList({
     const m = row.message
     if (m.role === 'user') {
       return (
-        <div className={queryMessageRowClass(styles.row, styles.rowUser, highlightClass)}>
+        <div className={`${styles.row} ${styles.rowUser}`}>
           <span className={styles.label}>你</span>
           <div className={styles.userBubble}>
             <MessageRichContent
@@ -193,7 +159,7 @@ export function MessageList({
     if (m.role === 'tool') {
       const mediaLabel = queryMediaCountLabel(m.content)
       return (
-        <div className={queryMessageRowClass(styles.row, highlightClass)}>
+        <div className={styles.row}>
           <Collapse
             size="small"
             className={styles.toolBlock}
@@ -216,14 +182,14 @@ export function MessageList({
     }
 
     return (
-      <div className={queryMessageRowClass(styles.row, styles.rowAssistant, highlightClass)}>
+      <div className={`${styles.row} ${styles.rowAssistant}`}>
         <span className={styles.label}>灵犀</span>
         <div className={styles.assistantCard}>
           <AssistantBody content={m.content} />
         </div>
       </div>
     )
-  }, [highlightedMessageId])
+  }, [])
 
   return (
     <div className={styles.root}>
@@ -267,8 +233,6 @@ export function MessageList({
           activeToolName,
           showPending
         ]}
-        scrollToIndex={scrollTarget?.index}
-        scrollToIndexToken={scrollToMessageToken}
       />
     </div>
   )

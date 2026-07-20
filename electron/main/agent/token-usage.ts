@@ -3,7 +3,7 @@ import type { AIMessage } from '@langchain/core/messages'
 import type { LLMResult } from '@langchain/core/outputs'
 import type { AgentEvent } from '../../../shared/types'
 import { querySession, postSession } from '../store/sessions'
-import { getMainWindow } from '../window'
+import { createSessionStreamHandler } from './stream-callbacks'
 
 /** 供应商 usage 字段的常见形状（OpenAI / DeepSeek / 百炼兼容） */
 interface TokenUsageLike {
@@ -130,6 +130,9 @@ export function withSessionTokenUsage<T extends { withConfig: (config: object) =
   sessionId: string
 ): T {
   return model.withConfig({
-    callbacks: [createSessionTokenUsageHandler(sessionId)]
+    callbacks: [
+      createSessionTokenUsageHandler(sessionId),
+      createSessionStreamHandler(sessionId)
+    ]
   }) as T
 }

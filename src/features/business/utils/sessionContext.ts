@@ -1,5 +1,4 @@
-import type { Session, TaskItem, WorkflowRun } from '@shared/types'
-import { queryRelatedMessagesForTask } from '@shared/session-task-context'
+import type { ChatMessage, Session, TaskItem, WorkflowRun } from '@shared/types'
 import type { NodeExecutionContext, SessionContextSummary } from '../types'
 
 /** 将对象格式化为缩进 JSON，便于业务系统展示 */
@@ -29,6 +28,24 @@ function queryContextSliceForTask(
     }
   }
   return slice
+}
+
+/**
+ * 按任务标题 / 工具名 / 工作流步骤标记，匹配与该节点相关的消息。
+ * 工作流引擎会在 Agent 步骤前写入「【工作流步骤】标题」类内容。
+ */
+function queryRelatedMessagesForTask(session: Session, task: TaskItem): ChatMessage[] {
+  const title = task.title.trim()
+  if (!title) return []
+
+  return session.messages.filter((msg) => {
+    const content = msg.content ?? ''
+    if (content.includes(title)) return true
+    if (content.includes(`【工作流步骤】${title}`)) return true
+    if (msg.toolName && title.toLowerCase().includes(msg.toolName.toLowerCase())) return true
+    if (content.includes(`等待确认：${title}`)) return true
+    return false
+  })
 }
 
 /** 构建会话级上下文摘要 */

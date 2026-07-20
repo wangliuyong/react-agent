@@ -928,6 +928,11 @@ export interface ChatMessage {
   toolCalls?: ChatMessageToolCall[]
   /** 用户消息附带的本地图片路径 */
   attachmentPaths?: string[]
+  /**
+   * 模型推理 / Agent 思考过程（流式阶段结束后折叠展示）。
+   * 为什么：推理内容与最终回答分离，便于用户理解 Agent 决策路径。
+   */
+  thinkingContent?: string
   createdAt: number
 }
 
@@ -1077,6 +1082,8 @@ export type AgentRoleName =
 
 export type AgentEvent =
   | { type: 'text_delta'; sessionId: string; delta: string }
+  /** 模型推理 / Agent 步骤思考过程增量 */
+  | { type: 'thinking_delta'; sessionId: string; delta: string }
   | { type: 'message'; sessionId: string; message: ChatMessage }
   | { type: 'tool_start'; sessionId: string; toolName: string; args: unknown }
   | { type: 'tool_result'; sessionId: string; toolName: string; result: string }

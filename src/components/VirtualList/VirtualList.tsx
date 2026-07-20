@@ -18,13 +18,6 @@ export interface VirtualListProps<T> {
   stickToBottom?: boolean
   /** 触发贴底滚动的依赖（如消息数、流式文本） */
   stickToBottomDeps?: unknown[]
-  /**
-   * 主动滚动到指定行（如任务清单跳转聊天记录）。
-   * token 每次变化都会触发滚动，便于重复点击同一任务。
-   */
-  scrollToIndex?: number
-  scrollToIndexAlign?: 'start' | 'center' | 'end'
-  scrollToIndexToken?: number
 }
 
 /**
@@ -40,10 +33,7 @@ export function VirtualList<T>({
   className,
   innerClassName,
   stickToBottom = false,
-  stickToBottomDeps = [],
-  scrollToIndex,
-  scrollToIndexAlign = 'center',
-  scrollToIndexToken
+  stickToBottomDeps = []
 }: VirtualListProps<T>): React.ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -65,31 +55,10 @@ export function VirtualList<T>({
     getItemKey: (index) => getItemKey(items[index]!, index)
   })
 
-  const { onScroll, detachFromBottom } = useStickToBottom(scrollRef, virtualizer, {
+  const { onScroll } = useStickToBottom(scrollRef, virtualizer, {
     enabled: stickToBottom,
     deps: stickToBottomDeps
   })
-
-  /** 任务清单等场景：跳转到指定虚拟行并脱离贴底跟随 */
-  useEffect(() => {
-    if (scrollToIndexToken === undefined) return
-    if (scrollToIndex === undefined || scrollToIndex < 0) return
-
-    detachFromBottom()
-    virtualizer.scrollToIndex(scrollToIndex, {
-      align: scrollToIndexAlign,
-      behavior: 'smooth'
-    })
-    requestAnimationFrame(() => {
-      virtualizer.measure()
-    })
-  }, [
-    detachFromBottom,
-    scrollToIndex,
-    scrollToIndexAlign,
-    scrollToIndexToken,
-    virtualizer
-  ])
 
   const virtualItems = virtualizer.getVirtualItems()
 
