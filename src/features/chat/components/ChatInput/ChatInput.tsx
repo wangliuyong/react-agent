@@ -261,7 +261,7 @@ export function ChatInput({
                   showSearch
                   size="small"
                   className={styles.modelSelect}
-                  popupClassName={styles.modelSelectPopup}
+                  classNames={{ popup: { root: styles.modelSelectPopup } }}
                   disabled={inputDisabled || running}
                   loading={modelSwitching || modelsLoading}
                   value={settings.model}
@@ -276,7 +276,7 @@ export function ChatInput({
                   }}
                   onSearch={setModelSearch}
                   onChange={(v) => void handleModelChange(String(v))}
-                  onDropdownVisibleChange={(open) => {
+                  onOpenChange={(open) => {
                     if (!open) setModelSearch('')
                   }}
                   suffixIcon={<DownOutlined className={styles.modelChevron} />}
