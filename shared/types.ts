@@ -869,6 +869,13 @@ export function querySyncConnectionsProviderCredentials(
 /** 聊天消息角色 */
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool'
 
+/** assistant 消息上持久化的 tool_call，供进程重启后冷启动回填模型 */
+export interface ChatMessageToolCall {
+  id: string
+  name: string
+  args: Record<string, unknown>
+}
+
 export interface ChatMessage {
   id: string
   role: MessageRole
@@ -877,6 +884,11 @@ export interface ChatMessage {
   toolName?: string
   /** 关联 tool_call_id */
   toolCallId?: string
+  /**
+   * assistant 发起的 tool_calls。
+   * 为什么：仅落盘 content 时重启后无法还原 tool_calls，会与后续 tool 消息断裂。
+   */
+  toolCalls?: ChatMessageToolCall[]
   /** 用户消息附带的本地图片路径 */
   attachmentPaths?: string[]
   createdAt: number

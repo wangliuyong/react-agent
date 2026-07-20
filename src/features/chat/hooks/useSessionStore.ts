@@ -487,12 +487,30 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
 
       if (event.type === 'error') {
-        set((state) => ({
-          runningSessionIds: withoutRunningSession(state.runningSessionIds, event.sessionId),
-          ...(event.sessionId === activeId
-            ? { running: false, activeToolName: null, activeModelLabel: null }
-            : {})
-        }))
+        const errText = event.message?.trim() || 'Agent 执行失败'
+        // 错误必须可见：此前仅清 running，用户会看到「发了消息却完全没响应」
+        if (event.sessionId === activeId) {
+          message.error(errText)
+        }
+        set((state) => {
+          const errorMsg: ChatMessage = {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: `⚠️ ${errText}`,
+            createdAt: Date.now()
+          }
+          return {
+            sessions: patchSession(state.sessions, event.sessionId, (session) => ({
+              ...session,
+              messages: [...session.messages, errorMsg],
+              updatedAt: Date.now()
+            })),
+            runningSessionIds: withoutRunningSession(state.runningSessionIds, event.sessionId),
+            ...(event.sessionId === activeId
+              ? { running: false, activeToolName: null, activeModelLabel: null }
+              : {})
+          }
+        })
         return
       }
     })

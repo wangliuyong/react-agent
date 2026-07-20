@@ -28,7 +28,7 @@ import { querySession, postSession } from '../../store/sessions'
 import { buildStepReactGraph } from '../graph/chat-graph'
 import { queryToolsForSubagent } from '../graph/role-tools'
 import { queryRecursionLimit } from '../graph/react-subgraph'
-import { trimMessagesToCharBudget } from '../token-budget'
+import { sanitizeMessagesForModel, trimMessagesToCharBudget } from '../token-budget'
 import type { ToolContext } from '../tools/types'
 import type { AgentEvent } from '../../../../shared/types'
 
@@ -127,7 +127,22 @@ function sessionMessagesToLc(messages: ChatMessage[]): BaseMessage[] {
     if (m.role === 'user') {
       out.push(new HumanMessage(m.content))
     } else if (m.role === 'assistant') {
-      out.push(new AIMessage(m.content))
+      // 与主会话一致：恢复 toolCalls，避免 fork 冷启动历史断裂
+      if (m.toolCalls?.length) {
+        out.push(
+          new AIMessage({
+            content: m.content,
+            tool_calls: m.toolCalls.map((tc) => ({
+              id: tc.id,
+              name: tc.name,
+              args: tc.args,
+              type: 'tool_call' as const
+            }))
+          })
+        )
+      } else {
+        out.push(new AIMessage(m.content))
+      }
     } else if (m.role === 'tool') {
       out.push(
         new ToolMessage({
@@ -138,7 +153,7 @@ function sessionMessagesToLc(messages: ChatMessage[]): BaseMessage[] {
       )
     }
   }
-  return trimMessagesToCharBudget(out)
+  return sanitizeMessagesForModel(trimMessagesToCharBudget(out))
 }
 
 /** 更新父 session 上的 subagentRuns 并落盘 */

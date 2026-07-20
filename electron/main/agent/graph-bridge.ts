@@ -30,7 +30,7 @@ import {
 } from './graph/chat-graph'
 import { buildRoleSystemPrompt } from './graph/prompts'
 import { queryRecursionLimit } from './graph/react-subgraph'
-import { trimMessagesToCharBudget } from './token-budget'
+import { sanitizeMessagesForModel, trimMessagesToCharBudget } from './token-budget'
 import { queryResolveModelConnection } from './model-router'
 
 function uuidv4(): string {
@@ -172,13 +172,32 @@ function buildToolContext(
   }
 }
 
+/**
+ * 将会话落盘消息还原为 LangChain 消息。
+ * 会恢复 assistant.toolCalls，并清洗无法配对的孤立 tool 结果（兼容旧会话）。
+ */
 function sessionToLcMessages(session: Session): BaseMessage[] {
   const out: BaseMessage[] = []
   for (const m of session.messages) {
     if (m.role === 'user') {
       out.push(new HumanMessage(m.content))
     } else if (m.role === 'assistant') {
-      out.push(new AIMessage(m.content))
+      // 有 toolCalls 时必须带上，否则后续 ToolMessage 会变成孤立结果被供应商拒绝
+      if (m.toolCalls?.length) {
+        out.push(
+          new AIMessage({
+            content: m.content,
+            tool_calls: m.toolCalls.map((tc) => ({
+              id: tc.id,
+              name: tc.name,
+              args: tc.args,
+              type: 'tool_call' as const
+            }))
+          })
+        )
+      } else {
+        out.push(new AIMessage(m.content))
+      }
     } else if (m.role === 'tool') {
       out.push(
         new ToolMessage({
@@ -189,7 +208,7 @@ function sessionToLcMessages(session: Session): BaseMessage[] {
       )
     }
   }
-  return trimMessagesToCharBudget(out)
+  return sanitizeMessagesForModel(trimMessagesToCharBudget(out))
 }
 
 function syncNewMessagesToSession(
@@ -253,7 +272,19 @@ function syncNewMessagesToSession(
           (ai.tool_calls?.length
             ? `调用工具: ${ai.tool_calls.map((t) => t.name).join(', ')}`
             : '')
-        const assistantMsg = appendMessage(session, { role: 'assistant', content: display })
+        // 持久化 tool_calls，供进程重启后冷启动还原给模型
+        const toolCalls = ai.tool_calls
+          ?.filter((tc) => Boolean(tc.id) && Boolean(tc.name))
+          .map((tc) => ({
+            id: String(tc.id),
+            name: String(tc.name),
+            args: (tc.args ?? {}) as Record<string, unknown>
+          }))
+        const assistantMsg = appendMessage(session, {
+          role: 'assistant',
+          content: display,
+          ...(toolCalls?.length ? { toolCalls } : {})
+        })
         persistSession(session)
         emitAgentEvent({ type: 'message', sessionId, message: assistantMsg })
         if (content.trim()) {

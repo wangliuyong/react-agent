@@ -1,4 +1,4 @@
-import { HumanMessage, ToolMessage } from '@langchain/core/messages'
+import { AIMessage, HumanMessage, ToolMessage, isAIMessage } from '@langchain/core/messages'
 import type { BaseMessage } from '@langchain/core/messages'
 
 /** 工具结果进入后续 ReAct 轮次前允许携带的最大字符数。 */
@@ -37,6 +37,42 @@ export function queryLatestHumanMessage(messages: BaseMessage[]): BaseMessage | 
 }
 
 /**
+ * 清理无法配对的 ToolMessage / 未完成的 tool_calls。
+ *
+ * 为什么：会话落盘时若未持久化 assistant.tool_calls，进程重启后冷启动会把
+ * 「纯文本 AIMessage + 孤立 ToolMessage」回填给模型，OpenAI 兼容接口会直接拒绝对话，
+ * 表现即为「用户消息已显示但 Agent 无任何回复」。
+ */
+export function sanitizeMessagesForModel(messages: BaseMessage[]): BaseMessage[] {
+  const declaredToolCallIds = new Set<string>()
+  const out: BaseMessage[] = []
+
+  for (const message of messages) {
+    if (isAIMessage(message) || AIMessage.isInstance(message)) {
+      const ai = message as AIMessage
+      const toolCalls = ai.tool_calls ?? []
+      for (const tc of toolCalls) {
+        if (tc.id) declaredToolCallIds.add(tc.id)
+      }
+      out.push(message)
+      continue
+    }
+
+    if (ToolMessage.isInstance(message)) {
+      // 仅保留能对应到某次 assistant tool_call 的结果
+      if (declaredToolCallIds.has(message.tool_call_id)) {
+        out.push(message)
+      }
+      continue
+    }
+
+    out.push(message)
+  }
+
+  return out
+}
+
+/**
  * 从最新消息向前按字符预算裁剪历史。
  * 字符预算是供应商无关的保守近似，能避免单条超长消息绕过固定条数限制。
  */
@@ -61,7 +97,8 @@ export function trimMessagesToCharBudget(
     selected.shift()
   }
 
-  return selected
+  // 裁剪后仍可能残留「无 tool_calls 的 assistant + 工具结果」组合，统一再清洗一次
+  return sanitizeMessagesForModel(selected)
 }
 
 /** 将多模态消息内容序列化为稳定的字符预算。 */

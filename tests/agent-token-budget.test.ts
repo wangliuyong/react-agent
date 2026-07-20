@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   compactToolResult,
   queryLatestHumanMessage,
+  sanitizeMessagesForModel,
   trimMessagesToCharBudget
 } from '../electron/main/agent/token-budget'
 
@@ -58,5 +59,57 @@ describe('Agent token 预算', () => {
     ]
 
     expect(trimMessagesToCharBudget(messages, 100)).toEqual([latest])
+  })
+
+  it('丢弃无对应 tool_calls 的孤立工具结果（进程重启冷启动场景）', () => {
+    const human = new HumanMessage('生成一张猫的照片，不是网图')
+    const messages = [
+      new HumanMessage('生成一张猫的照片'),
+      // 落盘时丢失了 tool_calls，只剩纯文本
+      new AIMessage('抱歉，我目前没有直接生成图片的能力'),
+      new ToolMessage({
+        content: '已从网页保存 3 张配图',
+        tool_call_id: 'call_orphan_1',
+        name: 'fetch_web_images'
+      }),
+      new AIMessage('好啦，帮你找到了 3 张猫片'),
+      human
+    ]
+
+    const sanitized = sanitizeMessagesForModel(messages)
+
+    expect(sanitized).toEqual([
+      messages[0],
+      messages[1],
+      messages[3],
+      human
+    ])
+    expect(sanitized.some((m) => ToolMessage.isInstance(m))).toBe(false)
+  })
+
+  it('保留能配对到 tool_calls 的工具结果', () => {
+    const aiWithTools = new AIMessage({
+      content: '',
+      tool_calls: [
+        {
+          id: 'call_ok',
+          name: 'fetch_web_images',
+          args: { pageUrl: 'https://example.com' },
+          type: 'tool_call'
+        }
+      ]
+    })
+    const tool = new ToolMessage({
+      content: 'ok',
+      tool_call_id: 'call_ok',
+      name: 'fetch_web_images'
+    })
+    const final = new AIMessage('完成')
+
+    expect(sanitizeMessagesForModel([aiWithTools, tool, final])).toEqual([
+      aiWithTools,
+      tool,
+      final
+    ])
   })
 })
