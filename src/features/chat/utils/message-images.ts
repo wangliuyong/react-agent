@@ -10,15 +10,21 @@ export interface MessageImageRef {
 
 const IMAGE_EXT_PATTERN = '(?:jpg|jpeg|png|webp|gif|bmp|svg)'
 
-/** Unix / macOS 绝对路径（支持空格、中文等非 ASCII 路径段） */
+/**
+ * 路径前允许空白、中英文冒号/逗号、反引号。
+ * 为什么：工具常返回「图片路径：/Users/...」；若只匹配空白，中文冒号后路径无法提取，聊天无法预览。
+ */
+const PATH_PREFIX = '(?:^|[\\s\\n：:,，`])'
+
+/** Unix / macOS 绝对路径（支持 Application Support 等含空格路径） */
 const UNIX_PATH_RE = new RegExp(
-  `(^|[\\s\\n])((?:/[^\\n"'<>|]+?)\\.(?:${IMAGE_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|]*)?)`,
+  `${PATH_PREFIX}((?:/[^\\n"'<>|\`]+?)\\.(?:${IMAGE_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|\`]*)?)`,
   'gim'
 )
 
 /** Windows 绝对路径（支持空格） */
 const WIN_PATH_RE = new RegExp(
-  `(^|[\\s\\n])((?:[A-Za-z]:\\\\[^\\n"'<>|]+?)\\.(?:${IMAGE_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|]*)?)`,
+  `${PATH_PREFIX}((?:[A-Za-z]:\\\\[^\\n"'<>|\`]+?)\\.(?:${IMAGE_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|\`]*)?)`,
   'gim'
 )
 
@@ -45,7 +51,11 @@ function isRemoteImageUrl(src: string): boolean {
 }
 
 function addRef(refs: MessageImageRef[], seen: Set<string>, src: string): void {
-  const trimmed = src.trim().replace(/^["']|["']$/g, '')
+  // 去掉 markdown / 工具结果里常见的包裹符号
+  const trimmed = src
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/[，,;；]+$/g, '')
   if (!trimmed || seen.has(trimmed)) return
   if (!isLocalPath(trimmed) && !isRemoteImageUrl(trimmed)) return
   seen.add(trimmed)
@@ -93,12 +103,12 @@ export function extractMessageImages(
 
   UNIX_PATH_RE.lastIndex = 0
   while ((m = UNIX_PATH_RE.exec(content)) !== null) {
-    addRef(refs, seen, m[2])
+    addRef(refs, seen, m[1])
   }
 
   WIN_PATH_RE.lastIndex = 0
   while ((m = WIN_PATH_RE.exec(content)) !== null) {
-    addRef(refs, seen, m[2])
+    addRef(refs, seen, m[1])
   }
 
   return preferLocalImageRefs(refs)
@@ -121,7 +131,8 @@ export function stripImagePathsFromDisplayText(content: string, refs: MessageIma
       text = text.split(ref.src).join('').trim()
     }
   }
-  // 清理 markdown 图片语法行
+  // 清理 markdown 图片语法行与「本地路径：」空标签
   text = text.replace(/!\[[^\]]*]\([^)]+\)/g, '').trim()
+  text = text.replace(/(?:本地|图片)?路径[：:]\s*/g, '').trim()
   return text
 }

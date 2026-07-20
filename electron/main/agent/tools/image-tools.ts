@@ -60,11 +60,13 @@ export const generateImageTool: AgentTool = {
       )
     }
 
+    // 同时给出裸路径与 markdown 图片语法，聊天 MessageRichContent 均可识别并内联预览
     return (
       `文生图成功。\n` +
       `图片路径：${result.path}\n` +
+      `![生成图片](${result.path})\n` +
       `说明：${result.message}\n` +
-      `请在回复中保留上述本地路径，以便聊天界面内联预览；不要声称这是网图。`
+      `请在回复中保留上述本地路径或 markdown 图片，以便聊天界面内联预览；不要声称这是网图。`
     )
   }
 }

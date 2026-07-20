@@ -9,25 +9,25 @@ export interface MessageMediaRef {
 const AUDIO_EXT_PATTERN = '(?:wav|mp3|m4a|aac|ogg)'
 const VIDEO_EXT_PATTERN = '(?:mp4|mov|webm|mkv)'
 
-/** Unix / macOS 绝对路径（允许中文冒号、逗号后直接跟路径） */
-const PATH_PREFIX = '(?:^|[\\s\\n：:,，])'
+/** Unix / macOS 绝对路径（允许中文冒号、逗号、反引号后直接跟路径） */
+const PATH_PREFIX = '(?:^|[\\s\\n：:,，`])'
 
 const UNIX_AUDIO_RE = new RegExp(
-  `${PATH_PREFIX}((?:/[^\\n"'<>|]+?)\\.(?:${AUDIO_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|]*)?)`,
+  `${PATH_PREFIX}((?:/[^\\n"'<>|\`]+?)\\.(?:${AUDIO_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|\`]*)?)`,
   'gim'
 )
 const UNIX_VIDEO_RE = new RegExp(
-  `${PATH_PREFIX}((?:/[^\\n"'<>|]+?)\\.(?:${VIDEO_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|]*)?)`,
+  `${PATH_PREFIX}((?:/[^\\n"'<>|\`]+?)\\.(?:${VIDEO_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|\`]*)?)`,
   'gim'
 )
 
 /** Windows 绝对路径 */
 const WIN_AUDIO_RE = new RegExp(
-  `${PATH_PREFIX}((?:[A-Za-z]:\\\\[^\\n"'<>|]+?)\\.(?:${AUDIO_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|]*)?)`,
+  `${PATH_PREFIX}((?:[A-Za-z]:\\\\[^\\n"'<>|\`]+?)\\.(?:${AUDIO_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|\`]*)?)`,
   'gim'
 )
 const WIN_VIDEO_RE = new RegExp(
-  `${PATH_PREFIX}((?:[A-Za-z]:\\\\[^\\n"'<>|]+?)\\.(?:${VIDEO_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|]*)?)`,
+  `${PATH_PREFIX}((?:[A-Za-z]:\\\\[^\\n"'<>|\`]+?)\\.(?:${VIDEO_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|\`]*)?)`,
   'gim'
 )
 
@@ -48,7 +48,10 @@ function addRef(
   src: string,
   kind: 'audio' | 'video'
 ): void {
-  const trimmed = src.trim().replace(/^["']|["']$/g, '')
+  const trimmed = src
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/[，,;；]+$/g, '')
   if (!trimmed || seen.has(trimmed) || !isLocalPath(trimmed)) return
   seen.add(trimmed)
   refs.push({
@@ -143,6 +146,7 @@ export function stripMediaPathsFromDisplayText(
   for (const ref of [...audio, ...video]) {
     text = text.split(ref.src).join('').trim()
   }
+  text = text.replace(/(?:本地|视频|音频|旁白|成片)?路径[：:]\s*/g, '').trim()
   return text
 }
 
@@ -159,5 +163,6 @@ export function queryDisplayContent(
     }
   }
   text = text.replace(/!\[[^\]]*]\([^)]+\)/g, '').trim()
+  text = text.replace(/(?:本地|图片|视频|音频|旁白|成片)?路径[：:]\s*/g, '').trim()
   return text
 }

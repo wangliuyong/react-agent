@@ -38,8 +38,9 @@ describe('queryArtifactPaths', () => {
 })
 
 describe('local-media 协议', () => {
-  it('生成 media://local URL', () => {
-    expect(localMediaSource).toContain('media://local/')
+  it('生成 media://local/?path= URL', () => {
+    expect(localMediaSource).toContain('media://local/?path=')
     expect(localMediaSource).toContain('queryLocalMediaUrl')
+    expect(localMediaSource).toContain('searchParams.get(')
   })
 })

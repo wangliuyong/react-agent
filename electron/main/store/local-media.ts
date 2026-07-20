@@ -46,24 +46,61 @@ export function queryResolveLocalMediaPath(filePath: string): {
 }
 
 /**
- * 将本地媒体路径转为 media://local/... URL。
- * 渲染进程 <audio>/<video> 可直接 src 加载。
+ * 将本地媒体路径转为 media://local/?path=... URL。
+ * 为什么用 query 而不是 path 段：Electron standard scheme 会把 %2F 解成路径，
+ * 导致 `/Users/...` 丢失前导斜杠，音视频无法加载。
  */
 export function queryLocalMediaUrl(filePath: string): string | null {
   const resolved = queryResolveLocalMediaPath(filePath)
   if (!resolved) return null
-  return `media://local/${encodeURIComponent(resolved.abs)}`
+  return `media://local/?path=${encodeURIComponent(resolved.abs)}`
 }
 
-/** 从 media:// URL 反解本地绝对路径（主进程 protocol handler 使用） */
+/**
+ * 从 media:// URL 反解本地绝对路径（主进程 protocol handler 使用）。
+ * 兼容：?path= 新格式、旧版 path 段编码、Chromium 规范化后的 pathname。
+ */
 export function queryPathFromMediaUrl(url: string): string | null {
-  const prefix = 'media://local/'
-  if (!url.startsWith(prefix)) return null
+  if (!url?.trim()) return null
+
   try {
-    const decoded = decodeURIComponent(url.slice(prefix.length))
-    const resolved = queryResolveLocalMediaPath(decoded)
-    return resolved?.abs ?? null
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'media:') return null
+
+    const fromQuery = parsed.searchParams.get('path')
+    if (fromQuery?.trim()) {
+      return queryResolveLocalMediaPath(fromQuery)?.abs ?? null
+    }
+
+    // 旧格式：media://local/<encodeURIComponent(abs)>
+    // Chromium 可能变成 media://local/Users/...（%2F 被解开）
+    let raw = decodeURIComponent(parsed.pathname || '')
+    if (raw.startsWith('/')) raw = raw.slice(1)
+    if (!raw) return null
+
+    // pathname 去掉首 / 后可能是 "%2FUsers%2F..." 或 "Users/..."
+    let candidate = decodeURIComponent(raw)
+    if (!candidate.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(candidate)) {
+      candidate = `/${candidate}`
+    }
+    return queryResolveLocalMediaPath(candidate)?.abs ?? null
   } catch {
-    return null
+    // 非标准 URL 时兜底字符串解析
+    const prefix = 'media://local/'
+    if (!url.startsWith(prefix)) return null
+    try {
+      const rest = url.slice(prefix.length)
+      const qIndex = rest.indexOf('?')
+      if (qIndex >= 0) {
+        const params = new URLSearchParams(rest.slice(qIndex + 1))
+        const p = params.get('path')
+        if (p) return queryResolveLocalMediaPath(p)?.abs ?? null
+      }
+      const decoded = decodeURIComponent(qIndex >= 0 ? rest.slice(0, qIndex) : rest)
+      const candidate = decoded.startsWith('/') ? decoded : `/${decoded}`
+      return queryResolveLocalMediaPath(candidate)?.abs ?? null
+    } catch {
+      return null
+    }
   }
 }

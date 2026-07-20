@@ -13,9 +13,15 @@ interface MessageImageGalleryProps {
 export function MessageImageGallery({ images }: MessageImageGalleryProps): React.ReactElement | null {
   const [previewMap, setPreviewMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+  /** 用 key 串作为依赖，避免父组件每次 render 新建 images 数组导致重复加载 */
+  const imageKeys = images.map((img) => img.key).join('\0')
 
   useEffect(() => {
-    if (!images.length) return
+    if (!images.length) {
+      setPreviewMap({})
+      setLoading(false)
+      return
+    }
 
     let cancelled = false
     setLoading(true)
@@ -43,7 +49,11 @@ export function MessageImageGallery({ images }: MessageImageGalleryProps): React
     return () => {
       cancelled = true
     }
-  }, [images])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 以 imageKeys 稳定依赖
+  }, [imageKeys])
+
+  const ready = images.filter((img) => previewMap[img.key])
+  if (!ready.length && !loading) return null
 
   const handleImageError = (key: string): void => {
     setPreviewMap((prev) => {
@@ -52,9 +62,6 @@ export function MessageImageGallery({ images }: MessageImageGalleryProps): React
       return next
     })
   }
-
-  const ready = images.filter((img) => previewMap[img.key])
-  if (!ready.length && !loading) return null
 
   return (
     <div className={styles.gallery}>
@@ -67,8 +74,8 @@ export function MessageImageGallery({ images }: MessageImageGalleryProps): React
               <Image
                 src={previewMap[img.key]}
                 alt={img.label}
-                width={112}
-                height={112}
+                width={200}
+                height={200}
                 className={styles.thumb}
                 rootClassName={styles.thumbRoot}
                 onError={() => handleImageError(img.key)}
