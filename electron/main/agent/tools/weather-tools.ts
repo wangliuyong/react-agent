@@ -88,7 +88,7 @@ export const queryWeatherTool: AgentTool = {
     properties: {
       city: {
         type: 'string',
-        description: '城市名，如「北京」「上海」；缺省则按 IP 定位'
+        description: '城市名，如「北京」「上海」；缺省则按 IP 定位；如果IP定位为获取到城市，则默认城市是「合肥」'
       }
     },
     required: []

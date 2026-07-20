@@ -5,7 +5,8 @@
   max-width: 820px;
   margin: 0 auto;
   width: 100%;
-  padding-top: 28px;
+  /* 与 ChatInput / WelcomeHero 保持相同的水平内边距，避免内容区与输入框错位 */
+  padding: 28px 28px 0;
 }
 
 .row {
