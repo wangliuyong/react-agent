@@ -26,6 +26,15 @@ describe('从平台拉取模型列表', () => {
     )
   })
 
+  it('优先使用自定义模型列表完整链接', () => {
+    expect(
+      queryModelsEndpoint(
+        'https://api.example.com/v1',
+        'https://gw.example.com/openai/models/'
+      )
+    ).toBe('https://gw.example.com/openai/models')
+  })
+
   it('百炼 Base URL 缺 /v1 时自动补齐', () => {
     expect(queryNormalizeDashscopeCompatBaseUrl('https://dashscope.aliyuncs.com/compatible-mode')).toBe(
       'https://dashscope.aliyuncs.com/compatible-mode/v1'
@@ -101,6 +110,41 @@ describe('从平台拉取模型列表', () => {
       })
     )
     expect(models.map((m) => m.value)).toEqual(['deepseek-v4-flash', 'deepseek-v4-pro'])
+  })
+
+  it('自定义供应商优先请求配置的模型列表链接', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        object: 'list',
+        data: [{ id: 'gw-model', object: 'model' }]
+      })
+    })
+
+    const models = await queryProviderModels(
+      {
+        provider: 'custom:gw' as never,
+        apiKey: 'sk-gw',
+        baseUrl: 'https://gw.example.com/v1',
+        customProviders: [
+          {
+            id: 'custom:gw',
+            label: '测试网关',
+            apiKeyLabel: 'API Key',
+            defaultBaseUrl: 'https://gw.example.com/v1',
+            defaultModel: 'gw-model',
+            modelsUrl: 'https://gw.example.com/openai/v1/models'
+          }
+        ]
+      },
+      fetchMock as unknown as typeof fetch
+    )
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://gw.example.com/openai/v1/models',
+      expect.objectContaining({ method: 'GET' })
+    )
+    expect(models.map((m) => m.value)).toEqual(['gw-model'])
   })
 
   it('百炼兼容模式走 GET /compatible-mode/v1/models', async () => {

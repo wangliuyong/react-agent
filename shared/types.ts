@@ -101,12 +101,17 @@ export interface CustomModelProvider {
   id: CustomModelProviderId
   /** 展示名称，如「月之暗面」「MiniMax」 */
   label: string
-  /** API Key 表单项标签 */
+  /** API Key 表单项标签；自定义供应商固定为「API Key」 */
   apiKeyLabel: string
   /** 默认 OpenAI 兼容 Base URL */
   defaultBaseUrl: string
   /** 拉取 /models 失败时的兜底模型 id */
   defaultModel: string
+  /**
+   * 模型列表完整获取地址（如 https://api.example.com/v1/models）。
+   * 为空时回退为 `{defaultBaseUrl}/models`。
+   */
+  modelsUrl?: string
 }
 
 /** 模型能力标签：助手按任务自动选型时使用 */
@@ -439,6 +444,8 @@ export interface ModelProviderOption {
   apiKeyLabel: string
   defaultBaseUrl: string
   defaultModel: string
+  /** 可选：自定义模型列表完整 URL；优先于 Base URL + /models */
+  modelsUrl?: string
 }
 
 export const MODEL_PROVIDER_OPTIONS: ModelProviderOption[] = [
@@ -641,6 +648,23 @@ export function queryNewCustomProviderId(): CustomModelProviderId {
   return `custom:${Date.now().toString(36)}-${suffix}`
 }
 
+/** 是否为用户自定义供应商 id（`custom:` 前缀） */
+export function queryIsCustomModelProvider(provider: ModelProvider | string): boolean {
+  return String(provider).startsWith('custom:')
+}
+
+/**
+ * 从列表中移除指定自定义供应商。
+ * 内置供应商 id 不会改动列表。
+ */
+export function queryRemoveCustomProvider(
+  customProviders: CustomModelProvider[],
+  providerId: ModelProvider | string
+): CustomModelProvider[] {
+  if (!queryIsCustomModelProvider(providerId)) return customProviders
+  return customProviders.filter((item) => item.id !== providerId)
+}
+
 /** 归一化磁盘中的自定义供应商列表，过滤损坏项 */
 export function queryNormalizeCustomProviders(raw: unknown): CustomModelProvider[] {
   if (!Array.isArray(raw)) return []
@@ -654,12 +678,15 @@ export function queryNormalizeCustomProviders(raw: unknown): CustomModelProvider
     const label = String(row.label ?? '').trim()
     if (!label) continue
     seen.add(id)
+    const modelsUrl = String(row.modelsUrl ?? '').trim()
     result.push({
       id: id as CustomModelProviderId,
       label,
-      apiKeyLabel: String(row.apiKeyLabel ?? 'API Key').trim() || 'API Key',
+      // 为什么：自定义供应商统一用「API Key」，不再支持自定义标签
+      apiKeyLabel: 'API Key',
       defaultBaseUrl: String(row.defaultBaseUrl ?? '').trim(),
-      defaultModel: String(row.defaultModel ?? '').trim() || 'gpt-4o-mini'
+      defaultModel: String(row.defaultModel ?? '').trim() || 'gpt-4o-mini',
+      ...(modelsUrl ? { modelsUrl } : {})
     })
   }
   return result
@@ -674,9 +701,10 @@ export function queryAllProviderOptions(
     ...customProviders.map((provider) => ({
       value: provider.id,
       label: provider.label,
-      apiKeyLabel: provider.apiKeyLabel,
+      apiKeyLabel: provider.apiKeyLabel || 'API Key',
       defaultBaseUrl: provider.defaultBaseUrl,
-      defaultModel: provider.defaultModel
+      defaultModel: provider.defaultModel,
+      ...(provider.modelsUrl?.trim() ? { modelsUrl: provider.modelsUrl.trim() } : {})
     }))
   ]
 }
@@ -697,9 +725,10 @@ export function queryProviderOption(
     return {
       value: custom.id,
       label: custom.label,
-      apiKeyLabel: custom.apiKeyLabel,
+      apiKeyLabel: custom.apiKeyLabel || 'API Key',
       defaultBaseUrl: custom.defaultBaseUrl,
-      defaultModel: custom.defaultModel
+      defaultModel: custom.defaultModel,
+      ...(custom.modelsUrl?.trim() ? { modelsUrl: custom.modelsUrl.trim() } : {})
     }
   }
 

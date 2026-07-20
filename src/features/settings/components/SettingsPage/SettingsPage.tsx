@@ -1,8 +1,10 @@
 import {
   MODEL_PROVIDER_OPTIONS,
+  queryIsCustomModelProvider,
   queryModelOptionDisplayLabel,
   queryModelOptions,
   queryProviderOption,
+  queryRemoveCustomProvider,
   type AppSettings,
   type CustomModelProvider,
   type ModelProvider
@@ -51,6 +53,11 @@ export function SettingsPage(): React.ReactElement {
    * 避免「已配置 API Key 被清空」且无法回显。
    */
   const providerDraftsRef = useRef<ProviderFormDraftMap>({})
+  /**
+   * 添加供应商会立刻持久化 customProviders；
+   * 用此标记跳过随后一次全量表单同步，避免冲掉当前未保存的 API Key 等草稿。
+   */
+  const skipFullFormSyncRef = useRef(false)
   /** 监听草稿密钥与地址，输入后即可拉取平台模型，无需先保存 */
   const watchedApiKey = Form.useWatch('apiKey', form)
   const watchedBaseUrl = Form.useWatch('baseUrl', form)
@@ -90,6 +97,12 @@ export function SettingsPage(): React.ReactElement {
    */
   useEffect(() => {
     if (!queryShouldSyncSettingsForm(loaded)) return
+    // 添加供应商仅更新 customProviders：只回写该字段，保留当前编辑中的凭证草稿
+    if (skipFullFormSyncRef.current) {
+      skipFullFormSyncRef.current = false
+      form.setFieldValue('customProviders', settings.customProviders ?? [])
+      return
+    }
     const values = querySettingsFormValues(settings)
     setSelectedProvider(values.provider)
     form.setFieldsValue(values)
@@ -101,7 +114,11 @@ export function SettingsPage(): React.ReactElement {
     }
   }, [loaded, settings, form])
 
-  const providerSelectOptions = useMemo(() => {
+  const providerSelectOptions = useMemo((): {
+    label: string
+    value?: ModelProvider
+    options?: { value: ModelProvider; label: string }[]
+  }[] => {
     const builtIn = MODEL_PROVIDER_OPTIONS.map((option) => ({
       value: option.value,
       label: option.label
@@ -133,13 +150,64 @@ export function SettingsPage(): React.ReactElement {
     form.setFieldsValue(nextValues)
   }
 
-  const handleAddCustomProvider = (provider: CustomModelProvider): void => {
+  /**
+   * 添加自定义供应商：只登记、不切换当前选用。
+   * 立即持久化 customProviders，便于「模型与 API」与「多模型连接」下拉立刻可选。
+   */
+  const handleAddCustomProvider = async (provider: CustomModelProvider): Promise<void> => {
     const nextProviders = [...customProviders, provider]
     setAddProviderOpen(false)
-    handleProviderChange(provider.id)
-    // 为什么：customProviders 不在可见表单项中，需显式写入以便保存时带上
     form.setFieldValue('customProviders', nextProviders)
-    message.success(`已添加供应商「${provider.label}」，请填写 API Key 后保存`)
+    skipFullFormSyncRef.current = true
+    try {
+      await postSettings({ customProviders: nextProviders })
+      message.success(`已添加供应商「${provider.label}」，可在下拉列表中选用`)
+    } catch {
+      skipFullFormSyncRef.current = false
+      form.setFieldValue('customProviders', customProviders)
+      message.error('添加供应商失败，请重试')
+    }
+  }
+
+  /**
+   * 删除自定义供应商并立即持久化。
+   * 若删除的是当前选用项，由 normalizeSettings 回退默认供应商并全量同步表单；
+   * 删除其他项时跳过全量同步，避免冲掉当前未保存草稿。
+   */
+  const handleDeleteCustomProvider = async (providerId: ModelProvider): Promise<void> => {
+    if (!queryIsCustomModelProvider(providerId)) return
+    const target = customProviders.find((item) => item.id === providerId)
+    if (!target) return
+
+    const nextProviders = queryRemoveCustomProvider(customProviders, providerId)
+    const deletingSelected = selectedProvider === providerId
+    form.setFieldValue('customProviders', nextProviders)
+    delete providerDraftsRef.current[providerId]
+
+    if (!deletingSelected) {
+      skipFullFormSyncRef.current = true
+    }
+
+    try {
+      await postSettings({ customProviders: nextProviders })
+      message.success(`已删除供应商「${target.label}」`)
+    } catch {
+      skipFullFormSyncRef.current = false
+      form.setFieldValue('customProviders', customProviders)
+      message.error('删除供应商失败，请重试')
+    }
+  }
+
+  /** 下拉内删除：阻止选中该项，二次确认后删除 */
+  const handleConfirmDeleteCustomProvider = (providerId: ModelProvider, label: string): void => {
+    Modal.confirm({
+      title: `删除供应商「${label}」？`,
+      content: '多模型连接中若引用该供应商，将自动回退到默认供应商。',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => handleDeleteCustomProvider(providerId)
+    })
   }
 
   const handleSaveSettings = async (values: AppSettings): Promise<void> => {
@@ -309,8 +377,34 @@ export function SettingsPage(): React.ReactElement {
                     <div className={styles.providerRow}>
                       <Select
                         className={styles.providerSelect}
+                        value={selectedProvider}
                         options={providerSelectOptions}
                         onChange={handleProviderChange}
+                        optionRender={(option) => {
+                          const value = option.value as ModelProvider
+                          const label = String(option.label ?? '')
+                          const isCustom = queryIsCustomModelProvider(value)
+                          return (
+                            <div className={styles.providerOption}>
+                              <span className={styles.providerOptionLabel}>{label}</span>
+                              {isCustom ? (
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  danger
+                                  className={styles.providerOptionDelete}
+                                  icon={<DeleteOutlined />}
+                                  aria-label={`删除供应商 ${label}`}
+                                  onClick={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                    handleConfirmDeleteCustomProvider(value, label)
+                                  }}
+                                />
+                              ) : null}
+                            </div>
+                          )
+                        }}
                       />
                       <Button
                         type="dashed"
@@ -320,6 +414,24 @@ export function SettingsPage(): React.ReactElement {
                       >
                         添加供应商
                       </Button>
+                      {queryIsCustomModelProvider(selectedProvider) ? (
+                        <Popconfirm
+                          title="确定删除当前自定义供应商？"
+                          description="多模型连接中若引用该供应商，将自动回退到默认供应商。"
+                          okText="删除"
+                          okButtonProps={{ danger: true }}
+                          cancelText="取消"
+                          onConfirm={() => void handleDeleteCustomProvider(selectedProvider)}
+                        >
+                          <Button
+                            danger
+                            icon={<DeleteOutlined />}
+                            className={styles.deleteProviderBtn}
+                          >
+                            删除
+                          </Button>
+                        </Popconfirm>
+                      ) : null}
                     </div>
                   </Form.Item>
 

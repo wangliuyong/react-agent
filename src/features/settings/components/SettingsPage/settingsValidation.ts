@@ -10,6 +10,27 @@ export const BASE_URL_RULES = [
   { required: true, message: '请填写 Base URL' }
 ] satisfies readonly Rule[]
 
+/**
+ * 可选完整 URL（如模型列表链接）。
+ * 留空合法；填写时须带 http/https 协议。
+ */
+export const OPTIONAL_URL_RULES = [
+  {
+    validator: async (_rule, value: unknown) => {
+      const trimmed = String(value ?? '').trim()
+      if (!trimmed) return
+      try {
+        const parsed = new URL(trimmed)
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          throw new Error('invalid')
+        }
+      } catch {
+        throw new Error('请输入包含协议的完整链接，如 https://api.example.com/v1/models')
+      }
+    }
+  }
+] satisfies readonly Rule[]
+
 /** 模型必须由用户选择，避免调用接口时缺少模型标识。 */
 export const MODEL_RULES = [
   { required: true, message: '请选择模型' }

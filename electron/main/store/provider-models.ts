@@ -28,7 +28,10 @@ const DASHSCOPE_CODING_CN_BASE = 'https://coding.dashscope.aliyuncs.com/v1'
 const DASHSCOPE_CODING_INTL_BASE = 'https://coding-intl.dashscope.aliyuncs.com/v1'
 
 /** 拼出平台模型列表地址；去掉尾部斜杠再追加 /models。 */
-export function queryModelsEndpoint(baseUrl: string): string {
+export function queryModelsEndpoint(baseUrl: string, modelsUrl?: string): string {
+  // 为什么：部分网关模型列表不在 {base}/models，允许用户配置完整链接
+  const custom = modelsUrl?.trim()
+  if (custom) return custom.replace(/\/+$/, '')
   const trimmed = baseUrl.trim().replace(/\/+$/, '')
   return `${trimmed}/models`
 }
@@ -147,14 +150,16 @@ interface ProviderModelsFetchFailure {
   baseUrl: string
 }
 
-/** 单次 GET {baseUrl}/models 并解析为 ModelOption */
+/** 单次 GET 模型列表并解析为 ModelOption */
 async function queryFetchProviderModelsOnce(
   provider: ModelProvider,
   apiKey: string,
-  baseUrl: string,
-  fetchImpl: FetchLike
+  modelsEndpoint: string,
+  fetchImpl: FetchLike,
+  /** 失败文案中展示的地址来源（自定义 modelsUrl 或 Base URL） */
+  baseUrlForError: string
 ): Promise<ModelOption[] | ProviderModelsFetchFailure> {
-  const response = await fetchImpl(queryModelsEndpoint(baseUrl), {
+  const response = await fetchImpl(modelsEndpoint, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -169,7 +174,7 @@ async function queryFetchProviderModelsOnce(
     } catch {
       /* ignore */
     }
-    return { status: response.status, detail, baseUrl }
+    return { status: response.status, detail, baseUrl: baseUrlForError }
   }
 
   const payload = (await response.json()) as ProviderModelListResponse
@@ -191,7 +196,8 @@ function queryFormatProviderModelsError(failure: ProviderModelsFetchFailure): st
 
 /**
  * 百炼：依次尝试国内 / 国际 / Coding Plan 等兼容端点。
- * 非百炼：仅请求用户配置的 Base URL。
+ * 自定义 modelsUrl：直接请求该完整地址，不再按 Base URL 拼装。
+ * 非百炼：仅请求用户配置的 Base URL + /models。
  */
 async function queryFetchProviderModelsWithFallback(
   settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'> & {
@@ -202,6 +208,28 @@ async function queryFetchProviderModelsWithFallback(
   const providerMeta = queryProviderOption(settings.provider, settings.customProviders ?? [])
   const apiKey = settings.apiKey.trim()
   const baseUrl = (settings.baseUrl || providerMeta.defaultBaseUrl).trim()
+  const customModelsUrl = providerMeta.modelsUrl?.trim()
+
+  // 已配置完整模型列表链接时，优先直连，跳过 Base URL 候选回退
+  if (customModelsUrl) {
+    const endpoint = queryModelsEndpoint(baseUrl, customModelsUrl)
+    try {
+      const result = await queryFetchProviderModelsOnce(
+        settings.provider,
+        apiKey,
+        endpoint,
+        fetchImpl,
+        endpoint
+      )
+      if (Array.isArray(result)) return result
+      throw new Error(queryFormatProviderModelsError(result))
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('获取模型列表失败')) throw err
+      throw new Error(
+        `获取模型列表失败：${err instanceof Error ? err.message : String(err)}`
+      )
+    }
+  }
 
   const candidates =
     settings.provider === 'dashscope'
@@ -215,8 +243,9 @@ async function queryFetchProviderModelsWithFallback(
       const result = await queryFetchProviderModelsOnce(
         settings.provider,
         apiKey,
-        candidate,
-        fetchImpl
+        queryModelsEndpoint(candidate),
+        fetchImpl,
+        candidate
       )
       if (Array.isArray(result)) {
         return result
