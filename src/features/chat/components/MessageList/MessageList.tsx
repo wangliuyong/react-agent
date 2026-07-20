@@ -1,5 +1,6 @@
 import type { ChatMessage, TaskItem } from '@shared/types'
 import { queryAgentPhase, queryAgentStatusLabel } from '../../utils/agent-status'
+import { ChatMarkdown } from '../ChatMarkdown'
 import { MessageRichContent, queryMediaCountLabel } from '../MessageRichContent'
 import { TypingIndicator } from '../TypingIndicator'
 import styles from './MessageList.module.css'
@@ -9,6 +10,8 @@ const { Text } = Typography
 interface MessageListProps {
   messages: ChatMessage[]
   streamingText: string
+  /** 模型推理 / Agent 思考过程（流式增量拼接） */
+  thinkingText?: string
   tasks: TaskItem[]
   running?: boolean
   activeToolName?: string | null
@@ -20,6 +23,7 @@ interface MessageListProps {
 export function MessageList({
   messages,
   streamingText,
+  thinkingText = '',
   tasks,
   running = false,
   activeToolName = null,
@@ -61,10 +65,12 @@ export function MessageList({
   const showPending =
     Boolean(trailingPlaceholderId) && running && !streamingText && phase !== 'idle'
 
-  /** 新消息 / 流式输出时自动滚到底部 */
+  const showThinking = thinkingText.trim().length > 0
+
+  /** 新消息 / 流式输出 / 思考过程时自动滚到底部（scrollIntoView 由 ChatPage.body 承载滚动） */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [messages.length, streamingText, running, activeToolName])
+  }, [messages.length, streamingText, thinkingText, running, activeToolName])
 
   return (
     <div className={styles.list}>
@@ -91,7 +97,7 @@ export function MessageList({
         </div>
       )}
 
-      {displayMessages.map((m, index) => {
+      {displayMessages.map((m) => {
         if (m.role === 'user') {
           return (
             <div key={m.id} className={`${styles.row} ${styles.rowUser}`}>
@@ -133,7 +139,6 @@ export function MessageList({
         }
         return (
           <div key={m.id} className={`${styles.row} ${styles.rowAssistant}`}>
-            {/* {index < 2 ? (<span className={styles.label}>灵犀</span>) : null} */}
             <span className={styles.label}>灵犀</span>
             <div className={styles.assistantCard}>
               <AssistantBody content={m.content} />
@@ -141,6 +146,19 @@ export function MessageList({
           </div>
         )
       })}
+
+      {showThinking ? (
+        <div className={`${styles.row} ${styles.rowThinking}`}>
+          <span className={styles.label}>思考</span>
+          <div className={styles.thinkingBox}>
+            <ChatMarkdown
+              source={thinkingText}
+              streaming={running}
+              className={styles.thinkingMarkdown}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {streamingText ? (
         <div className={`${styles.row} ${styles.rowAssistant}`}>

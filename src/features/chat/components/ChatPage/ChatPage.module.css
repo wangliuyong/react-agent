@@ -184,19 +184,16 @@
 
 .body {
   flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  overflow: auto;
   position: relative;
   z-index: 1;
+  scroll-behavior: smooth;
   background: transparent;
-  display: flex;
-  flex-direction: column;
 }
 
-/* 新会话空态：欢迎区垂直居中，允许内容溢出时滚动 */
+/* 新会话空态：欢迎区垂直居中 */
 .body[data-empty='true'] {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  overflow: auto;
 }
