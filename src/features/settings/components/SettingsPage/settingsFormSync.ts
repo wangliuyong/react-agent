@@ -30,6 +30,7 @@ export function querySettingsFormValues(settings: AppSettings): AppSettings {
     connections: settings.connections ?? [],
     defaultConnectionId: settings.defaultConnectionId,
     roleModelMap: settings.roleModelMap ?? {},
+    rolePromptOverrides: settings.rolePromptOverrides ?? {},
     fullAccess: settings.fullAccess,
     maxTurns: settings.maxTurns,
     launchAtLogin: settings.launchAtLogin,

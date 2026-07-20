@@ -238,6 +238,7 @@
   background: var(--db-bg-content);
   border: 1px solid var(--db-border-light);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+  flex-shrink: 0;
 }
 
 /* 任务标签 — 完成/进行中使用主题色 */

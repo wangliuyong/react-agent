@@ -96,7 +96,7 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     const agent = createReactSubgraph({
       llm: queryRoleLlmFactory(role),
       tools,
-      systemPrompt: buildRoleSystemPrompt(role),
+      systemPrompt: buildRoleSystemPrompt(role, settings.rolePromptOverrides),
       name: `role_${role}`
     })
     const result = await agent.invoke(

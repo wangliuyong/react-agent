@@ -37,4 +37,13 @@ describe('角色提示词 Token 预算', () => {
     expect(prompt).toContain('可用技能目录')
     expect(prompt).toContain('use_skill')
   })
+
+  it('用户角色设定追加到内置说明之后', () => {
+    const prompt = buildRoleSystemPrompt('writer', {
+      writer: '回复保持简洁，优先 bullet 列表'
+    })
+
+    expect(prompt).toContain('用户角色设定')
+    expect(prompt).toContain('回复保持简洁，优先 bullet 列表')
+  })
 })

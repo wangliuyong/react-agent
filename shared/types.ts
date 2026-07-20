@@ -156,6 +156,9 @@ export type ModelRoleKey =
 
 export type RoleModelMap = Partial<Record<ModelRoleKey, string>>
 
+/** 用户自定义角色补充说明，追加到内置 system prompt 之后 */
+export type RolePromptOverrides = Partial<Record<ModelRoleKey, string>>
+
 export interface AppSettings {
   /**
    * @deprecated 兼容旧单模型字段；归一化后同步到 connections[0]
@@ -173,6 +176,8 @@ export interface AppSettings {
   defaultConnectionId: string
   /** 角色/任务 → 连接映射 */
   roleModelMap: RoleModelMap
+  /** 用户自定义角色补充说明，追加到内置 system prompt */
+  rolePromptOverrides: RolePromptOverrides
   /** 完全访问：跳过部分敏感确认（发布前仍建议确认） */
   fullAccess: boolean
   /** Agent 最大工具轮次 */
@@ -433,6 +438,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   connections: queryBuildDefaultConnections(),
   defaultConnectionId: DEFAULT_CONNECTION_ID,
   roleModelMap: { ...DEFAULT_ROLE_MODEL_MAP },
+  rolePromptOverrides: {},
   fullAccess: false,
   maxTurns: 40,
   launchAtLogin: false,

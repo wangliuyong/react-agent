@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import type { Virtualizer } from '@tanstack/react-virtual'
 
 /** 距底部多少像素内视为「贴底」，新内容到达时自动滚动 */
@@ -15,7 +15,7 @@ interface UseStickToBottomOptions {
  * 聊天类列表专用：用户上滑阅读历史时不抢滚动，回到底部附近后再自动跟随新消息。
  */
 export function useStickToBottom<TScrollElement extends HTMLElement>(
-  scrollRef: React.RefObject<TScrollElement | null>,
+  scrollRef: RefObject<TScrollElement | null>,
   virtualizer: Virtualizer<TScrollElement, Element>,
   { enabled = false, deps = [] }: UseStickToBottomOptions = {}
 ): {

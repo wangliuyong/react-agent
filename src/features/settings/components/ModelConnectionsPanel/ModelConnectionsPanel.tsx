@@ -2,75 +2,28 @@ import type { CSSProperties } from 'react'
 import {
   DEFAULT_CONNECTION,
   queryAllProviderOptions,
-  queryModelOptionDisplayLabel,
-  queryModelOptions,
   queryProviderCredentialsFromSettings,
   querySyncConnectionsProviderCredentials,
-  type AppSettings,
-  type ModelCapability,
   type ModelConnection,
-  type ModelOption,
-  type ModelProvider,
   type ModelRoleKey,
-  type RoleModelMap
+  type RoleModelMap,
+  type RolePromptOverrides
 } from '@shared/types'
-import { useConnectionProviderModels } from '../../hooks/useConnectionProviderModels'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
+import { EditModelConnectionModal } from '../EditModelConnectionModal'
+import { EditRoleTaskModal } from '../EditRoleTaskModal'
+import {
+  queryCapabilityLabel,
+  queryNewConnectionId,
+  ROLE_TASK_META
+} from './connectionPanelShared'
 import styles from './ModelConnectionsPanel.module.css'
 
 const { Text, Title } = Typography
 
-const CAPABILITY_OPTIONS: { value: ModelCapability; label: string }[] = [
-  { value: 'chat', label: '对话' },
-  { value: 'reasoning', label: '推理' },
-  { value: 'vision', label: '视觉' },
-  { value: 'longContext', label: '长上下文' },
-  { value: 'creative', label: '创作' }
-]
-
-const ROLE_OPTIONS: { value: ModelRoleKey; label: string }[] = [
-  { value: 'general', label: '通用助手' },
-  { value: 'researcher', label: '调研员' },
-  { value: 'writer', label: '撰稿人' },
-  { value: 'publisher', label: '发布员' },
-  { value: 'scriptwriter', label: '编剧' },
-  { value: 'videographer', label: '视频制作' },
-  { value: 'editor', label: '剪辑师' },
-  { value: 'script', label: '剧本任务' },
-  { value: 'storyboard', label: '分镜任务' },
-  { value: 'video', label: '视频任务' }
-]
-
-function queryNewConnectionId(): string {
-  return `conn-${Date.now().toString(36)}`
-}
-
-function querySelectOptions(
-  models: ModelOption[],
-  currentModel: string,
-  provider: ModelProvider
-): { value: string; label: string }[] {
-  const options = models.map((m) => ({
-    value: m.value,
-    label: queryModelOptionDisplayLabel(m)
-  }))
-  if (currentModel && !models.some((m) => m.value === currentModel)) {
-    options.unshift({
-      value: currentModel,
-      label: queryModelOptionDisplayLabel({
-        provider,
-        value: currentModel,
-        label: currentModel
-      })
-    })
-  }
-  return options
-}
-
 /**
  * 多模型连接与角色映射配置面板。
- * 本地草稿编辑，保存时一次性写入，避免逐键击打 IPC。
- * 模型下拉与「模型与 API」Tab 共用 useConnectionProviderModels 拉取逻辑。
+ * 卡片仅展示摘要，编辑通过弹窗维护；保存时一次性写入，避免逐键击打 IPC。
  */
 export function ModelConnectionsPanel(): React.ReactElement {
   const settings = useSettingsStore((s) => s.settings)
@@ -88,18 +41,19 @@ export function ModelConnectionsPanel(): React.ReactElement {
   const [roleModelMap, setRoleModelMap] = useState<RoleModelMap>(
     settings.roleModelMap ?? {}
   )
-
-  const providerOptions = useMemo(
-    () =>
-      queryAllProviderOptions(settings.customProviders ?? []).map((option) => ({
-        value: option.value,
-        label: option.label
-      })),
-    [settings.customProviders]
+  const [rolePromptOverrides, setRolePromptOverrides] = useState<RolePromptOverrides>(
+    settings.rolePromptOverrides ?? {}
   )
+  const [editingConnection, setEditingConnection] = useState<ModelConnection | null>(null)
+  const [editingRole, setEditingRole] = useState<ModelRoleKey | null>(null)
 
-  const { queryRemoteModels, queryIsLoading, queryModelHint } =
-    useConnectionProviderModels(connections, true, settings.customProviders ?? [])
+  const providerLabelById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const option of queryAllProviderOptions(settings.customProviders ?? [])) {
+      map.set(option.value, option.label)
+    }
+    return map
+  }, [settings.customProviders])
 
   useEffect(() => {
     setConnections(
@@ -110,10 +64,12 @@ export function ModelConnectionsPanel(): React.ReactElement {
     )
     setDefaultConnectionId(settings.defaultConnectionId)
     setRoleModelMap(settings.roleModelMap ?? {})
+    setRolePromptOverrides(settings.rolePromptOverrides ?? {})
   }, [
     settings.connections,
     settings.defaultConnectionId,
     settings.roleModelMap,
+    settings.rolePromptOverrides,
     settings.apiKey,
     settings.provider,
     settings.baseUrl,
@@ -131,7 +87,8 @@ export function ModelConnectionsPanel(): React.ReactElement {
       await postSettings({
         connections,
         defaultConnectionId: defaultConnectionId || connections[0].id,
-        roleModelMap
+        roleModelMap,
+        rolePromptOverrides
       })
       message.success('模型连接已保存')
     } catch (err) {
@@ -141,31 +98,12 @@ export function ModelConnectionsPanel(): React.ReactElement {
     }
   }
 
-  const handleFieldChange = (
-    id: string,
-    field: keyof ModelConnection,
-    value: unknown
-  ): void => {
-    setConnections((prev) => {
-      const nextList = prev.map((c) => {
-        if (c.id !== id) return c
-        const next = { ...c, [field]: value }
-        if (field === 'provider') {
-          const nextProvider = value as ModelProvider
-          const creds = queryProviderCredentialsFromSettings(settings, nextProvider)
-
-          next.provider = nextProvider
-          next.baseUrl = creds.baseUrl
-          next.model = creds.model
-          // 切换供应商时绑定该供应商 Key，避免沿用其他供应商密钥
-          next.apiKey = c.provider === nextProvider ? c.apiKey : creds.apiKey
-        }
-        return next
-      })
-
-      return nextList
-    })
+  const queryConnectionLabel = (id?: string): string => {
+    if (!id) return '默认连接'
+    return connections.find((c) => c.id === id)?.label ?? '默认连接'
   }
+
+  const editingRoleMeta = ROLE_TASK_META.find((item) => item.value === editingRole)
 
   return (
     <div className={styles.panel}>
@@ -175,7 +113,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
             模型连接
           </Title>
           <Text type="secondary" className={styles.desc}>
-            Agent 按角色自动选型；请在「模型与 API」中配置凭证，模型列表将自动刷新
+            Agent 按角色自动选型；请在「模型与 API」中配置凭证，点击卡片或编辑按钮维护连接
           </Text>
         </div>
         <Space wrap>
@@ -184,18 +122,15 @@ export function ModelConnectionsPanel(): React.ReactElement {
             icon={<PlusOutlined />}
             onClick={() => {
               const creds = queryProviderCredentialsFromSettings(settings, settings.provider)
-              setConnections((prev) => [
-                ...prev,
-                {
-                  ...DEFAULT_CONNECTION,
-                  id: queryNewConnectionId(),
-                  label: `连接 ${prev.length + 1}`,
-                  provider: settings.provider,
-                  apiKey: creds.apiKey,
-                  baseUrl: creds.baseUrl,
-                  model: creds.model
-                }
-              ])
+              setEditingConnection({
+                ...DEFAULT_CONNECTION,
+                id: queryNewConnectionId(),
+                label: `连接 ${connections.length + 1}`,
+                provider: settings.provider,
+                apiKey: creds.apiKey,
+                baseUrl: creds.baseUrl,
+                model: creds.model
+              })
             }}
           >
             添加连接
@@ -208,106 +143,98 @@ export function ModelConnectionsPanel(): React.ReactElement {
 
       <div className={styles.grid}>
         {connections.map((conn, index) => {
-          const remote = queryRemoteModels(conn)
-          const modelOptions = querySelectOptions(
-            Array.isArray(remote) ? remote : queryModelOptions(conn.provider),
-            conn.model,
-            conn.provider
-          )
-          const modelsLoading = queryIsLoading(conn)
-          const modelHint = queryModelHint(conn)
+          const isDefault = defaultConnectionId === conn.id
+          const providerLabel = providerLabelById.get(conn.provider) ?? conn.provider
 
           return (
             <Card
               key={conn.id}
               variant="borderless"
-              className={styles.card}
+              className={`${styles.card} ${isDefault ? styles.cardDefault : ''}`}
               style={{ '--card-index': index } as CSSProperties}
             >
               <div className={styles.cardHead}>
-                <Input
-                  value={conn.label}
-                  onChange={(e) => handleFieldChange(conn.id, 'label', e.target.value)}
-                  placeholder="连接名称"
-                  className={styles.labelInput}
-                />
-                <Space size={4}>
-                  {defaultConnectionId === conn.id ? (
-                    <Tag className={styles.defaultTag}>默认</Tag>
-                  ) : (
+                <div className={styles.cardTitleBlock}>
+                  <Text className={styles.cardTitle} ellipsis={{ tooltip: conn.label }}>
+                    {conn.label}
+                  </Text>
+                  {/* {isDefault ? <Tag className={styles.defaultTag}>默认</Tag> : null} */}
+                </div>
+                <div className={styles.cardActions}>
+                  {!isDefault ? (
+                    <Tooltip title="设为默认">
+                      <Button
+                        type="text"
+                        size="small"
+                        className={styles.actionBtn}
+                        icon={<StarOutlined />}
+                        aria-label={`将 ${conn.label} 设为默认`}
+                        onClick={() => setDefaultConnectionId(conn.id)}
+                      />
+                    </Tooltip>
+                  ) : null}
+                  <Tooltip title="编辑连接">
                     <Button
-                      type="link"
+                      type="text"
                       size="small"
-                      onClick={() => setDefaultConnectionId(conn.id)}
-                    >
-                      设为默认
-                    </Button>
-                  )}
-                  <Button
-                    type="text"
-                    danger
-                    size="small"
-                    icon={<DeleteOutlined />}
-                    disabled={connections.length <= 1}
-                    onClick={() => {
-                      setConnections((prev) => {
-                        const next = prev.filter((c) => c.id !== conn.id)
-                        if (defaultConnectionId === conn.id && next[0]) {
-                          setDefaultConnectionId(next[0].id)
-                        }
-                        return next
-                      })
-                    }}
-                  />
-                </Space>
+                      className={styles.actionBtn}
+                      icon={<EditOutlined />}
+                      aria-label={`编辑 ${conn.label}`}
+                      onClick={() => setEditingConnection(conn)}
+                    />
+                  </Tooltip>
+                  <Tooltip title={connections.length <= 1 ? '至少保留一条连接' : '删除连接'}>
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      className={styles.actionBtn}
+                      icon={<DeleteOutlined />}
+                      disabled={connections.length <= 1}
+                      aria-label={`删除 ${conn.label}`}
+                      onClick={() => {
+                        setConnections((prev) => {
+                          const next = prev.filter((c) => c.id !== conn.id)
+                          if (defaultConnectionId === conn.id && next[0]) {
+                            setDefaultConnectionId(next[0].id)
+                          }
+                          return next
+                        })
+                      }}
+                    />
+                  </Tooltip>
+                </div>
               </div>
 
-              <div className={styles.fields}>
-                <div className={styles.field}>
-                  <Text type="secondary" className={styles.fieldLabel}>
+              <div className={styles.cardBody}>
+                <div className={styles.metaRow}>
+                  <Text type="secondary" className={styles.metaLabel}>
                     供应商
                   </Text>
-                  <Select
-                    style={{ width: '100%' }}
-                    value={conn.provider}
-                    options={providerOptions}
-                    onChange={(v) => handleFieldChange(conn.id, 'provider', v)}
-                  />
+                  <Text
+                    className={styles.metaValue}
+                    ellipsis={{ tooltip: providerLabel }}
+                  >
+                    {providerLabel}
+                  </Text>
                 </div>
-                <div className={styles.field}>
-                  <Text type="secondary" className={styles.fieldLabel}>
+                <div className={styles.metaRow}>
+                  <Text type="secondary" className={styles.metaLabel}>
                     模型
                   </Text>
-                  <Select
-                    showSearch
-                    allowClear={false}
-                    optionFilterProp="label"
-                    style={{ width: '100%' }}
-                    value={conn.model || undefined}
-                    options={modelOptions}
-                    loading={modelsLoading}
-                    placeholder={
-                      conn.apiKey.trim() ? '从平台选择模型' : '请先在「模型与 API」中配置 API Key'
-                    }
-                    onChange={(v) => handleFieldChange(conn.id, 'model', v)}
-                  />
-                  {modelHint ? (
-                    <Text type="secondary" className={styles.modelHint}>
-                      {modelHint}
-                    </Text>
-                  ) : null}
-                </div>
-                <div className={`${styles.field} ${styles.span2}`}>
-                  <Text type="secondary" className={styles.fieldLabel}>
-                    能力标签
+                  <Text
+                    className={styles.metaValue}
+                    ellipsis={{ tooltip: conn.model || '—' }}
+                  >
+                    {conn.model || '—'}
                   </Text>
-                  <Select
-                    mode="multiple"
-                    style={{ width: '100%' }}
-                    value={conn.capabilities}
-                    options={CAPABILITY_OPTIONS}
-                    onChange={(v) => handleFieldChange(conn.id, 'capabilities', v)}
-                  />
+                </div>
+                <div className={styles.capabilityRow}>
+                  {conn.capabilities.map((cap) => (
+                    <Tag key={cap} className={styles.capTag}>
+                      {queryCapabilityLabel(cap)}
+                    </Tag>
+                  ))}
                 </div>
               </div>
             </Card>
@@ -321,32 +248,88 @@ export function ModelConnectionsPanel(): React.ReactElement {
             角色 / 任务 → 模型
           </Title>
           <Text type="secondary" className={styles.desc}>
-            Supervisor 路由到角色后使用对应连接；清空某一项会恢复该角色的推荐映射
+            Supervisor 路由到角色后使用对应连接；点击卡片维护角色设定与模型连接
           </Text>
         </div>
         <div className={styles.roleGrid}>
-          {ROLE_OPTIONS.map((role) => (
-            <div key={role.value} className={styles.roleCard}>
-              <Text className={styles.roleLabel}>{role.label}</Text>
-              <Select
-                allowClear
-                placeholder="使用默认连接"
-                style={{ width: '100%' }}
-                value={roleModelMap[role.value]}
-                options={connections.map((c) => ({ value: c.id, label: c.label }))}
-                onChange={(v) => {
-                  setRoleModelMap((prev) => {
-                    const next = { ...prev }
-                    if (!v) delete next[role.value]
-                    else next[role.value] = v
-                    return next
-                  })
-                }}
-              />
-            </div>
-          ))}
+          {ROLE_TASK_META.map((role, index) => {
+            const mappedId = roleModelMap[role.value]
+            const hasOverride = Boolean(rolePromptOverrides[role.value]?.trim())
+
+            return (
+              <button
+                key={role.value}
+                type="button"
+                className={styles.roleCard}
+                style={{ '--card-index': index } as CSSProperties}
+                onClick={() => setEditingRole(role.value)}
+              >
+                <div className={styles.roleCardHead}>
+                  <Text className={styles.roleLabel}>{role.label}</Text>
+                  <EditOutlined className={styles.roleEditIcon} aria-hidden />
+                </div>
+                <Text type="secondary" className={styles.roleDesc}>
+                  {role.description}
+                </Text>
+                <div className={styles.roleMeta}>
+                  <ClusterOutlined className={styles.roleMetaIcon} aria-hidden />
+                  <Text className={styles.roleConnection}>{queryConnectionLabel(mappedId)}</Text>
+                </div>
+                {hasOverride ? (
+                  <Tag className={styles.customPromptTag}>已自定义设定</Tag>
+                ) : null}
+              </button>
+            )
+          })}
         </div>
       </div>
+
+      <EditModelConnectionModal
+        open={Boolean(editingConnection)}
+        connection={editingConnection}
+        settings={settings}
+        onCancel={() => setEditingConnection(null)}
+        onSubmit={(next) => {
+          setConnections((prev) => {
+            const exists = prev.some((c) => c.id === next.id)
+            if (exists) {
+              return prev.map((c) => (c.id === next.id ? next : c))
+            }
+            return [...prev, next]
+          })
+          if (!defaultConnectionId) {
+            setDefaultConnectionId(next.id)
+          }
+          setEditingConnection(null)
+        }}
+      />
+
+      <EditRoleTaskModal
+        open={Boolean(editingRole)}
+        role={editingRole}
+        roleLabel={editingRoleMeta?.label ?? ''}
+        roleDescription={editingRoleMeta?.description ?? ''}
+        connectionId={editingRole ? roleModelMap[editingRole] : undefined}
+        promptOverride={editingRole ? rolePromptOverrides[editingRole] : undefined}
+        connections={connections}
+        onCancel={() => setEditingRole(null)}
+        onSubmit={({ connectionId, promptOverride }) => {
+          if (!editingRole) return
+          setRoleModelMap((prev) => {
+            const next = { ...prev }
+            if (!connectionId) delete next[editingRole]
+            else next[editingRole] = connectionId
+            return next
+          })
+          setRolePromptOverrides((prev) => {
+            const next = { ...prev }
+            if (!promptOverride) delete next[editingRole]
+            else next[editingRole] = promptOverride
+            return next
+          })
+          setEditingRole(null)
+        }}
+      />
     </div>
   )
 }

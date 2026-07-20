@@ -1,6 +1,6 @@
 import { queryEnabledSkillPrompt } from '../../store/skills'
 import { queryEnabledRulePrompt } from '../../store/rules'
-import type { AgentRoleName } from '../../../../shared/types'
+import type { AgentRoleName, ModelRoleKey } from '../../../../shared/types'
 
 /** 与历史 loop.ts 对齐的产品能力与发布规范（通用基座） */
 const BASE_CAPABILITY = `你是跨平台桌面全能助手「灵犀」，可完成内容创作、多渠道发布、天气通知与视频生产。
@@ -136,12 +136,19 @@ const ROLE_CONTEXT_BUDGETS: Record<
 }
 
 /**
- * 组装角色 system prompt：角色说明 + 用户规则 + 技能目录。
+ * 组装角色 system prompt：角色说明 + 用户规则 + 技能目录 + 可选用户角色设定。
  */
-export function buildRoleSystemPrompt(role: AgentRoleName): string {
+export function buildRoleSystemPrompt(
+  role: AgentRoleName,
+  rolePromptOverrides?: Partial<Record<ModelRoleKey, string>>
+): string {
   if (role === 'supervisor') return ROLE_PROMPTS.supervisor
 
   const parts = [ROLE_PROMPTS[role]]
+  const override = rolePromptOverrides?.[role as ModelRoleKey]?.trim()
+  if (override) {
+    parts.push(`## 用户角色设定（必须遵循）\n\n${override}`)
+  }
   const budget = ROLE_CONTEXT_BUDGETS[role]
   const ruleBlock = queryEnabledRulePrompt(budget.ruleChars)
   const skillBlock = queryEnabledSkillPrompt(budget.skillChars)

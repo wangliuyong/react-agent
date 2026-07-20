@@ -26,6 +26,7 @@ const SAVED_SETTINGS: AppSettings = {
   ],
   defaultConnectionId: DEFAULT_CONNECTION_ID,
   roleModelMap: {},
+  rolePromptOverrides: {},
   fullAccess: true,
   maxTurns: 28,
   launchAtLogin: false,

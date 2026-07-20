@@ -1,4 +1,4 @@
-/* 多模型连接 — 对齐技能市场：卡片网格 + 细边框悬停 */
+/* 多模型连接 — 卡片展示 + 弹窗编辑 */
 
 .panel {
   display: flex;
@@ -34,104 +34,179 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .card {
+  position: relative;
   min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--db-border-light) !important;
   border-radius: var(--db-radius-lg) !important;
   background: var(--db-bg-content) !important;
   animation: cardIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: calc(var(--card-index, 0) * 32ms);
   transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--db-primary) 50%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.cardDefault {
+  border-color: color-mix(in srgb, var(--db-primary) 28%, var(--db-border-light)) !important;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--db-primary) 5%, var(--db-bg-content)) 0%,
+    var(--db-bg-content) 42%
+  ) !important;
+}
+
+.cardDefault::before {
+  opacity: 1;
 }
 
 .card:hover {
   border-color: var(--db-primary-border-active) !important;
-  box-shadow: 0 4px 20px var(--db-primary-shadow);
+  box-shadow: 0 6px 22px var(--db-primary-shadow);
+  transform: translateY(-1px);
+}
+
+.card:hover::before {
+  opacity: 1;
 }
 
 .card :global(.ant-card-body) {
-  padding: 16px !important;
+  padding: 14px 14px 16px !important;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .cardHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cardTitleBlock {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   min-width: 0;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--db-border-light);
+  overflow: hidden;
 }
 
-.cardHead :global(.ant-space) {
-  flex-shrink: 0;
-}
-
-.labelInput {
-  flex: 1;
-  min-width: 0;
-  max-width: 100%;
+.cardTitle {
+  display: block;
+  width: 100%;
+  font-size: 14px;
   font-weight: 650;
+  color: var(--db-text);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 
 .defaultTag {
   margin: 0 !important;
+  flex-shrink: 0;
   border: none !important;
   border-radius: 6px !important;
   background: var(--db-primary-muted) !important;
   color: var(--db-primary) !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
+  line-height: 18px !important;
+  padding-inline: 6px !important;
 }
 
-.fields {
+.cardActions {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  /* background: var(--db-bg-subtle);
+  border: 1px solid var(--db-border-light); */
+}
+
+.actionBtn {
+  width: 26px !important;
+  height: 26px !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+}
+
+.actionBtn:hover {
+  background: var(--db-bg-content) !important;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.metaRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px 12px;
-}
-
-.field {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
   min-width: 0;
 }
 
-.fields :global(.ant-select),
-.fields :global(.ant-input),
-.fields :global(.ant-input-affix-wrapper) {
-  width: 100%;
-  max-width: 100%;
+.metaLabel {
+  flex-shrink: 0;
+  font-size: 11px;
+  letter-spacing: 0.02em;
 }
 
-.fields :global(.ant-select-selector) {
-  max-width: 100%;
+.metaValue {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--db-text);
+  text-align: right;
 }
 
-.fields :global(.ant-select-selection-overflow) {
+.capabilityRow {
+  display: flex;
   flex-wrap: wrap;
-}
-
-.fieldLabel {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 12px;
-}
-
-.modelHint {
-  display: block;
+  gap: 5px;
   margin-top: 4px;
-  font-size: 12px;
-  line-height: 1.45;
+  padding-top: 10px;
+  border-top: 1px dashed var(--db-border-light);
 }
 
-.span2 {
-  grid-column: 1 / -1;
+.capTag {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 5px !important;
+  background: var(--db-bg-subtle) !important;
+  color: var(--db-text-secondary) !important;
+  font-size: 10px !important;
+  line-height: 18px !important;
+  padding-inline: 6px !important;
 }
 
 .roleSection {
@@ -144,7 +219,7 @@
 
 .roleGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
 }
 
@@ -157,20 +232,88 @@
   border: 1px solid var(--db-border-light);
   border-radius: var(--db-radius-lg);
   background: var(--db-bg-content);
+  text-align: left;
+  cursor: pointer;
+  animation: cardIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--card-index, 0) * 24ms);
   transition:
     border-color 0.15s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
 .roleCard:hover {
   border-color: var(--db-primary-border-active);
   box-shadow: 0 4px 16px var(--db-primary-shadow);
+  transform: translateY(-1px);
+}
+
+.roleCard:focus-visible {
+  outline: 2px solid var(--db-primary);
+  outline-offset: 2px;
+}
+
+.roleCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
 }
 
 .roleLabel {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--db-text);
+}
+
+.roleEditIcon {
+  flex-shrink: 0;
   font-size: 13px;
+  color: var(--db-text-tertiary);
+  transition: color 0.15s ease;
+}
+
+.roleCard:hover .roleEditIcon {
+  color: var(--db-primary);
+}
+
+.roleDesc {
+  font-size: 12px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.roleMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.roleMetaIcon {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--db-primary);
+}
+
+.roleConnection {
+  font-size: 12px;
   font-weight: 600;
   color: var(--db-text);
+}
+
+.customPromptTag {
+  align-self: flex-start;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background: color-mix(in srgb, var(--db-primary) 12%, transparent) !important;
+  color: var(--db-primary) !important;
+  font-size: 11px !important;
 }
 
 @keyframes cardIn {
@@ -185,6 +328,12 @@
   }
 }
 
+@media (max-width: 1400px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1100px) {
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -194,13 +343,5 @@
 @media (max-width: 760px) {
   .grid {
     grid-template-columns: 1fr;
-  }
-
-  .fields {
-    grid-template-columns: 1fr;
-  }
-
-  .span2 {
-    grid-column: auto;
   }
 }

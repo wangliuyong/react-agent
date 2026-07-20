@@ -193,9 +193,10 @@
   flex-direction: column;
 }
 
-/* 新会话空态：欢迎区垂直居中 */
+/* 新会话空态：欢迎区垂直居中，允许内容溢出时滚动 */
 .body[data-empty='true'] {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: auto;
 }

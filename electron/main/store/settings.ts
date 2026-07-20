@@ -11,7 +11,9 @@ import {
   type ModelCapability,
   type ModelConnection,
   type ModelProvider,
-  type RoleModelMap
+  type ModelRoleKey,
+  type RoleModelMap,
+  type RolePromptOverrides
 } from '../../../shared/types'
 import { postLaunchAtLogin } from './launch-at-login'
 import { getSettingsPath } from './paths'
@@ -144,6 +146,16 @@ export function normalizeSettings(
     primary.id
   )
 
+  const rolePromptOverrides: RolePromptOverrides = {}
+  if (raw.rolePromptOverrides && typeof raw.rolePromptOverrides === 'object') {
+    for (const [role, text] of Object.entries(raw.rolePromptOverrides)) {
+      const trimmed = String(text ?? '').trim()
+      if (trimmed) {
+        rolePromptOverrides[role as ModelRoleKey] = trimmed
+      }
+    }
+  }
+
   const draftForSync: AppSettings = {
     ...merged,
     provider: primary.provider,
@@ -153,6 +165,7 @@ export function normalizeSettings(
     connections,
     defaultConnectionId: primary.id,
     roleModelMap,
+    rolePromptOverrides,
     customProviders
   }
   const syncedConnections = querySyncConnectionsProviderCredentials(connections, draftForSync)
@@ -165,6 +178,7 @@ export function normalizeSettings(
     connections: syncedConnections,
     defaultConnectionId: primary.id,
     roleModelMap,
+    rolePromptOverrides,
     fullAccess: Boolean(merged.fullAccess),
     maxTurns: Number(merged.maxTurns) || DEFAULT_SETTINGS.maxTurns,
     launchAtLogin: Boolean(merged.launchAtLogin),
