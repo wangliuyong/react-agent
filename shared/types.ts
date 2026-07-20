@@ -452,14 +452,14 @@ export const MODEL_PROVIDER_OPTIONS: ModelProviderOption[] = [
   {
     value: 'dashscope',
     label: '阿里云百炼',
-    apiKeyLabel: 'DASHSCOPE API Key',
+    apiKeyLabel: 'API Key',
     defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     defaultModel: 'qwen-plus'
   },
   {
     value: 'deepseek',
     label: 'DeepSeek',
-    apiKeyLabel: 'DeepSeek API Key',
+    apiKeyLabel: 'API Key',
     defaultBaseUrl: 'https://api.deepseek.com',
     /** 与平台当前推荐一致；拉取 /models 失败时也用此默认 */
     defaultModel: 'deepseek-v4-flash'

@@ -125,7 +125,8 @@ export function MessageList({
         }
         return (
           <div key={m.id} className={`${styles.row} ${styles.rowAssistant}`}>
-            {index < 2 ? (<span className={styles.label}>灵犀</span>) : null}
+            {/* {index < 2 ? (<span className={styles.label}>灵犀</span>) : null} */}
+            <span className={styles.label}>灵犀</span>
             <div className={styles.assistantCard}>
               <AssistantBody content={m.content} />
             </div>

@@ -71,7 +71,7 @@ describe('聊天模型配置', () => {
           apiKey: ''
         })
       )
-    ).toThrow('未配置 DeepSeek API Key')
+    ).toThrow('未配置 API Key')
   })
 
   it('DeepSeek 供应商关闭 thinking，避免工具多轮缺少 reasoning_content', () => {

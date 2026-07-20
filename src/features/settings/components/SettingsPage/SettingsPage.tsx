@@ -437,7 +437,7 @@ export function SettingsPage(): React.ReactElement {
 
                   <Form.Item
                     className={styles.fullWidth}
-                    label={providerOption.apiKeyLabel}
+                    label="API Key"
                     name="apiKey"
                     rules={[{ required: true, message: '请填写 API Key' }]}
                     extra="密钥仅写入本机 Electron userData，不参与任何遥测或同步。"
