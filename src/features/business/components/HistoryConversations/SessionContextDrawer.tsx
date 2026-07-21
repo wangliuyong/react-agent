@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { ChatMessage, MessageRole, Session, SessionType } from '@shared/types'
+import type { ChatMessage, MessageRole, Session, SessionType, WorkflowRunStatus } from '@shared/types'
 import { querySessionType } from '@/features/chat'
 import type { NodeExecutionContext, SessionContextSummary } from '../../types'
 import {
@@ -65,6 +65,22 @@ function querySessionToneClass(type: SessionType): string {
       return styles.toneWorkflow
     default:
       return styles.toneChat
+  }
+}
+
+/** 工作流运行状态 → Ant Tag color */
+function queryWorkflowRunStatusColor(status: WorkflowRunStatus): string {
+  switch (status) {
+    case 'success':
+      return 'success'
+    case 'failed':
+      return 'error'
+    case 'running':
+      return 'processing'
+    case 'awaiting_user':
+      return 'warning'
+    default:
+      return 'default'
   }
 }
 
@@ -173,28 +189,56 @@ function RelatedMessageCard({ msg }: { msg: ChatMessage }): React.ReactElement {
   )
 }
 
-/** 概览页：会话元信息 + 工作流运行 + 全局 context */
+/** 可复制的等宽 ID 行 */
+function IdRow({
+  label,
+  value,
+  copyTip
+}: {
+  label: string
+  value: string
+  copyTip: string
+}): React.ReactElement {
+  return (
+    <div className={styles.idRow}>
+      <span className={styles.idLabel}>{label}</span>
+      <code className={styles.idValue}>{value}</code>
+      <Tooltip title={copyTip}>
+        <Button
+          type="text"
+          size="small"
+          icon={<CopyOutlined />}
+          onClick={() => postCopyText(value, copyTip.replace(/^复制/, '已复制'))}
+          aria-label={copyTip}
+          className={styles.idCopy}
+        />
+      </Tooltip>
+    </div>
+  )
+}
+
+/** 概览页：只展示顶栏摘要未覆盖的档案细节（避免标题/指标重复） */
 function OverviewPane({
   summary
 }: {
   summary: SessionContextSummary
 }): React.ReactElement {
   const session = summary.session
-  const type = querySessionType(session)
+  const run = summary.workflowRun
 
   return (
     <div className={styles.overviewPane}>
-      <section className={styles.panel}>
-        <h3 className={styles.panelTitle}>会话信息</h3>
-        <div className={styles.metaGrid}>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>标题</span>
-            <span className={styles.metaValue}>{session.title}</span>
+      {/* 顶栏已有标题 / 更新时间 / 消息·节点·Token；此处只补创建时间与会话 ID */}
+      <section className={`${styles.panel} ${styles.overviewMeta}`} aria-label="会话档案">
+        <div className={styles.overviewMetaGrid}>
+          <div className={styles.overviewMetaCell}>
+            <span className={styles.overviewMetaLabel}>创建时间</span>
+            <span className={styles.overviewMetaValue}>{formatTime(session.createdAt)}</span>
           </div>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>会话 ID</span>
-            <span className={`${styles.metaValue} ${styles.mono}`}>
-              {session.id}
+          <div className={`${styles.overviewMetaCell} ${styles.overviewMetaCellWide}`}>
+            <span className={styles.overviewMetaLabel}>会话 ID</span>
+            <span className={styles.overviewMetaId}>
+              <code className={styles.idValue}>{session.id}</code>
               <Tooltip title="复制会话 ID">
                 <Button
                   type="text"
@@ -202,71 +246,39 @@ function OverviewPane({
                   icon={<CopyOutlined />}
                   onClick={() => postCopyText(session.id, '已复制会话 ID')}
                   aria-label="复制会话 ID"
+                  className={styles.idCopy}
                 />
               </Tooltip>
             </span>
           </div>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>类型</span>
-            <span className={styles.metaValue}>{querySessionTypeLabel(type)}</span>
-          </div>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>Token 用量</span>
-            <span className={styles.metaValue}>{session.tokenUsed.toLocaleString('zh-CN')}</span>
-          </div>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>消息数</span>
-            <span className={styles.metaValue}>{summary.messageCount}</span>
-          </div>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>任务节点</span>
-            <span className={styles.metaValue}>{summary.taskCount}</span>
-          </div>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>创建时间</span>
-            <span className={styles.metaValue}>{formatTime(session.createdAt)}</span>
-          </div>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>更新时间</span>
-            <span className={styles.metaValue}>{formatTime(session.updatedAt)}</span>
-          </div>
         </div>
       </section>
 
-      {summary.workflowRun ? (
-        <section className={styles.panel}>
-          <h3 className={styles.panelTitle}>工作流运行</h3>
-          <div className={styles.metaGrid}>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Run ID</span>
-              <span className={`${styles.metaValue} ${styles.mono}`}>
-                {summary.workflowRun.id}
-              </span>
-            </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>状态</span>
-              <span className={styles.metaValue}>
-                <Tag>{summary.workflowRun.status}</Tag>
-              </span>
-            </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>当前节点</span>
-              <span className={`${styles.metaValue} ${styles.mono}`}>
-                {summary.workflowRun.cursorNodeId ?? '无'}
-              </span>
-            </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Workflow ID</span>
-              <span className={`${styles.metaValue} ${styles.mono}`}>
-                {summary.workflowRun.workflowId}
-              </span>
+      {run ? (
+        <section className={`${styles.panel} ${styles.overviewRun}`}>
+          <div className={styles.overviewRunHead}>
+            <h3 className={styles.overviewSectionTitle}>工作流运行</h3>
+            <Tag color={queryWorkflowRunStatusColor(run.status)}>{run.status}</Tag>
+          </div>
+          <div className={styles.overviewRunGrid}>
+            <IdRow label="Run ID" value={run.id} copyTip="复制 Run ID" />
+            <IdRow label="Workflow ID" value={run.workflowId} copyTip="复制 Workflow ID" />
+            <div className={styles.idRow}>
+              <span className={styles.idLabel}>当前节点</span>
+              <code className={styles.idValue}>{run.cursorNodeId ?? '无'}</code>
             </div>
           </div>
         </section>
-      ) : null}
+      ) : (
+        <section className={`${styles.panel} ${styles.overviewEmptyRun}`}>
+          <h3 className={styles.overviewSectionTitle}>工作流运行</h3>
+          <p className={styles.overviewSectionHint}>当前会话暂无关联的工作流运行记录</p>
+        </section>
+      )}
 
-      <section className={styles.panel}>
-        <h3 className={styles.panelTitle}>Workflow Context（全局）</h3>
+      <section className={`${styles.panel} ${styles.overviewContext}`}>
+        <h3 className={styles.overviewSectionTitle}>Workflow Context</h3>
+        <p className={styles.overviewSectionHint}>节点执行可读的全局上下文快照</p>
         <CodeBlock label="全局 Context" value={summary.workflowContextJson || '{}'} />
       </section>
     </div>
@@ -303,14 +315,21 @@ function NodesPane({
     return <Empty description="暂无任务节点" className={styles.emptyState} />
   }
 
-  const detailOptions = [
-    { value: 'messages' as const, label: `消息 ${active?.relatedMessages.length ?? 0}` },
-    { value: 'input' as const, label: '入参' },
-    { value: 'output' as const, label: '出参' },
-    { value: 'context' as const, label: 'Context' },
-    ...(active?.notifyDebug
-      ? [{ value: 'notify' as const, label: '通知' }]
-      : [])
+  /** 详情子 Tab：消息带数量角标，其余为静态标签 */
+  const detailOptions: Array<{
+    value: NodeDetailPane
+    label: string
+    count?: number
+  }> = [
+    {
+      value: 'messages',
+      label: '消息',
+      count: active?.relatedMessages.length ?? 0
+    },
+    { value: 'input', label: '入参' },
+    { value: 'output', label: '出参' },
+    { value: 'context', label: 'Context' },
+    ...(active?.notifyDebug ? [{ value: 'notify' as const, label: '通知' }] : [])
   ]
 
   return (
@@ -381,13 +400,27 @@ function NodesPane({
                     : ''}
                 </Typography.Text>
               ) : null}
-              <Segmented<NodeDetailPane>
-                size="small"
-                value={detailPane}
-                onChange={setDetailPane}
-                options={detailOptions}
-                className={styles.detailSegmented}
-              />
+              {/* 下划线 Tab：与顶部分段控件形成 L1/L2 层级差 */}
+              <div className={styles.detailTabs} role="tablist" aria-label="节点详情分段">
+                {detailOptions.map((opt) => {
+                  const selected = detailPane === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="tab"
+                      aria-selected={selected}
+                      className={`${styles.detailTab} ${selected ? styles.detailTabActive : ''}`}
+                      onClick={() => setDetailPane(opt.value)}
+                    >
+                      <span className={styles.detailTabLabel}>{opt.label}</span>
+                      {typeof opt.count === 'number' ? (
+                        <span className={styles.detailTabCount}>{opt.count}</span>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
             </header>
 
             <div className={styles.nodeDetailBody}>
@@ -556,9 +589,21 @@ export function SessionContextDrawer({
               <Segmented<DrawerPane>
                 value={pane}
                 onChange={setPane}
+                className={styles.paneSegmented}
                 options={[
-                  { value: 'nodes', label: `节点轨迹（${nodeContexts.length}）` },
-                  { value: 'overview', label: '会话概览' }
+                  {
+                    value: 'nodes',
+                    label: (
+                      <span className={styles.paneOption}>
+                        节点轨迹
+                        <span className={styles.paneBadge}>{nodeContexts.length}</span>
+                      </span>
+                    )
+                  },
+                  {
+                    value: 'overview',
+                    label: <span className={styles.paneOption}>会话概览</span>
+                  }
                 ]}
               />
             </div>

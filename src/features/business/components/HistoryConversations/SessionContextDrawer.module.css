@@ -182,6 +182,77 @@
   padding: 12px 22px 0;
 }
 
+/* 主视图切换：浅底轨道 + 白卡滑块 + 品牌色选中，对齐技能/对话页 Segmented */
+.paneSegmented {
+  background: var(--db-bg-subtle) !important;
+  border: 1px solid var(--db-border-light) !important;
+  border-radius: var(--db-radius-md) !important;
+  padding: 3px !important;
+}
+
+.paneSegmented :global(.ant-segmented-item) {
+  border-radius: calc(var(--db-radius-md) - 2px) !important;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease !important;
+}
+
+.paneSegmented :global(.ant-segmented-item-label) {
+  min-height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 14px !important;
+  color: var(--db-text-secondary) !important;
+  transition: color 0.18s ease !important;
+}
+
+.paneSegmented :global(.ant-segmented-item:hover:not(.ant-segmented-item-selected) .ant-segmented-item-label) {
+  color: var(--db-text) !important;
+}
+
+.paneSegmented :global(.ant-segmented-item-selected .ant-segmented-item-label) {
+  color: var(--db-primary) !important;
+  font-weight: 650 !important;
+}
+
+.paneSegmented :global(.ant-segmented-thumb) {
+  background: var(--db-bg-content) !important;
+  border-radius: calc(var(--db-radius-md) - 2px) !important;
+  box-shadow: var(--db-shadow-sm) !important;
+}
+
+.paneOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+
+/* 节点数量角标：选中时随主色反相，未选中时弱化 */
+.paneBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--db-radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  background: color-mix(in srgb, var(--db-text-tertiary) 18%, transparent);
+  color: var(--db-text-secondary);
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.paneSegmented :global(.ant-segmented-item-selected) .paneBadge {
+  background: var(--db-primary);
+  color: var(--db-on-primary);
+}
+
 .paneContent {
   position: relative;
   z-index: 1;
@@ -199,8 +270,39 @@
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   padding-right: 2px;
+}
+
+.overviewPane > * {
+  animation: overviewReveal 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.overviewPane > *:nth-child(1) {
+  animation-delay: 0.02s;
+}
+
+.overviewPane > *:nth-child(2) {
+  animation-delay: 0.06s;
+}
+
+.overviewPane > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.overviewPane > *:nth-child(4) {
+  animation-delay: 0.14s;
+}
+
+@keyframes overviewReveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .panel {
@@ -226,6 +328,159 @@
   flex: 1;
   height: 1px;
   background: var(--db-border-light);
+}
+
+/* ── 会话概览：只补顶栏未覆盖的档案细节 ── */
+
+.overviewMeta {
+  padding: 12px 14px;
+}
+
+.overviewMetaGrid {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.overviewMetaCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--db-radius-md);
+  background: var(--db-bg-subtle);
+  border: 1px solid var(--db-border-light);
+}
+
+.overviewMetaCellWide {
+  min-width: 0;
+}
+
+.overviewMetaLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--db-text-tertiary);
+}
+
+.overviewMetaValue {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--db-text);
+  line-height: 1.35;
+}
+
+.overviewMetaId {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.overviewMetaId .idValue {
+  flex: 1;
+}
+
+.overviewMetaId:hover .idCopy {
+  opacity: 1;
+}
+
+.overviewSectionTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--db-text);
+  letter-spacing: -0.01em;
+}
+
+.overviewSectionHint {
+  margin: 4px 0 12px;
+  font-size: 12px;
+  color: var(--db-text-tertiary);
+  line-height: 1.4;
+}
+
+.overviewEmptyRun .overviewSectionHint {
+  margin-bottom: 0;
+}
+
+.overviewRun {
+  padding: 14px 16px 12px;
+  border-color: var(--db-primary-border);
+  background:
+    linear-gradient(
+      90deg,
+      var(--db-primary-faint) 0%,
+      var(--db-bg-content) 28%
+    );
+}
+
+.overviewRunHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.overviewRunGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overviewContext {
+  padding-bottom: 12px;
+}
+
+.overviewContext .overviewSectionTitle {
+  margin-bottom: 0;
+}
+
+/* 等宽 ID 行：标签固定宽 + 可复制值 */
+.idRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: var(--db-radius-sm);
+  background: var(--db-bg-subtle);
+  border: 1px solid var(--db-border-light);
+}
+
+.idLabel {
+  flex-shrink: 0;
+  width: 72px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--db-text-tertiary);
+}
+
+.idValue {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--db-text);
+  word-break: break-all;
+}
+
+.idCopy {
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.idRow:hover .idCopy {
+  opacity: 1;
 }
 
 .metaGrid {
@@ -420,7 +675,7 @@
 
 .nodeDetailHead {
   flex-shrink: 0;
-  padding: 12px 14px 10px;
+  padding: 12px 14px 0;
   border-bottom: 1px solid var(--db-border-light);
   display: flex;
   flex-direction: column;
@@ -451,8 +706,104 @@
   min-width: 0;
 }
 
-.detailSegmented {
-  align-self: flex-start;
+/* 节点详情下划线 Tab：底边轨 + 主色指示条，比 Segmented 更适合多段切换 */
+.detailTabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  margin: 4px 0 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.detailTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.detailTab {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 12px 11px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--db-text-tertiary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+
+.detailTab::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: transparent;
+  transform: scaleX(0.55);
+  opacity: 0;
+  transition:
+    background 0.16s ease,
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.16s ease;
+}
+
+.detailTab:hover {
+  color: var(--db-text);
+}
+
+.detailTab:focus-visible {
+  outline: 2px solid var(--db-primary);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.detailTabActive {
+  color: var(--db-primary);
+  font-weight: 650;
+}
+
+.detailTabActive::after {
+  background: var(--db-primary);
+  transform: scaleX(1);
+  opacity: 1;
+}
+
+.detailTabLabel {
+  white-space: nowrap;
+}
+
+.detailTabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--db-radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  background: color-mix(in srgb, var(--db-text-tertiary) 16%, transparent);
+  color: var(--db-text-secondary);
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.detailTabActive .detailTabCount {
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
 }
 
 .nodeDetailBody {
@@ -660,13 +1011,28 @@
     grid-template-columns: 1fr;
   }
 
+  .overviewMetaGrid {
+    grid-template-columns: 1fr;
+  }
+
   .summaryTitle {
     white-space: normal;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nodeRailItem {
+  .nodeRailItem,
+  .paneSegmented :global(.ant-segmented-item),
+  .paneSegmented :global(.ant-segmented-item-label),
+  .paneBadge,
+  .detailTab,
+  .detailTab::after,
+  .detailTabCount,
+  .idCopy {
     transition: none;
+  }
+
+  .overviewPane > * {
+    animation: none;
   }
 }
