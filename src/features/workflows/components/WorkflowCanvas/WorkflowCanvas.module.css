@@ -58,10 +58,12 @@
 /* 连线默认 / 条件色 — 不用内联 stroke，便于选中态覆盖 */
 .canvas :global(.react-flow__edge.wf-edge-default .react-flow__edge-path) {
   stroke: var(--db-primary);
+  stroke-dasharray: 4 3;
 }
 
 .canvas :global(.react-flow__edge.wf-edge-conditional .react-flow__edge-path) {
   stroke: var(--db-warning);
+  stroke-dasharray: 6 3;
 }
 
 /* 执行中：入边流动高亮（配合 React Flow animated） */

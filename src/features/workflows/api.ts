@@ -38,3 +38,8 @@ export async function postRunWorkflow(
 export async function postResumeWorkflow(runId: string): Promise<WorkflowRunStartResult> {
   return window.api.postResumeWorkflow(runId)
 }
+
+/** 写：打开系统文件夹选择对话框 */
+export async function postSelectDirectory(): Promise<string | null> {
+  return window.api.postSelectDirectory()
+}

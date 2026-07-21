@@ -1338,6 +1338,9 @@ export interface AgentRuleUpsertInput {
 /** 工作流模板种类：通用流程 vs 发布流水线 */
 export type WorkflowTemplateKind = 'generic' | 'publish'
 
+/** 流程上下文键名：供节点 inputKeys / outputKeys 声明与 {{key}} 插值对齐 */
+export type WorkflowContextKey = string
+
 /** Agent 子任务节点：走受限 ReAct */
 export interface WorkflowAgentNode {
   id: string
@@ -1346,7 +1349,10 @@ export interface WorkflowAgentNode {
   prompt: string
   /** 空/缺省 = 使用全部工具 */
   toolWhitelist?: string[]
-  outputKeys?: string[]
+  /** 声明需要从上游 context 读取的键；留空则从 prompt 中 {{key}} 自动推断 */
+  inputKeys?: WorkflowContextKey[]
+  /** 写入 context 的键名，默认 summary */
+  outputKeys?: WorkflowContextKey[]
 }
 
 /** 确定性工具节点：参数支持 {{contextKey}} 插值 */
@@ -1356,7 +1362,9 @@ export interface WorkflowToolNode {
   title: string
   toolName: string
   argsTemplate: Record<string, unknown>
-  outputKeys?: string[]
+  /** 声明需要从上游 context 读取的键；留空则从 argsTemplate 中 {{key}} 自动推断 */
+  inputKeys?: WorkflowContextKey[]
+  outputKeys?: WorkflowContextKey[]
 }
 
 /** 人工确认节点：复用 await_user / continue；用户补充说明写入 context */
@@ -1365,8 +1373,10 @@ export interface WorkflowAwaitNode {
   type: 'await_user'
   title: string
   reason: string
+  /** 声明需要从上游 context 读取的键（展示确认文案时可引用） */
+  inputKeys?: WorkflowContextKey[]
   /** 用户输入写入 context 的键名，默认 userInput */
-  outputKeys?: string[]
+  outputKeys?: WorkflowContextKey[]
 }
 
 /** Toast 级别，对应 Ant Design message */
@@ -1390,8 +1400,10 @@ export interface WorkflowNotifyNode {
   richText?: boolean
   /** 发送失败时继续流程（默认 true，对齐发布计划「通知失败可忽略」） */
   failSoft?: boolean
+  /** 声明需要从上游 context 读取的键；留空则从模板中 {{key}} 自动推断 */
+  inputKeys?: WorkflowContextKey[]
   /** 可选：将发送结果摘要写入 context */
-  outputKeys?: string[]
+  outputKeys?: WorkflowContextKey[]
 }
 
 /**
@@ -1405,13 +1417,57 @@ export interface WorkflowToastNode {
   level: WorkflowToastLevel
   /** 展示内容模板，支持 {{contextKey}} */
   contentTemplate: string
+  /** 声明需要从上游 context 读取的键；留空则从 contentTemplate 中 {{key}} 自动推断 */
+  inputKeys?: WorkflowContextKey[]
   /** 可选：将展示内容写入 context */
-  outputKeys?: string[]
+  outputKeys?: WorkflowContextKey[]
+}
+
+/** 输入节点可采集的用户内容类型 */
+export type WorkflowInputKind = 'text' | 'attachment' | 'image' | 'video'
+
+/**
+ * 输入节点：流程执行到此处时暂停，采集用户文字/附件/图片/视频并写入 context。
+ */
+export interface WorkflowInputNode {
+  id: string
+  type: 'input'
+  title: string
+  /** 向用户展示的采集说明 */
+  prompt: string
+  /** 接受的输入类型，至少一种 */
+  inputKinds: WorkflowInputKind[]
+  inputKeys?: WorkflowContextKey[]
+  /** 写入 context 的键名：文字默认 userInput；附件类默认 attachmentPaths */
+  outputKeys?: WorkflowContextKey[]
+}
+
+/** 输出节点写入磁盘的格式 */
+export type WorkflowOutputFormat = 'text' | 'markdown' | 'json' | 'file'
+
+/**
+ * 输出节点：将上游 context 内容写入用户指定目录。
+ * file 格式时 contentTemplate 应为本地文件路径（支持 {{key}}）。
+ */
+export interface WorkflowOutputNode {
+  id: string
+  type: 'output'
+  title: string
+  /** 输出目录（绝对路径，编辑时可经系统对话框选择） */
+  outputDir: string
+  outputFormat: WorkflowOutputFormat
+  /** 文件名模板，支持 {{key}}；不含扩展名时按 outputFormat 补全 */
+  fileNameTemplate?: string
+  /** 写入内容模板，支持 {{contextKey}} */
+  contentTemplate: string
+  /** 声明需要从上游 context 读取的键；留空则从 contentTemplate 自动推断 */
+  inputKeys?: WorkflowContextKey[]
+  /** 将输出文件路径写入 context，默认 outputPath */
+  outputKeys?: WorkflowContextKey[]
 }
 
 /**
  * 并行组：组间串行，组内叶子并行（P0 引擎可先串行展开 children）。
- * children 仅允许 agent / tool / await_user / notify / toast。
  */
 export interface WorkflowParallelNode {
   id: string
@@ -1423,6 +1479,8 @@ export interface WorkflowParallelNode {
     | WorkflowAwaitNode
     | WorkflowNotifyNode
     | WorkflowToastNode
+    | WorkflowInputNode
+    | WorkflowOutputNode
   >
 }
 
@@ -1488,6 +1546,8 @@ export type WorkflowLeafNode =
   | WorkflowAwaitNode
   | WorkflowNotifyNode
   | WorkflowToastNode
+  | WorkflowInputNode
+  | WorkflowOutputNode
 export type WorkflowTerminalNode = WorkflowStartNode | WorkflowEndNode
 export type WorkflowNode =
   | WorkflowLeafNode
@@ -1645,6 +1705,8 @@ export interface ElectronApi {
   onScheduleUpdate: (cb: (tasks: ScheduledTask[]) => void) => () => void
   /** 选择本地图片文件 */
   postSelectImages: () => Promise<string[]>
+  /** 选择本地文件夹（流程输出节点等） */
+  postSelectDirectory: () => Promise<string | null>
   /** 在系统默认浏览器中打开链接 */
   postOpenExternal: (url: string) => Promise<void>
   /** 在系统文件管理器中显示本地文件（成片/剧本等产物） */

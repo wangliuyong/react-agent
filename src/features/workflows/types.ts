@@ -4,9 +4,11 @@ import type {
   WorkflowConditionNode,
   WorkflowDefinition,
   WorkflowEndNode,
+  WorkflowInputNode,
   WorkflowLeafNode,
   WorkflowNode,
   WorkflowNotifyNode,
+  WorkflowOutputNode,
   WorkflowParallelNode,
   WorkflowStartNode,
   WorkflowToastNode,
@@ -106,6 +108,35 @@ export function createToastNode(partial?: Partial<WorkflowToastNode>): WorkflowT
     title: partial?.title ?? 'Toast 通知',
     level: partial?.level ?? 'info',
     contentTemplate: partial?.contentTemplate ?? '{{summary}}',
+    inputKeys: partial?.inputKeys,
+    outputKeys: partial?.outputKeys
+  }
+}
+
+/** 新建输入节点：默认采集文字 */
+export function createInputNode(partial?: Partial<WorkflowInputNode>): WorkflowInputNode {
+  return {
+    id: crypto.randomUUID(),
+    type: 'input',
+    title: partial?.title ?? '用户输入',
+    prompt: partial?.prompt ?? '请输入内容后继续流程',
+    inputKinds: partial?.inputKinds?.length ? [...partial.inputKinds] : ['text'],
+    inputKeys: partial?.inputKeys,
+    outputKeys: partial?.outputKeys
+  }
+}
+
+/** 新建输出节点：默认 Markdown 写入用户选定目录 */
+export function createOutputNode(partial?: Partial<WorkflowOutputNode>): WorkflowOutputNode {
+  return {
+    id: crypto.randomUUID(),
+    type: 'output',
+    title: partial?.title ?? '文件输出',
+    outputDir: partial?.outputDir ?? '',
+    outputFormat: partial?.outputFormat ?? 'markdown',
+    fileNameTemplate: partial?.fileNameTemplate ?? 'output',
+    contentTemplate: partial?.contentTemplate ?? '{{summary}}',
+    inputKeys: partial?.inputKeys,
     outputKeys: partial?.outputKeys
   }
 }
@@ -146,6 +177,8 @@ export function createEmptyNode(type: WorkflowNode['type']): WorkflowNode {
   if (type === 'await_user') return createAwaitNode()
   if (type === 'notify') return createNotifyNode()
   if (type === 'toast') return createToastNode()
+  if (type === 'input') return createInputNode()
+  if (type === 'output') return createOutputNode()
   if (type === 'parallel') return createParallelNode()
   if (type === 'condition') return createConditionNode()
   if (type === 'start') return createStartNode()
@@ -161,6 +194,8 @@ export function queryNodeTypeLabel(type: WorkflowNode['type']): string {
     await_user: '确认',
     notify: '渠道通知',
     toast: 'Toast',
+    input: '输入',
+    output: '输出',
     parallel: '并行组',
     condition: '条件分支',
     start: '开始',
@@ -175,7 +210,9 @@ export function isLeafNode(node: WorkflowNode): node is WorkflowLeafNode {
     node.type === 'tool' ||
     node.type === 'await_user' ||
     node.type === 'notify' ||
-    node.type === 'toast'
+    node.type === 'toast' ||
+    node.type === 'input' ||
+    node.type === 'output'
   )
 }
 

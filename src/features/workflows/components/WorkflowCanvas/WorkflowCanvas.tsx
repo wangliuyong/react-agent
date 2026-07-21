@@ -49,6 +49,7 @@ import {
   flattenWorkflowTerminals,
   resolveWorkflowCanvas
 } from '../../utils/workflowCanvasGraph'
+import { queryUpstreamOutputKeys } from '@shared/workflow-node-io'
 import styles from './WorkflowCanvas.module.css'
 
 const nodeTypes = {
@@ -172,7 +173,7 @@ function toRfEdges(
       markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
       style: {
         strokeWidth: shouldAnimate ? 2 : 1,
-        strokeDasharray: conditional ? '4 3' : undefined
+        strokeDasharray: '4 3'
       },
       labelStyle: { fontSize: 6, fill: 'var(--db-text-secondary)' },
       data: {
@@ -229,7 +230,7 @@ function queryEdgeStyle(conditional = false): Partial<Edge> {
     markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
     style: {
       strokeWidth: 1,
-      strokeDasharray: conditional ? '4 3' : undefined
+      strokeDasharray: '4 3'
     },
     labelStyle: { fontSize: 6, fill: 'var(--db-text-secondary)' }
   }
@@ -254,6 +255,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
   ): React.ReactElement {
     const [editOpen, setEditOpen] = useState(false)
     const [editingLeaf, setEditingLeaf] = useState<WorkflowLeafNode | null>(null)
+    const [upstreamOutputKeys, setUpstreamOutputKeys] = useState<string[]>([])
     const [edgeEditOpen, setEdgeEditOpen] = useState(false)
     const [editingEdge, setEditingEdge] = useState<WorkflowCanvasEdge | null>(null)
     const [graphError, setGraphError] = useState<string | null>(null)
@@ -345,11 +347,14 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
     )
 
     onEditRef.current = (id: string) => {
-      const leaf =
-        queryLeavesFromRf(rfNodes).find((l) => l.id === id) ??
-        flattenWorkflowLeaves(engineNodesRef.current).find((l) => l.id === id) ??
-        null
+      const leaves =
+        queryLeavesFromRf(rfNodes).length > 0
+          ? queryLeavesFromRf(rfNodes)
+          : flattenWorkflowLeaves(engineNodesRef.current)
+      const leaf = leaves.find((l) => l.id === id) ?? null
       if (!leaf) return
+      const canvas = queryCanvasFromRf(rfNodes, rfEdges)
+      setUpstreamOutputKeys(queryUpstreamOutputKeys(leaves, canvas, id))
       setEditingLeaf(leaf)
       setEditOpen(true)
     }
@@ -581,6 +586,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
       })
       setEditOpen(false)
       setEditingLeaf(null)
+      setUpstreamOutputKeys([])
     }
 
     return (
@@ -595,6 +601,9 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
             onNodesChange={onNodesChange as OnNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodeClick={(_, node) => {
+              if (node.type === 'workflow') onEditRef.current(node.id)
+            }}
             onEdgeDoubleClick={onEdgeDoubleClick}
             nodeTypes={nodeTypes}
             fitView
@@ -610,11 +619,13 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
           open={editOpen}
           node={editingLeaf}
           leafOnly
+          upstreamOutputKeys={upstreamOutputKeys}
           isFullscreen={isFullscreen}
           fullscreenContainer={fullscreenContainer}
           onCancel={() => {
             setEditOpen(false)
             setEditingLeaf(null)
+            setUpstreamOutputKeys([])
           }}
           onOk={handleEditOk}
         />

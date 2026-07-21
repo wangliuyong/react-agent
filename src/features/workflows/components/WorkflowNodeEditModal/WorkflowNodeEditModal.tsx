@@ -3,20 +3,32 @@ import type {
   WorkflowAwaitNode,
   WorkflowConditionCase,
   WorkflowConditionNode,
+  WorkflowInputKind,
+  WorkflowInputNode,
   WorkflowLeafNode,
   WorkflowNode,
   WorkflowNotifyNode,
+  WorkflowOutputFormat,
+  WorkflowOutputNode,
   WorkflowParallelNode,
   WorkflowToastLevel,
   WorkflowToastNode,
   WorkflowToolNode
 } from '@shared/types'
+import {
+  queryIoAlignmentIssues,
+  parseContextKeyList,
+  formatContextKeyList
+} from '@shared/workflow-node-io'
 import { useChannelsStore, queryEnabledNotifyChannelsFromStore } from '@/features/channels'
+import { postSelectDirectory } from '../../api'
 import {
   createAgentNode,
   createAwaitNode,
   createConditionNode,
+  createInputNode,
   createNotifyNode,
+  createOutputNode,
   createParallelNode,
   createToastNode,
   createToolNode,
@@ -38,6 +50,8 @@ const TOOL_NAME_OPTIONS = [
 interface WorkflowNodeEditModalProps {
   open: boolean
   node: WorkflowNode | null
+  /** 上游节点声明的输出键，用于输入/输出对齐提示 */
+  upstreamOutputKeys?: string[]
   /** 是否在创建并行组内的叶子（禁止再选 parallel） */
   leafOnly?: boolean
   /** 允许编辑/展示条件节点（画布） */
@@ -61,7 +75,15 @@ interface FormValues {
   toolName?: string
   argsJson?: string
   reason?: string
+  inputKeys?: string
   outputKeys?: string
+  /** input 节点 */
+  inputKinds?: WorkflowInputKind[]
+  inputPrompt?: string
+  /** output 节点 */
+  outputDir?: string
+  outputFormat?: WorkflowOutputFormat
+  fileNameTemplate?: string
   /** notify */
   channelId?: string
   titleTemplate?: string
@@ -82,8 +104,17 @@ interface FormValues {
   cases?: CaseFormRow[]
 }
 
+function formatKeysForForm(keys?: string[]): string {
+  return keys?.join(', ') ?? ''
+}
+
 function nodeToFormValues(node: WorkflowNode): FormValues {
-  const base: FormValues = { type: node.type, title: node.title }
+  const base: FormValues = {
+    type: node.type,
+    title: node.title,
+    inputKeys: formatKeysForForm('inputKeys' in node ? node.inputKeys : undefined),
+    outputKeys: formatKeysForForm('outputKeys' in node ? node.outputKeys : undefined)
+  }
   if (node.type === 'agent') {
     return {
       ...base,
@@ -101,8 +132,23 @@ function nodeToFormValues(node: WorkflowNode): FormValues {
   if (node.type === 'await_user') {
     return {
       ...base,
-      reason: node.reason,
-      outputKeys: node.outputKeys?.join(', ') ?? ''
+      reason: node.reason
+    }
+  }
+  if (node.type === 'input') {
+    return {
+      ...base,
+      inputPrompt: node.prompt,
+      inputKinds: node.inputKinds?.length ? [...node.inputKinds] : ['text']
+    }
+  }
+  if (node.type === 'output') {
+    return {
+      ...base,
+      outputDir: node.outputDir,
+      outputFormat: node.outputFormat,
+      fileNameTemplate: node.fileNameTemplate ?? 'output',
+      contentTemplate: node.contentTemplate
     }
   }
   if (node.type === 'notify') {
@@ -167,6 +213,13 @@ function mergeConditionCases(
 function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): WorkflowNode {
   const title = values.title.trim() || '未命名步骤'
   const id = prev?.id ?? crypto.randomUUID()
+  const inputKeys = parseContextKeyList(values.inputKeys)
+  const outputKeys = parseContextKeyList(values.outputKeys)
+  const withIo = <T extends WorkflowLeafNode>(node: T): T => ({
+    ...node,
+    ...(inputKeys.length ? { inputKeys } : {}),
+    ...(outputKeys.length ? { outputKeys } : {})
+  })
 
   if (values.type === 'condition') {
     const prevCond = prev?.type === 'condition' ? prev : null
@@ -234,13 +287,13 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
       .split(/[,，\s]+/)
       .map((s) => s.trim())
       .filter(Boolean)
-    const node: WorkflowAgentNode = {
+    const node: WorkflowAgentNode = withIo({
       id,
       type: 'agent',
       title,
       prompt: (values.prompt ?? '').trim(),
       toolWhitelist: whitelist.length ? whitelist : undefined
-    }
+    })
     return node
   }
 
@@ -257,34 +310,64 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : '参数 JSON 无效')
     }
-    const node: WorkflowToolNode = {
+    const node: WorkflowToolNode = withIo({
       id,
       type: 'tool',
       title,
       toolName: (values.toolName ?? '').trim(),
       argsTemplate
-    }
+    })
     if (!node.toolName) throw new Error('请填写工具名')
     return node
   }
 
+  if (values.type === 'input') {
+    const kinds = (values.inputKinds ?? []).filter(
+      (k): k is WorkflowInputKind =>
+        k === 'text' || k === 'attachment' || k === 'image' || k === 'video'
+    )
+    if (!kinds.length) throw new Error('请至少选择一种输入类型')
+    const node: WorkflowInputNode = withIo({
+      id,
+      type: 'input',
+      title,
+      prompt: (values.inputPrompt ?? '').trim() || '请输入内容后继续流程',
+      inputKinds: kinds
+    })
+    return node
+  }
+
+  if (values.type === 'output') {
+    const format = values.outputFormat ?? 'markdown'
+    const validFormat: WorkflowOutputFormat =
+      format === 'text' || format === 'markdown' || format === 'json' || format === 'file'
+        ? format
+        : 'markdown'
+    const node: WorkflowOutputNode = withIo({
+      id,
+      type: 'output',
+      title,
+      outputDir: (values.outputDir ?? '').trim(),
+      outputFormat: validFormat,
+      fileNameTemplate: (values.fileNameTemplate ?? '').trim() || 'output',
+      contentTemplate: (values.contentTemplate ?? '').trim() || '{{summary}}'
+    })
+    if (!node.outputDir) throw new Error('请选择输出目录')
+    return node
+  }
+
   if (values.type === 'await_user') {
-    const outputKeys = (values.outputKeys ?? '')
-      .split(/[,，\s]+/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-    const node: WorkflowAwaitNode = {
+    const node: WorkflowAwaitNode = withIo({
       id,
       type: 'await_user',
       title,
-      reason: (values.reason ?? '').trim() || '请确认后继续',
-      ...(outputKeys.length ? { outputKeys } : {})
-    }
+      reason: (values.reason ?? '').trim() || '请确认后继续'
+    })
     return node
   }
 
   if (values.type === 'notify') {
-    const node: WorkflowNotifyNode = {
+    const node: WorkflowNotifyNode = withIo({
       id,
       type: 'notify',
       title,
@@ -296,7 +379,7 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
           ? values.richText !== false
           : Boolean(values.richText),
       failSoft: values.failSoft !== false
-    }
+    })
     if (!node.channelId) throw new Error('请选择通知渠道')
     return node
   }
@@ -307,13 +390,13 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
       level === 'success' || level === 'error' || level === 'warning' || level === 'info'
         ? level
         : 'info'
-    const node: WorkflowToastNode = {
+    const node: WorkflowToastNode = withIo({
       id,
       type: 'toast',
       title,
       level: validLevel,
       contentTemplate: (values.contentTemplate ?? '').trim() || '{{summary}}'
-    }
+    })
     return node
   }
 
@@ -332,6 +415,7 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
 export function WorkflowNodeEditModal({
   open,
   node,
+  upstreamOutputKeys = [],
   leafOnly = false,
   allowCondition = false,
   isFullscreen = false,
@@ -367,6 +451,8 @@ export function WorkflowNodeEditModal({
 
   const typeOptions = useMemo(() => {
     const all: { value: WorkflowNode['type']; label: string }[] = [
+      { value: 'input', label: '输入节点' },
+      { value: 'output', label: '输出节点' },
       { value: 'agent', label: 'Agent 步骤' },
       { value: 'tool', label: '工具步骤' },
       { value: 'notify', label: '渠道通知' },
@@ -391,7 +477,11 @@ export function WorkflowNodeEditModal({
         node ??
         (values.type === 'tool'
           ? createToolNode()
-          : values.type === 'await_user'
+          : values.type === 'input'
+            ? createInputNode()
+            : values.type === 'output'
+              ? createOutputNode()
+              : values.type === 'await_user'
             ? createAwaitNode()
             : values.type === 'notify'
               ? createNotifyNode()
@@ -407,12 +497,44 @@ export function WorkflowNodeEditModal({
         message.error('此处只能添加叶子步骤或条件分支')
         return
       }
+      if (isLeafNode(next)) {
+        const issues = queryIoAlignmentIssues(next, upstreamOutputKeys)
+        if (issues.missing.length) {
+          message.warning(
+            `上游可能缺少输出字段：${issues.missing.join(', ')}（上游可用：${formatContextKeyList(upstreamOutputKeys)}）`
+          )
+        }
+      }
       onOk(next)
     } catch (err) {
       if (err instanceof Error && err.message) {
         message.error(err.message)
       }
     }
+  }
+
+  const showIoFields =
+    type === 'agent' ||
+    type === 'tool' ||
+    type === 'await_user' ||
+    type === 'notify' ||
+    type === 'toast' ||
+    type === 'input' ||
+    type === 'output'
+
+  const defaultOutputHintByType: Partial<Record<WorkflowNode['type'], string>> = {
+    agent: 'summary',
+    tool: '工具名或自定义键',
+    await_user: 'userInput',
+    notify: 'notify_<节点id>',
+    toast: 'toast_<节点id>',
+    input: 'userInput, attachmentPaths',
+    output: 'outputPath'
+  }
+
+  const handlePickOutputDir = async (): Promise<void> => {
+    const dir = await postSelectDirectory()
+    if (dir) form.setFieldValue('outputDir', dir)
   }
 
   return (
@@ -444,6 +566,31 @@ export function WorkflowNodeEditModal({
         <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
           <Input placeholder="步骤名称" />
         </Form.Item>
+
+        {showIoFields && (
+          <>
+            <Form.Item
+              name="inputKeys"
+              label="输入字段"
+              tooltip="声明本节点需要从上游 context 读取的键；留空则从模板 {{key}} 自动推断"
+              extra={`上游可用输出：${formatContextKeyList(upstreamOutputKeys)}`}
+            >
+              <Input placeholder="格式：逗号分隔，如 summary, hotTopics" />
+            </Form.Item>
+            <Form.Item
+              name="outputKeys"
+              label="输出字段"
+              tooltip="本节点写入 context 的键名，供下游 {{key}} 引用"
+              extra={
+                type
+                  ? `留空时默认：${defaultOutputHintByType[type] ?? '—'}`
+                  : undefined
+              }
+            >
+              <Input placeholder="格式：逗号分隔，如 summary, videoPath" />
+            </Form.Item>
+          </>
+        )}
 
         {(type === 'condition' || isEditingCondition) && (
           <>
@@ -573,7 +720,7 @@ export function WorkflowNodeEditModal({
               label="目标 / 提示词"
               rules={[{ required: true, message: '请填写步骤目标' }]}
             >
-              <Input.TextArea rows={4} placeholder="本步骤希望 Agent 完成的事" />
+              <Input.TextArea rows={4} placeholder="本步骤希望 Agent 完成的事；可用 {{contextKey}} 引用上游输出" />
             </Form.Item>
             <Form.Item
               name="toolWhitelist"
@@ -601,7 +748,7 @@ export function WorkflowNodeEditModal({
               tooltip="支持 {{contextKey}} 插值，引用上游上下文"
               initialValue="{}"
             >
-              <Input.TextArea rows={5} placeholder='{"title":"{{title}}"}' />
+              <Input.TextArea rows={5} placeholder='{"title":"{{summary}}"}；JSON 对象，值支持 {{contextKey}}' />
             </Form.Item>
           </>
         )}
@@ -609,14 +756,87 @@ export function WorkflowNodeEditModal({
         {type === 'await_user' && (
           <>
             <Form.Item name="reason" label="确认说明">
-              <Input.TextArea rows={3} placeholder="展示给用户的暂停原因" />
+              <Input.TextArea
+                rows={3}
+                placeholder="展示给用户的暂停原因；可用 {{contextKey}} 引用上游摘要"
+              />
+            </Form.Item>
+          </>
+        )}
+
+        {type === 'input' && (
+          <>
+            <Form.Item
+              name="inputKinds"
+              label="采集类型"
+              rules={[{ required: true, message: '请至少选择一种输入类型' }]}
+              tooltip="执行到此节点时暂停，等待用户提供对应类型的内容"
+            >
+              <Select
+                mode="multiple"
+                placeholder="选择：文字 / 附件 / 图片 / 视频"
+                options={[
+                  { value: 'text', label: '文字' },
+                  { value: 'attachment', label: '附件' },
+                  { value: 'image', label: '图片' },
+                  { value: 'video', label: '视频' }
+                ]}
+              />
             </Form.Item>
             <Form.Item
-              name="outputKeys"
-              label="写入 context 的键名"
-              tooltip="用户补充说明写入流程上下文，供下游 {{contextKey}} 引用；留空默认 userInput"
+              name="inputPrompt"
+              label="采集说明"
+              rules={[{ required: true, message: '请填写采集说明' }]}
             >
-              <Input placeholder="例如 userInput, feedback" />
+              <Input.TextArea
+                rows={3}
+                placeholder="向用户说明需要提供什么，如：请上传产品图并补充一句卖点"
+              />
+            </Form.Item>
+          </>
+        )}
+
+        {type === 'output' && (
+          <>
+            <Form.Item
+              name="outputDir"
+              label="输出目录"
+              rules={[{ required: true, message: '请选择输出目录' }]}
+              extra="绝对路径；运行时将内容写入该文件夹"
+            >
+              <Input
+                placeholder="/Users/你/文稿/流程输出"
+                addonAfter={
+                  <Button type="link" size="small" onClick={() => void handlePickOutputDir()}>
+                    选择文件夹
+                  </Button>
+                }
+              />
+            </Form.Item>
+            <Form.Item name="outputFormat" label="输出格式" initialValue="markdown">
+              <Select
+                options={[
+                  { value: 'text', label: '纯文本 (.txt)' },
+                  { value: 'markdown', label: 'Markdown (.md)' },
+                  { value: 'json', label: 'JSON (.json)' },
+                  { value: 'file', label: '复制文件（content 为源路径 {{key}}）' }
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
+              name="fileNameTemplate"
+              label="文件名"
+              tooltip="不含扩展名时按格式自动补全；支持 {{contextKey}}"
+            >
+              <Input placeholder="例如 report 或 {{workflowTitle}}" />
+            </Form.Item>
+            <Form.Item
+              name="contentTemplate"
+              label="写入内容"
+              rules={[{ required: true, message: '请填写内容模板' }]}
+              tooltip="支持 {{contextKey}} 引用上游 outputKeys；file 格式填源文件路径"
+            >
+              <Input.TextArea rows={4} placeholder="{{summary}}" />
             </Form.Item>
           </>
         )}

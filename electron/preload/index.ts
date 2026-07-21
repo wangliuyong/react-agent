@@ -143,6 +143,7 @@ const api: ElectronApi = {
   },
 
   postSelectImages: () => ipcRenderer.invoke('dialog:select-images'),
+  postSelectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),
   postOpenExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
   postRevealPath: (filePath: string) =>
     ipcRenderer.invoke(IpcChannels.postRevealPath, filePath)

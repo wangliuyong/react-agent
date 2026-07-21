@@ -40,6 +40,8 @@ import {
   queryMarkdownHeadingTitle
 } from './tool-result'
 import { isGraphInterrupt } from '@langchain/langgraph'
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
+import { join } from 'path'
 
 /** 同一时刻每个会话只跑一个工作流 */
 const runningBySession = new Set<string>()
@@ -410,6 +412,136 @@ async function executeToastNode(
   return nextContext
 }
 
+const INPUT_KIND_LABELS: Record<string, string> = {
+  text: '文字',
+  attachment: '附件',
+  image: '图片',
+  video: '视频'
+}
+
+/**
+ * 执行输入节点：暂停并采集用户文字/附件，写入 context。
+ * 文字写入 outputKeys[0] 或 userInput；附件路径写入 attachmentPaths 或 outputKeys[1]。
+ */
+async function executeInputNode(
+  session: Session,
+  node: Extract<WorkflowLeafNode, { type: 'input' }>,
+  context: Record<string, unknown>,
+  signal: AbortSignal
+): Promise<Record<string, unknown>> {
+  const sessionId = session.id
+  const kinds = node.inputKinds.length ? node.inputKinds : (['text'] as const)
+  const kindHint = kinds.map((k) => INPUT_KIND_LABELS[k] ?? k).join('、')
+  const reason = node.prompt?.trim() || `请提供：${kindHint}`
+  logWorkflowNodeInput('输入节点 · 等待用户', node, context, { reason, kinds })
+
+  appendWorkflowMessage(session, {
+    role: 'assistant',
+    content: `【${node.title}】${reason}`
+  })
+
+  await waitForGraphUserContinue(sessionId, reason)
+  if (signal.aborted) throw new Error('__aborted__')
+
+  const latest = querySession(sessionId)
+  const userMessages = (latest?.messages ?? []).filter((m) => m.role === 'user')
+  const lastUser = userMessages[userMessages.length - 1]
+  const text = lastUser?.content?.trim() ?? ''
+  const attachmentPaths = lastUser?.attachmentPaths?.filter(Boolean) ?? []
+
+  let nextContext = { ...context }
+  const outputKeys = node.outputKeys?.length ? node.outputKeys : []
+  const textKey = outputKeys[0] ?? 'userInput'
+  const fileKey = outputKeys[1] ?? 'attachmentPaths'
+
+  if (kinds.includes('text') && text) {
+    nextContext = patchAgentOutputToContext(nextContext, text, [textKey])
+    appendWorkflowMessage(session, { role: 'user', content: text })
+  }
+
+  const needsFiles = kinds.some((k) => k === 'attachment' || k === 'image' || k === 'video')
+  if (needsFiles && attachmentPaths.length) {
+    nextContext[fileKey] = attachmentPaths
+  }
+
+  logWorkflowNodeInput('输入节点 · 已采集', node, nextContext)
+  return nextContext
+}
+
+/** 按输出格式补全文件扩展名 */
+function queryOutputFileExtension(format: string): string {
+  switch (format) {
+    case 'markdown':
+      return '.md'
+    case 'json':
+      return '.json'
+    case 'file':
+      return ''
+    case 'text':
+    default:
+      return '.txt'
+  }
+}
+
+/**
+ * 执行输出节点：将模板内容写入用户配置的目录。
+ * file 格式时 contentTemplate 解析为源文件路径并复制到目标目录。
+ */
+async function executeOutputNode(
+  session: Session,
+  node: Extract<WorkflowLeafNode, { type: 'output' }>,
+  context: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  logWorkflowNodeInput('输出节点 · 上下文', node, context)
+  const outputDir = node.outputDir.trim()
+  if (!outputDir) {
+    throw new Error('输出节点未配置输出目录，请在画布中编辑并选择文件夹')
+  }
+  if (!existsSync(outputDir)) {
+    mkdirSync(outputDir, { recursive: true })
+  }
+
+  const fileNameRaw = interpolatePromptSoft(node.fileNameTemplate ?? 'output', context).trim() || 'output'
+  const ext = queryOutputFileExtension(node.outputFormat)
+  const fileName = fileNameRaw.includes('.') || !ext ? fileNameRaw : `${fileNameRaw}${ext}`
+  const targetPath = join(outputDir, fileName)
+
+  if (node.outputFormat === 'file') {
+    const sourcePath = interpolatePromptSoft(node.contentTemplate, context).trim()
+    if (!sourcePath) throw new Error('file 格式需在内容模板中指定源文件路径，如 {{videoPath}}')
+    if (!existsSync(sourcePath)) {
+      throw new Error(`源文件不存在: ${sourcePath}`)
+    }
+    copyFileSync(sourcePath, targetPath)
+  } else {
+    const content = interpolatePromptSoft(node.contentTemplate, context).trim()
+    if (!content) {
+      throw new Error('输出内容为空，请检查 contentTemplate 或上游 outputKeys')
+    }
+    if (node.outputFormat === 'json') {
+      try {
+        JSON.parse(content)
+      } catch {
+        throw new Error('json 格式要求内容为合法 JSON')
+      }
+    }
+    writeFileSync(targetPath, content, 'utf-8')
+  }
+
+  logWorkflowNodeInput('输出节点 · 已写入', node, context, { targetPath })
+  appendWorkflowMessage(session, {
+    role: 'assistant',
+    content: `【${node.title}】已写入：${targetPath}`
+  })
+
+  const nextContext = { ...context }
+  const keys = node.outputKeys?.length ? node.outputKeys : ['outputPath']
+  for (const key of keys) {
+    nextContext[key] = targetPath
+  }
+  return nextContext
+}
+
 async function executeLeafNode(
   session: Session,
   node: WorkflowLeafNode,
@@ -423,6 +555,17 @@ async function executeLeafNode(
 
   run = patchRun(run, { cursorNodeId: node.id, status: 'running' })
   logWorkflowNodeInput('叶节点 · 开始执行', node, run.context)
+
+  if (node.type === 'input') {
+    run = patchRun(run, { status: 'awaiting_user' })
+    const nextContext = await executeInputNode(session, node, run.context, signal)
+    return patchRun(run, { context: nextContext, status: 'running' })
+  }
+
+  if (node.type === 'output') {
+    const nextContext = await executeOutputNode(session, node, run.context)
+    return patchRun(run, { context: nextContext, status: 'running' })
+  }
 
   if (node.type === 'await_user') {
     run = patchRun(run, { status: 'awaiting_user' })

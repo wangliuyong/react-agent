@@ -551,8 +551,9 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         type: 'agent',
         title: '解读行情',
         prompt:
-          '根据上一步 K 线摘要，用 3～5 句话简要解读各股近期走势与关键价位，不要重复粘贴原始数据表。',
-        toolWhitelist: ['update_task_list']
+          '根据上一步 K 线摘要，用 3～5 句话简要解读各股近期走势与关键价位，不要重复粘贴原始数据表。\n\n{{stockKlineSummary}}',
+        toolWhitelist: ['update_task_list'],
+        inputKeys: ['stockKlineSummary']
       },
       {
         id: 'tpl_k_await',

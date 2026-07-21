@@ -28,6 +28,15 @@ function queryNodeSummary(node: WorkflowNode): string {
   if (node.type === 'toast') {
     return node.contentTemplate?.slice(0, 80) || '（未填写内容）'
   }
+  if (node.type === 'input') {
+    const kinds = node.inputKinds?.join('、') || '文字'
+    return `采集：${kinds}`
+  }
+  if (node.type === 'output') {
+    return node.outputDir
+      ? `写入 ${node.outputFormat} → ${node.outputDir}`
+      : '（未选择输出目录）'
+  }
   if (node.type === 'condition') {
     return `${node.mode === 'agent' ? 'Agent 选路' : '表达式'} · ${node.cases.length} 路`
   }

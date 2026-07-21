@@ -113,3 +113,12 @@ ipcMain.handle('dialog:select-images', async () => {
   })
   return result.canceled ? [] : result.filePaths
 })
+
+/** 选择本地文件夹（流程输出节点等） */
+ipcMain.handle('dialog:select-directory', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory']
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  return result.filePaths[0]
+})

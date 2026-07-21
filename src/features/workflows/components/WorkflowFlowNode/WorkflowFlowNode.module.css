@@ -51,6 +51,14 @@
   border-left: 1.5px solid #f59e0b;
 }
 
+.input {
+  border-left: 1.5px solid #0ea5e9;
+}
+
+.output {
+  border-left: 1.5px solid #a855f7;
+}
+
 .body {
   display: flex;
   align-items: center;

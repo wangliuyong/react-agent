@@ -8,9 +8,11 @@ import type {
   WorkflowConditionWhen,
   WorkflowDefinition,
   WorkflowEndNode,
+  WorkflowInputNode,
   WorkflowLeafNode,
   WorkflowNode,
   WorkflowNotifyNode,
+  WorkflowOutputNode,
   WorkflowParallelNode,
   WorkflowStartNode,
   WorkflowToastNode,
@@ -27,6 +29,12 @@ function sortWorkflows(list: WorkflowDefinition[]): WorkflowDefinition[] {
   return [...list].sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
+function normalizeKeyList(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const keys = raw.map(String).map((s) => s.trim()).filter(Boolean)
+  return keys.length ? keys : undefined
+}
+
 function isLeafType(
   type: string
 ): type is WorkflowLeafNode['type'] {
@@ -35,7 +43,9 @@ function isLeafType(
     type === 'tool' ||
     type === 'await_user' ||
     type === 'notify' ||
-    type === 'toast'
+    type === 'toast' ||
+    type === 'input' ||
+    type === 'output'
   )
 }
 
@@ -46,7 +56,9 @@ function normalizeLeaf(
   | WorkflowToolNode
   | WorkflowAwaitNode
   | WorkflowNotifyNode
-  | WorkflowToastNode {
+  | WorkflowToastNode
+  | WorkflowInputNode
+  | WorkflowOutputNode {
   const base = {
     id: String(raw.id || '').trim() || crypto.randomUUID(),
     title: String(raw.title || '').trim() || '未命名步骤'
@@ -60,9 +72,8 @@ function normalizeLeaf(
       toolWhitelist: Array.isArray(raw.toolWhitelist)
         ? raw.toolWhitelist.map(String).filter(Boolean)
         : undefined,
-      outputKeys: Array.isArray(raw.outputKeys)
-        ? raw.outputKeys.map(String).filter(Boolean)
-        : undefined
+      inputKeys: normalizeKeyList(raw.inputKeys),
+      outputKeys: normalizeKeyList(raw.outputKeys)
     }
   }
 
@@ -75,9 +86,8 @@ function normalizeLeaf(
         raw.argsTemplate && typeof raw.argsTemplate === 'object' && !Array.isArray(raw.argsTemplate)
           ? (raw.argsTemplate as Record<string, unknown>)
           : {},
-      outputKeys: Array.isArray(raw.outputKeys)
-        ? raw.outputKeys.map(String).filter(Boolean)
-        : undefined
+      inputKeys: normalizeKeyList(raw.inputKeys),
+      outputKeys: normalizeKeyList(raw.outputKeys)
     }
   }
 
@@ -95,9 +105,8 @@ function normalizeLeaf(
           ? notify.richText !== false
           : Boolean(notify.richText),
       failSoft: notify.failSoft !== false,
-      outputKeys: Array.isArray(notify.outputKeys)
-        ? notify.outputKeys.map(String).filter(Boolean)
-        : undefined
+      inputKeys: normalizeKeyList(notify.inputKeys),
+      outputKeys: normalizeKeyList(notify.outputKeys)
     }
   }
 
@@ -113,9 +122,46 @@ function normalizeLeaf(
       type: 'toast',
       level: validLevel,
       contentTemplate: String(toast.contentTemplate || '').trim() || '{{summary}}',
-      outputKeys: Array.isArray(toast.outputKeys)
-        ? toast.outputKeys.map(String).filter(Boolean)
-        : undefined
+      inputKeys: normalizeKeyList(toast.inputKeys),
+      outputKeys: normalizeKeyList(toast.outputKeys)
+    }
+  }
+
+  if (raw.type === 'input') {
+    const inputNode = raw as WorkflowInputNode
+    const kinds = Array.isArray(inputNode.inputKinds)
+      ? inputNode.inputKinds.filter(
+          (k): k is WorkflowInputNode['inputKinds'][number] =>
+            k === 'text' || k === 'attachment' || k === 'image' || k === 'video'
+        )
+      : []
+    return {
+      ...base,
+      type: 'input',
+      prompt: String(inputNode.prompt || '').trim() || '请输入内容后继续流程',
+      inputKinds: kinds.length ? kinds : ['text'],
+      inputKeys: normalizeKeyList(inputNode.inputKeys),
+      outputKeys: normalizeKeyList(inputNode.outputKeys)
+    }
+  }
+
+  if (raw.type === 'output') {
+    const outputNode = raw as WorkflowOutputNode
+    const format = outputNode.outputFormat
+    const validFormat =
+      format === 'text' || format === 'markdown' || format === 'json' || format === 'file'
+        ? format
+        : 'markdown'
+    return {
+      ...base,
+      type: 'output',
+      outputDir: String(outputNode.outputDir || '').trim(),
+      outputFormat: validFormat,
+      fileNameTemplate:
+        outputNode.fileNameTemplate != null ? String(outputNode.fileNameTemplate) : 'output',
+      contentTemplate: String(outputNode.contentTemplate || '').trim() || '{{summary}}',
+      inputKeys: normalizeKeyList(outputNode.inputKeys),
+      outputKeys: normalizeKeyList(outputNode.outputKeys)
     }
   }
 
@@ -125,9 +171,8 @@ function normalizeLeaf(
       ...base,
       type: 'await_user',
       reason: String(awaitNode.reason || '').trim() || '请确认后继续',
-      outputKeys: Array.isArray(awaitNode.outputKeys)
-        ? awaitNode.outputKeys.map(String).filter(Boolean)
-        : undefined
+      inputKeys: normalizeKeyList(awaitNode.inputKeys),
+      outputKeys: normalizeKeyList(awaitNode.outputKeys)
     }
   }
 

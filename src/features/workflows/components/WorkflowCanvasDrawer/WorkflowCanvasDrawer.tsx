@@ -35,6 +35,8 @@ interface WorkflowCanvasDrawerProps {
 
 /** 画布编辑区头部「添加节点」菜单项（开始/结束固定存在；条件在连线上） */
 const ADD_NODE_MENU_TYPES: { key: WorkflowCanvasLeafType; label: string }[] = [
+  { key: 'input', label: '输入节点' },
+  { key: 'output', label: '输出节点' },
   { key: 'agent', label: 'Agent 步骤' },
   { key: 'tool', label: '工具步骤' },
   { key: 'notify', label: '渠道通知' },
@@ -138,7 +140,7 @@ export function WorkflowCanvasDrawer({
           </div>
 
           <p className={styles.description}>
-            流程从「开始」到「结束」。无条件多出线 = 并行；双击连线可设条件（只走一路）。开始/结束不可删除。
+            流程从「开始」到「结束」。单击节点可编辑；连线默认为虚线，双击可设条件。
           </p>
 
           <div className={styles.canvasPanel} ref={canvasPanelRef}>
