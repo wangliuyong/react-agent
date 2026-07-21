@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type RefObject } from 'react'
-import { message } from 'antd'
+import { appMessage } from '@/lib/app-message'
 
 /**
  * 对任意 DOM 元素封装浏览器 Fullscreen API。
@@ -32,20 +32,20 @@ export function useElementFullscreen(targetRef: RefObject<HTMLElement | null>): 
   const exitFullscreen = useCallback(async (): Promise<void> => {
     if (!document.fullscreenElement) return
     if (typeof document.exitFullscreen !== 'function') {
-      message.warning('当前环境不支持退出全屏')
+      appMessage.warning('当前环境不支持退出全屏')
       return
     }
     try {
       await document.exitFullscreen()
     } catch {
-      message.warning('退出全屏失败')
+      appMessage.warning('退出全屏失败')
     }
   }, [])
 
   const toggleFullscreen = useCallback(async (): Promise<void> => {
     const el = targetRef.current
     if (!el) {
-      message.warning('全屏目标未就绪')
+      appMessage.warning('全屏目标未就绪')
       return
     }
     if (document.fullscreenElement === el) {
@@ -53,13 +53,13 @@ export function useElementFullscreen(targetRef: RefObject<HTMLElement | null>): 
       return
     }
     if (typeof el.requestFullscreen !== 'function') {
-      message.warning('当前环境不支持全屏')
+      appMessage.warning('当前环境不支持全屏')
       return
     }
     try {
       await el.requestFullscreen()
     } catch {
-      message.warning('无法进入全屏，请检查系统或浏览器权限')
+      appMessage.warning('无法进入全屏，请检查系统或浏览器权限')
     }
   }, [targetRef, exitFullscreen])
 

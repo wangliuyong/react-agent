@@ -16,12 +16,136 @@ import { queryAwaitUserReasonFromMessages } from '../utils/queryAwaitUserReasonF
 import { querySessionType } from '../utils/querySessionType'
 import { queryShouldResumeViaWorkflow } from '../utils/queryShouldResumeViaWorkflow'
 import { useAppStore } from '@/stores/app-store'
+import { appMessage } from '@/lib/app-message'
 
 function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {
   for (let i = items.length - 1; i >= 0; i--) {
     if (predicate(items[i])) return i
   }
   return -1
+}
+
+/** IPC 流式增量缓冲：合并同一帧内多条 thinking/text delta，避免 React 嵌套更新超限 */
+const pendingThinkingDeltas = new Map<string, string>()
+const pendingTextDeltas = new Map<string, string>()
+let streamFlushRaf: number | null = null
+
+/** 将单条 thinking_delta 转为状态补丁 */
+function patchThinkingDelta(
+  state: SessionState,
+  sessionId: string,
+  delta: string,
+  activeId: string | null
+): Partial<SessionState> {
+  const runningSessionIds = withRunningSession(state.runningSessionIds, sessionId)
+  if (sessionId !== activeId) {
+    return { runningSessionIds }
+  }
+
+  if (state.running) {
+    return {
+      runningSessionIds,
+      thinkingText: state.thinkingText + delta,
+      thinkingInProgress: true,
+      activeToolName: null,
+      running: true
+    }
+  }
+
+  const session = state.sessions.find((x) => x.id === sessionId)
+  const lastAssistantIdx = session
+    ? findLastIndex(session.messages, (m) => m.role === 'assistant')
+    : -1
+  if (!session || lastAssistantIdx < 0) {
+    return { runningSessionIds, thinkingText: delta }
+  }
+
+  const messages = session.messages.map((m, i) =>
+    i === lastAssistantIdx
+      ? { ...m, thinkingContent: `${m.thinkingContent ?? ''}${delta}` }
+      : m
+  )
+  return {
+    runningSessionIds,
+    sessions: patchSession(state.sessions, sessionId, (sess) => ({
+      ...sess,
+      messages
+    })),
+    thinkingText: ''
+  }
+}
+
+/** 将单条 text_delta 转为状态补丁 */
+function patchTextDelta(
+  state: SessionState,
+  sessionId: string,
+  delta: string,
+  activeId: string | null
+): Partial<SessionState> {
+  const runningSessionIds = withRunningSession(state.runningSessionIds, sessionId)
+  if (sessionId !== activeId) {
+    return { runningSessionIds }
+  }
+
+  return {
+    runningSessionIds,
+    streamingText: state.thinkingInProgress
+      ? state.streamingText
+      : state.streamingText + delta,
+    pendingStreamingText: state.thinkingInProgress
+      ? state.pendingStreamingText + delta
+      : state.pendingStreamingText,
+    thinkingText: state.running ? state.thinkingText : '',
+    activeToolName: null,
+    running: true
+  }
+}
+
+function mergeSessionState(state: SessionState, patch: Partial<SessionState>): SessionState {
+  return { ...state, ...patch }
+}
+
+/** 立即刷掉缓冲的流式增量（在 message / done 等事件前保证顺序） */
+function flushPendingStreamDeltas(api: SessionStoreApi): void {
+  if (streamFlushRaf != null) {
+    cancelAnimationFrame(streamFlushRaf)
+    streamFlushRaf = null
+  }
+
+  const thinking = new Map(pendingThinkingDeltas)
+  const text = new Map(pendingTextDeltas)
+  pendingThinkingDeltas.clear()
+  pendingTextDeltas.clear()
+  if (thinking.size === 0 && text.size === 0) return
+
+  const activeId = api.get().activeSessionId
+  api.set((state) => {
+    let next = state
+    for (const [sessionId, delta] of Array.from(thinking.entries())) {
+      next = mergeSessionState(next, patchThinkingDelta(next, sessionId, delta, activeId))
+    }
+    for (const [sessionId, delta] of Array.from(text.entries())) {
+      next = mergeSessionState(next, patchTextDelta(next, sessionId, delta, activeId))
+    }
+    return next
+  })
+}
+
+/** 按帧合并流式增量，降低 IPC 高频推送触发的重渲染次数 */
+function schedulePendingStreamFlush(api: SessionStoreApi): void {
+  if (streamFlushRaf != null) return
+  streamFlushRaf = requestAnimationFrame(() => {
+    streamFlushRaf = null
+    flushPendingStreamDeltas(api)
+  })
+}
+
+function bufferThinkingDelta(sessionId: string, delta: string): void {
+  pendingThinkingDeltas.set(sessionId, `${pendingThinkingDeltas.get(sessionId) ?? ''}${delta}`)
+}
+
+function bufferTextDelta(sessionId: string, delta: string): void {
+  pendingTextDeltas.set(sessionId, `${pendingTextDeltas.get(sessionId) ?? ''}${delta}`)
 }
 
 interface SessionState {
@@ -67,6 +191,15 @@ interface SessionState {
   beginExternalRun: (sessionId: string) => void
   bindAgentEvents: () => () => void
   getActiveSession: () => Session | null
+}
+
+type SessionStoreApi = {
+  get: () => SessionState
+  set: (
+    partial:
+      | Partial<SessionState>
+      | ((state: SessionState) => Partial<SessionState> | SessionState)
+  ) => void
 }
 
 /** 是否存在尚未完成（待执行 / 执行中）的任务项 */
@@ -313,7 +446,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const session = await get().createSession()
       activeSessionId = session.id
     } else if (runningSessionIds.has(activeSessionId)) {
-      message.warning('当前会话正在执行中，请稍候或点击中断')
+      appMessage.warning('当前会话正在执行中，请稍候或点击中断')
       return
     }
     set((state) => ({
@@ -390,7 +523,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { activeSessionId, sessions, runningSessionIds } = get()
     if (!activeSessionId) return
     if (runningSessionIds.has(activeSessionId)) {
-      message.warning('任务正在执行中，请勿重复继续')
+      appMessage.warning('任务正在执行中，请勿重复继续')
       return
     }
 
@@ -420,7 +553,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           running: false,
           canResume: true
         }))
-        message.error(err instanceof Error ? err.message : '恢复流程执行失败')
+        appMessage.error(err instanceof Error ? err.message : '恢复流程执行失败')
       }
       return
     }
@@ -443,16 +576,36 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       canResume: false,
       streamingText: '',
       thinkingText: '',
+      thinkingInProgress: false,
+      pendingStreamingText: '',
+      pendingToolName: null,
       activeToolName: null
     }))
   },
 
   bindAgentEvents: () => {
+    const streamApi: SessionStoreApi = { get, set }
+
     return window.api.onAgentEvent((event: AgentEvent) => {
       // agent_role 仅驱动状态文案，不改正文列表
       if (event.type === 'agent_role') {
         return
       }
+
+      if (event.type === 'thinking_delta') {
+        bufferThinkingDelta(event.sessionId, event.delta)
+        schedulePendingStreamFlush(streamApi)
+        return
+      }
+
+      if (event.type === 'text_delta') {
+        bufferTextDelta(event.sessionId, event.delta)
+        schedulePendingStreamFlush(streamApi)
+        return
+      }
+
+      // 非流式增量事件前先刷缓冲，保证思考/回答顺序正确
+      flushPendingStreamDeltas(streamApi)
 
       if (event.type === 'model_switch') {
         const activeId = get().activeSessionId
@@ -466,11 +619,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
       /** 工作流 Toast 节点：全局弹出，不依赖当前会话 */
       if (event.type === 'workflow_toast') {
-        const fn = message[event.level]
+        const fn = appMessage[event.level]
         if (typeof fn === 'function') {
           fn(event.content)
         } else {
-          message.info(event.content)
+          appMessage.info(event.content)
         }
         return
       }
@@ -499,6 +652,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   canResume: false,
                   streamingText: '',
                   thinkingText: '',
+                  thinkingInProgress: false,
                   activeToolName: null
                 }
               : {})
@@ -508,50 +662,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
 
       const activeId = get().activeSessionId
-
-      if (event.type === 'thinking_delta') {
-        set((s) => {
-          const runningSessionIds = withRunningSession(s.runningSessionIds, event.sessionId)
-          if (event.sessionId !== activeId) {
-            return { runningSessionIds }
-          }
-
-          // 执行中：先累积到临时区，UI 展示在回答/工具之前
-          if (s.running) {
-            return {
-              runningSessionIds,
-              thinkingText: s.thinkingText + event.delta,
-              thinkingInProgress: true,
-              activeToolName: null,
-              running: true
-            }
-          }
-
-          // 已结束仍收到推理增量：挂到最近一条 assistant，避免掉到列表末尾
-          const session = s.sessions.find((x) => x.id === event.sessionId)
-          const lastAssistantIdx = session
-            ? findLastIndex(session.messages, (m) => m.role === 'assistant')
-            : -1
-          if (!session || lastAssistantIdx < 0) {
-            return { runningSessionIds, thinkingText: event.delta }
-          }
-
-          const messages = session.messages.map((m, i) =>
-            i === lastAssistantIdx
-              ? { ...m, thinkingContent: `${m.thinkingContent ?? ''}${event.delta}` }
-              : m
-          )
-          return {
-            runningSessionIds,
-            sessions: patchSession(s.sessions, event.sessionId, (sess) => ({
-              ...sess,
-              messages
-            })),
-            thinkingText: ''
-          }
-        })
-        return
-      }
 
       if (event.type === 'thinking_complete') {
         set((s) => {
@@ -571,26 +681,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             pendingToolName: null
           }
         })
-        return
-      }
-
-      if (event.type === 'text_delta') {
-        set((s) => ({
-          runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
-          ...(event.sessionId === activeId
-            ? {
-                streamingText: s.thinkingInProgress
-                  ? s.streamingText
-                  : s.streamingText + event.delta,
-                pendingStreamingText: s.thinkingInProgress
-                  ? s.pendingStreamingText + event.delta
-                  : s.pendingStreamingText,
-                thinkingText: s.running ? s.thinkingText : '',
-                activeToolName: null,
-                running: true
-              }
-            : {})
-        }))
         return
       }
 
@@ -776,7 +866,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         const errText = event.message?.trim() || 'Agent 执行失败'
         // 错误必须可见：此前仅清 running，用户会看到「发了消息却完全没响应」
         if (event.sessionId === activeId) {
-          message.error(errText)
+          appMessage.error(errText)
         }
         set((state) => {
           const errorMsg: ChatMessage = {

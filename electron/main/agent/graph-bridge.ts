@@ -301,12 +301,8 @@ async function syncNewMessagesToSession(
       const thinkingContent =
         typeof reasoningRaw === 'string' && reasoningRaw.trim() ? reasoningRaw.trim() : undefined
 
-      // 等待流式推理结束，再推送工具调用与正式回答
+      // 推理结束事件由 stream-callbacks 统一推送，避免与 graph-bridge 重复触发
       await queryWaitThinkingSettled(sessionId)
-
-      if (thinkingContent) {
-        emitAgentEvent({ type: 'thinking_complete', sessionId })
-      }
 
       if (ai.tool_calls?.length) {
         for (const tc of ai.tool_calls) {

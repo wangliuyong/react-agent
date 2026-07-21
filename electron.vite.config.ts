@@ -51,6 +51,10 @@ export default defineConfig({
           'react',
           {
             react: [['default', 'React']]
+          },
+          // message 走 App.useApp 代理，避免静态方法无法消费主题上下文
+          {
+            '@/lib/app-message': [['appMessage', 'message']]
           }
         ],
         resolvers: [AntdResolver(), antDesignIconsResolver()],

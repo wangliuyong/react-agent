@@ -6,7 +6,7 @@
 import '@ant-design/v5-patch-for-react-19'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ConfigProvider } from 'antd'
+import { App as AntdApp, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import App from './App'
 import './styles/global.css'
@@ -15,7 +15,9 @@ import { antdThemeConfig } from './styles/theme-tokens'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ConfigProvider locale={zhCN} theme={antdThemeConfig}>
-      <App />
+      <AntdApp>
+        <App />
+      </AntdApp>
     </ConfigProvider>
   </StrictMode>
 )

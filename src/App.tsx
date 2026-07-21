@@ -1,3 +1,4 @@
+import { AntdAppBridge } from '@/components/AntdAppBridge/AntdAppBridge'
 import { AppShell } from '@/layouts/AppShell'
 import { useAppStore } from '@/stores/app-store'
 import { useSessionStore } from '@/features/chat'
@@ -50,5 +51,10 @@ export default function App(): React.ReactElement {
     bindScheduleUpdates
   ])
 
-  return <AppShell view={view} />
+  return (
+    <>
+      <AntdAppBridge />
+      <AppShell view={view} />
+    </>
+  )
 }
