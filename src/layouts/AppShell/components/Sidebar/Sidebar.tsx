@@ -1,6 +1,5 @@
 import type { AppView } from '@/stores/app-store'
 import { useNewChatShortcut, useSidebar, useSidebarNavigation } from '../../hooks'
-import { SidebarCollapsed } from './SidebarCollapsed'
 import { SidebarExpanded } from './SidebarExpanded'
 import styles from './Sidebar.module.css'
 
@@ -8,7 +7,9 @@ interface SidebarProps {
   view: AppView
 }
 
-/** 侧边栏容器：助手 / 业务系统独立视图切换主导航 */
+/**
+ * 侧边栏容器：固定单一 DOM 树 + 宽度裁剪，避免折叠/展开时切换组件导致文字换行闪烁。
+ */
 export function Sidebar({ view }: SidebarProps): React.ReactElement {
   const { sidebarCollapsed, toggleSidebar } = useSidebar()
   const {
@@ -21,24 +22,15 @@ export function Sidebar({ view }: SidebarProps): React.ReactElement {
     deleteSession
   } = useSidebarNavigation({ view })
 
-  /** 业务系统为独立 AppView，刷新后由 localStorage 恢复 */
   const isBusinessMode = view === 'business'
 
   useNewChatShortcut({ onCreate: createNewSession, enabled: !isBusinessMode })
 
   return (
-    <aside className={styles.sidebar} data-collapsed={sidebarCollapsed}>
-      {sidebarCollapsed ? (
-        <SidebarCollapsed
-          view={view}
-          isFreshChatSession={isFreshChatSession}
-          isBusinessMode={isBusinessMode}
-          onNavigate={navigateTo}
-          onCreateSession={createNewSession}
-          onToggleCollapse={toggleSidebar}
-        />
-      ) : (
+    <aside className={styles.sidebar} data-collapsed={sidebarCollapsed || undefined}>
+      <div className={styles.sidebarInner}>
         <SidebarExpanded
+          collapsed={sidebarCollapsed}
           view={view}
           historyItems={historyItems}
           activeSessionId={activeSessionId}
@@ -50,7 +42,7 @@ export function Sidebar({ view }: SidebarProps): React.ReactElement {
           onCreateSession={createNewSession}
           onToggleCollapse={toggleSidebar}
         />
-      )}
+      </div>
     </aside>
   )
 }

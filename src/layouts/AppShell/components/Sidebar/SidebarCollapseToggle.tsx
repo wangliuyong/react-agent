@@ -16,7 +16,7 @@ export function SidebarCollapseToggle({
       placement={collapsed ? 'right' : 'top'}
     >
       <Button
-        className={`app-no-drag ${collapsed ? styles.collapsedIconBtn : ''}`}
+        className={`app-no-drag ${collapsed ? styles.footerIconBtn : ''}`}
         type="text"
         icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
         onClick={onToggle}

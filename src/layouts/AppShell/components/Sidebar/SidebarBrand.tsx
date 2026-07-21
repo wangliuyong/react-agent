@@ -2,35 +2,30 @@ import lingxiAvatar from '@/assets/lingxi-avatar.png'
 import styles from './Sidebar.module.css'
 
 interface SidebarBrandProps {
-  /** 折叠态仅展示图标，展开态展示完整品牌名 */
   collapsed?: boolean
 }
 
-/** 品牌 Logo 展示，无业务逻辑 */
+/** 品牌 Logo：图标与文案同一 DOM，折叠时淡出品牌名 */
 export function SidebarBrand({ collapsed = false }: SidebarBrandProps): React.ReactElement {
-  const icon = (
-    <img
-      className={styles.brandIcon}
-      src={lingxiAvatar}
-      alt="灵犀"
-      width={32}
-      height={32}
-      draggable={false}
-    />
+  const brand = (
+    <div className={styles.brand} data-collapsed={collapsed || undefined}>
+      <img
+        className={styles.brandIcon}
+        src={lingxiAvatar}
+        alt="灵犀"
+        width={32}
+        height={32}
+        draggable={false}
+      />
+      <span className={`${styles.brandName} ${styles.sidebarLabel}`}>灵犀</span>
+    </div>
   )
 
-  if (collapsed) {
-    return (
-      <Tooltip title="灵犀" placement="right">
-        {icon}
-      </Tooltip>
-    )
-  }
+  if (!collapsed) return brand
 
   return (
-    <div className={styles.brand}>
-      {icon}
-      <span className={styles.brandName}>灵犀</span>
-    </div>
+    <Tooltip title="灵犀" placement="right" mouseEnterDelay={0.35}>
+      {brand}
+    </Tooltip>
   )
 }
