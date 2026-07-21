@@ -2,18 +2,20 @@ import { describe, expect, it } from 'vitest'
 import {
   queryBuildStockChartBlock,
   queryExtractStockCharts,
+  queryExtractStockChartEnvelope,
   stripStockChartBlock,
   type StockChartPayload
 } from '../shared/stock-chart'
 import {
   extractStockCharts,
-  queryDisplayContentWithCharts
+  queryDisplayContentWithCharts,
+  queryStockLiveRefresh
 } from '../src/features/chat/utils/message-charts'
 
 const sampleChart: StockChartPayload = {
   symbol: '600519',
   name: '贵州茅台',
-  period: 'daily',
+  range: 'month',
   bars: [
     { date: '2026-07-18', open: 1680, high: 1702, low: 1675, close: 1698, volume: 123456 }
   ]
@@ -21,8 +23,10 @@ const sampleChart: StockChartPayload = {
 
 describe('stock-chart shared', () => {
   it('构建并解析 @@stock_chart@@ 块', () => {
-    const block = queryBuildStockChartBlock([sampleChart])
+    const block = queryBuildStockChartBlock([sampleChart], { liveRefresh: true })
     expect(block.startsWith('@@stock_chart@@')).toBe(true)
+    const envelope = queryExtractStockChartEnvelope(`摘要\n${block}`)
+    expect(envelope?.liveRefresh).toBe(true)
     const charts = queryExtractStockCharts(`摘要\n${block}`)
     expect(charts).toHaveLength(1)
     expect(charts[0].symbol).toBe('600519')
@@ -36,11 +40,12 @@ describe('stock-chart shared', () => {
 
 describe('message-charts', () => {
   it('从 workflow_ctx 包装消息中提取 K 线', () => {
-    const block = queryBuildStockChartBlock([sampleChart])
+    const block = queryBuildStockChartBlock([sampleChart], { liveRefresh: true })
     const inner = `已获取 1 只股票\n${block}`
     const wrapped = `@@workflow_ctx@@${JSON.stringify({ message: inner, patch: {} })}`
     const charts = extractStockCharts(wrapped)
     expect(charts[0].name).toBe('贵州茅台')
+    expect(queryStockLiveRefresh(wrapped)).toBe(true)
   })
 
   it('展示正文不含 stock_chart JSON', () => {

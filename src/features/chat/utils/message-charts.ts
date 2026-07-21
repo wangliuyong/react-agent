@@ -5,6 +5,7 @@ import {
 } from './message-media'
 import {
   queryExtractStockCharts,
+  queryExtractStockChartEnvelope,
   stripStockChartBlock,
   type StockChartPayload
 } from '@shared/stock-chart'
@@ -17,6 +18,13 @@ export type { StockChartPayload }
 export function extractStockCharts(content: string): StockChartPayload[] {
   const decoded = queryDecodeWorkflowCtxMessage(content)
   return queryExtractStockCharts(decoded)
+}
+
+/** 是否开启聊天内实时刷新 */
+export function queryStockLiveRefresh(content: string): boolean {
+  const decoded = queryDecodeWorkflowCtxMessage(content)
+  const envelope = queryExtractStockChartEnvelope(decoded)
+  return envelope?.liveRefresh === true
 }
 
 /** 展示用正文：去掉 workflow 前缀、媒体路径与 K 线 JSON 块 */

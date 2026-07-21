@@ -10,7 +10,7 @@ import {
 import { xhsPublishNoteTool, updateTaskListTool, fetchWebImagesTool } from './xhs-tools'
 import { douyinPublishNoteTool } from './douyin-tools'
 import { fetchHotTopicsTool } from './hot-topics'
-import { queryAshareKlineTool } from './stock-tools'
+import { queryAshareKlineTool, queryAshareRealtimeAnalysisTool } from './stock-tools'
 import { queryWeatherTool } from './weather-tools'
 import { queryWebDataTool } from './web-data-tools'
 import {
@@ -38,6 +38,7 @@ export function getAllTools(): AgentTool[] {
     fetchWebImagesTool,
     fetchHotTopicsTool,
     queryAshareKlineTool,
+    queryAshareRealtimeAnalysisTool,
     queryWeatherTool,
     queryWebDataTool,
     generateScriptTool,

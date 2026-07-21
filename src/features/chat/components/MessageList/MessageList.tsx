@@ -118,11 +118,14 @@ export function MessageList({
         }
         if (m.role === 'tool') {
           const mediaLabel = queryMediaCountLabel(m.content)
+          // K 线图需默认展开，否则实时预览被折叠隐藏
+          const hasStockChart = m.content.includes('@@stock_chart@@')
           return (
             <div key={m.id} className={styles.row}>
               <Collapse
                 size="small"
                 className={styles.toolBlock}
+                defaultActiveKey={hasStockChart ? ['1'] : undefined}
                 items={[
                   {
                     key: '1',

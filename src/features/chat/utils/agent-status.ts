@@ -23,6 +23,7 @@ const TOOL_LABELS: Record<string, string> = {
   fetch_web_images: '抓取网页配图',
   fetch_hot_topics: '获取热点',
   query_ashare_kline: 'A股K线',
+  query_ashare_realtime_analysis: 'A股实时分析',
   query_weather: '查询天气',
   query_web_data: '获取网页数据',
   generate_script: '生成剧本',

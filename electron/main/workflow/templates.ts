@@ -580,6 +580,134 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
     },
     createdAt: 0,
     updatedAt: 0
+  },
+  {
+    id: 'tpl_ashare_realtime_analysis',
+    title: 'A 股实时 K 线 · 综合分析 · 买卖分支',
+    description:
+      '工具节点配置股票代码（英文逗号分隔）与 range（today/week/month/custom）；' +
+      '自动输出 K 线图、技术指标分析、涨跌预测；按 stockSignal 走买入/卖出/观望分支。',
+    templateKind: 'generic',
+    nodes: [
+      { id: 'tpl_ra_start', type: 'start', title: '开始' },
+      {
+        id: 'tpl_ra_fetch',
+        type: 'tool',
+        title: '实时 K 线 + 综合分析',
+        toolName: 'query_ashare_realtime_analysis',
+        argsTemplate: {
+          symbols: '600519,000001',
+          range: 'today',
+          preloadRanges: true
+        },
+        outputKeys: ['stockAnalysisReport', 'stockKlineSummary']
+      },
+      {
+        id: 'tpl_ra_cond',
+        type: 'condition',
+        title: '买卖信号分支',
+        mode: 'expression',
+        cases: [
+          {
+            key: 'buy_branch',
+            label: '买入信号',
+            when: { contextKey: 'stockSignal', op: 'eq', value: 'buy' },
+            nodes: [
+              {
+                id: 'tpl_ra_buy',
+                type: 'agent',
+                title: '买入策略建议',
+                prompt:
+                  '当前综合信号为买入。请基于下列分析报告，给出建仓思路：入场区间、仓位建议、止损位与持有周期。' +
+                  '语气专业简洁，并强调风险。\n\n{{stockAnalysisReport}}',
+                toolWhitelist: ['update_task_list'],
+                inputKeys: ['stockAnalysisReport']
+              }
+            ]
+          },
+          {
+            key: 'sell_branch',
+            label: '卖出信号',
+            when: { contextKey: 'stockSignal', op: 'eq', value: 'sell' },
+            nodes: [
+              {
+                id: 'tpl_ra_sell',
+                type: 'agent',
+                title: '卖出/减仓建议',
+                prompt:
+                  '当前综合信号为卖出。请基于下列分析报告，给出减仓或止盈策略：关键阻力位、分批卖出方案与后续观察点。\n\n{{stockAnalysisReport}}',
+                toolWhitelist: ['update_task_list'],
+                inputKeys: ['stockAnalysisReport']
+              }
+            ]
+          },
+          {
+            key: 'hold_branch',
+            label: '观望',
+            nodes: [
+              {
+                id: 'tpl_ra_hold',
+                type: 'agent',
+                title: '观望解读',
+                prompt:
+                  '当前综合信号为观望。请解读下列分析报告，说明为何暂不操作，以及后续需关注的突破/跌破价位。\n\n{{stockAnalysisReport}}',
+                toolWhitelist: ['update_task_list'],
+                inputKeys: ['stockAnalysisReport']
+              }
+            ]
+          }
+        ],
+        defaultKey: 'hold_branch'
+      },
+      {
+        id: 'tpl_ra_await',
+        type: 'await_user',
+        title: '确认分析结论',
+        reason: 'K 线图、综合分析与买卖建议已生成，请在聊天中切换周期查看后确认。'
+      },
+      { id: 'tpl_ra_end', type: 'end', title: '结束' }
+    ],
+    canvas: {
+      positions: {
+        tpl_ra_start: { x: 200, y: 20 },
+        tpl_ra_fetch: { x: 200, y: 90 },
+        tpl_ra_buy: { x: 40, y: 220 },
+        tpl_ra_sell: { x: 200, y: 220 },
+        tpl_ra_hold: { x: 360, y: 220 },
+        tpl_ra_await: { x: 200, y: 310 },
+        tpl_ra_end: { x: 200, y: 390 }
+      },
+      edges: [
+        { id: 'e_ra_s_f', source: 'tpl_ra_start', target: 'tpl_ra_fetch' },
+        {
+          id: 'e_ra_f_buy',
+          source: 'tpl_ra_fetch',
+          target: 'tpl_ra_buy',
+          label: '买入',
+          when: { contextKey: 'stockSignal', op: 'eq', value: 'buy' }
+        },
+        {
+          id: 'e_ra_f_sell',
+          source: 'tpl_ra_fetch',
+          target: 'tpl_ra_sell',
+          label: '卖出',
+          when: { contextKey: 'stockSignal', op: 'eq', value: 'sell' }
+        },
+        {
+          id: 'e_ra_f_hold',
+          source: 'tpl_ra_fetch',
+          target: 'tpl_ra_hold',
+          label: '观望',
+          isDefault: true
+        },
+        { id: 'e_ra_buy_w', source: 'tpl_ra_buy', target: 'tpl_ra_await' },
+        { id: 'e_ra_sell_w', source: 'tpl_ra_sell', target: 'tpl_ra_await' },
+        { id: 'e_ra_hold_w', source: 'tpl_ra_hold', target: 'tpl_ra_await' },
+        { id: 'e_ra_w_e', source: 'tpl_ra_await', target: 'tpl_ra_end' }
+      ]
+    },
+    createdAt: 0,
+    updatedAt: 0
   }
 ]
 

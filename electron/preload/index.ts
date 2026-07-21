@@ -99,6 +99,8 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.queryLocalImageDataUrl, filePath),
   queryLocalMediaUrl: (filePath: string) =>
     ipcRenderer.invoke(IpcChannels.queryLocalMediaUrl, filePath),
+  queryAshareKlineRefresh: (req) =>
+    ipcRenderer.invoke(IpcChannels.queryAshareKlineRefresh, req),
 
   queryAgentRules: () => ipcRenderer.invoke(IpcChannels.queryAgentRules),
   postAgentRule: (input: AgentRuleUpsertInput) =>

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   queryNormalizeAshareSymbol,
+  queryNormalizeQuotePrice,
   queryParseAshareSymbols,
-  queryParseKlineRow
+  queryParseKlineRow,
+  queryResolveRangeParams,
+  queryShanghaiYmd
 } from '../electron/main/net/ashare-kline'
 
 describe('ashare-kline', () => {
@@ -26,5 +29,25 @@ describe('ashare-kline', () => {
       low: 1675,
       volume: 123456
     })
+  })
+
+  it('解析时间范围参数', () => {
+    const today = queryResolveRangeParams({ range: 'today' })
+    expect(today.klt).toBe(5)
+    expect(today.period).toBe('intraday')
+    expect(today.beg).toBe(queryShanghaiYmd())
+
+    const custom = queryResolveRangeParams({
+      range: 'custom',
+      startDate: '2026-01-01',
+      endDate: '2026-06-30'
+    })
+    expect(custom.beg).toBe('20260101')
+    expect(custom.end).toBe('20260630')
+  })
+
+  it('行情价格统一 /100', () => {
+    expect(queryNormalizeQuotePrice(1087)).toBe(10.87)
+    expect(queryNormalizeQuotePrice(130169)).toBe(1301.69)
   })
 })

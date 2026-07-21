@@ -57,6 +57,13 @@ export async function queryLocalMediaUrl(filePath: string): Promise<string | nul
   return window.api.queryLocalMediaUrl(filePath)
 }
 
+/** 聊天内 A 股 K 线实时刷新 */
+export async function queryAshareKlineRefresh(
+  req: import('@shared/stock-chart').AshareKlineRefreshRequest
+): Promise<import('@shared/stock-chart').StockChartPayload | null> {
+  return window.api.queryAshareKlineRefresh(req)
+}
+
 /** 从当前供应商平台拉取可用模型（百炼 / DeepSeek 等 OpenAI 兼容 /models） */
 export async function queryProviderModels(
   override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>

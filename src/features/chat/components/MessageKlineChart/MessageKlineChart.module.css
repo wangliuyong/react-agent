@@ -2,21 +2,65 @@
   margin-top: 12px;
 }
 
-.tabs {
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 8px;
+}
+
+.tabs {
+  flex: 1;
+  min-width: 0;
+}
+
+.liveTag {
+  margin: 0;
+}
+
+.liveActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .chart {
   width: 100%;
-  height: 320px;
+  height: 340px;
   min-height: 240px;
   border: 1px solid var(--db-border-subtle, rgba(0, 0, 0, 0.08));
   border-radius: 8px;
   background: var(--db-bg-elevated, #fff);
 }
 
+.analysis {
+  margin-top: 10px;
+}
+
+.signalRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.prediction {
+  margin-top: 4px;
+  color: var(--db-text-secondary, rgba(0, 0, 0, 0.65));
+  font-size: 12px;
+}
+
+.disclaimer {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--db-text-tertiary, rgba(0, 0, 0, 0.45));
+}
+
 @media (max-width: 640px) {
   .chart {
-    height: 260px;
+    height: 280px;
   }
 }

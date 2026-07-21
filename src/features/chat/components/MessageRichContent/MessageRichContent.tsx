@@ -11,7 +11,8 @@ import {
 import { extractMessageMedia } from '../../utils/message-media'
 import {
   extractStockCharts,
-  queryDisplayContentWithCharts
+  queryDisplayContentWithCharts,
+  queryStockLiveRefresh
 } from '../../utils/message-charts'
 import { MessageKlineChart } from '../MessageKlineChart/MessageKlineChart'
 import styles from './MessageRichContent.module.css'
@@ -37,6 +38,7 @@ export function MessageRichContent({
   const images = extractMessageImages(content, attachmentPaths)
   const { audio, video } = extractMessageMedia(content)
   const stockCharts = extractStockCharts(content)
+  const stockLiveRefresh = queryStockLiveRefresh(content)
   const displayText = queryDisplayContentWithCharts(content, images)
 
   const previewPaths = [
@@ -52,7 +54,7 @@ export function MessageRichContent({
       ) : streaming ? (
         <span className={styles.cursor} />
       ) : null}
-      <MessageKlineChart charts={stockCharts} />
+      <MessageKlineChart charts={stockCharts} liveRefresh={stockLiveRefresh} />
       <MessageImageGallery images={images} />
       <MessageAudioPlayer items={audio} />
       <MessageVideoPlayer items={video} />
