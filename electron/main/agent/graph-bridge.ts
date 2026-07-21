@@ -292,11 +292,10 @@ function syncNewMessagesToSession(
             ? ai.content.map((c) => ('text' in c ? String(c.text) : '')).join('')
             : String(ai.content ?? '')
 
-      // 流式 callback 未推送时，从落盘消息兜底展示 reasoning_content
+      // 推理过程写入消息 thinkingContent，UI 渲染在回答之前（先思考再输出）
       const reasoningRaw = ai.additional_kwargs?.reasoning_content
-      if (typeof reasoningRaw === 'string' && reasoningRaw.trim()) {
-        emitAgentEvent({ type: 'thinking_delta', sessionId, delta: reasoningRaw })
-      }
+      const thinkingContent =
+        typeof reasoningRaw === 'string' && reasoningRaw.trim() ? reasoningRaw.trim() : undefined
 
       if (ai.tool_calls?.length) {
         for (const tc of ai.tool_calls) {
@@ -329,6 +328,7 @@ function syncNewMessagesToSession(
         const assistantMsg = appendMessage(session, {
           role: 'assistant',
           content: display,
+          ...(thinkingContent ? { thinkingContent } : {}),
           ...(toolCalls?.length ? { toolCalls } : {})
         })
         persistSession(session)

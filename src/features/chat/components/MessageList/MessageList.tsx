@@ -1,4 +1,5 @@
 import type { ChatMessage, TaskItem } from '@shared/types'
+import { Fragment } from 'react'
 import { queryAgentPhase, queryAgentStatusLabel } from '../../utils/agent-status'
 import { ChatMarkdown } from '../ChatMarkdown'
 import { MessageRichContent, queryMediaCountLabel } from '../MessageRichContent'
@@ -143,16 +144,31 @@ export function MessageList({
             </div>
           )
         }
+        // assistant：思考过程展示在回答之前（先思考，再决定执行/输出）
         return (
-          <div key={m.id} className={`${styles.row} ${styles.rowAssistant}`}>
-            <span className={styles.label}>灵犀</span>
-            <div className={styles.assistantCard}>
-              <AssistantBody content={m.content} />
+          <Fragment key={m.id}>
+            {m.thinkingContent?.trim() ? (
+              <div className={`${styles.row} ${styles.rowThinking}`}>
+                <span className={styles.label}>思考</span>
+                <div className={styles.thinkingBox}>
+                  <ChatMarkdown
+                    source={m.thinkingContent}
+                    className={styles.thinkingMarkdown}
+                  />
+                </div>
+              </div>
+            ) : null}
+            <div className={`${styles.row} ${styles.rowAssistant}`}>
+              <span className={styles.label}>灵犀</span>
+              <div className={styles.assistantCard}>
+                <AssistantBody content={m.content} />
+              </div>
             </div>
-          </div>
+          </Fragment>
         )
       })}
 
+      {/* 当前轮次进行中的思考：位于历史消息之后、正式回答/工具之前 */}
       {showThinking ? (
         <div className={`${styles.row} ${styles.rowThinking}`}>
           <span className={styles.label}>思考</span>

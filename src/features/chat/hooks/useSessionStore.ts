@@ -17,6 +17,13 @@ import { querySessionType } from '../utils/querySessionType'
 import { queryShouldResumeViaWorkflow } from '../utils/queryShouldResumeViaWorkflow'
 import { useAppStore } from '@/stores/app-store'
 
+function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (predicate(items[i])) return i
+  }
+  return -1
+}
+
 interface SessionState {
   sessions: Session[]
   activeSessionId: string | null
@@ -491,17 +498,45 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       const activeId = get().activeSessionId
 
       if (event.type === 'thinking_delta') {
-        set((s) => ({
-          runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
-          ...(event.sessionId === activeId
-            ? {
-                // 如果上一轮已停止（s.running === false），清空旧思考缓存
-                thinkingText: s.running ? s.thinkingText + event.delta : event.delta,
-                activeToolName: null,
-                running: true
-              }
-            : {})
-        }))
+        set((s) => {
+          const runningSessionIds = withRunningSession(s.runningSessionIds, event.sessionId)
+          if (event.sessionId !== activeId) {
+            return { runningSessionIds }
+          }
+
+          // 执行中：先累积到临时区，UI 展示在回答/工具之前
+          if (s.running) {
+            return {
+              runningSessionIds,
+              thinkingText: s.thinkingText + event.delta,
+              activeToolName: null,
+              running: true
+            }
+          }
+
+          // 已结束仍收到推理增量：挂到最近一条 assistant，避免掉到列表末尾
+          const session = s.sessions.find((x) => x.id === event.sessionId)
+          const lastAssistantIdx = session
+            ? findLastIndex(session.messages, (m) => m.role === 'assistant')
+            : -1
+          if (!session || lastAssistantIdx < 0) {
+            return { runningSessionIds, thinkingText: event.delta }
+          }
+
+          const messages = session.messages.map((m, i) =>
+            i === lastAssistantIdx
+              ? { ...m, thinkingContent: `${m.thinkingContent ?? ''}${event.delta}` }
+              : m
+          )
+          return {
+            runningSessionIds,
+            sessions: patchSession(s.sessions, event.sessionId, (sess) => ({
+              ...sess,
+              messages
+            })),
+            thinkingText: ''
+          }
+        })
         return
       }
 
@@ -543,25 +578,44 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
 
       if (event.type === 'message') {
-        set((state) => ({
-          sessions: patchSession(state.sessions, event.sessionId, (session) => {
-            const exists = session.messages.findIndex((m) => m.id === event.message.id)
-            let messages: ChatMessage[]
-            if (exists >= 0) {
-              messages = session.messages.map((m) =>
-                m.id === event.message.id ? event.message : m
-              )
-            } else {
-              messages = [...session.messages, event.message]
-            }
-            const title =
-              session.title === '新对话' && event.message.role === 'user'
-                ? event.message.content.slice(0, 24)
-                : session.title
-            return { ...session, messages, title, updatedAt: Date.now() }
-          }),
-          streamingText: event.sessionId === activeId ? '' : get().streamingText
-        }))
+        set((state) => {
+          const isActive = event.sessionId === activeId
+          const liveThinking = isActive ? state.thinkingText.trim() : ''
+          // 将本轮流式思考归并到 assistant 消息，保证「思考」展示在回答之前
+          const incoming =
+            event.message.role === 'assistant' &&
+            liveThinking &&
+            !event.message.thinkingContent?.trim()
+              ? { ...event.message, thinkingContent: liveThinking }
+              : event.message
+
+          return {
+            sessions: patchSession(state.sessions, event.sessionId, (session) => {
+              const exists = session.messages.findIndex((m) => m.id === incoming.id)
+              let messages: ChatMessage[]
+              if (exists >= 0) {
+                messages = session.messages.map((m) =>
+                  m.id === incoming.id ? { ...m, ...incoming } : m
+                )
+              } else {
+                messages = [...session.messages, incoming]
+              }
+              const title =
+                session.title === '新对话' && incoming.role === 'user'
+                  ? incoming.content.slice(0, 24)
+                  : session.title
+              return { ...session, messages, title, updatedAt: Date.now() }
+            }),
+            ...(isActive
+              ? {
+                  streamingText: '',
+                  // 回答已落盘后清空临时思考，避免跑到列表末尾
+                  thinkingText:
+                    incoming.role === 'assistant' ? '' : state.thinkingText
+                }
+              : {})
+          }
+        })
         return
       }
 
@@ -634,6 +688,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   running: false,
                   awaitUserReason: null,
                   streamingText: '',
+                  thinkingText: '',
                   activeToolName: null,
                   activeModelLabel: null
                 }
@@ -645,15 +700,29 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           const diskSession = await querySession(event.sessionId)
           if (!diskSession) return
           set((state) => {
+            // 磁盘回灌时保留本轮已合并到消息上的 thinkingContent
+            const local = state.sessions.find((s) => s.id === event.sessionId)
+            const mergedMessages = diskSession.messages.map((diskMsg) => {
+              const localMsg = local?.messages.find((m) => m.id === diskMsg.id)
+              if (
+                localMsg?.thinkingContent?.trim() &&
+                !diskMsg.thinkingContent?.trim()
+              ) {
+                return { ...diskMsg, thinkingContent: localMsg.thinkingContent }
+              }
+              return diskMsg
+            })
+            const diskWithThinking = { ...diskSession, messages: mergedMessages }
             const sessions = querySessionsWithStaleRunningPaused(
-              patchSession(state.sessions, event.sessionId, () => diskSession),
+              patchSession(state.sessions, event.sessionId, () => diskWithThinking),
               state.runningSessionIds
             )
             const active = sessions.find((s) => s.id === state.activeSessionId)
             const running = syncActiveRunning(state.activeSessionId, state.runningSessionIds)
             return {
               sessions,
-              canResume: queryCanResumeFromSession(active, running)
+              canResume: queryCanResumeFromSession(active, running),
+              ...(event.sessionId === state.activeSessionId ? { thinkingText: '' } : {})
             }
           })
         })()
@@ -688,6 +757,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
               ? {
                   running: false,
                   awaitUserReason: null,
+                  streamingText: '',
+                  thinkingText: '',
                   activeToolName: null,
                   activeModelLabel: null
                 }
