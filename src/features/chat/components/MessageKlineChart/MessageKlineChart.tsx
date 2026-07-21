@@ -34,31 +34,35 @@ echarts.use([
 
 interface MessageKlineChartProps {
   charts: StockChartPayload[]
-  /** 兼容旧字段；不再触发自动轮询，仅影响默认展示周期 */
+  /** 兼容旧字段；不再触发自动轮询 */
   liveRefresh?: boolean
 }
 
 function queryBarsForRange(chart: StockChartPayload, range: StockKlineRange): StockKlineBar[] {
+  // 优先多周期预加载表；仅当当前主周期就是目标 range 时才用 bars
   if (chart.rangeBars?.[range]?.length) return chart.rangeBars[range]!
-  if (chart.range === range) return chart.bars
-  return chart.bars
+  if (chart.range === range && chart.bars.length > 0) return chart.bars
+  return []
 }
 
 function queryAvailableRanges(chart: StockChartPayload): StockKlineRange[] {
   const ranges: StockKlineRange[] = []
   const candidates: StockKlineRange[] = ['today', 'week', 'month']
   for (const r of candidates) {
-    if (r === 'custom' && !chart.startDate && !chart.rangeBars?.custom) continue
-    const bars = queryBarsForRange(chart, r)
-    if (bars.length > 0) ranges.push(r)
+    if (queryBarsForRange(chart, r).length > 0) ranges.push(r)
   }
+  // 自定义区间：有自定义 bars 或主周期为 custom
+  if (queryBarsForRange(chart, 'custom').length > 0) ranges.push('custom')
   return ranges.length ? ranges : [chart.range ?? 'today']
 }
 
-/** 优先当天实时图：有 today 数据或开启 live 时默认今天 */
-function queryDefaultRange(chart: StockChartPayload, liveRefresh: boolean): StockKlineRange {
+/**
+ * 默认展示周期：只要有当天数据就选当天，
+ * 不再依赖 liveRefresh / payload.range（工具主周期可能是本周/本月）。
+ */
+function queryDefaultRange(chart: StockChartPayload): StockKlineRange {
   const ranges = queryAvailableRanges(chart)
-  if (liveRefresh && ranges.includes('today')) return 'today'
+  if (ranges.includes('today')) return 'today'
   if (ranges.includes(chart.range)) return chart.range
   return ranges[0] ?? 'today'
 }
@@ -105,12 +109,11 @@ function queryFormatClock(ts?: number): string {
  * 聊天内 A 股 K 线：默认当天实时预览、周期切换、买卖标记、综合分析。
  */
 export function MessageKlineChart({
-  charts,
-  liveRefresh = false
+  charts
 }: MessageKlineChartProps): React.ReactElement | null {
   const [activeSymbol, setActiveSymbol] = useState(charts[0]?.symbol ?? '')
   const [activeRange, setActiveRange] = useState<StockKlineRange>(() =>
-    charts[0] ? queryDefaultRange(charts[0], liveRefresh) : 'today'
+    charts[0] ? queryDefaultRange(charts[0]) : 'today'
   )
   const [chartData, setChartData] = useState<StockChartPayload[]>(charts)
   const [refreshing, setRefreshing] = useState(false)
@@ -156,17 +159,17 @@ export function MessageKlineChart({
     setChartData(charts)
     if (charts[0]) {
       setActiveSymbol(charts[0].symbol)
-      setActiveRange(queryDefaultRange(charts[0], liveRefresh))
+      setActiveRange(queryDefaultRange(charts[0]))
     }
-  }, [charts, liveRefresh])
+  }, [charts])
 
   useEffect(() => {
     if (!chartData.length) return
     if (!chartData.some((c) => c.symbol === activeSymbol)) {
       setActiveSymbol(chartData[0].symbol)
-      setActiveRange(queryDefaultRange(chartData[0], liveRefresh))
+      setActiveRange(queryDefaultRange(chartData[0]))
     }
-  }, [chartData, activeSymbol, liveRefresh])
+  }, [chartData, activeSymbol])
 
   /**
    * 手动刷新：走 query_ashare_realtime_analysis 同源 IPC，
@@ -474,7 +477,7 @@ export function MessageKlineChart({
             onChange={(key) => {
               setActiveSymbol(key)
               const next = chartData.find((c) => c.symbol === key)
-              if (next) setActiveRange(queryDefaultRange(next, liveRefresh))
+              if (next) setActiveRange(queryDefaultRange(next))
             }}
           />
         ) : null}
