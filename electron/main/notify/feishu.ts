@@ -84,6 +84,13 @@ export async function postFeishuWebhookText(opts: {
   })
 }
 
+/** 飞书 post 行内 @ 元素（可选 user_name 用于展示） */
+export type FeishuPostAtElement = {
+  tag: 'at'
+  user_id: string
+  user_name?: string
+}
+
 /** 飞书 post 富文本正文（zh_cn 区块） */
 export type FeishuPostLocaleBody = {
   title: string
@@ -91,9 +98,27 @@ export type FeishuPostLocaleBody = {
     Array<
       | { tag: 'text'; text: string }
       | { tag: 'a'; text: string; href: string }
-      | { tag: 'at'; user_id: string }
+      | FeishuPostAtElement
     >
   >
+}
+
+/**
+ * 组装飞书 post 富文本 Webhook 请求体（与官方文档结构一致）。
+ * @see https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot
+ */
+export function queryFeishuPostWebhookContent(
+  post: FeishuPostLocaleBody,
+  locale: 'zh_cn' | 'en_us' = 'zh_cn'
+): Record<string, unknown> {
+  return {
+    post: {
+      [locale]: {
+        title: post.title,
+        content: post.content
+      }
+    }
+  }
 }
 
 /**
@@ -111,11 +136,7 @@ export async function postFeishuWebhookPost(opts: {
     webhookUrl: opts.webhookUrl,
     secret: opts.secret,
     msgType: 'post',
-    content: {
-      post: {
-        [locale]: opts.post
-      }
-    }
+    content: queryFeishuPostWebhookContent(opts.post, locale)
   })
 }
 

@@ -3,7 +3,6 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  scroll-behavior: smooth;
   display: flex;
   flex-direction: column;
   gap: 16px;

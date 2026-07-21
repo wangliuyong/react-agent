@@ -1,5 +1,6 @@
 import type { ChatMessage, TaskItem } from '@shared/types'
 import { Fragment } from 'react'
+import { useElementStickToBottom } from '@/components/VirtualList'
 import { queryAgentPhase, queryAgentStatusLabel } from '../../utils/agent-status'
 import { ChatMarkdown } from '../ChatMarkdown'
 import { MessageRichContent, queryMediaCountLabel } from '../MessageRichContent'
@@ -77,15 +78,13 @@ export function MessageList({
   const showThinking = thinkingText.trim().length > 0 || thinkingInProgress
   const displayStreamingText = thinkingInProgress ? '' : streamingText
 
-  /** 新消息 / 流式输出 / 思考过程时在 .list 层自动滚到底部 */
-  useEffect(() => {
-    const listEl = listRef.current
-    if (!listEl) return
-    listEl.scrollTo({ top: listEl.scrollHeight, behavior: 'smooth' })
-  }, [messages.length, streamingText, thinkingText, running, activeToolName])
+  /** 新消息 / 流式输出 / 任务状态变化时在 .list 层贴底跟随（用户上滑阅读时不抢滚动） */
+  const { onScroll } = useElementStickToBottom(listRef, {
+    deps: [messages.length, streamingText, thinkingText, running, activeToolName, tasks]
+  })
 
   return (
-    <div ref={listRef} className={styles.list}>
+    <div ref={listRef} className={styles.list} onScroll={onScroll}>
       {tasks.length > 0 && (
         <div className={styles.taskInline}>
           {tasks.map((t) => (

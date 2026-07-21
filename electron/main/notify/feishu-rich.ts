@@ -182,9 +182,13 @@ export function markdownToFeishuPost(
   options: FeishuRichTextOptions = {}
 ): FeishuPostLocaleBody {
   const lines = markdownToFeishuLines(markdown)
-  const rows: FeishuPostInlineElement[][] = lines
-    .filter((line) => line.trim())
-    .map((line) => parseMarkdownLineToPostElements(line))
+  const rows: FeishuPostInlineElement[][] = lines.map((line) => {
+    // 空行 → 单独段落（飞书 post 每段为一个 []）
+    if (!line.trim()) {
+      return [{ tag: 'text', text: ' ' }]
+    }
+    return parseMarkdownLineToPostElements(line)
+  })
 
   // 首行前置 @ 提及
   if (options.atUserId) {

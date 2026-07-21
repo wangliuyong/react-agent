@@ -113,6 +113,56 @@ describe('queryFeishuMsgType', () => {
   })
 })
 
+describe('postFeishuWebhookPost', () => {
+  beforeEach(() => {
+    queryHttpResponseMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ code: 0, msg: 'success' })
+    })
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('富文本请求体结构与飞书官方文档一致', async () => {
+    const { postFeishuWebhookPost } = await import('../electron/main/notify/feishu')
+    await postFeishuWebhookPost({
+      webhookUrl: 'https://open.feishu.cn/open-apis/bot/v2/hook/test',
+      post: {
+        title: '项目更新通知',
+        content: [
+          [
+            { tag: 'text', text: '项目有更新: ' },
+            { tag: 'a', text: '请查看', href: 'http://www.example.com/' },
+            { tag: 'at', user_id: 'ou_18eac8xxxxxxxx17ad4f02e8bbbb' }
+          ]
+        ]
+      }
+    })
+
+    const call = queryHttpResponseMock.mock.calls[0]
+    const body = call[1].body as Record<string, unknown>
+    expect(body).toEqual({
+      msg_type: 'post',
+      content: {
+        post: {
+          zh_cn: {
+            title: '项目更新通知',
+            content: [
+              [
+                { tag: 'text', text: '项目有更新: ' },
+                { tag: 'a', text: '请查看', href: 'http://www.example.com/' },
+                { tag: 'at', user_id: 'ou_18eac8xxxxxxxx17ad4f02e8bbbb' }
+              ]
+            ]
+          }
+        }
+      }
+    })
+  })
+})
+
 describe('postFeishuWebhookImage / postFeishuWebhookShareChat', () => {
   beforeEach(() => {
     queryHttpResponseMock.mockResolvedValue({
