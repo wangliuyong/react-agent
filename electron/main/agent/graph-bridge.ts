@@ -292,6 +292,12 @@ function syncNewMessagesToSession(
             ? ai.content.map((c) => ('text' in c ? String(c.text) : '')).join('')
             : String(ai.content ?? '')
 
+      // 流式 callback 未推送时，从落盘消息兜底展示 reasoning_content
+      const reasoningRaw = ai.additional_kwargs?.reasoning_content
+      if (typeof reasoningRaw === 'string' && reasoningRaw.trim()) {
+        emitAgentEvent({ type: 'thinking_delta', sessionId, delta: reasoningRaw })
+      }
+
       if (ai.tool_calls?.length) {
         for (const tc of ai.tool_calls) {
           emitAgentEvent({

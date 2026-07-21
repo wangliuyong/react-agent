@@ -561,6 +561,43 @@ export function queryModelCategory(modelId: string): string {
   return '通用模型'
 }
 
+/**
+ * 判断模型是否支持 thinking / reasoning_content 开关。
+ * 覆盖 DeepSeek 官方、百炼托管 DeepSeek、Qwen3 混合思考等兼容 OpenAI 的模型。
+ */
+export function queryModelSupportsThinking(model: string): boolean {
+  const id = model.trim().toLowerCase()
+  if (!id) return false
+  if (/deepseek/.test(id)) return true
+  if (/(reasoner|reasoning|thinking|r1|qwq)/.test(id)) return true
+  if (/^qwen3/.test(id)) return true
+  if (/kimi-k2/i.test(id)) return true
+  if (/^glm-/.test(id)) return true
+  return false
+}
+
+/**
+ * 按供应商与 thinkingEnabled 生成模型 thinking 参数（写入 ChatOpenAI.modelKwargs）。
+ * - DeepSeek 官方 API：thinking.type = enabled | disabled
+ * - 百炼 / 兼容网关：enable_thinking = true | false（DeepSeek V4、Qwen3 等）
+ */
+export function queryThinkingModelKwargs(
+  settings: Pick<AppSettings, 'thinkingEnabled'>,
+  model: string,
+  provider: ModelProvider
+): Record<string, unknown> | undefined {
+  if (!queryModelSupportsThinking(model)) return undefined
+
+  if (provider === 'deepseek') {
+    return {
+      thinking: { type: settings.thinkingEnabled ? 'enabled' : 'disabled' }
+    }
+  }
+
+  // 百炼兼容模式、OpenAI 兼容网关等走 enable_thinking
+  return { enable_thinking: settings.thinkingEnabled }
+}
+
 /** 下拉展示：名称 · 类型 — 说明 */
 export function queryModelOptionDisplayLabel(option: ModelOption): string {
   const category = option.category || queryModelCategory(option.value)

@@ -310,6 +310,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       ),
       canResume: false,
       streamingText: '',
+      thinkingText: '',
       activeToolName: null,
       activeModelLabel: null
     }))

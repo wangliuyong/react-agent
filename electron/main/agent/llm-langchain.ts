@@ -1,6 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai'
 import {
   queryProviderOption,
+  queryThinkingModelKwargs,
   type AppSettings,
   type ModelCapability,
   type ModelRoleKey
@@ -25,16 +26,16 @@ export function queryChatModelConfig(
     throw new Error(`未配置 ${provider.apiKeyLabel}（连接：${connection.label}），请先在设置中填写`)
   }
   /**
-   * DeepSeek V4 默认 thinking=enabled；工具多轮必须回传 reasoning_content。
-   * ChatOpenAI 出站消息不会带上该字段，ReAct 第二轮会 HTTP 400。
-   * 这里用 thinkingEnabled 开关控制 whether 注入 thinking 参数：
-   * - thinkingEnabled=false：显式关闭，避免第二轮缺少 reasoning_content
-   * - thinkingEnabled=true：允许模型输出 reasoning_content（可能触发上面的第二轮问题）
+   * DeepSeek / Qwen3 等模型默认可能开启 thinking；工具多轮若缺少 reasoning_content 会 HTTP 400。
+   * thinkingEnabled 开关通过 queryThinkingModelKwargs 按供应商注入正确参数：
+   * - 关闭：显式 disabled / enable_thinking=false，保证 ReAct 多轮稳定
+   * - 开启：显式 enabled / enable_thinking=true，并配合 stream-callbacks 展示推理过程
    */
-  const modelKwargs =
-    connection.provider === 'deepseek' && !settings.thinkingEnabled
-      ? { thinking: { type: 'disabled' as const } }
-      : undefined
+  const modelKwargs = queryThinkingModelKwargs(
+    settings,
+    connection.model,
+    connection.provider
+  )
 
   return {
     apiKey: connection.apiKey,
