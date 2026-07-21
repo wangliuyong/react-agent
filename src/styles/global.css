@@ -101,6 +101,15 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
+/**
+ * antd App 会在 #root 下插入 .ant-app 包裹层。
+ * 必须承接 100% 高度，否则壳层 height:100% 失效，整页（顶栏+消息+输入框）一起滚动。
+ */
+#root > .ant-app {
+  height: 100%;
+  overflow: hidden;
+}
+
 /* macOS 标题栏拖拽区域 */
 .app-drag {
   -webkit-app-region: drag;
