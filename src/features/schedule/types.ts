@@ -21,6 +21,8 @@ export function createEmptyScheduledTask(): ScheduledTask {
     publishPlanId: undefined,
     customPrompt: '',
     notifyChannels: [],
+    /** 默认后台执行，不打扰主聊天窗口 */
+    runInBackground: true,
     runCount: 0,
     createdAt: now,
     updatedAt: now

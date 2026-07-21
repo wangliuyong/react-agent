@@ -3,6 +3,7 @@ import type { ScheduledTask } from '../shared/types'
 import {
   formatScheduledTaskRunCount,
   incrementScheduledTaskRunCount,
+  queryRunInBackground,
   queryScheduledTaskRunCount
 } from '../shared/schedule-utils'
 
@@ -42,5 +43,11 @@ describe('schedule run count', () => {
     expect(formatScheduledTaskRunCount(createTask({ runCount: 5 }))).toBe('5 次')
     expect(formatScheduledTaskRunCount(createTask({ repeat: 'once', runCount: 0 }))).toBe('0/1 次')
     expect(formatScheduledTaskRunCount(createTask({ repeat: 'once', runCount: 1 }))).toBe('1/1 次')
+  })
+
+  it('queryRunInBackground 缺省为 true，仅显式 false 时关闭', () => {
+    expect(queryRunInBackground(createTask())).toBe(true)
+    expect(queryRunInBackground(createTask({ runInBackground: true }))).toBe(true)
+    expect(queryRunInBackground(createTask({ runInBackground: false }))).toBe(false)
   })
 })

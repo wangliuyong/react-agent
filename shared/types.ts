@@ -1104,6 +1104,11 @@ export interface ScheduledTask {
   lastRunStatus?: ScheduleRunStatus
   /** 最近一次执行创建的会话，便于跳转查看 */
   lastSessionId?: string
+  /**
+   * 后台执行：开启时不推送 session_started、不跳转聊天，仅在卡片展示执行中状态。
+   * 缺省为 true（兼容旧数据）。
+   */
+  runInBackground?: boolean
   createdAt: number
   updatedAt: number
 }

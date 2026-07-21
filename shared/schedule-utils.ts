@@ -105,6 +105,14 @@ export function incrementScheduledTaskRunCount(task: ScheduledTask): number {
   return queryScheduledTaskRunCount(task) + 1
 }
 
+/**
+ * 是否后台执行（不向聊天窗口推送会话）。
+ * 缺省 true，与产品默认「静默跑任务」一致。
+ */
+export function queryRunInBackground(task: ScheduledTask): boolean {
+  return task.runInBackground !== false
+}
+
 /** 定时任务卡片「执行次数」展示文案 */
 export function formatScheduledTaskRunCount(task: ScheduledTask): string {
   const count = queryScheduledTaskRunCount(task)

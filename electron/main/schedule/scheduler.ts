@@ -1,6 +1,10 @@
 import type { ScheduledTask, Session } from '../../../shared/types'
 import { IpcChannels } from '../../../shared/types'
-import { computeNextRunAt, incrementScheduledTaskRunCount } from '../../../shared/schedule-utils'
+import {
+  computeNextRunAt,
+  incrementScheduledTaskRunCount,
+  queryRunInBackground
+} from '../../../shared/schedule-utils'
 import { formatRunSessionTitle } from '../../../shared/session-run-title'
 import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
 import { queryPublishPlan } from '../store/plans'
@@ -53,10 +57,15 @@ function createScheduleSession(task: ScheduledTask): Session {
   }
 }
 
-/** 落盘并通知 UI：每次触发使用全新会话，不复用 lastSessionId */
-function postScheduleRunSession(session: Session): void {
+/**
+ * 落盘并可选通知聊天 UI。
+ * 后台执行时仅写盘，不向渲染进程推送 session_started，避免打断当前对话。
+ */
+function postScheduleRunSession(session: Session, silent: boolean): void {
   postSession(session)
-  emitSessionStarted(session)
+  if (!silent) {
+    emitSessionStarted(session)
+  }
 }
 
 /**
@@ -175,9 +184,10 @@ export async function triggerScheduledTask(
       return markTaskFailed({ ...task, runCount: incrementScheduledTaskRunCount(task) })
     }
 
+    const runInBackground = queryRunInBackground(task)
     markScheduleTaskRunning(taskId)
     const session = createScheduleSession(task)
-    postScheduleRunSession(session)
+    postScheduleRunSession(session, runInBackground)
     registerScheduleSession(session.id, taskId)
 
     const running: ScheduledTask = {
@@ -204,9 +214,10 @@ export async function triggerScheduledTask(
     return markTaskFailed({ ...task, runCount: incrementScheduledTaskRunCount(task) })
   }
 
+  const runInBackground = queryRunInBackground(task)
   markScheduleTaskRunning(taskId)
   const session = createScheduleSession(task)
-  postScheduleRunSession(session)
+  postScheduleRunSession(session, runInBackground)
   registerScheduleSession(session.id, taskId)
 
   const running: ScheduledTask = {
@@ -221,6 +232,7 @@ export async function triggerScheduledTask(
   emitScheduleUpdate()
 
   try {
+    // session 已落盘；postRunWorkflow 仅在会话不存在时 emit，此处保持与 silent 一致
     await postRunWorkflow(workflowId, { session })
   } catch {
     return markTaskFailed({ ...running, lastRunStatus: 'failed' })

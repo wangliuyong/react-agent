@@ -5,6 +5,7 @@ import {
   formatNextRunAt,
   formatScheduleSummary,
   formatScheduledTaskRunCount,
+  queryRunInBackground,
   SCHEDULE_REPEAT_OPTIONS,
   WEEKDAY_OPTIONS
 } from '@shared/schedule-utils'
@@ -35,6 +36,8 @@ interface TaskFormValues {
   customPrompt?: string
   /** 自定义指令任务成功后自动推送的通知渠道 */
   notifyChannels?: PublishChannelId[]
+  /** 后台执行：不跳转聊天、卡片展示 loading */
+  runInBackground: boolean
   enabled: boolean
 }
 
@@ -85,6 +88,7 @@ function taskToFormValues(task: ScheduledTask): TaskFormValues {
     workflowId: task.workflowId,
     customPrompt: task.customPrompt,
     notifyChannels: task.notifyChannels ?? [],
+    runInBackground: queryRunInBackground(task),
     enabled: task.enabled
   }
 }
@@ -104,6 +108,7 @@ function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): Sched
     workflowId: values.actionType === 'workflow' ? values.workflowId : undefined,
     customPrompt: values.actionType === 'custom_prompt' ? values.customPrompt?.trim() : undefined,
     notifyChannels: values.notifyChannels ?? [],
+    runInBackground: values.runInBackground,
     enabled: values.enabled
   }
 }
@@ -338,6 +343,14 @@ function TaskEditModal({
             options={notifyChannelOptions}
           />
         </Form.Item>
+        <Form.Item
+          label="后台执行"
+          name="runInBackground"
+          valuePropName="checked"
+          extra="开启后任务在后台运行，执行期间卡片显示加载状态，不会跳转到聊天窗口"
+        >
+          <Switch />
+        </Form.Item>
         <Form.Item label="启用" name="enabled" valuePropName="checked">
           <Switch />
         </Form.Item>
@@ -395,9 +408,15 @@ function TaskCard({
 
   return (
     <article
-      className={styles.taskCard}
+      className={`${styles.taskCard}${isExecuting ? ` ${styles.taskCardExecuting}` : ''}`}
       style={{ '--card-index': index } as CSSProperties}
     >
+      {isExecuting ? (
+        <div className={styles.executingOverlay} aria-live="polite" aria-busy="true">
+          <Spin size="small" />
+          <span className={styles.executingLabel}>执行中…</span>
+        </div>
+      ) : null}
       <div className={styles.taskCardHeader}>
         <div className={styles.taskCardTitleRow}>
           <span className={styles.taskCardTitle}>{task.title || '未命名任务'}</span>
@@ -594,6 +613,12 @@ export function SchedulePage(): React.ReactElement {
       message.error('执行失败，请检查任务配置')
       return
     }
+
+    if (queryRunInBackground(task)) {
+      message.success('任务已在后台执行')
+      return
+    }
+
     await hydrateSessions()
     setView('chat')
     if (result.lastSessionId) {

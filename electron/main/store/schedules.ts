@@ -8,7 +8,7 @@ import {
 import { join } from 'path'
 import type { ScheduledTask } from '../../../shared/types'
 import { createBuiltinScheduledTasks } from '../../../shared/builtin-seeds'
-import { computeNextRunAt } from '../../../shared/schedule-utils'
+import { computeNextRunAt, queryRunInBackground } from '../../../shared/schedule-utils'
 import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
 import { postInitPublishPlans } from './plans'
 import { getSchedulesDir } from './paths'
@@ -18,6 +18,8 @@ export function normalizeScheduledTask(task: ScheduledTask): ScheduledTask {
   const next = {
     ...task,
     notifyChannels: normalizeNotifyChannelIds(task.notifyChannels),
+    /** 旧任务无字段时默认后台执行 */
+    runInBackground: queryRunInBackground(task),
     updatedAt: Date.now(),
     nextRunAt: computeNextRunAt(task) ?? undefined
   }
