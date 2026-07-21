@@ -1,22 +1,16 @@
-import type { CSSProperties, ReactNode } from 'react'
-import type { ChatMessage, MessageRole, Session, SessionType } from '@shared/types'
+import type { CSSProperties } from 'react'
+import type { Session, SessionType } from '@shared/types'
 import { querySessionType, useSessionStore } from '@/features/chat'
 import { SESSION_TYPE_FILTER_OPTIONS, SESSION_TYPE_ICONS, type SessionTypeFilter } from '@/layouts/AppShell/config/session-type-icons'
 import { queryLatestWorkflowRunBySession } from '../../api'
 import type { NodeExecutionContext, SessionContextSummary } from '../../types'
 import {
-  RELATED_MESSAGES_PURPOSE,
-  formatContextJson,
-  queryMessageRoleTooltip,
   queryNodeExecutionContexts,
   querySessionContextSummary,
-  querySessionTypeLabel,
-  queryTaskStatusColor,
-  queryTaskStatusLabel
+  querySessionTypeLabel
 } from '../../utils/sessionContext'
+import { SessionContextDrawer } from './SessionContextDrawer'
 import styles from './HistoryConversations.module.css'
-
-const { Text } = Typography
 
 /** 同步到 BusinessPanel 顶栏的元信息 */
 export interface HistoryConversationsHeaderMeta {
@@ -110,31 +104,6 @@ function querySessionTypeTagClass(type: SessionType): string {
     default:
       return styles.typeTag_chat
   }
-}
-
-/** 角色名带 Tooltip；无说明时退化为纯文本 */
-function MessageRoleLabel({ role }: { role: MessageRole }): ReactNode {
-  const tip = queryMessageRoleTooltip(role)
-  if (!tip) return role
-  return (
-    <Tooltip title={tip} placement="topLeft">
-      <span className={styles.messageRoleHint} tabIndex={0}>
-        {role}
-      </span>
-    </Tooltip>
-  )
-}
-
-/** 关联消息行：角色（可悬停说明）· 工具名 · 时间 */
-function RelatedMessageMeta({ msg }: { msg: ChatMessage }): React.ReactElement {
-  return (
-    <div className={styles.messageRole}>
-      <MessageRoleLabel role={msg.role} />
-      {msg.toolName ? ` · ${msg.toolName}` : ''}
-      {' · '}
-      {formatTime(msg.createdAt)}
-    </div>
-  )
 }
 
 interface HistorySessionCardProps {
@@ -474,219 +443,13 @@ export function HistoryConversations({
         </footer>
       ) : null}
 
-      {/* 上下文详情抽屉 */}
-      <Drawer
-        title="对话上下文"
-        width={'68vw'}
+      <SessionContextDrawer
         open={drawerOpen}
+        loading={drawerLoading}
+        contextSummary={contextSummary}
+        nodeContexts={nodeContexts}
         onClose={() => setDrawerOpen(false)}
-        destroyOnClose
-        className={styles.contextDrawer}
-      >
-        <Spin spinning={drawerLoading}>
-          {contextSummary ? (
-            <>
-              <section className={styles.drawerSection}>
-                <h3 className={styles.sectionLabel}>会话信息</h3>
-                <div className={styles.metaGrid}>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>标题</span>
-                    <span className={styles.metaValue}>{contextSummary.session.title}</span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>会话 ID</span>
-                    <span className={styles.metaValue}>{contextSummary.session.id}</span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>类型</span>
-                    <span className={styles.metaValue}>
-                      {querySessionTypeLabel(querySessionType(contextSummary.session))}
-                    </span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>Token 用量</span>
-                    <span className={styles.metaValue}>
-                      {contextSummary.session.tokenUsed.toLocaleString('zh-CN')}
-                    </span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>消息数</span>
-                    <span className={styles.metaValue}>{contextSummary.messageCount}</span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>任务节点</span>
-                    <span className={styles.metaValue}>{contextSummary.taskCount}</span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>创建时间</span>
-                    <span className={styles.metaValue}>
-                      {formatTime(contextSummary.session.createdAt)}
-                    </span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}>更新时间</span>
-                    <span className={styles.metaValue}>
-                      {formatTime(contextSummary.session.updatedAt)}
-                    </span>
-                  </div>
-                </div>
-
-                {contextSummary.workflowRun ? (
-                  <>
-                    <h3 className={styles.sectionLabel}>工作流运行</h3>
-                    <div className={styles.metaGrid}>
-                      <div className={styles.metaItem}>
-                        <span className={styles.metaLabel}>Run ID</span>
-                        <span className={styles.metaValue}>{contextSummary.workflowRun.id}</span>
-                      </div>
-                      <div className={styles.metaItem}>
-                        <span className={styles.metaLabel}>状态</span>
-                        <span className={styles.metaValue}>{contextSummary.workflowRun.status}</span>
-                      </div>
-                      <div className={styles.metaItem}>
-                        <span className={styles.metaLabel}>当前节点</span>
-                        <span className={styles.metaValue}>
-                          {contextSummary.workflowRun.cursorNodeId ?? '无'}
-                        </span>
-                      </div>
-                      <div className={styles.metaItem}>
-                        <span className={styles.metaLabel}>Workflow ID</span>
-                        <span className={styles.metaValue}>
-                          {contextSummary.workflowRun.workflowId}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-
-                <h3 className={styles.sectionLabel}>Workflow Context（全局）</h3>
-                <pre className={styles.contextPre}>
-                  {contextSummary.workflowContextJson || '{}'}
-                </pre>
-              </section>
-
-              <section className={styles.drawerSection}>
-                <h3 className={styles.sectionLabel}>节点执行上下文</h3>
-                {nodeContexts.length === 0 ? (
-                  <Text type="secondary" className={styles.emptyHint}>
-                    暂无任务节点
-                  </Text>
-                ) : (
-                  <Collapse
-                    className={styles.nodePanel}
-                    defaultActiveKey={[]}
-                    items={nodeContexts.map((node) => ({
-                      key: node.task.id,
-                      label: (
-                        <div className={styles.nodeHeader}>
-                          <span className={styles.nodeTitle}>{node.task.title}</span>
-                          <Tag color={queryTaskStatusColor(node.task.status)}>
-                            {queryTaskStatusLabel(node.task.status)}
-                          </Tag>
-                          <Tag>{node.relatedMessages.length} 条消息</Tag>
-                        </div>
-                      ),
-                      children: (
-                        <>
-                          <div className={styles.metaItem} style={{ marginBottom: 10 }}>
-                            <span className={styles.metaLabel}>节点 ID</span>
-                            <span className={styles.metaValue}>{node.task.id}</span>
-                          </div>
-
-                          {node.skipped ? (
-                            <Text type="secondary" className={styles.emptyHint}>
-                              该节点已跳过
-                              {typeof node.nodeOutput.reason === 'string'
-                                ? `：${node.nodeOutput.reason}`
-                                : ''}
-                            </Text>
-                          ) : null}
-
-                          <h4 className={styles.sectionLabel}>入参</h4>
-                          <pre className={styles.contextPre}>
-                            {node.nodeInputJson || '{}'}
-                          </pre>
-
-                          <h4 className={styles.sectionLabel}>出参</h4>
-                          <pre className={styles.contextPre}>
-                            {node.nodeOutputJson || '{}'}
-                          </pre>
-
-                          {node.notifyDebug ? (
-                            <>
-                              <h4 className={styles.sectionLabel}>渠道通知结果</h4>
-                              <div className={styles.metaItem} style={{ marginBottom: 10 }}>
-                                <span className={styles.metaLabel}>发送结果</span>
-                                <span className={styles.metaValue}>{node.notifyDebug.summary}</span>
-                              </div>
-                              {node.notifyDebug.deduped ? (
-                                <Text type="secondary" className={styles.emptyHint}>
-                                  本次命中短时去重，未实际发起 HTTP 请求
-                                </Text>
-                              ) : null}
-                              {node.notifyDebug.requestPath ? (
-                                <>
-                                  <h4 className={styles.sectionLabel}>请求路径</h4>
-                                  <pre className={styles.contextPre}>{node.notifyDebug.requestPath}</pre>
-                                </>
-                              ) : null}
-                              {node.notifyDebug.requestHeaders &&
-                              Object.keys(node.notifyDebug.requestHeaders).length > 0 ? (
-                                <>
-                                  <h4 className={styles.sectionLabel}>请求头</h4>
-                                  <pre className={styles.contextPre}>
-                                    {formatContextJson(node.notifyDebug.requestHeaders)}
-                                  </pre>
-                                </>
-                              ) : null}
-                              {node.notifyDebug.requestBody ? (
-                                <>
-                                  <h4 className={styles.sectionLabel}>请求体</h4>
-                                  <pre className={styles.contextPre}>
-                                    {formatContextJson(node.notifyDebug.requestBody)}
-                                  </pre>
-                                </>
-                              ) : null}
-                            </>
-                          ) : null}
-
-                          <h4 className={styles.sectionLabel}>Context 切片</h4>
-                          <Text type="secondary" className={styles.emptyHint} style={{ marginBottom: 8 }}>
-                            节点执行时可用的 workflow context 快照
-                          </Text>
-                          <pre className={styles.contextPre}>{node.contextJson || '{}'}</pre>
-
-                          <h4 className={styles.sectionLabel}>
-                            <Tooltip title={RELATED_MESSAGES_PURPOSE} placement="topLeft">
-                              <span className={styles.sectionLabelHint} tabIndex={0}>
-                                关联消息
-                              </span>
-                            </Tooltip>
-                          </h4>
-                          {node.relatedMessages.length === 0 ? (
-                            <Text type="secondary" className={styles.emptyHint}>
-                              未匹配到与该节点标题相关的消息
-                            </Text>
-                          ) : (
-                            <div className={styles.messageList}>
-                              {node.relatedMessages.map((msg) => (
-                                <div key={msg.id} className={styles.messageItem}>
-                                  <RelatedMessageMeta msg={msg} />
-                                  <pre className={styles.messageContent}>{msg.content}</pre>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )
-                    }))}
-                  />
-                )}
-              </section>
-            </>
-          ) : null}
-        </Spin>
-      </Drawer>
+      />
     </div>
   )
 }
