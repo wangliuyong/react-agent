@@ -1,3 +1,4 @@
+import { RobotOutlined } from '@ant-design/icons'
 import { Form, Input, Modal, Select } from 'antd'
 import { useEffect } from 'react'
 import type { ModelConnection, ModelRoleKey } from '@shared/types'
@@ -18,6 +19,8 @@ export interface EditRoleTaskModalProps {
   /** 当前映射的连接 id；空表示使用默认连接 */
   connectionId?: string
   promptOverride?: string
+  /** 按角色展示的输入提示，通常与默认设定文案一致 */
+  promptPlaceholder?: string
   connections: ModelConnection[]
   onCancel: () => void
   onSubmit: (payload: { connectionId?: string; promptOverride: string }) => void
@@ -34,6 +37,7 @@ export function EditRoleTaskModal({
   roleDescription,
   connectionId,
   promptOverride,
+  promptPlaceholder,
   connections,
   onCancel,
   onSubmit
@@ -88,12 +92,15 @@ export function EditRoleTaskModal({
         <Form.Item
           label="角色设定补充"
           name="promptOverride"
-          extra="追加到内置角色说明之后，用于约束语气、输出格式或业务偏好；留空则使用系统默认。"
+          extra="追加到内置角色说明之后，用于约束语气、输出格式或业务偏好；清空并保存可关闭该角色的补充设定。"
         >
           <TextArea
             className={styles.promptArea}
             rows={6}
-            placeholder="例如：回复保持简洁；优先使用数据支撑观点；禁止编造发布结果…"
+            placeholder={
+              promptPlaceholder ??
+              '追加角色语气、输出格式或业务偏好；留空则仅使用系统内置说明。'
+            }
             maxLength={4000}
             showCount
           />

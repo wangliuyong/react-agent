@@ -3,6 +3,7 @@ import {
   DEFAULT_CONNECTION_ID,
   DEFAULT_SETTINGS,
   queryMergeDefaultRoleModelMap,
+  queryMergeDefaultRolePromptOverrides,
   queryNormalizeCustomProviders,
   querySeedDefaultConnections,
   querySyncConnectionsProviderCredentials,
@@ -11,7 +12,6 @@ import {
   type ModelCapability,
   type ModelConnection,
   type ModelProvider,
-  type ModelRoleKey,
   type RoleModelMap,
   type RolePromptOverrides
 } from '../../../shared/types'
@@ -146,15 +146,11 @@ export function normalizeSettings(
     primary.id
   )
 
-  const rolePromptOverrides: RolePromptOverrides = {}
-  if (raw.rolePromptOverrides && typeof raw.rolePromptOverrides === 'object') {
-    for (const [role, text] of Object.entries(raw.rolePromptOverrides)) {
-      const trimmed = String(text ?? '').trim()
-      if (trimmed) {
-        rolePromptOverrides[role as ModelRoleKey] = trimmed
-      }
-    }
-  }
+  const rolePromptOverrides = queryMergeDefaultRolePromptOverrides(
+    raw.rolePromptOverrides && typeof raw.rolePromptOverrides === 'object'
+      ? (raw.rolePromptOverrides as RolePromptOverrides)
+      : undefined
+  )
 
   const draftForSync: AppSettings = {
     ...merged,

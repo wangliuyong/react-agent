@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_CONNECTION_IDS,
   DEFAULT_ROLE_MODEL_MAP,
+  DEFAULT_ROLE_PROMPT_OVERRIDES,
   queryBuildDefaultConnections,
   queryMergeDefaultRoleModelMap,
+  queryMergeDefaultRolePromptOverrides,
   queryModelConnection,
   queryProviderCredentialsFromSettings,
   querySeedDefaultConnections,
@@ -113,6 +115,33 @@ describe('默认多模型连接与角色映射', () => {
     expect(roles).toContain('supervisor')
     expect(roles).toContain('videographer')
     expect(roles).toContain('storyboard')
+  })
+
+  it('角色设定补充缺省用默认文案，用户自定义优先', () => {
+    const merged = queryMergeDefaultRolePromptOverrides({
+      writer: '回复保持简洁，优先 bullet 列表'
+    })
+    expect(merged.general).toBe(DEFAULT_ROLE_PROMPT_OVERRIDES.general)
+    expect(merged.writer).toBe('回复保持简洁，优先 bullet 列表')
+    expect(merged.researcher).toContain('高级资深的内容调研员')
+  })
+
+  it('显式空字符串表示用户关闭该角色默认设定', () => {
+    const merged = queryMergeDefaultRolePromptOverrides({
+      general: ''
+    })
+    expect(merged.general).toBe('')
+    expect(merged.writer).toBe(DEFAULT_ROLE_PROMPT_OVERRIDES.writer)
+  })
+
+  it('normalizeSettings 为新用户补齐默认角色设定', () => {
+    const settings = normalizeSettings({
+      apiKey: 'sk-test',
+      provider: 'dashscope'
+    })
+    expect(settings.rolePromptOverrides.general).toBe(DEFAULT_ROLE_PROMPT_OVERRIDES.general)
+    expect(settings.rolePromptOverrides.scriptwriter).toContain('短视频编剧')
+    expect(settings.rolePromptOverrides.video).toContain('AI 视听制作专家')
   })
 
   it('按供应商从连接解析凭证，供设置页切换供应商回显', () => {

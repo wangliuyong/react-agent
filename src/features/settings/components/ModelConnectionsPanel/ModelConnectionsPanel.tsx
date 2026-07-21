@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import {
   DEFAULT_CONNECTION,
+  DEFAULT_ROLE_PROMPT_OVERRIDES,
   queryAllProviderOptions,
   queryProviderCredentialsFromSettings,
   querySyncConnectionsProviderCredentials,
@@ -15,6 +16,7 @@ import { EditRoleTaskModal } from '../EditRoleTaskModal'
 import {
   queryCapabilityLabel,
   queryNewConnectionId,
+  queryRolePromptPlaceholder,
   ROLE_TASK_META
 } from './connectionPanelShared'
 import styles from './ModelConnectionsPanel.module.css'
@@ -254,7 +256,10 @@ export function ModelConnectionsPanel(): React.ReactElement {
         <div className={styles.roleGrid}>
           {ROLE_TASK_META.map((role, index) => {
             const mappedId = roleModelMap[role.value]
-            const hasOverride = Boolean(rolePromptOverrides[role.value]?.trim())
+            const currentPrompt = rolePromptOverrides[role.value]?.trim() ?? ''
+            const defaultPrompt = DEFAULT_ROLE_PROMPT_OVERRIDES[role.value]?.trim() ?? ''
+            // 与出厂默认不同才标「已自定义」，避免默认文案也显示自定义标签
+            const hasOverride = Boolean(currentPrompt) && currentPrompt !== defaultPrompt
 
             return (
               <button
@@ -311,6 +316,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
         roleDescription={editingRoleMeta?.description ?? ''}
         connectionId={editingRole ? roleModelMap[editingRole] : undefined}
         promptOverride={editingRole ? rolePromptOverrides[editingRole] : undefined}
+        promptPlaceholder={editingRole ? queryRolePromptPlaceholder(editingRole) : undefined}
         connections={connections}
         onCancel={() => setEditingRole(null)}
         onSubmit={({ connectionId, promptOverride }) => {
@@ -323,7 +329,8 @@ export function ModelConnectionsPanel(): React.ReactElement {
           })
           setRolePromptOverrides((prev) => {
             const next = { ...prev }
-            if (!promptOverride) delete next[editingRole]
+            // 显式写入空字符串，便于持久化时区分「用户已关闭默认」与「从未配置」
+            if (!promptOverride) next[editingRole] = ''
             else next[editingRole] = promptOverride
             return next
           })
