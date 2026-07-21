@@ -21,6 +21,7 @@ export function ChatPage(): React.ReactElement {
   const awaitUserReason = useSessionStore((s) => s.awaitUserReason)
   const streamingText = useSessionStore((s) => s.streamingText)
   const thinkingText = useSessionStore((s) => s.thinkingText)
+  const thinkingInProgress = useSessionStore((s) => s.thinkingInProgress)
   const activeToolName = useSessionStore((s) => s.activeToolName)
   const activeModelLabel = useSessionStore((s) => s.activeModelLabel)
   const sendMessage = useSessionStore((s) => s.sendMessage)
@@ -148,6 +149,7 @@ export function ChatPage(): React.ReactElement {
             messages={messages}
             streamingText={streamingText}
             thinkingText={thinkingText}
+            thinkingInProgress={thinkingInProgress}
             tasks={session?.tasks ?? []}
             running={running}
             activeToolName={activeToolName}

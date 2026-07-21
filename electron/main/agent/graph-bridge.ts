@@ -22,6 +22,7 @@ import { querySettings } from '../store/settings'
 import { querySession, postSession } from '../store/sessions'
 import { getMainWindow } from '../window'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
+import { queryWaitThinkingSettled, postResetThinkingGate } from './thinking-gate'
 import type { ToolContext } from './tools/types'
 import {
   buildChatGraph,
@@ -251,11 +252,11 @@ function sessionToLcMessages(session: Session): BaseMessage[] {
   return sanitizeMessagesForModel(trimMessagesToCharBudget(out))
 }
 
-function syncNewMessagesToSession(
+async function syncNewMessagesToSession(
   sessionId: string,
   prevCount: number,
   messages: BaseMessage[]
-): number {
+): Promise<number> {
   let session = querySession(sessionId)
   if (!session) return prevCount
   const fresh = messages.slice(prevCount)
@@ -263,6 +264,9 @@ function syncNewMessagesToSession(
     session = querySession(sessionId) ?? session
     if (!session) break
     if (HumanMessage.isInstance(msg)) continue
+
+    // 工具结果须在思考完成后才展示
+    await queryWaitThinkingSettled(sessionId)
 
     if (ToolMessage.isInstance(msg)) {
       const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
@@ -296,6 +300,13 @@ function syncNewMessagesToSession(
       const reasoningRaw = ai.additional_kwargs?.reasoning_content
       const thinkingContent =
         typeof reasoningRaw === 'string' && reasoningRaw.trim() ? reasoningRaw.trim() : undefined
+
+      // 等待流式推理结束，再推送工具调用与正式回答
+      await queryWaitThinkingSettled(sessionId)
+
+      if (thinkingContent) {
+        emitAgentEvent({ type: 'thinking_complete', sessionId })
+      }
 
       if (ai.tool_calls?.length) {
         for (const tc of ai.tool_calls) {
@@ -553,7 +564,7 @@ export async function runLangGraphChat(params: {
           }
           if (state && typeof state === 'object' && 'messages' in state) {
             const s = state as { messages: BaseMessage[]; activeAgent?: AgentRoleName }
-            synced = syncNewMessagesToSession(sessionId, synced, s.messages)
+            synced = await syncNewMessagesToSession(sessionId, synced, s.messages)
             if (s.activeAgent) {
               emitAgentEvent({ type: 'agent_role', sessionId, role: s.activeAgent })
             }
@@ -604,7 +615,9 @@ export async function runLangGraphChat(params: {
         return
       }
 
+      await queryWaitThinkingSettled(sessionId)
       emitAgentEvent({ type: 'done', sessionId, reason: 'end_turn' })
+      postResetThinkingGate(sessionId)
       return
     }
   } catch (e) {
@@ -726,7 +739,7 @@ export async function runLangGraphStep(params: {
             break
           }
           if (state && typeof state === 'object' && 'messages' in state) {
-            synced = syncNewMessagesToSession(
+            synced = await syncNewMessagesToSession(
               sessionId,
               synced,
               (state as { messages: BaseMessage[] }).messages
@@ -769,6 +782,8 @@ export async function runLangGraphStep(params: {
         })
         return 'error'
       }
+      await queryWaitThinkingSettled(sessionId)
+      postResetThinkingGate(sessionId)
       return 'completed'
     }
   } catch (e) {

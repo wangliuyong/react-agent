@@ -13,6 +13,8 @@ interface MessageListProps {
   streamingText: string
   /** 模型推理 / Agent 思考过程（流式增量拼接） */
   thinkingText?: string
+  /** 推理进行中时不展示工具/流式回答 */
+  thinkingInProgress?: boolean
   tasks: TaskItem[]
   running?: boolean
   activeToolName?: string | null
@@ -25,6 +27,7 @@ export function MessageList({
   messages,
   streamingText,
   thinkingText = '',
+  thinkingInProgress = false,
   tasks,
   running = false,
   activeToolName = null,
@@ -36,14 +39,14 @@ export function MessageList({
 
   const phase = queryAgentPhase({
     running,
-    streamingText,
-    activeToolName,
+    streamingText: thinkingInProgress ? '' : streamingText,
+    activeToolName: thinkingInProgress ? null : activeToolName,
     awaitUserReason
   })
   const statusLabel = queryAgentStatusLabel({
     running,
-    streamingText,
-    activeToolName,
+    streamingText: thinkingInProgress ? '' : streamingText,
+    activeToolName: thinkingInProgress ? null : activeToolName,
     awaitUserReason
   })
 
@@ -65,9 +68,14 @@ export function MessageList({
     : visible
 
   const showPending =
-    Boolean(trailingPlaceholderId) && running && !streamingText && phase !== 'idle'
+    Boolean(trailingPlaceholderId) &&
+    running &&
+    !streamingText &&
+    !thinkingInProgress &&
+    phase !== 'idle'
 
-  const showThinking = thinkingText.trim().length > 0
+  const showThinking = thinkingText.trim().length > 0 || thinkingInProgress
+  const displayStreamingText = thinkingInProgress ? '' : streamingText
 
   /** 新消息 / 流式输出 / 思考过程时在 .list 层自动滚到底部 */
   useEffect(() => {
@@ -182,11 +190,11 @@ export function MessageList({
         </div>
       ) : null}
 
-      {streamingText ? (
+      {displayStreamingText ? (
         <div className={`${styles.row} ${styles.rowAssistant}`}>
           <span className={styles.label}>灵犀</span>
           <div className={`${styles.assistantCard} ${styles.assistantCardStreaming}`}>
-            <AssistantBody content={streamingText} streaming />
+            <AssistantBody content={displayStreamingText} streaming />
           </div>
         </div>
       ) : null}

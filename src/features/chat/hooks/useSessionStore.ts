@@ -41,6 +41,12 @@ interface SessionState {
   streamingText: string
   /** 模型推理 / Agent 思考过程（流式增量拼接） */
   thinkingText: string
+  /** 推理进行中：为 true 时不展示工具调用/流式回答 */
+  thinkingInProgress: boolean
+  /** 思考未完成时暂存的流式回答 */
+  pendingStreamingText: string
+  /** 思考未完成时暂存的工具名 */
+  pendingToolName: string | null
   /** 当前正在执行的工具名（tool_start ~ tool_result 之间） */
   activeToolName: string | null
   /** 当前任务选用的模型连接展示名（model_switch 事件更新） */
@@ -189,6 +195,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   canResume: false,
   streamingText: '',
   thinkingText: '',
+  thinkingInProgress: false,
+  pendingStreamingText: '',
+  pendingToolName: null,
   activeToolName: null,
   activeModelLabel: null,
 
@@ -318,6 +327,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       canResume: false,
       streamingText: '',
       thinkingText: '',
+      thinkingInProgress: false,
+      pendingStreamingText: '',
+      pendingToolName: null,
       activeToolName: null,
       activeModelLabel: null
     }))
@@ -509,6 +521,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             return {
               runningSessionIds,
               thinkingText: s.thinkingText + event.delta,
+              thinkingInProgress: true,
               activeToolName: null,
               running: true
             }
@@ -540,12 +553,38 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         return
       }
 
+      if (event.type === 'thinking_complete') {
+        set((s) => {
+          if (event.sessionId !== activeId) {
+            return {
+              runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId)
+            }
+          }
+          return {
+            runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
+            thinkingInProgress: false,
+            streamingText: s.pendingStreamingText
+              ? `${s.streamingText}${s.pendingStreamingText}`
+              : s.streamingText,
+            pendingStreamingText: '',
+            activeToolName: s.pendingToolName,
+            pendingToolName: null
+          }
+        })
+        return
+      }
+
       if (event.type === 'text_delta') {
         set((s) => ({
           runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
           ...(event.sessionId === activeId
             ? {
-                streamingText: s.streamingText + event.delta,
+                streamingText: s.thinkingInProgress
+                  ? s.streamingText
+                  : s.streamingText + event.delta,
+                pendingStreamingText: s.thinkingInProgress
+                  ? s.pendingStreamingText + event.delta
+                  : s.pendingStreamingText,
                 thinkingText: s.running ? s.thinkingText : '',
                 activeToolName: null,
                 running: true
@@ -560,7 +599,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
           ...(event.sessionId === activeId
             ? {
-                activeToolName: event.toolName,
+                activeToolName: s.thinkingInProgress ? null : event.toolName,
+                pendingToolName: s.thinkingInProgress ? event.toolName : null,
                 streamingText: '',
                 thinkingText: s.running ? s.thinkingText : '',
                 running: true
@@ -689,6 +729,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   awaitUserReason: null,
                   streamingText: '',
                   thinkingText: '',
+                  thinkingInProgress: false,
+                  pendingStreamingText: '',
+                  pendingToolName: null,
                   activeToolName: null,
                   activeModelLabel: null
                 }

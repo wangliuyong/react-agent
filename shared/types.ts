@@ -1179,6 +1179,8 @@ export type AgentEvent =
   | { type: 'text_delta'; sessionId: string; delta: string }
   /** 模型推理 / Agent 步骤思考过程增量 */
   | { type: 'thinking_delta'; sessionId: string; delta: string }
+  /** 本轮推理结束，此后才展示工具调用/正式回答/推进工作流 */
+  | { type: 'thinking_complete'; sessionId: string }
   | { type: 'message'; sessionId: string; message: ChatMessage }
   | { type: 'tool_start'; sessionId: string; toolName: string; args: unknown }
   | { type: 'tool_result'; sessionId: string; toolName: string; result: string }

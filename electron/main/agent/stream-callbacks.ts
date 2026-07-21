@@ -8,6 +8,10 @@ import type { AIMessageChunk } from '@langchain/core/messages'
 import type { LLMResult } from '@langchain/core/outputs'
 import type { AgentEvent } from '../../../shared/types'
 import { getMainWindow } from '../window'
+import {
+  postThinkingReasoningComplete,
+  postThinkingReasoningStart
+} from './thinking-gate'
 
 /** 推送 Agent 事件到渲染进程 */
 function emitAgentEvent(event: AgentEvent): void {
@@ -40,11 +44,25 @@ function queryReasoningFromLlmResult(output: LLMResult): string {
 
 /**
  * 绑定到 ChatModel：LLM 流式输出时推送 thinking_delta。
- * 为什么：graph 使用 invoke + streaming:true 时，需靠 callback 才能把推理过程实时送到 UI。
+ * 推理结束后发 thinking_complete，后续工具/回答/工作流节点须等待该信号。
  */
 export function createSessionStreamHandler(sessionId: string): BaseCallbackHandler {
   /** 已推送的 reasoning 长度，用于 handleLLMEnd 兜底时避免重复 */
   let streamedReasoningLen = 0
+  let reasoningStarted = false
+
+  const postReasoningStart = (): void => {
+    if (reasoningStarted) return
+    reasoningStarted = true
+    postThinkingReasoningStart(sessionId)
+  }
+
+  const postReasoningEnd = (): void => {
+    if (!reasoningStarted) return
+    reasoningStarted = false
+    streamedReasoningLen = 0
+    postThinkingReasoningComplete(sessionId)
+  }
 
   return BaseCallbackHandler.fromMethods({
     handleLLMNewToken(
@@ -57,22 +75,28 @@ export function createSessionStreamHandler(sessionId: string): BaseCallbackHandl
     ) {
       const reasoningDelta = queryReasoningDelta(fields)
       if (reasoningDelta) {
+        postReasoningStart()
         streamedReasoningLen += reasoningDelta.length
         emitAgentEvent({ type: 'thinking_delta', sessionId, delta: reasoningDelta })
       }
-      // 主回答的 text_delta 仍由 graph-bridge 的 syncNewMessagesToSession 推送
       void token
     },
     handleLLMEnd(output: LLMResult) {
       const fullReasoning = queryReasoningFromLlmResult(output)
-      if (!fullReasoning) return
-      // 流式已完整推送则跳过，否则用最终结果补发（部分供应商非流式返回 reasoning）
-      if (fullReasoning.length <= streamedReasoningLen) return
-      const tail = fullReasoning.slice(streamedReasoningLen)
-      if (tail.trim()) {
-        emitAgentEvent({ type: 'thinking_delta', sessionId, delta: tail })
+      if (fullReasoning) {
+        if (!reasoningStarted) {
+          postReasoningStart()
+          emitAgentEvent({ type: 'thinking_delta', sessionId, delta: fullReasoning })
+          streamedReasoningLen = fullReasoning.length
+        } else if (fullReasoning.length > streamedReasoningLen) {
+          const tail = fullReasoning.slice(streamedReasoningLen)
+          if (tail.trim()) {
+            emitAgentEvent({ type: 'thinking_delta', sessionId, delta: tail })
+          }
+          streamedReasoningLen = fullReasoning.length
+        }
       }
-      streamedReasoningLen = fullReasoning.length
+      postReasoningEnd()
     }
   })
 }
@@ -81,5 +105,6 @@ export function createSessionStreamHandler(sessionId: string): BaseCallbackHandl
 export function emitThinkingStep(sessionId: string, line: string): void {
   const trimmed = line.trim()
   if (!trimmed) return
+  postThinkingReasoningStart(sessionId)
   emitAgentEvent({ type: 'thinking_delta', sessionId, delta: `${trimmed}\n` })
 }
