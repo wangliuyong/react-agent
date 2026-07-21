@@ -5,7 +5,9 @@ import {
   formatNextRunAt,
   formatScheduleSummary,
   formatScheduledTaskRunCount,
+  normalizeScheduleTimesOfDay,
   queryRunInBackground,
+  queryScheduleTimesOfDay,
   SCHEDULE_REPEAT_OPTIONS,
   WEEKDAY_OPTIONS
 } from '@shared/schedule-utils'
@@ -29,7 +31,8 @@ interface TaskFormValues {
   repeat: ScheduleRepeat
   runAt?: Dayjs
   weekday?: number
-  timeOfDay?: Dayjs
+  /** daily / weekly 可配置多个执行时刻 */
+  timesOfDay?: Dayjs[]
   actionType: ScheduleActionType
   publishPlanId?: string
   workflowId?: string
@@ -82,7 +85,7 @@ function taskToFormValues(task: ScheduledTask): TaskFormValues {
     repeat: task.repeat,
     runAt: task.runAt ? dayjs(task.runAt) : undefined,
     weekday: task.weekday ?? 1,
-    timeOfDay: parseTimeOfDay(task.timeOfDay),
+    timesOfDay: queryScheduleTimesOfDay(task).map(parseTimeOfDay),
     actionType: task.actionType,
     publishPlanId: task.publishPlanId,
     workflowId: task.workflowId,
@@ -102,7 +105,14 @@ function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): Sched
     repeat: values.repeat,
     runAt: values.repeat === 'once' ? values.runAt?.valueOf() : base.runAt,
     weekday: values.repeat === 'weekly' ? values.weekday : base.weekday,
-    timeOfDay: values.repeat !== 'once' ? (values.timeOfDay?.format('HH:mm') ?? '09:00') : base.timeOfDay,
+    ...(values.repeat !== 'once'
+      ? (() => {
+          const timesOfDay = normalizeScheduleTimesOfDay(
+            (values.timesOfDay ?? []).map((item) => item?.format('HH:mm') ?? '09:00')
+          )
+          return { timesOfDay, timeOfDay: timesOfDay[0] }
+        })()
+      : {}),
     actionType: values.actionType,
     publishPlanId: values.actionType === 'publish_plan' ? values.publishPlanId : undefined,
     workflowId: values.actionType === 'workflow' ? values.workflowId : undefined,
@@ -271,13 +281,52 @@ function TaskEditModal({
                 <Select options={WEEKDAY_OPTIONS} />
               </Form.Item>
             ) : null}
-            <Form.Item
-              label="时刻"
-              name="timeOfDay"
-              rules={[{ required: true, message: '请选择时刻' }]}
+            <Form.List
+              name="timesOfDay"
+              rules={[
+                {
+                  validator: async (_, value: Dayjs[] | undefined) => {
+                    if (!value || value.length === 0) {
+                      return Promise.reject(new Error('请至少添加一个时刻'))
+                    }
+                  }
+                }
+              ]}
             >
-              <TimePicker format="HH:mm" style={{ width: '100%' }} />
-            </Form.Item>
+              {(fields, { add, remove }) => (
+                <div className={styles.timesOfDayList}>
+                  {fields.map((field) => (
+                    <Space key={field.key} align="baseline" className={styles.timesOfDayRow}>
+                      <Form.Item
+                        {...field}
+                        label={fields.length > 1 ? `时刻 ${field.name + 1}` : '时刻'}
+                        rules={[{ required: true, message: '请选择时刻' }]}
+                        className={styles.timesOfDayItem}
+                      >
+                        <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                      </Form.Item>
+                      {fields.length > 1 ? (
+                        <Button
+                          type="text"
+                          danger
+                          icon={<MinusCircleOutlined />}
+                          aria-label="删除时刻"
+                          onClick={() => remove(field.name)}
+                        />
+                      ) : null}
+                    </Space>
+                  ))}
+                  <Button
+                    type="dashed"
+                    block
+                    icon={<PlusOutlined />}
+                    onClick={() => add(parseTimeOfDay('09:00'))}
+                  >
+                    添加时刻
+                  </Button>
+                </div>
+              )}
+            </Form.List>
           </>
         )}
         <Form.Item label="执行动作" name="actionType" rules={[{ required: true, message: '请选择执行动作' }]}>

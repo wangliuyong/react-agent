@@ -15,6 +15,7 @@ export function createEmptyScheduledTask(): ScheduledTask {
     enabled: false,
     repeat: 'daily',
     timeOfDay: '09:00',
+    timesOfDay: ['09:00'],
     weekday: 1,
     runAt: tomorrow.getTime(),
     actionType: 'publish_plan',

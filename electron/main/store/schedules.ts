@@ -8,15 +8,19 @@ import {
 import { join } from 'path'
 import type { ScheduledTask } from '../../../shared/types'
 import { createBuiltinScheduledTasks } from '../../../shared/builtin-seeds'
-import { computeNextRunAt, queryRunInBackground } from '../../../shared/schedule-utils'
+import { computeNextRunAt, queryRunInBackground, queryScheduleTimesOfDay } from '../../../shared/schedule-utils'
 import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
 import { postInitPublishPlans } from './plans'
 import { getSchedulesDir } from './paths'
 
 /** 保存前根据 enabled / repeat 重算 nextRunAt，并归一化通知渠道 */
 export function normalizeScheduledTask(task: ScheduledTask): ScheduledTask {
+  const timesOfDay = queryScheduleTimesOfDay(task)
   const next = {
     ...task,
+    timesOfDay,
+    /** 保留首项，兼容仍读取 timeOfDay 的旧逻辑 */
+    timeOfDay: timesOfDay[0],
     notifyChannels: normalizeNotifyChannelIds(task.notifyChannels),
     /** 旧任务无字段时默认后台执行 */
     runInBackground: queryRunInBackground(task),

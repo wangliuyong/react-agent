@@ -378,6 +378,22 @@
   margin-top: 8px;
 }
 
+.timesOfDayList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timesOfDayRow {
+  display: flex;
+  width: 100%;
+}
+
+.timesOfDayItem {
+  flex: 1;
+  margin-bottom: 8px;
+}
+
 .empty {
   margin-top: 48px;
 }
