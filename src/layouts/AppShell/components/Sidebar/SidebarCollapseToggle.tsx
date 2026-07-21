@@ -11,16 +11,11 @@ export function SidebarCollapseToggle({
   onToggle
 }: SidebarCollapseToggleProps): React.ReactElement {
   return (
-    <Tooltip
-      title={collapsed ? '展开侧边栏' : '收起侧边栏'}
-      placement={collapsed ? 'right' : 'top'}
-    >
-      <Button
-        className={`app-no-drag ${collapsed ? styles.footerIconBtn : ''}`}
-        type="text"
-        icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-        onClick={onToggle}
-      />
-    </Tooltip>
+    <Button
+      className={`app-no-drag ${collapsed ? styles.footerIconBtn : ''}`}
+      type="text"
+      icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+      onClick={onToggle}
+    />
   )
 }
