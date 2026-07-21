@@ -47,10 +47,8 @@ function applyAppIcon(): void {
 
 function createWindow(): void {
   const iconPath = resolveAppIconPath()
-  const icon =
-    existsSync(iconPath) && !nativeImage.createFromPath(iconPath).isEmpty()
-      ? nativeImage.createFromPath(iconPath)
-      : undefined
+  const icon = existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : undefined
+  const windowIcon = icon && !icon.isEmpty() ? icon : undefined
 
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -58,7 +56,7 @@ function createWindow(): void {
     minWidth: 1100,
     minHeight: 700,
     title: '灵犀 · AI助手',
-    ...(icon ? { icon } : {}),
+    ...(windowIcon ? { icon: windowIcon } : {}),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 16, y: 16 },
     backgroundColor: '#f5f5f7',
