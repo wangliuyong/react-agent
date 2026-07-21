@@ -97,6 +97,11 @@
   color: var(--db-primary);
 }
 
+.statusSpinner {
+  font-size: 6px;
+  color: var(--db-primary);
+}
+
 /* 成功终态 */
 .status_done {
   border-color: #22c55e;

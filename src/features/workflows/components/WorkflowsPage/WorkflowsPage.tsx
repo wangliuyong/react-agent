@@ -263,17 +263,19 @@ export function WorkflowsPage(): React.ReactElement {
         }
       }
 
-      const sessionId = await runWorkflow(targetId)
-      await hydrateSessions()
-      beginExternalRun(sessionId)
+      const sessionId = await runWorkflow(targetId, { silent: stayOnCanvas })
 
       if (stayOnCanvas) {
+        // 画布内运行：静默落盘，不推送 session_started、不切换聊天会话
         setCanvasRunSessionId(sessionId)
         setCanvasActiveNodeIds([])
         setCanvasNodeStatuses({})
         message.success('流程已启动，可在画布查看执行动画')
         return
       }
+
+      await hydrateSessions()
+      beginExternalRun(sessionId)
 
       closeDetail()
       setView('chat')

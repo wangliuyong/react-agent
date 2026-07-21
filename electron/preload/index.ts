@@ -110,8 +110,8 @@ const api: ElectronApi = {
   postWorkflow: (workflow: WorkflowDefinition) =>
     ipcRenderer.invoke(IpcChannels.postWorkflow, workflow),
   postDeleteWorkflow: (id: string) => ipcRenderer.invoke(IpcChannels.postDeleteWorkflow, id),
-  postRunWorkflow: (workflowId: string) =>
-    ipcRenderer.invoke(IpcChannels.postRunWorkflow, workflowId),
+  postRunWorkflow: (workflowId: string, options?: { silent?: boolean }) =>
+    ipcRenderer.invoke(IpcChannels.postRunWorkflow, workflowId, options),
   postResumeWorkflow: (runId: string) =>
     ipcRenderer.invoke(IpcChannels.postResumeWorkflow, runId),
   queryWorkflowRuns: () => ipcRenderer.invoke(IpcChannels.queryWorkflowRuns),

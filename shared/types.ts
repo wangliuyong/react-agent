@@ -1558,6 +1558,14 @@ export interface WorkflowRunStartResult {
   sessionId: string
 }
 
+/**
+ * 启动工作流可选参数。
+ * silent=true 时仅落盘会话，不推送 session_started，避免打断当前聊天。
+ */
+export interface RunWorkflowOptions {
+  silent?: boolean
+}
+
 /** Preload 暴露给 window.api 的类型 */
 export interface ElectronApi {
   querySettings: () => Promise<AppSettings>
@@ -1623,7 +1631,10 @@ export interface ElectronApi {
   queryWorkflow: (id: string) => Promise<WorkflowDefinition | null>
   postWorkflow: (workflow: WorkflowDefinition) => Promise<WorkflowDefinition>
   postDeleteWorkflow: (id: string) => Promise<void>
-  postRunWorkflow: (workflowId: string) => Promise<WorkflowRunStartResult>
+  postRunWorkflow: (
+    workflowId: string,
+    options?: RunWorkflowOptions
+  ) => Promise<WorkflowRunStartResult>
   postResumeWorkflow: (runId: string) => Promise<WorkflowRunStartResult>
   /** 业务系统：全部工作流运行实例 */
   queryWorkflowRuns: () => Promise<WorkflowRun[]>

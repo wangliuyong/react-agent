@@ -30,11 +30,11 @@ function queryExecStatusLabel(status: TaskItemStatus): string {
   }
 }
 
-/** 执行态 → 角标符号 */
-function queryExecStatusMark(status: TaskItemStatus): string {
+/** 执行态 → 角标符号（running 由 LoadingOutlined 单独渲染） */
+function queryExecStatusMark(status: TaskItemStatus): string | null {
   switch (status) {
     case 'running':
-      return '…'
+      return null
     case 'done':
       return '✓'
     case 'failed':
@@ -69,8 +69,12 @@ export function WorkflowFlowNode({
       <Handle type="target" position={Position.Top} className={styles.handle} />
       <div className={styles.body}>
         <span className={styles.title}>{leaf.title || '未命名步骤'}</span>
-        {/* 终态 / 执行中由节点自行展示，不依赖全局 toast */}
-        {statusMark ? (
+        {/* 执行中：旋转 loading；完成后切换为终态角标 */}
+        {execStatus === 'running' ? (
+          <span className={styles.statusMark} aria-hidden>
+            <LoadingOutlined className={styles.statusSpinner} spin />
+          </span>
+        ) : statusMark ? (
           <span className={styles.statusMark} aria-hidden>
             {statusMark}
           </span>

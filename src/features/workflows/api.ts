@@ -1,4 +1,5 @@
 import type {
+  RunWorkflowOptions,
   WorkflowDefinition,
   WorkflowRunStartResult
 } from '@shared/types'
@@ -26,8 +27,11 @@ export async function postDeleteWorkflow(id: string): Promise<void> {
 }
 
 /** 写：启动执行，返回 sessionId 供跳转聊天 */
-export async function postRunWorkflow(workflowId: string): Promise<WorkflowRunStartResult> {
-  return window.api.postRunWorkflow(workflowId)
+export async function postRunWorkflow(
+  workflowId: string,
+  options?: RunWorkflowOptions
+): Promise<WorkflowRunStartResult> {
+  return window.api.postRunWorkflow(workflowId, options)
 }
 
 /** 写：从失败/中止处继续 */

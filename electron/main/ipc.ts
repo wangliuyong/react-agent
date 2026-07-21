@@ -273,8 +273,10 @@ export function registerIpcHandlers(): void {
     postWorkflow(workflow)
   )
   ipcMain.handle(IpcChannels.postDeleteWorkflow, (_e, id: string) => postDeleteWorkflow(id))
-  ipcMain.handle(IpcChannels.postRunWorkflow, async (_e, workflowId: string) =>
-    postRunWorkflow(workflowId)
+  ipcMain.handle(
+    IpcChannels.postRunWorkflow,
+    async (_e, workflowId: string, options?: Parameters<typeof postRunWorkflow>[1]) =>
+      postRunWorkflow(workflowId, options)
   )
   ipcMain.handle(IpcChannels.postResumeWorkflow, async (_e, runId: string) =>
     postResumeWorkflow(runId)

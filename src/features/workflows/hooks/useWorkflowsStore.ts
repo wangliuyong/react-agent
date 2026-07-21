@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { WorkflowDefinition } from '@shared/types'
+import type { RunWorkflowOptions, WorkflowDefinition } from '@shared/types'
 import {
   postDeleteWorkflow,
   postRunWorkflow,
@@ -19,7 +19,7 @@ interface WorkflowsState {
   saveWorkflow: (workflow: WorkflowDefinition) => Promise<WorkflowDefinition>
   removeWorkflow: (id: string) => Promise<void>
   /** 启动编排引擎并返回 sessionId */
-  runWorkflow: (id: string) => Promise<string>
+  runWorkflow: (id: string, options?: RunWorkflowOptions) => Promise<string>
 }
 
 export const useWorkflowsStore = create<WorkflowsState>((set, get) => ({
@@ -74,10 +74,10 @@ export const useWorkflowsStore = create<WorkflowsState>((set, get) => ({
     set({ workflows: next, activeId })
   },
 
-  runWorkflow: async (id) => {
+  runWorkflow: async (id, options) => {
     set({ running: true })
     try {
-      const result = await postRunWorkflow(id)
+      const result = await postRunWorkflow(id, options)
       return result.sessionId
     } finally {
       set({ running: false })

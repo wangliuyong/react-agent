@@ -973,6 +973,11 @@ export interface PostRunWorkflowOptions {
    * 未传则新建 type=workflow 会话。
    */
   session?: Session
+  /**
+   * 静默启动：会话落盘但不推送 session_started，避免渲染进程跳转聊天。
+   * 画布内「立即运行」等场景使用。
+   */
+  silent?: boolean
 }
 
 /** 启动工作流：创建（或复用）Session + Run，异步推进节点 */
@@ -990,13 +995,18 @@ export async function postRunWorkflow(
     throw new Error('请先为流程添加至少一个步骤')
   }
 
+  const silent = Boolean(options?.silent)
   const session = options?.session ?? createWorkflowSession(workflow)
   if (!options?.session) {
     postSession(session)
-    emitSessionStarted(session)
+    if (!silent) {
+      emitSessionStarted(session)
+    }
   } else if (!querySession(session.id)) {
     postSession(session)
-    emitSessionStarted(session)
+    if (!silent) {
+      emitSessionStarted(session)
+    }
   }
 
   const now = Date.now()

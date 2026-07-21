@@ -94,6 +94,28 @@ function edgeHasCondition(e: WorkflowCanvasEdge): boolean {
   return Boolean(e.when?.expression?.trim() || e.when?.contextKey?.trim())
 }
 
+/**
+ * 判断入边是否应开启流动动画。
+ * - 仅当目标节点正在执行时考虑动画
+ * - 默认支路边（isDefault）永不动画
+ * - 来源节点已跳过（未命中支路）的汇聚边不动画
+ */
+function queryEdgeShouldAnimate(
+  edge: { target: string; source: string; data?: unknown },
+  activeNodeIds: string[],
+  nodeStatuses: Record<string, TaskItemStatus> = {}
+): boolean {
+  const active = new Set(activeNodeIds)
+  if (!active.has(edge.target)) return false
+
+  const data = (edge.data ?? {}) as Partial<WorkflowCanvasEdge>
+  if (data.isDefault) return false
+
+  if (nodeStatuses[edge.source] === 'skipped') return false
+
+  return true
+}
+
 function toRfNodes(
   leaves: WorkflowLeafNode[],
   terminals: WorkflowTerminalNode[],
@@ -125,28 +147,31 @@ function toRfNodes(
   return [...terminalNodes, ...leafNodes]
 }
 
-function toRfEdges(canvas: WorkflowCanvasModel, activeNodeIds: string[] = []): Edge[] {
-  const active = new Set(activeNodeIds)
+function toRfEdges(
+  canvas: WorkflowCanvasModel,
+  activeNodeIds: string[] = [],
+  nodeStatuses: Record<string, TaskItemStatus> = {}
+): Edge[] {
   return canvas.edges.map((e) => {
     const label = queryEdgeLabel(e)
     const conditional = edgeHasCondition(e)
-    const isActive = active.has(e.target)
+    const shouldAnimate = queryEdgeShouldAnimate(e, activeNodeIds, nodeStatuses)
     return {
       id: e.id,
       source: e.source,
       target: e.target,
       label,
-      // 默认静止；仅执行到该目标节点时流动
-      animated: isActive,
+      // 默认静止；仅命中支路且目标节点执行中时流动
+      animated: shouldAnimate,
       className: [
         conditional ? 'wf-edge-conditional' : 'wf-edge-default',
-        isActive ? 'wf-edge-executing' : ''
+        shouldAnimate ? 'wf-edge-executing' : ''
       ]
         .filter(Boolean)
         .join(' '),
       markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8 },
       style: {
-        strokeWidth: isActive ? 2 : 1,
+        strokeWidth: shouldAnimate ? 2 : 1,
         strokeDasharray: conditional ? '4 3' : undefined
       },
       labelStyle: { fontSize: 6, fill: 'var(--db-text-secondary)' },
@@ -252,35 +277,34 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
       )
     )
     const [rfEdges, setEdges, onEdgesChangeInternal] = useEdgesState(
-      toRfEdges(initialCanvas, activeNodeIds)
+      toRfEdges(initialCanvas, activeNodeIds, nodeStatuses)
     )
 
     /**
      * 执行进度变化时，只更新入边的流动态，避免整图重置拖拽/选中。
-     * target === 当前执行节点 → animated。
+     * 命中支路入边 → animated；默认支路 / 已跳过来源边保持静止。
      */
     useEffect(() => {
-      const active = new Set(activeNodeIds)
       setEdges((eds) =>
         eds.map((e) => {
-          const isActive = active.has(e.target)
+          const shouldAnimate = queryEdgeShouldAnimate(e, activeNodeIds, nodeStatuses)
           const baseClass = e.className?.includes('wf-edge-conditional')
             ? 'wf-edge-conditional'
             : 'wf-edge-default'
-          const nextClass = isActive ? `${baseClass} wf-edge-executing` : baseClass
-          if (e.animated === isActive && e.className === nextClass) return e
+          const nextClass = shouldAnimate ? `${baseClass} wf-edge-executing` : baseClass
+          if (e.animated === shouldAnimate && e.className === nextClass) return e
           return {
             ...e,
-            animated: isActive,
+            animated: shouldAnimate,
             className: nextClass,
             style: {
               ...e.style,
-              strokeWidth: isActive ? 2 : 1
+              strokeWidth: shouldAnimate ? 2 : 1
             }
           }
         })
       )
-    }, [activeNodeIds, setEdges])
+    }, [activeNodeIds, nodeStatuses, setEdges])
 
     /**
      * 节点执行态变化时，只 patch leaf 节点的 execStatus，保留位置与选中。
@@ -361,7 +385,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
           nodeStatuses
         )
       )
-      setEdges(toRfEdges(canvas, activeNodeIds))
+      setEdges(toRfEdges(canvas, activeNodeIds, nodeStatuses))
       setGraphError(null)
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workflowId])
