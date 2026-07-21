@@ -24,6 +24,98 @@ export const FEISHU_NOTIFY_MSG_TYPES: readonly FeishuNotifyMsgType[] = [
   'share_chat'
 ] as const
 
+/** 已知过期的飞书 Agent 补充说明（读盘时自动升级为新模板） */
+const LEGACY_FEISHU_AGENT_HINTS = new Set([
+  '使用 notify_message, channelId 传 feishu; 勿在参数中填写 webhook。',
+  '使用 notify_message，channelId 传 feishu；勿在参数中填写 webhook。',
+  '使用 notify_message，channelId 传 feishu；勿在参数中填写 webhook。可选 msgType：text / post / image / share_chat；post 时 content 可用 Markdown；image 需传 imageKey；share_chat 需传 shareChatId。'
+])
+
+/**
+ * 判断飞书 Agent 补充说明是否为旧版短文案，或空串（需自动生成）。
+ * @param channelId 渠道 id，用于匹配自动生成模板（自定义飞书渠道须传入实际 id）
+ */
+export function queryShouldRefreshFeishuAgentHint(
+  current: string,
+  channelId = 'feishu'
+): boolean {
+  const trimmed = current.trim()
+  if (!trimmed) return true
+  if (LEGACY_FEISHU_AGENT_HINTS.has(trimmed)) return true
+  // 与任一通知类型下的自动生成文案完全一致 → 允许随 msgType 切换而更新
+  const id = channelId.trim() || 'feishu'
+  for (const msgType of FEISHU_NOTIFY_MSG_TYPES) {
+    if (trimmed === queryFeishuNotifyAgentHint({ channelId: id, feishuMsgType: msgType })) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * 按飞书渠道配置生成 Agent 补充说明。
+ * 注入工作流 / 发布子任务 prompt，指导模型正确调用 notify_message。
+ */
+export function queryFeishuNotifyAgentHint(opts: {
+  channelId?: string
+  feishuMsgType?: FeishuNotifyMsgType
+}): string {
+  const channelId = opts.channelId?.trim() || 'feishu'
+  const msgType = opts.feishuMsgType ?? 'post'
+
+  const lines: string[] = [
+    `调用 notify_message，channelId 传「${channelId}」；禁止在参数或对话中填写 webhook / 签名密钥。`,
+    '同一渠道 + 同一正文只调用一次；工具返回成功后立即结束，禁止重复发送。'
+  ]
+
+  switch (msgType) {
+    case 'post':
+      lines.splice(
+        1,
+        0,
+        '本渠道默认 msgType=post（富文本）：title 填卡片标题，content 填 Markdown 正文（支持 # 标题、列表、表格、链接、粗体）。',
+        '正文含 Markdown 结构时可省略 msgType；纯文本短通知可显式传 msgType=text。',
+        '若机器人启用了「自定义关键词」安全设置，正文须包含该关键词。'
+      )
+      break
+    case 'text':
+      lines.splice(
+        1,
+        0,
+        '本渠道默认 msgType=text（纯文本）：content 填正文，可选 title 作为首行前缀。',
+        '若机器人启用了「自定义关键词」安全设置，正文须包含该关键词。'
+      )
+      break
+    case 'image':
+      lines.splice(
+        1,
+        0,
+        '本渠道默认 msgType=image：须传 imageKey（飞书上传图片 API 获取）；content 可留空。',
+        '若渠道页已配置 image_key，调用时可省略 imageKey。'
+      )
+      break
+    case 'share_chat':
+      lines.splice(
+        1,
+        0,
+        '本渠道默认 msgType=share_chat：须传 shareChatId；content 可留空。',
+        '若渠道页已配置 share_chat_id，调用时可省略 shareChatId。'
+      )
+      break
+  }
+
+  return lines.join('\n')
+}
+
+/** 通用 Webhook 通知渠道的 Agent 补充说明 */
+export function queryWebhookNotifyAgentHint(channelId = 'webhook'): string {
+  return [
+    `调用 notify_message，channelId 传「${channelId}」；禁止在参数或对话中填写 webhook URL / 签名密钥。`,
+    'content 填通知正文，可选 title；不支持飞书专属 msgType / imageKey。',
+    '同一渠道 + 同一正文只调用一次；工具返回成功后立即结束，禁止重复发送。'
+  ].join('\n')
+}
+
 /** 通知渠道配置（敏感信息仅存本地 userData） */
 export interface ChannelNotifyConfig {
   webhookUrl?: string
@@ -195,10 +287,7 @@ export const DEFAULT_PUBLISH_CHANNELS: PublishChannelMeta[] = [
     enabled: true,
     notifyTool: 'notify_message',
     notifyConfig: { feishuMsgType: 'post' },
-    agentHint:
-      '使用 notify_message，channelId 传 feishu；勿在参数中填写 webhook。' +
-      '可选 msgType：text / post / image / share_chat；' +
-      'post 时 content 可用 Markdown；image 需传 imageKey；share_chat 需传 shareChatId。',
+    agentHint: queryFeishuNotifyAgentHint({ channelId: 'feishu', feishuMsgType: 'post' }),
     isBuiltin: true
   },
   {
@@ -209,7 +298,7 @@ export const DEFAULT_PUBLISH_CHANNELS: PublishChannelMeta[] = [
     enabled: true,
     notifyTool: 'notify_message',
     notifyConfig: {},
-    agentHint: '使用 notify_message，channelId 传 webhook；勿在参数中填写 webhook URL。',
+    agentHint: queryWebhookNotifyAgentHint('webhook'),
     isBuiltin: true
   },
   {

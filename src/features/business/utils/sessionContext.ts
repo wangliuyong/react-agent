@@ -1,5 +1,5 @@
 import type { ChatMessage, Session, TaskItem, WorkflowRun } from '@shared/types'
-import type { NodeExecutionContext, SessionContextSummary } from '../types'
+import type { NodeExecutionContext, NotifyContextDebug, SessionContextSummary } from '../types'
 
 /** 将对象格式化为缩进 JSON，便于业务系统展示 */
 export function formatContextJson(value: unknown): string {
@@ -8,6 +8,35 @@ export function formatContextJson(value: unknown): string {
   } catch {
     return String(value)
   }
+}
+
+/** 从 context 切片解析渠道通知节点的请求快照（兼容旧版纯字符串） */
+export function queryNotifyDebugFromContextSlice(
+  contextSlice: Record<string, unknown>
+): NotifyContextDebug | undefined {
+  for (const [key, value] of Object.entries(contextSlice)) {
+    if (!key.startsWith('notify_')) continue
+    if (typeof value === 'string') {
+      return { summary: value }
+    }
+    if (value && typeof value === 'object') {
+      const record = value as Record<string, unknown>
+      const summary = typeof record.summary === 'string' ? record.summary : String(record.summary ?? '')
+      const requestPath =
+        typeof record.requestPath === 'string' ? record.requestPath : undefined
+      const requestBody =
+        record.requestBody && typeof record.requestBody === 'object'
+          ? (record.requestBody as Record<string, unknown>)
+          : undefined
+      const requestHeaders =
+        record.requestHeaders && typeof record.requestHeaders === 'object'
+          ? (record.requestHeaders as Record<string, string>)
+          : undefined
+      const deduped = record.deduped === true
+      return { summary, requestPath, requestBody, requestHeaders, deduped }
+    }
+  }
+  return undefined
 }
 
 /** 从 WorkflowRun.context 中提取与任务节点 id 相关的键值 */
@@ -90,11 +119,13 @@ export function queryNodeExecutionContexts(
 
   return tasks.map((task) => {
     const contextSlice = queryContextSliceForTask(context, task)
+    const notifyDebug = queryNotifyDebugFromContextSlice(contextSlice)
     return {
       task,
       relatedMessages: queryRelatedMessagesForTask(session, task),
       contextSlice,
-      contextJson: formatContextJson(contextSlice)
+      contextJson: formatContextJson(contextSlice),
+      notifyDebug
     }
   })
 }

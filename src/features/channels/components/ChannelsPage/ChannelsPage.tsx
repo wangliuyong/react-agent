@@ -4,7 +4,10 @@ import {
   isNotifyChannelConfigured,
   normalizeChannelKind,
   normalizeFeishuMsgType,
-  queryPublishChannelMeta
+  queryFeishuNotifyAgentHint,
+  queryPublishChannelMeta,
+  queryShouldRefreshFeishuAgentHint,
+  queryWebhookNotifyAgentHint
 } from '@shared/publish-channels'
 import type { ChannelLoginState, ChannelLoginStatus, PublishChannelMeta } from '@shared/types'
 import type { PublishChannelId } from '@shared/publish-channels'
@@ -208,6 +211,18 @@ export function ChannelsPage(): React.ReactElement {
 
   const openEdit = (channel: PublishChannelMeta): void => {
     const draft = channelMetaToInput(channel)
+    // 打开编辑时，将旧版/空白的飞书补充说明升级为当前通知类型对应的模板
+    if (channel.id === 'feishu' || channel.id.endsWith('_feishu')) {
+      const msgType = normalizeFeishuMsgType(draft.notifyConfig?.feishuMsgType) ?? 'post'
+      if (queryShouldRefreshFeishuAgentHint(draft.agentHint, channel.id)) {
+        draft.agentHint = queryFeishuNotifyAgentHint({
+          channelId: channel.id,
+          feishuMsgType: msgType
+        })
+      }
+    } else if (channel.id === 'webhook' && !draft.agentHint.trim()) {
+      draft.agentHint = queryWebhookNotifyAgentHint(channel.id)
+    }
     setEditMode('update')
     setEditDraft(draft)
     setEditOpen(true)
@@ -386,6 +401,38 @@ export function ChannelsPage(): React.ReactElement {
     normalizeChannelKind(editKind ?? editDraft?.kind ?? kindTab) === 'notify'
   const formIsFeishu =
     (editChannelId || editDraft?.id || '').trim() === 'feishu'
+
+  /** 飞书通知类型变更时，若补充说明仍为旧版/自动生成文案，则同步更新 */
+  const syncFeishuAgentHintIfNeeded = (msgType: FeishuNotifyMsgType): void => {
+    const channelId = (form.getFieldValue('id') || editDraft?.id || 'feishu').trim()
+    const current = String(form.getFieldValue('agentHint') ?? '').trim()
+    if (!queryShouldRefreshFeishuAgentHint(current, channelId)) return
+    form.setFieldValue(
+      'agentHint',
+      queryFeishuNotifyAgentHint({ channelId, feishuMsgType: msgType })
+    )
+  }
+
+  /** 新建自定义飞书渠道时，按 id 与通知类型预填 Agent 说明 */
+  const syncNotifyAgentHintOnCreate = (): void => {
+    if (editMode !== 'create') return
+    const kind = normalizeChannelKind(form.getFieldValue('kind') ?? editDraft?.kind ?? kindTab)
+    if (kind !== 'notify') return
+    const channelId = String(form.getFieldValue('id') ?? '').trim()
+    const current = String(form.getFieldValue('agentHint') ?? '').trim()
+    if (current && !queryShouldRefreshFeishuAgentHint(current, channelId)) return
+
+    if (channelId === 'feishu' || channelId.endsWith('_feishu')) {
+      const msgType =
+        normalizeFeishuMsgType(form.getFieldValue(['notifyConfig', 'feishuMsgType'])) ?? 'post'
+      form.setFieldValue(
+        'agentHint',
+        queryFeishuNotifyAgentHint({ channelId: channelId || 'feishu', feishuMsgType: msgType })
+      )
+    } else if (channelId === 'webhook' || channelId.endsWith('_webhook')) {
+      form.setFieldValue('agentHint', queryWebhookNotifyAgentHint(channelId || 'webhook'))
+    }
+  }
 
   return (
     <div className={styles.page}>
@@ -802,7 +849,10 @@ export function ChannelsPage(): React.ReactElement {
                 label="渠道 ID"
                 tooltip="留空则根据名称自动生成；仅小写字母、数字、连字符与下划线"
               >
-                <Input placeholder={formIsNotify ? '例如 feishu_team' : '例如 bilibili'} />
+                <Input
+                  placeholder={formIsNotify ? '例如 feishu_team' : '例如 bilibili'}
+                  onBlur={() => syncNotifyAgentHintOnCreate()}
+                />
               </Form.Item>
             ) : (
               <Form.Item name="id" label="渠道 ID">
@@ -875,6 +925,9 @@ export function ChannelsPage(): React.ReactElement {
                         options={(
                           Object.entries(FEISHU_MSG_TYPE_LABELS) as [FeishuNotifyMsgType, string][]
                         ).map(([value, label]) => ({ value, label }))}
+                        onChange={(value: FeishuNotifyMsgType) => {
+                          syncFeishuAgentHintIfNeeded(value)
+                        }}
                       />
                     </Form.Item>
                     {editFeishuMsgType === 'image' ? (
@@ -942,12 +995,19 @@ export function ChannelsPage(): React.ReactElement {
               name="agentHint"
               label="Agent 补充说明"
               rules={[{ required: true, message: '请填写 Agent 说明' }]}
+              extra={
+                formIsNotify
+                  ? '注入 Agent 工作流 prompt，指导模型如何调用 notify_message；可按业务场景自定义'
+                  : '注入 Agent 工作流 prompt，指导模型如何调用发布工具；可按业务场景自定义'
+              }
             >
               <Input.TextArea
-                rows={4}
+                rows={6}
                 placeholder={
                   formIsNotify
-                    ? '通知该渠道时的用法与注意事项'
+                    ? formIsFeishu
+                      ? '将根据「通知类型」自动生成调用说明，也可手动改写'
+                      : '通知该渠道时的用法与注意事项'
                     : '发布该渠道时的工具用法与注意事项'
                 }
               />

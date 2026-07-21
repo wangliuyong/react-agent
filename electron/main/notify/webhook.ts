@@ -4,25 +4,40 @@
  */
 import { postHttpJson } from '../net/http-client'
 
-export async function postGenericWebhookText(opts: {
+/** 组装通用 Webhook 请求路径与 JSON 请求体，供发送与历史上下文记录复用 */
+export function queryGenericWebhookRequest(opts: {
   webhookUrl: string
   secret?: string
   title?: string
   text: string
-}): Promise<void> {
-  const body: Record<string, unknown> = {
+}): {
+  requestPath: string
+  requestBody: Record<string, unknown>
+  requestHeaders: Record<string, string>
+} {
+  const requestBody: Record<string, unknown> = {
     msg_type: 'text',
     text: opts.text,
     title: opts.title,
     channel: 'webhook'
   }
   // 部分机器人用 secret 作为 Authorization Bearer
-  const headers: Record<string, string> = {}
+  const requestHeaders: Record<string, string> = {}
   if (opts.secret?.trim()) {
-    headers.Authorization = `Bearer ${opts.secret.trim()}`
+    requestHeaders.Authorization = `Bearer ${opts.secret.trim()}`
   }
-  await postHttpJson(opts.webhookUrl, body, {
-    headers,
+  return { requestPath: opts.webhookUrl, requestBody, requestHeaders }
+}
+
+export async function postGenericWebhookText(opts: {
+  webhookUrl: string
+  secret?: string
+  title?: string
+  text: string
+}): Promise<void> {
+  const { requestPath, requestBody, requestHeaders } = queryGenericWebhookRequest(opts)
+  await postHttpJson(requestPath, requestBody, {
+    headers: requestHeaders,
     timeoutMs: 15_000
   })
 }

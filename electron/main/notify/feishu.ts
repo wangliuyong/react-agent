@@ -39,6 +39,28 @@ function throwFeishuWebhookError(
 }
 
 /**
+ * 组装飞书 Webhook 请求路径与 JSON 请求体（含可选签名字段）。
+ * 供发送与历史上下文记录复用，保证展示内容与真实请求一致。
+ */
+export function queryFeishuWebhookRequest(opts: {
+  webhookUrl: string
+  secret?: string
+  msgType: string
+  content: Record<string, unknown>
+}): { requestPath: string; requestBody: Record<string, unknown> } {
+  const requestBody: Record<string, unknown> = {
+    msg_type: opts.msgType,
+    content: opts.content
+  }
+  if (opts.secret?.trim()) {
+    const timestamp = String(Math.floor(Date.now() / 1000))
+    requestBody.timestamp = timestamp
+    requestBody.sign = queryFeishuSign(opts.secret.trim(), timestamp)
+  }
+  return { requestPath: opts.webhookUrl, requestBody }
+}
+
+/**
  * 飞书自定义机器人 Webhook 通用发送。
  * 文档：https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot
  */
@@ -48,19 +70,11 @@ export async function postFeishuWebhook(opts: {
   msgType: string
   content: Record<string, unknown>
 }): Promise<void> {
-  const body: Record<string, unknown> = {
-    msg_type: opts.msgType,
-    content: opts.content
-  }
-  if (opts.secret?.trim()) {
-    const timestamp = String(Math.floor(Date.now() / 1000))
-    body.timestamp = timestamp
-    body.sign = queryFeishuSign(opts.secret.trim(), timestamp)
-  }
-  const res = await queryHttpResponse(opts.webhookUrl, {
+  const { requestPath, requestBody } = queryFeishuWebhookRequest(opts)
+  const res = await queryHttpResponse(requestPath, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body,
+    body: requestBody,
     timeoutMs: 15_000
   })
   const data = (await res.json().catch(() => ({}))) as FeishuWebhookResponse

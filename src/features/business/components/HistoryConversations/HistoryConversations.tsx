@@ -5,6 +5,7 @@ import { SESSION_TYPE_FILTER_OPTIONS, SESSION_TYPE_ICONS, type SessionTypeFilter
 import { queryLatestWorkflowRunBySession } from '../../api'
 import type { NodeExecutionContext, SessionContextSummary } from '../../types'
 import {
+  formatContextJson,
   queryNodeExecutionContexts,
   querySessionContextSummary,
   querySessionTypeLabel,
@@ -564,6 +565,44 @@ export function HistoryConversations({
                             <span className={styles.metaLabel}>节点 ID</span>
                             <span className={styles.metaValue}>{node.task.id}</span>
                           </div>
+
+                          {node.notifyDebug ? (
+                            <>
+                              <h4 className={styles.sectionLabel}>渠道通知结果</h4>
+                              <div className={styles.metaItem} style={{ marginBottom: 10 }}>
+                                <span className={styles.metaLabel}>发送结果</span>
+                                <span className={styles.metaValue}>{node.notifyDebug.summary}</span>
+                              </div>
+                              {node.notifyDebug.deduped ? (
+                                <Text type="secondary" className={styles.emptyHint}>
+                                  本次命中短时去重，未实际发起 HTTP 请求
+                                </Text>
+                              ) : null}
+                              {node.notifyDebug.requestPath ? (
+                                <>
+                                  <h4 className={styles.sectionLabel}>请求路径</h4>
+                                  <pre className={styles.contextPre}>{node.notifyDebug.requestPath}</pre>
+                                </>
+                              ) : null}
+                              {node.notifyDebug.requestHeaders &&
+                              Object.keys(node.notifyDebug.requestHeaders).length > 0 ? (
+                                <>
+                                  <h4 className={styles.sectionLabel}>请求头</h4>
+                                  <pre className={styles.contextPre}>
+                                    {formatContextJson(node.notifyDebug.requestHeaders)}
+                                  </pre>
+                                </>
+                              ) : null}
+                              {node.notifyDebug.requestBody ? (
+                                <>
+                                  <h4 className={styles.sectionLabel}>请求体</h4>
+                                  <pre className={styles.contextPre}>
+                                    {formatContextJson(node.notifyDebug.requestBody)}
+                                  </pre>
+                                </>
+                              ) : null}
+                            </>
+                          ) : null}
 
                           <h4 className={styles.sectionLabel}>Context 切片</h4>
                           <pre className={styles.contextPre}>{node.contextJson || '{}'}</pre>

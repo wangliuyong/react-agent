@@ -3,6 +3,10 @@ import type {
   PublishChannelMeta,
   PublishChannelUpsertInput
 } from '@shared/publish-channels'
+import {
+  queryFeishuNotifyAgentHint,
+  queryWebhookNotifyAgentHint
+} from '@shared/publish-channels'
 
 /** 新建渠道表单默认值；kind 由当前 Tab 决定，创建后不可改 */
 export function createEmptyChannel(kind: ChannelKind = 'publish'): PublishChannelUpsertInput {
@@ -21,7 +25,7 @@ export function createEmptyChannel(kind: ChannelKind = 'publish'): PublishChanne
         feishuImageKey: '',
         feishuShareChatId: ''
       },
-      agentHint: '使用 notify_message 发送；勿在对话中暴露 webhook。'
+      agentHint: queryFeishuNotifyAgentHint({ channelId: 'feishu', feishuMsgType: 'post' })
     }
   }
   return {

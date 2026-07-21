@@ -43,6 +43,11 @@ import {
 import { isGraphInterrupt } from '@langchain/langgraph'
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
+import {
+  patchContextWithNodeExecution,
+  patchContextWithSkippedNode,
+  queryContextSnapshotForDisplay
+} from '../../../shared/workflow-node-execution'
 
 /** 同一时刻每个会话只跑一个工作流 */
 const runningBySession = new Set<string>()
@@ -254,6 +259,7 @@ async function executeToolNode(
   context: Record<string, unknown>,
   onAwaitUser?: () => Promise<void>
 ): Promise<Record<string, unknown>> {
+  const beforeContext = context
   const sessionId = session.id
   const tool = getToolByName(node.toolName)
   if (!tool) {
@@ -316,7 +322,10 @@ async function executeToolNode(
   } else if (!Object.keys(decoded.patch).length) {
     nextContext[node.toolName] = decoded.message
   }
-  return nextContext
+  return patchContextWithNodeExecution(beforeContext, nextContext, node, {
+    toolName: node.toolName,
+    args
+  })
 }
 
 /**
@@ -328,6 +337,7 @@ async function executeNotifyNode(
   node: Extract<WorkflowLeafNode, { type: 'notify' }>,
   context: Record<string, unknown>
 ): Promise<{ context: Record<string, unknown>; summary: string }> {
+  const beforeContext = context
   logWorkflowNodeInput('通知节点 · 上下文', node, context)
   const title = node.titleTemplate
     ? interpolatePromptSoft(node.titleTemplate, context)
@@ -353,6 +363,15 @@ async function executeNotifyNode(
     shareChatId
   })
 
+  const nodeInput = {
+    channelId: node.channelId,
+    title,
+    content,
+    msgType,
+    imageKey,
+    shareChatId
+  }
+
   const needsContent = msgType === 'text' || msgType === 'post'
   if (needsContent && !content) {
     const msg = '通知正文为空，请检查 contentTemplate 或上游 outputKeys'
@@ -363,7 +382,10 @@ async function executeNotifyNode(
     if (node.failSoft === false) {
       throw new Error(msg)
     }
-    return { context, summary: msg }
+    return {
+      context: patchContextWithNodeExecution(beforeContext, context, node, nodeInput, { error: msg }),
+      summary: msg
+    }
   }
 
   const resolvedTitle =
@@ -394,14 +416,39 @@ async function executeNotifyNode(
   }
 
   const nextContext = { ...context }
+  const notifyRecord: Record<string, unknown> = { summary }
+  if (result.request?.requestPath) {
+    notifyRecord.requestPath = result.request.requestPath
+  }
+  if (result.request?.requestBody) {
+    notifyRecord.requestBody = result.request.requestBody
+  }
+  if (result.request?.requestHeaders && Object.keys(result.request.requestHeaders).length > 0) {
+    notifyRecord.requestHeaders = result.request.requestHeaders
+  }
+  if (result.ok && result.deduped) {
+    notifyRecord.deduped = true
+  }
+
   if (node.outputKeys?.length) {
     for (const key of node.outputKeys) {
       nextContext[key] = summary
     }
   } else {
-    nextContext[`notify_${node.id}`] = summary
+    nextContext[`notify_${node.id}`] = notifyRecord
   }
-  return { context: nextContext, summary }
+
+  const output: Record<string, unknown> = {}
+  if (node.outputKeys?.length) {
+    for (const key of node.outputKeys) output[key] = summary
+  } else {
+    output[`notify_${node.id}`] = notifyRecord
+  }
+
+  return {
+    context: patchContextWithNodeExecution(beforeContext, nextContext, node, nodeInput, output),
+    summary
+  }
 }
 
 /**

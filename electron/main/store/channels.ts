@@ -4,6 +4,9 @@ import {
   DEFAULT_PUBLISH_CHANNELS,
   normalizeChannelKind,
   normalizeFeishuMsgType,
+  queryFeishuNotifyAgentHint,
+  queryShouldRefreshFeishuAgentHint,
+  queryWebhookNotifyAgentHint,
   setPublishChannelRegistry,
   type ChannelKind,
   type PublishChannelMeta,
@@ -71,6 +74,30 @@ function channelsEqual(a: PublishChannelMeta[], b: PublishChannelMeta[]): boolea
 
 function normalizeChannel(raw: PublishChannelMeta): PublishChannelMeta {
   const kind = normalizeChannelKind((raw as { kind?: unknown }).kind)
+  const notifyConfig =
+    kind === 'notify'
+      ? {
+          webhookUrl: raw.notifyConfig?.webhookUrl?.trim() || undefined,
+          secret: raw.notifyConfig?.secret?.trim() || undefined,
+          feishuMsgType: normalizeFeishuMsgType(raw.notifyConfig?.feishuMsgType),
+          feishuImageKey: raw.notifyConfig?.feishuImageKey?.trim() || undefined,
+          feishuShareChatId: raw.notifyConfig?.feishuShareChatId?.trim() || undefined
+        }
+      : undefined
+
+  let agentHint = (raw.agentHint ?? '').trim()
+  if (
+    (raw.id === 'feishu' || raw.id.endsWith('_feishu')) &&
+    queryShouldRefreshFeishuAgentHint(agentHint, raw.id)
+  ) {
+    agentHint = queryFeishuNotifyAgentHint({
+      channelId: raw.id,
+      feishuMsgType: notifyConfig?.feishuMsgType ?? 'post'
+    })
+  } else if (raw.id === 'webhook' && !agentHint) {
+    agentHint = queryWebhookNotifyAgentHint('webhook')
+  }
+
   return {
     ...raw,
     id: raw.id.trim(),
@@ -80,16 +107,7 @@ function normalizeChannel(raw: PublishChannelMeta): PublishChannelMeta {
     // 为什么：旧数据只有 publishTool；notify 渠道不得 trim 空串导致写盘失败
     publishTool: raw.publishTool?.trim() || undefined,
     notifyTool: raw.notifyTool?.trim() || (kind === 'notify' ? 'notify_message' : undefined),
-    notifyConfig:
-      kind === 'notify'
-        ? {
-            webhookUrl: raw.notifyConfig?.webhookUrl?.trim() || undefined,
-            secret: raw.notifyConfig?.secret?.trim() || undefined,
-            feishuMsgType: normalizeFeishuMsgType(raw.notifyConfig?.feishuMsgType),
-            feishuImageKey: raw.notifyConfig?.feishuImageKey?.trim() || undefined,
-            feishuShareChatId: raw.notifyConfig?.feishuShareChatId?.trim() || undefined
-          }
-        : undefined,
+    notifyConfig,
     loginCheckUrl: raw.loginCheckUrl?.trim() || undefined,
     titleMaxLength:
       raw.titleMaxLength != null && raw.titleMaxLength > 0 ? raw.titleMaxLength : undefined,
@@ -99,7 +117,7 @@ function normalizeChannel(raw: PublishChannelMeta): PublishChannelMeta {
       kind === 'publish' && raw.sdkConfig && typeof raw.sdkConfig === 'object'
         ? { ...raw.sdkConfig }
         : undefined,
-    agentHint: (raw.agentHint ?? '').trim(),
+    agentHint,
     isBuiltin: raw.isBuiltin ?? DEFAULT_PUBLISH_CHANNELS.some((d) => d.id === raw.id),
     updatedAt: raw.updatedAt ?? Date.now()
   }

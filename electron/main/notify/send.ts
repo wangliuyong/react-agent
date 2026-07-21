@@ -8,14 +8,24 @@ import { queryPublishChannels } from '../store/channels'
 import {
   postFeishuWebhookImage,
   postFeishuWebhookShareChat,
-  postFeishuWebhookText
+  postFeishuWebhookText,
+  queryFeishuPostWebhookContent,
+  queryFeishuWebhookRequest
 } from './feishu'
 import { markdownToFeishuPost, postFeishuWebhookRichText, queryLooksLikeMarkdown } from './feishu-rich'
-import { postGenericWebhookText } from './webhook'
+import { postGenericWebhookText, queryGenericWebhookRequest } from './webhook'
+
+/** 渠道通知 HTTP 请求快照，写入工作流 context 供历史对话排查 */
+export type NotifyRequestSnapshot = {
+  requestPath: string
+  requestBody: Record<string, unknown>
+  /** 通用 Webhook 可能携带 Authorization 头 */
+  requestHeaders?: Record<string, string>
+}
 
 export type NotifySendResult =
-  | { ok: true; deduped?: boolean }
-  | { ok: false; error: string }
+  | { ok: true; deduped?: boolean; request?: NotifyRequestSnapshot }
+  | { ok: false; error: string; request?: NotifyRequestSnapshot }
 
 export interface NotifyFanoutResult {
   results: Array<{ channelId: string } & NotifySendResult>
@@ -113,13 +123,68 @@ export async function postNotifyMessage(args: {
     ? `${args.title.trim()}\n${args.content}`
     : args.content
 
+  /** 按渠道与消息类型组装即将发送的 HTTP 请求快照 */
+  const buildRequestSnapshot = (): NotifyRequestSnapshot | undefined => {
+    if (meta.id === 'feishu') {
+      if (msgType === 'image') {
+        if (!imageKey) return undefined
+        return queryFeishuWebhookRequest({
+          webhookUrl,
+          secret: meta.notifyConfig?.secret,
+          msgType: 'image',
+          content: { image_key: imageKey }
+        })
+      }
+      if (msgType === 'share_chat') {
+        if (!shareChatId) return undefined
+        return queryFeishuWebhookRequest({
+          webhookUrl,
+          secret: meta.notifyConfig?.secret,
+          msgType: 'share_chat',
+          content: { share_chat_id: shareChatId }
+        })
+      }
+      if (msgType === 'post') {
+        const post = markdownToFeishuPost(args.content, {
+          atUserId: args.atUserId,
+          title: args.title
+        })
+        return queryFeishuWebhookRequest({
+          webhookUrl,
+          secret: meta.notifyConfig?.secret,
+          msgType: 'post',
+          content: queryFeishuPostWebhookContent(post)
+        })
+      }
+      return queryFeishuWebhookRequest({
+        webhookUrl,
+        secret: meta.notifyConfig?.secret,
+        msgType: 'text',
+        content: { text }
+      })
+    }
+    if (meta.id === 'webhook') {
+      const { requestPath, requestBody, requestHeaders } = queryGenericWebhookRequest({
+        webhookUrl,
+        secret: meta.notifyConfig?.secret,
+        title: args.title,
+        text
+      })
+      return { requestPath, requestBody, requestHeaders }
+    }
+    return undefined
+  }
+
+  const request = buildRequestSnapshot()
+
   try {
     if (meta.id === 'feishu') {
       if (msgType === 'image') {
         if (!imageKey) {
           return {
             ok: false,
-            error: '图片消息缺少 image_key：请在渠道页配置，或在通知参数中传入 imageKey'
+            error: '图片消息缺少 image_key：请在渠道页配置，或在通知参数中传入 imageKey',
+            request
           }
         }
         await postFeishuWebhookImage({
@@ -131,7 +196,8 @@ export async function postNotifyMessage(args: {
         if (!shareChatId) {
           return {
             ok: false,
-            error: '群名片缺少 share_chat_id：请在渠道页配置，或在通知参数中传入 shareChatId'
+            error: '群名片缺少 share_chat_id：请在渠道页配置，或在通知参数中传入 shareChatId',
+            request
           }
         }
         await postFeishuWebhookShareChat({
@@ -170,11 +236,11 @@ export async function postNotifyMessage(args: {
 
     recentNotifyAt.set(dedupeKey, Date.now())
     console.info(`[notify] ok channelId=${meta.id} msgType=${msgType}`)
-    return { ok: true }
+    return { ok: true, request }
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err)
     console.warn(`[notify] fail channelId=${meta.id} msgType=${msgType} error=${error}`)
-    return { ok: false, error }
+    return { ok: false, error, request }
   }
 }
 
