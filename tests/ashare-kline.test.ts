@@ -5,9 +5,11 @@ import {
   queryNormalizeYmdInput,
   queryParseAshareSymbols,
   queryParseKlineRow,
+  queryParseSinaQuoteText,
   queryResolveRangeParams,
   queryResolveRefreshRangeParams,
-  queryShanghaiYmd
+  queryShanghaiYmd,
+  querySinaListSymbol
 } from '../electron/main/net/ashare-kline'
 
 describe('ashare-kline', () => {
@@ -79,6 +81,25 @@ describe('ashare-kline', () => {
       range: 'custom',
       startDate: '20260701',
       endDate: '20260721'
+    })
+  })
+
+  it('新浪 list 代码与市场前缀', () => {
+    expect(querySinaListSymbol('600519')).toBe('sh600519')
+    expect(querySinaListSymbol('000001')).toBe('sz000001')
+    expect(querySinaListSymbol('430047')).toBe('bj430047')
+  })
+
+  it('解析新浪行情文本', () => {
+    const text =
+      'var hq_str_sh600519="贵州茅台,1338.980,1327.500,1308.000,1344.700,1296.870";'
+    expect(queryParseSinaQuoteText(text)).toMatchObject({
+      name: '贵州茅台',
+      open: 1338.98,
+      prevClose: 1327.5,
+      price: 1308,
+      high: 1344.7,
+      low: 1296.87
     })
   })
 })

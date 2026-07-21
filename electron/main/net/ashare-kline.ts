@@ -1,4 +1,4 @@
-import { queryHttpJson } from './http-client'
+import { queryHttp, queryHttpJson } from './http-client'
 import type {
   AshareKlineRefreshRequest,
   StockChartPayload,
@@ -23,6 +23,27 @@ const RANGE_LABEL: Record<StockKlineRange, string> = {
   custom: '自定义'
 }
 
+/**
+ * 东财 push2 被对端直接掐连接时，短时内反复试只会刷满日志并拖慢 5s 轮询。
+ * 熔断后直连新浪，到期后再探测一次东财是否恢复。
+ */
+const EASTMONEY_CIRCUIT_MS = 5 * 60_000
+let eastmoneyCircuitUntil = 0
+
+function queryEastMoneyCircuitOpen(): boolean {
+  return Date.now() < eastmoneyCircuitUntil
+}
+
+function postOpenEastMoneyCircuit(kind: 'quote' | 'kline', err: unknown): void {
+  const wasOpen = queryEastMoneyCircuitOpen()
+  eastmoneyCircuitUntil = Date.now() + EASTMONEY_CIRCUIT_MS
+  if (wasOpen) return
+  const msg = err instanceof Error ? err.message : String(err)
+  console.warn(
+    `[ashare-kline] eastmoney ${kind} unavailable (${msg}), use sina for ${EASTMONEY_CIRCUIT_MS / 60_000}m`
+  )
+}
+
 interface EastMoneyKlineResponse {
   data?: {
     code?: string
@@ -33,6 +54,15 @@ interface EastMoneyKlineResponse {
 
 interface EastMoneyQuoteResponse {
   data?: Record<string, number>
+}
+
+interface SinaKlineRow {
+  day: string
+  open: string
+  high: string
+  low: string
+  close: string
+  volume: string
 }
 
 /** 上海时区 YYYYMMDD */
@@ -180,8 +210,40 @@ export function queryNormalizeQuotePrice(raw: number): number {
   return raw / 100
 }
 
-/** 拉取实时行情 */
-export async function queryAshareLiveQuote(symbol: string): Promise<StockLiveQuote> {
+/** 转为新浪行情 list 代码（sh600519 / sz000001 / bj430047） */
+export function querySinaListSymbol(code: string): string {
+  if (code.startsWith('6')) return `sh${code}`
+  if (code.startsWith('4') || code.startsWith('8')) return `bj${code}`
+  return `sz${code}`
+}
+
+/**
+ * 解析新浪 hq.sinajs.cn 返回体：var hq_str_sh600519="名称,今开,昨收,现价,最高,最低,..."
+ * 为什么：新浪为纯文本，字段位置固定，便于单测与降级复用。
+ */
+export function queryParseSinaQuoteText(text: string): {
+  name: string
+  open: number
+  prevClose: number
+  price: number
+  high: number
+  low: number
+} | null {
+  const match = text.match(/="([^"]*)"/)
+  if (!match?.[1]) return null
+  const parts = match[1].split(',')
+  if (parts.length < 6) return null
+  const open = Number(parts[1])
+  const prevClose = Number(parts[2])
+  const price = Number(parts[3])
+  const high = Number(parts[4])
+  const low = Number(parts[5])
+  if (![open, prevClose, price, high, low].every(Number.isFinite)) return null
+  return { name: parts[0], open, prevClose, price, high, low }
+}
+
+/** 东方财富 push2 实时行情 */
+async function queryEastMoneyLiveQuote(symbol: string): Promise<StockLiveQuote> {
   const { code, secid } = queryNormalizeAshareSymbol(symbol)
   const url =
     `https://push2.eastmoney.com/api/qt/stock/get?secid=${encodeURIComponent(secid)}` +
@@ -189,8 +251,9 @@ export async function queryAshareLiveQuote(symbol: string): Promise<StockLiveQuo
 
   const data = await queryHttpJson<EastMoneyQuoteResponse>(url, {
     headers: { Referer: 'https://quote.eastmoney.com/' },
-    timeoutMs: 10_000,
-    retries: 1
+    timeoutMs: 8_000,
+    // 对端直接掐连接时重试无意义，尽快降级新浪
+    retries: 0
   })
 
   const d = data.data ?? {}
@@ -216,6 +279,50 @@ export async function queryAshareLiveQuote(symbol: string): Promise<StockLiveQuo
   }
 }
 
+/** 新浪 hq.sinajs.cn 实时行情（东财 push2 被重置连接时的备用源） */
+async function querySinaLiveQuote(symbol: string): Promise<StockLiveQuote> {
+  const { code } = queryNormalizeAshareSymbol(symbol)
+  const listCode = querySinaListSymbol(code)
+  const url = `https://hq.sinajs.cn/list=${listCode}`
+
+  const res = await queryHttp(url, {
+    headers: { Referer: 'https://finance.sina.com.cn/' },
+    timeoutMs: 10_000,
+    retries: 1
+  })
+  const parsed = queryParseSinaQuoteText(await res.text())
+  if (!parsed || !Number.isFinite(parsed.price) || parsed.price <= 0) {
+    throw new Error(`${code} 新浪实时行情不可用`)
+  }
+
+  const changeAmount = parsed.price - parsed.prevClose
+  const changePct =
+    parsed.prevClose > 0 ? (changeAmount / parsed.prevClose) * 100 : 0
+
+  return {
+    price: parsed.price,
+    changePct,
+    changeAmount,
+    high: parsed.high,
+    low: parsed.low,
+    open: parsed.open,
+    updatedAt: Date.now()
+  }
+}
+
+/** 拉取实时行情：优先东财，失败降级新浪（东财熔断期间直连新浪） */
+export async function queryAshareLiveQuote(symbol: string): Promise<StockLiveQuote> {
+  if (queryEastMoneyCircuitOpen()) {
+    return querySinaLiveQuote(symbol)
+  }
+  try {
+    return await queryEastMoneyLiveQuote(symbol)
+  } catch (emErr) {
+    postOpenEastMoneyCircuit('quote', emErr)
+    return querySinaLiveQuote(symbol)
+  }
+}
+
 /** 拉取东方财富 K 线原始 bars */
 async function queryFetchEastMoneyBars(
   secid: string,
@@ -234,8 +341,8 @@ async function queryFetchEastMoneyBars(
 
   const data = await queryHttpJson<EastMoneyKlineResponse>(url, {
     headers: { Referer: 'https://quote.eastmoney.com/' },
-    timeoutMs: 15_000,
-    retries: 1
+    timeoutMs: 8_000,
+    retries: 0
   })
 
   const bars = (data.data?.klines ?? [])
@@ -243,6 +350,108 @@ async function queryFetchEastMoneyBars(
     .filter((b): b is StockKlineBar => b != null)
 
   return { bars, name: String(data.data?.name ?? '') }
+}
+
+/** 新浪 K 线 scale：5=5 分钟，240=日 K */
+function querySinaKlineScale(klt: number): number {
+  return klt === PERIOD_KLT.intraday ? 5 : 240
+}
+
+/** 按 beg/end 过滤新浪 K 线（日 K 用 YYYYMMDD，分时用当天 YYYY-MM-DD 前缀） */
+function queryFilterSinaBars(
+  bars: StockKlineBar[],
+  beg: string,
+  end: string,
+  intraday: boolean
+): StockKlineBar[] {
+  if (intraday) {
+    const dayPrefix = `${beg.slice(0, 4)}-${beg.slice(4, 6)}-${beg.slice(6, 8)}`
+    return bars.filter((b) => b.date.startsWith(dayPrefix))
+  }
+  return bars.filter((b) => {
+    const ymd = b.date.replace(/-/g, '').slice(0, 8)
+    return ymd >= beg && ymd <= end
+  })
+}
+
+/** 新浪 K 线（东财 push2his 不可用时的备用源） */
+async function queryFetchSinaBars(
+  code: string,
+  beg: string,
+  end: string,
+  klt: number,
+  lmt: number
+): Promise<{ bars: StockKlineBar[]; name: string }> {
+  const listCode = querySinaListSymbol(code)
+  const scale = querySinaKlineScale(klt)
+  const datalen = Math.min(1023, Math.max(30, lmt))
+  const url =
+    'https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData' +
+    `?symbol=${encodeURIComponent(listCode)}&scale=${scale}&ma=no&datalen=${datalen}`
+
+  const rows = await queryHttpJson<SinaKlineRow[]>(url, {
+    headers: { Referer: 'https://finance.sina.com.cn/' },
+    timeoutMs: 15_000,
+    retries: 1
+  })
+
+  const intraday = scale === 5
+  const bars = (Array.isArray(rows) ? rows : [])
+    .map((row) => {
+      const bar: StockKlineBar = {
+        date: row.day,
+        open: Number(row.open),
+        high: Number(row.high),
+        low: Number(row.low),
+        close: Number(row.close),
+        volume: Number(row.volume)
+      }
+      if ([bar.open, bar.high, bar.low, bar.close].some((n) => !Number.isFinite(n))) {
+        return null
+      }
+      return bar
+    })
+    .filter((b): b is StockKlineBar => b != null)
+
+  const filtered = queryFilterSinaBars(bars, beg, end, intraday)
+
+  let name = code
+  try {
+    const quoteRes = await queryHttp(
+      `https://hq.sinajs.cn/list=${encodeURIComponent(listCode)}`,
+      {
+        headers: { Referer: 'https://finance.sina.com.cn/' },
+        timeoutMs: 8_000,
+        retries: 0
+      }
+    )
+    const parsed = queryParseSinaQuoteText(await quoteRes.text())
+    if (parsed?.name) name = parsed.name
+  } catch {
+    // 名称获取失败不阻断 K 线
+  }
+
+  return { bars: filtered, name }
+}
+
+/** 拉取 K 线：优先东财，失败降级新浪（东财熔断期间直连新浪） */
+async function queryFetchAshareBars(
+  code: string,
+  secid: string,
+  beg: string,
+  end: string,
+  klt: number,
+  lmt: number
+): Promise<{ bars: StockKlineBar[]; name: string }> {
+  if (queryEastMoneyCircuitOpen()) {
+    return queryFetchSinaBars(code, beg, end, klt, lmt)
+  }
+  try {
+    return await queryFetchEastMoneyBars(secid, beg, end, klt, lmt)
+  } catch (emErr) {
+    postOpenEastMoneyCircuit('kline', emErr)
+    return queryFetchSinaBars(code, beg, end, klt, lmt)
+  }
 }
 
 /**
@@ -257,11 +466,11 @@ export async function queryAshareKlineByRange(
   const { beg, end, klt, period } = queryResolveRangeParams(rangeParams)
   const lmt = Math.min(1000, Math.max(30, Math.floor(count) || 500))
 
-  let { bars, name } = await queryFetchEastMoneyBars(secid, beg, end, klt, lmt)
+  let { bars, name } = await queryFetchAshareBars(code, secid, beg, end, klt, lmt)
 
   // 当天 5 分钟线偶发为空（收盘后/接口抖动），降级为当日日 K
   if (bars.length === 0 && rangeParams.range === 'today') {
-    const fallback = await queryFetchEastMoneyBars(secid, beg, end, PERIOD_KLT.daily, lmt)
+    const fallback = await queryFetchAshareBars(code, secid, beg, end, PERIOD_KLT.daily, lmt)
     bars = fallback.bars
     name = fallback.name || name
   }
@@ -365,8 +574,26 @@ export async function queryAshareKlineRefreshChart(
       }
       return chart
     } catch (fallbackErr) {
-      console.error('[ashare-kline-refresh] quote fallback failed:', fallbackErr)
-      return null
+      console.warn('[ashare-kline-refresh] quote fallback failed, keep existing bars:', fallbackErr)
+      const { code } = queryNormalizeAshareSymbol(symbol)
+      let chart: StockChartPayload = {
+        symbol: code,
+        name: String(req.name || code),
+        range: rangeParams.range,
+        bars: existingBars,
+        startDate:
+          rangeParams.startDate != null ? queryNormalizeYmdInput(rangeParams.startDate) : undefined,
+        endDate:
+          rangeParams.endDate != null ? queryNormalizeYmdInput(rangeParams.endDate) : undefined
+      }
+      if (options?.queryAnalyze) {
+        try {
+          chart.analysis = options.queryAnalyze(chart)
+        } catch (analysisErr) {
+          console.warn('[ashare-kline-refresh] bars-only analysis failed:', analysisErr)
+        }
+      }
+      return chart
     }
   }
 }

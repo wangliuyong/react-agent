@@ -232,7 +232,8 @@ export const queryAshareRealtimeAnalysisTool: AgentTool = {
       )
       .join('；')
 
-    const liveRefresh = true
+    // 不开启聊天内自动轮询，仅保留手动刷新
+    const liveRefresh = false
     const chartBlock = queryBuildStockChartBlock(charts, { liveRefresh })
     const message = `${summaryLines.join('\n')}\n${chartBlock}`
 

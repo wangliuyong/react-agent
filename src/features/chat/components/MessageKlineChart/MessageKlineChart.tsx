@@ -31,11 +31,9 @@ echarts.use([
   CanvasRenderer
 ])
 
-/** 当天分时：5 秒一轮完整 K 线刷新 */
-const LIVE_KLINE_MS = 5_000
-
 interface MessageKlineChartProps {
   charts: StockChartPayload[]
+  /** 兼容旧字段；不再触发自动轮询，仅影响默认展示周期 */
   liveRefresh?: boolean
 }
 
@@ -116,8 +114,6 @@ export function MessageKlineChart({
   const [chartData, setChartData] = useState<StockChartPayload[]>(charts)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefreshAt, setLastRefreshAt] = useState<number | null>(null)
-  /** 手动刷新后重置轮询计时，避免刚点刷新又立刻被静默轮询覆盖 */
-  const [pollEpoch, setPollEpoch] = useState(0)
   const chartRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<echarts.ECharts | null>(null)
   /** 供 postRefresh 读取最新图表上下文，避免 useCallback 随行情更新反复重建 */
@@ -137,7 +133,6 @@ export function MessageKlineChart({
       ? queryPatchBarsWithQuote(rawBars, activeChart?.quote)
       : rawBars
   const analysis = activeChart?.analysis
-  const isLiveMode = liveRefresh && activeRange === 'today'
 
   useEffect(() => {
     setChartData(charts)
@@ -206,29 +201,11 @@ export function MessageKlineChart({
   const handleManualRefresh = useCallback(async (): Promise<void> => {
     const ok = await postRefresh(activeRange, false)
     if (ok) {
-      setPollEpoch((n) => n + 1)
       message.success('已刷新实时数据')
     } else {
       message.warning('刷新失败，请稍后重试')
     }
   }, [activeRange, postRefresh])
-
-  // 切换股票/周期：立即刷新
-  useEffect(() => {
-    if (!activeChart) return
-    void postRefresh(activeRange, true)
-  }, [activeChart?.symbol, activeRange, postRefresh])
-
-  // 当天实时：定时轮询完整分时 K 线
-  useEffect(() => {
-    if (!isLiveMode || !activeChart) return
-
-    const timer = window.setInterval(() => {
-      void postRefresh('today', true)
-    }, LIVE_KLINE_MS)
-
-    return () => window.clearInterval(timer)
-  }, [isLiveMode, activeChart?.symbol, pollEpoch, postRefresh])
 
   useEffect(() => {
     const el = chartRef.current
@@ -273,18 +250,52 @@ export function MessageKlineChart({
         animation: false,
         legend: { data: ['K线', 'MA5', 'MA20', '成交量'], top: 4 },
         tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        // 主图与成交量分栏；底部预留标签 + dataZoom 滑条，避免 xlabel 压住成交量
         grid: [
-          { left: 52, right: 16, top: 32, height: '55%' },
-          { left: 52, right: 16, top: '74%', height: '16%' }
+          { left: 52, right: 16, top: 32, height: '52%' },
+          { left: 52, right: 16, top: '66%', bottom: 52 }
         ],
         xAxis: [
-          { type: 'category', data: dates, boundaryGap: true, axisLine: { onZero: false } },
+          {
+            type: 'category',
+            data: dates,
+            boundaryGap: true,
+            axisLine: {
+              onZero: false, lineStyle: {
+                color: '#1890ff', // 自定义轴线颜色，支持十六进制/rgb/rgba
+                width: 1,
+                type: 'dashed'
+              }
+            },
+            // 标签只画在下方成交量轴，避免夹在两图之间挡住成交量
+            axisLabel: { show: false },
+            axisTick: { show: false }
+          },
           {
             type: 'category',
             gridIndex: 1,
             data: dates,
             boundaryGap: true,
-            axisLabel: { show: false }
+            axisLine: {
+              onZero: false, lineStyle: {
+                color: '#1890ff', // 自定义轴线颜色，支持十六进制/rgb/rgba
+                width: 1,
+                type: 'dashed'
+              }
+            },
+            axisLabel: {
+              color: '#8c8c8c',
+              fontSize: 11,
+              hideOverlap: true,
+              // 当天分时日期很长，只展示 HH:mm，减少拥挤与旋转需求
+              formatter: (value: string) => {
+                if (activeRange === 'today' && value.includes(' ')) {
+                  const time = value.split(' ')[1] ?? value
+                  return time.slice(0, 5)
+                }
+                return value
+              }
+            }
           }
         ],
         yAxis: [
@@ -423,9 +434,9 @@ export function MessageKlineChart({
           />
         ) : null}
         <div className={styles.liveActions}>
-          {isLiveMode || lastRefreshAt ? (
+          {lastRefreshAt ? (
             <Tag color="processing" className={styles.liveTag}>
-              {refreshing ? '刷新中…' : isLiveMode ? '实时' : '已更新'}
+              {refreshing ? '刷新中…' : '已更新'}
               {clock ? ` · ${clock}` : ''}
             </Tag>
           ) : null}
