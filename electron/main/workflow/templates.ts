@@ -525,6 +525,60 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
     ],
     createdAt: 0,
     updatedAt: 0
+  },
+  {
+    id: 'tpl_ashare_kline_preview',
+    title: 'A 股 K 线预览',
+    description:
+      '在工具节点配置股票代码（英文逗号分隔），拉取 K 线并在聊天中交互预览；可改 symbols / period / count。',
+    templateKind: 'generic',
+    nodes: [
+      { id: 'tpl_k_start', type: 'start', title: '开始' },
+      {
+        id: 'tpl_k_fetch',
+        type: 'tool',
+        title: '获取 A 股 K 线',
+        toolName: 'query_ashare_kline',
+        argsTemplate: {
+          symbols: '600519,000001',
+          period: 'daily',
+          count: 120
+        },
+        outputKeys: ['stockKlineSummary']
+      },
+      {
+        id: 'tpl_k_agent',
+        type: 'agent',
+        title: '解读行情',
+        prompt:
+          '根据上一步 K 线摘要，用 3～5 句话简要解读各股近期走势与关键价位，不要重复粘贴原始数据表。',
+        toolWhitelist: ['update_task_list']
+      },
+      {
+        id: 'tpl_k_await',
+        type: 'await_user',
+        title: '确认解读',
+        reason: 'K 线图与解读已生成，请确认后结束流程。'
+      },
+      { id: 'tpl_k_end', type: 'end', title: '结束' }
+    ],
+    canvas: {
+      positions: {
+        tpl_k_start: { x: 140, y: 20 },
+        tpl_k_fetch: { x: 140, y: 90 },
+        tpl_k_agent: { x: 140, y: 180 },
+        tpl_k_await: { x: 140, y: 270 },
+        tpl_k_end: { x: 140, y: 350 }
+      },
+      edges: [
+        { id: 'e_k_s_f', source: 'tpl_k_start', target: 'tpl_k_fetch' },
+        { id: 'e_k_f_a', source: 'tpl_k_fetch', target: 'tpl_k_agent' },
+        { id: 'e_k_a_w', source: 'tpl_k_agent', target: 'tpl_k_await' },
+        { id: 'e_k_w_e', source: 'tpl_k_await', target: 'tpl_k_end' }
+      ]
+    },
+    createdAt: 0,
+    updatedAt: 0
   }
 ]
 

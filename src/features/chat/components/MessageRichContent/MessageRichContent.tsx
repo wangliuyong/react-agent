@@ -8,7 +8,12 @@ import {
   extractMessageImages,
   type MessageImageRef
 } from '../../utils/message-images'
-import { extractMessageMedia, queryDisplayContent } from '../../utils/message-media'
+import { extractMessageMedia } from '../../utils/message-media'
+import {
+  extractStockCharts,
+  queryDisplayContentWithCharts
+} from '../../utils/message-charts'
+import { MessageKlineChart } from '../MessageKlineChart/MessageKlineChart'
 import styles from './MessageRichContent.module.css'
 
 interface MessageRichContentProps {
@@ -31,7 +36,8 @@ export function MessageRichContent({
 }: MessageRichContentProps): React.ReactElement {
   const images = extractMessageImages(content, attachmentPaths)
   const { audio, video } = extractMessageMedia(content)
-  const displayText = queryDisplayContent(content, images)
+  const stockCharts = extractStockCharts(content)
+  const displayText = queryDisplayContentWithCharts(content, images)
 
   const previewPaths = [
     ...images.filter((i) => i.kind === 'local').map((i) => i.src),
@@ -46,6 +52,7 @@ export function MessageRichContent({
       ) : streaming ? (
         <span className={styles.cursor} />
       ) : null}
+      <MessageKlineChart charts={stockCharts} />
       <MessageImageGallery images={images} />
       <MessageAudioPlayer items={audio} />
       <MessageVideoPlayer items={video} />
@@ -61,7 +68,9 @@ export function MessageRichContent({
 export function queryMediaCountLabel(content: string, attachmentPaths?: string[]): string {
   const images = extractMessageImages(content, attachmentPaths)
   const { audio, video } = extractMessageMedia(content)
+  const stockCharts = extractStockCharts(content)
   const parts: string[] = []
+  if (stockCharts.length) parts.push(`${stockCharts.length} 只K线`)
   if (images.length) parts.push(`${images.length} 张图`)
   if (audio.length) parts.push(`${audio.length} 段音频`)
   if (video.length) parts.push(`${video.length} 个视频`)

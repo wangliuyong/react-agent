@@ -26,6 +26,7 @@ import {
 /** 常用工具名快捷选项（亦可手输） */
 const TOOL_NAME_OPTIONS = [
   { value: 'fetch_hot_topics', label: 'fetch_hot_topics' },
+  { value: 'query_ashare_kline', label: 'query_ashare_kline（A股K线）' },
   { value: 'fetch_web_images', label: 'fetch_web_images' },
   { value: 'xhs_publish_note', label: 'xhs_publish_note' },
   { value: 'douyin_publish_note', label: 'douyin_publish_note' },

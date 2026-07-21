@@ -1,0 +1,22 @@
+.wrap {
+  margin-top: 12px;
+}
+
+.tabs {
+  margin-bottom: 8px;
+}
+
+.chart {
+  width: 100%;
+  height: 320px;
+  min-height: 240px;
+  border: 1px solid var(--db-border-subtle, rgba(0, 0, 0, 0.08));
+  border-radius: 8px;
+  background: var(--db-bg-elevated, #fff);
+}
+
+@media (max-width: 640px) {
+  .chart {
+    height: 260px;
+  }
+}

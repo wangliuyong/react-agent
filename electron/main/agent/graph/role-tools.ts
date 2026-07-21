@@ -9,6 +9,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'use_skill',
     'switch_model',
     'fetch_hot_topics',
+    'query_ashare_kline',
     'query_weather',
     'query_web_data',
     'fetch_web_images',
