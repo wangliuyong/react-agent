@@ -1056,9 +1056,19 @@ export interface Session {
   updatedAt: number
 }
 
-import type { PublishChannelId, PublishChannelMeta, PublishChannelUpsertInput } from './publish-channels'
+import type {
+  FeishuNotifyMsgType,
+  PublishChannelId,
+  PublishChannelMeta,
+  PublishChannelUpsertInput
+} from './publish-channels'
 
-export type { PublishChannelId, PublishChannelMeta, PublishChannelUpsertInput } from './publish-channels'
+export type {
+  FeishuNotifyMsgType,
+  PublishChannelId,
+  PublishChannelMeta,
+  PublishChannelUpsertInput
+} from './publish-channels'
 
 /** 发布计划子任务 */
 export interface PublishSubTask {
@@ -1398,10 +1408,21 @@ export interface WorkflowNotifyNode {
   channelId: string
   /** 推送标题模板，支持 {{contextKey}} */
   titleTemplate?: string
-  /** 推送正文模板，支持 {{contextKey}} */
+  /** 推送正文模板，支持 {{contextKey}}；image / share_chat 时可忽略 */
   contentTemplate: string
-  /** 飞书 Markdown 富文本 */
+  /**
+   * 飞书消息类型：text / post / image / share_chat。
+   * 缺省时由 queryFeishuMsgType 按 richText / 渠道推导。
+   */
+  msgType?: FeishuNotifyMsgType
+  /**
+   * @deprecated 请使用 msgType；读盘时 richText=true→post、false→text
+   */
   richText?: boolean
+  /** 图片消息 image_key；可覆盖渠道 notifyConfig.feishuImageKey */
+  imageKey?: string
+  /** 群名片 share_chat_id；可覆盖渠道 notifyConfig.feishuShareChatId */
+  shareChatId?: string
   /** 发送失败时继续流程（默认 true，对齐发布计划「通知失败可忽略」） */
   failSoft?: boolean
   /** 声明需要从上游 context 读取的键；留空则从模板中 {{key}} 自动推断 */

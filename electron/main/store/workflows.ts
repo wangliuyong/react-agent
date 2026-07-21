@@ -1,8 +1,9 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
+import { queryFeishuMsgType } from '../../../shared/publish-channels'
 import type {
-  WorkflowAwaitNode,
   WorkflowAgentNode,
+  WorkflowAwaitNode,
   WorkflowCanvas,
   WorkflowConditionNode,
   WorkflowConditionWhen,
@@ -93,17 +94,21 @@ function normalizeLeaf(
 
   if (raw.type === 'notify') {
     const notify = raw as WorkflowNotifyNode
+    const channelId = String(notify.channelId || '').trim() || 'feishu'
     return {
       ...base,
       type: 'notify',
-      channelId: String(notify.channelId || '').trim() || 'feishu',
+      channelId,
       titleTemplate:
         notify.titleTemplate != null ? String(notify.titleTemplate) : undefined,
       contentTemplate: String(notify.contentTemplate || '').trim() || '{{summary}}',
-      richText:
-        String(notify.channelId || 'feishu') === 'feishu'
-          ? notify.richText !== false
-          : Boolean(notify.richText),
+      msgType: queryFeishuMsgType({
+        msgType: notify.msgType,
+        richText: notify.richText,
+        channelId
+      }),
+      imageKey: notify.imageKey?.trim() || undefined,
+      shareChatId: notify.shareChatId?.trim() || undefined,
       failSoft: notify.failSoft !== false,
       inputKeys: normalizeKeyList(notify.inputKeys),
       outputKeys: normalizeKeyList(notify.outputKeys)

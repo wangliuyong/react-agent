@@ -15,6 +15,8 @@ import type {
   WorkflowToastNode,
   WorkflowToolNode
 } from '@shared/types'
+import type { FeishuNotifyMsgType } from '@shared/publish-channels'
+import { queryFeishuMsgType } from '@shared/publish-channels'
 import {
   queryIoAlignmentIssues,
   parseContextKeyList,
@@ -89,7 +91,9 @@ interface FormValues {
   channelId?: string
   titleTemplate?: string
   contentTemplate?: string
-  richText?: boolean
+  msgType?: FeishuNotifyMsgType
+  imageKey?: string
+  shareChatId?: string
   failSoft?: boolean
   /** toast */
   level?: WorkflowToastLevel
@@ -158,7 +162,13 @@ function nodeToFormValues(node: WorkflowNode): FormValues {
       channelId: node.channelId,
       titleTemplate: node.titleTemplate ?? '',
       contentTemplate: node.contentTemplate,
-      richText: node.richText,
+      msgType: queryFeishuMsgType({
+        msgType: node.msgType,
+        richText: node.richText,
+        channelId: node.channelId
+      }),
+      imageKey: node.imageKey ?? '',
+      shareChatId: node.shareChatId ?? '',
       failSoft: node.failSoft !== false
     }
   }
@@ -368,17 +378,18 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
   }
 
   if (values.type === 'notify') {
+    const channelId = (values.channelId ?? '').trim() || 'feishu'
+    const msgType = values.msgType ?? queryFeishuMsgType({ channelId })
     const node: WorkflowNotifyNode = withIo({
       id,
       type: 'notify',
       title,
-      channelId: (values.channelId ?? '').trim() || 'feishu',
+      channelId,
       titleTemplate: (values.titleTemplate ?? '').trim() || undefined,
       contentTemplate: (values.contentTemplate ?? '').trim() || '{{summary}}',
-      richText:
-        (values.channelId ?? 'feishu') === 'feishu'
-          ? values.richText !== false
-          : Boolean(values.richText),
+      msgType,
+      imageKey: (values.imageKey ?? '').trim() || undefined,
+      shareChatId: (values.shareChatId ?? '').trim() || undefined,
       failSoft: values.failSoft !== false
     })
     if (!node.channelId) throw new Error('请选择通知渠道')
@@ -439,6 +450,8 @@ export function WorkflowNodeEditModal({
   const branchShape = Form.useWatch('branchShape', form)
   const useAdvanced = Form.useWatch('useAdvancedExpression', form)
   const op = Form.useWatch('op', form)
+  const notifyChannelId = Form.useWatch('channelId', form)
+  const notifyMsgType = Form.useWatch('msgType', form) as FeishuNotifyMsgType | undefined
   const isEditingCondition = node?.type === 'condition'
 
   useEffect(() => {
@@ -865,21 +878,57 @@ export function WorkflowNodeEditModal({
             <Form.Item
               name="contentTemplate"
               label="推送正文"
-              rules={[{ required: true, message: '请填写正文模板' }]}
-              tooltip="支持 {{contextKey}} 插值，引用上游工具/Agent 返回值"
+              rules={[
+                {
+                  validator: async (_, value) => {
+                    const mt =
+                      (form.getFieldValue('msgType') as FeishuNotifyMsgType | undefined) ??
+                      queryFeishuMsgType({ channelId: form.getFieldValue('channelId') })
+                    if (mt === 'image' || mt === 'share_chat') return
+                    if (!String(value ?? '').trim()) throw new Error('请填写正文模板')
+                  }
+                }
+              ]}
+              tooltip="支持 {{contextKey}} 插值；image / 群名片类型可留空"
               initialValue="{{summary}}"
             >
               <Input.TextArea rows={4} placeholder="{{summary}}" />
             </Form.Item>
-            <Form.Item
-              name="richText"
-              label="飞书富文本"
-              valuePropName="checked"
-              tooltip="开启后将 Markdown 转为飞书 post 富文本推送"
-              initialValue
-            >
-              <Switch />
-            </Form.Item>
+            {notifyChannelId === 'feishu' ? (
+              <Form.Item
+                name="msgType"
+                label="飞书通知类型"
+                tooltip="对应飞书自定义机器人 msg_type"
+                initialValue="post"
+              >
+                <Select
+                  options={[
+                    { value: 'text', label: '文本' },
+                    { value: 'post', label: '富文本（Markdown）' },
+                    { value: 'image', label: '图片消息' },
+                    { value: 'share_chat', label: '群名片' }
+                  ]}
+                />
+              </Form.Item>
+            ) : null}
+            {notifyChannelId === 'feishu' && notifyMsgType === 'image' ? (
+              <Form.Item
+                name="imageKey"
+                label="image_key"
+                tooltip="飞书图片上传 API 返回的 key；可留空以使用渠道页默认配置"
+              >
+                <Input placeholder="img_xxx 或留空使用渠道配置" />
+              </Form.Item>
+            ) : null}
+            {notifyChannelId === 'feishu' && notifyMsgType === 'share_chat' ? (
+              <Form.Item
+                name="shareChatId"
+                label="share_chat_id"
+                tooltip="群 ID；可留空以使用渠道页默认配置"
+              >
+                <Input placeholder="oc_xxx 或留空使用渠道配置" />
+              </Form.Item>
+            ) : null}
             <Form.Item
               name="failSoft"
               label="失败时继续"

@@ -405,7 +405,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         title: '渠道通知',
         channelId: 'feishu',
         contentTemplate: '{{summary}}',
-        richText: true,
+        msgType: 'post',
         failSoft: true
       },
       { id: 'tpl_fr_end', type: 'end', title: '结束' }
@@ -519,7 +519,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         channelId: 'feishu',
         titleTemplate: '今日天气',
         contentTemplate: '{{weatherText}}',
-        richText: true,
+        msgType: 'post',
         failSoft: true
       }
     ],

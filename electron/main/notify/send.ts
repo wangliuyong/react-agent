@@ -1,9 +1,16 @@
 import {
   normalizeChannelKind,
-  queryPublishChannelMeta
+  queryFeishuMsgType,
+  queryPublishChannelMeta,
+  type FeishuNotifyMsgType
 } from '../../../shared/publish-channels'
 import { queryPublishChannels } from '../store/channels'
-import { markdownToFeishuPost, postFeishuWebhookRichText } from './feishu-rich'
+import {
+  postFeishuWebhookImage,
+  postFeishuWebhookShareChat,
+  postFeishuWebhookText
+} from './feishu'
+import { markdownToFeishuPost, postFeishuWebhookRichText, queryLooksLikeMarkdown } from './feishu-rich'
 import { postGenericWebhookText } from './webhook'
 
 export type NotifySendResult =
@@ -16,12 +23,26 @@ export interface NotifyFanoutResult {
   failCount: number
 }
 
-/** 相同渠道+标题+正文短时去重，防止 ReAct 连续两轮误发 */
+/** 相同渠道+类型+标题+正文短时去重，防止 ReAct 连续两轮误发 */
 const NOTIFY_DEDUPE_MS = 120_000
 const recentNotifyAt = new Map<string, number>()
 
-function queryNotifyDedupeKey(channelId: string, title: string | undefined, content: string): string {
-  return `${channelId}\0${title?.trim() ?? ''}\0${content.trim()}`
+function queryNotifyDedupeKey(args: {
+  channelId: string
+  msgType: FeishuNotifyMsgType | 'text'
+  title: string | undefined
+  content: string
+  imageKey?: string
+  shareChatId?: string
+}): string {
+  return [
+    args.channelId,
+    args.msgType,
+    args.title?.trim() ?? '',
+    args.content.trim(),
+    args.imageKey?.trim() ?? '',
+    args.shareChatId?.trim() ?? ''
+  ].join('\0')
 }
 
 /**
@@ -32,6 +53,13 @@ export async function postNotifyMessage(args: {
   channelId: string
   title?: string
   content: string
+  /** 显式消息类型；覆盖渠道默认与 richText 兼容字段 */
+  msgType?: FeishuNotifyMsgType
+  /** 图片消息 image_key；覆盖渠道 notifyConfig */
+  imageKey?: string
+  /** 群名片 share_chat_id；覆盖渠道 notifyConfig */
+  shareChatId?: string
+  /** @deprecated 请使用 msgType；true→post、false→text */
   richText?: boolean
   atUserId?: 'all' | string
 }): Promise<NotifySendResult> {
@@ -49,10 +77,35 @@ export async function postNotifyMessage(args: {
     return { ok: false, error: `${meta.label} Webhook 未配置，请先在渠道页填写并保存` }
   }
 
-  const dedupeKey = queryNotifyDedupeKey(args.channelId, args.title, args.content)
+  const channelDefault = meta.notifyConfig?.feishuMsgType
+  let msgType = queryFeishuMsgType({
+    msgType: args.msgType,
+    richText: args.richText,
+    channelId: meta.id,
+    channelDefault: meta.id === 'feishu' ? channelDefault : undefined
+  })
+
+  // 飞书：正文含 Markdown（表格/标题/列表等）时自动走 post，避免 | # ** 等语法原样展示
+  if (meta.id === 'feishu' && msgType === 'text' && queryLooksLikeMarkdown(args.content)) {
+    msgType = 'post'
+  }
+
+  const imageKey =
+    args.imageKey?.trim() || meta.notifyConfig?.feishuImageKey?.trim() || undefined
+  const shareChatId =
+    args.shareChatId?.trim() || meta.notifyConfig?.feishuShareChatId?.trim() || undefined
+
+  const dedupeKey = queryNotifyDedupeKey({
+    channelId: args.channelId,
+    msgType,
+    title: args.title,
+    content: args.content,
+    imageKey,
+    shareChatId
+  })
   const lastAt = recentNotifyAt.get(dedupeKey)
   if (lastAt != null && Date.now() - lastAt < NOTIFY_DEDUPE_MS) {
-    console.info(`[notify] deduped channelId=${meta.id}`)
+    console.info(`[notify] deduped channelId=${meta.id} msgType=${msgType}`)
     return { ok: true, deduped: true }
   }
 
@@ -62,7 +115,31 @@ export async function postNotifyMessage(args: {
 
   try {
     if (meta.id === 'feishu') {
-      if (args.richText) {
+      if (msgType === 'image') {
+        if (!imageKey) {
+          return {
+            ok: false,
+            error: '图片消息缺少 image_key：请在渠道页配置，或在通知参数中传入 imageKey'
+          }
+        }
+        await postFeishuWebhookImage({
+          webhookUrl,
+          secret: meta.notifyConfig?.secret,
+          imageKey
+        })
+      } else if (msgType === 'share_chat') {
+        if (!shareChatId) {
+          return {
+            ok: false,
+            error: '群名片缺少 share_chat_id：请在渠道页配置，或在通知参数中传入 shareChatId'
+          }
+        }
+        await postFeishuWebhookShareChat({
+          webhookUrl,
+          secret: meta.notifyConfig?.secret,
+          shareChatId
+        })
+      } else if (msgType === 'post') {
         const post = markdownToFeishuPost(args.content, {
           atUserId: args.atUserId,
           title: args.title
@@ -73,7 +150,6 @@ export async function postNotifyMessage(args: {
           post
         })
       } else {
-        const { postFeishuWebhookText } = await import('./feishu')
         await postFeishuWebhookText({
           webhookUrl,
           secret: meta.notifyConfig?.secret,
@@ -81,6 +157,7 @@ export async function postNotifyMessage(args: {
         })
       }
     } else if (meta.id === 'webhook') {
+      // 通用 Webhook 仅支持文本；忽略飞书专属 msgType
       await postGenericWebhookText({
         webhookUrl,
         secret: meta.notifyConfig?.secret,
@@ -92,11 +169,11 @@ export async function postNotifyMessage(args: {
     }
 
     recentNotifyAt.set(dedupeKey, Date.now())
-    console.info(`[notify] ok channelId=${meta.id} richText=${Boolean(args.richText)}`)
+    console.info(`[notify] ok channelId=${meta.id} msgType=${msgType}`)
     return { ok: true }
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err)
-    console.warn(`[notify] fail channelId=${meta.id} error=${error}`)
+    console.warn(`[notify] fail channelId=${meta.id} msgType=${msgType} error=${error}`)
     return { ok: false, error }
   }
 }
@@ -109,6 +186,9 @@ export async function postNotifyMessageFanout(args: {
   channelIds: string[]
   title?: string
   content: string
+  msgType?: FeishuNotifyMsgType
+  imageKey?: string
+  shareChatId?: string
   richText?: boolean
   atUserId?: 'all' | string
 }): Promise<NotifyFanoutResult> {
@@ -119,6 +199,9 @@ export async function postNotifyMessageFanout(args: {
         channelId,
         title: args.title,
         content: args.content,
+        msgType: args.msgType,
+        imageKey: args.imageKey,
+        shareChatId: args.shareChatId,
         richText: args.richText,
         atUserId: args.atUserId
       })
@@ -148,7 +231,7 @@ export async function postScheduleTaskNotify(args: {
     channelIds: notifyChannelIds,
     title: taskTitle,
     content: body,
-    richText: true,
+    msgType: 'post',
     atUserId: 'all'
   })
   for (const r of fanout.results) {

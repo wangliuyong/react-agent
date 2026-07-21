@@ -85,17 +85,22 @@ export function createAwaitNode(partial?: Partial<WorkflowAwaitNode>): WorkflowA
   }
 }
 
-/** 新建渠道通知节点：默认飞书，正文引用上游 {{summary}} */
+/** 新建渠道通知节点：默认飞书富文本，正文引用上游 {{summary}} */
 export function createNotifyNode(partial?: Partial<WorkflowNotifyNode>): WorkflowNotifyNode {
+  const channelId = partial?.channelId ?? 'feishu'
   return {
     id: crypto.randomUUID(),
     type: 'notify',
     title: partial?.title ?? '渠道通知',
-    channelId: partial?.channelId ?? 'feishu',
+    channelId,
     titleTemplate: partial?.titleTemplate,
     contentTemplate: partial?.contentTemplate ?? '{{summary}}',
-    richText: partial?.richText ?? (partial?.channelId ?? 'feishu') === 'feishu',
+    msgType:
+      partial?.msgType ??
+      (channelId === 'feishu' ? 'post' : undefined),
     failSoft: partial?.failSoft ?? true,
+    imageKey: partial?.imageKey,
+    shareChatId: partial?.shareChatId,
     outputKeys: partial?.outputKeys
   }
 }

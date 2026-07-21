@@ -118,3 +118,37 @@ export async function postFeishuWebhookPost(opts: {
     }
   })
 }
+
+/**
+ * 通过飞书自定义机器人 Webhook 发送图片（msg_type=image）。
+ * image_key 需通过飞书「上传图片」API 获取；自定义机器人本身无上传能力。
+ */
+export async function postFeishuWebhookImage(opts: {
+  webhookUrl: string
+  secret?: string
+  imageKey: string
+}): Promise<void> {
+  await postFeishuWebhook({
+    webhookUrl: opts.webhookUrl,
+    secret: opts.secret,
+    msgType: 'image',
+    content: { image_key: opts.imageKey }
+  })
+}
+
+/**
+ * 通过飞书自定义机器人 Webhook 发送群名片（msg_type=share_chat）。
+ * 机器人只能分享其所在群的群名片。
+ */
+export async function postFeishuWebhookShareChat(opts: {
+  webhookUrl: string
+  secret?: string
+  shareChatId: string
+}): Promise<void> {
+  await postFeishuWebhook({
+    webhookUrl: opts.webhookUrl,
+    secret: opts.secret,
+    msgType: 'share_chat',
+    content: { share_chat_id: opts.shareChatId }
+  })
+}

@@ -14,7 +14,13 @@ export function createEmptyChannel(kind: ChannelKind = 'publish'): PublishChanne
       description: '',
       enabled: true,
       notifyTool: 'notify_message',
-      notifyConfig: { webhookUrl: '', secret: '' },
+      notifyConfig: {
+        webhookUrl: '',
+        secret: '',
+        feishuMsgType: 'post',
+        feishuImageKey: '',
+        feishuShareChatId: ''
+      },
       agentHint: '使用 notify_message 发送；勿在对话中暴露 webhook。'
     }
   }
@@ -68,7 +74,10 @@ export function channelMetaToInput(meta: PublishChannelMeta): PublishChannelUpse
     notifyTool: meta.notifyTool,
     notifyConfig: {
       webhookUrl: meta.notifyConfig?.webhookUrl ?? '',
-      secret: meta.notifyConfig?.secret ?? ''
+      secret: meta.notifyConfig?.secret ?? '',
+      feishuMsgType: meta.notifyConfig?.feishuMsgType ?? 'post',
+      feishuImageKey: meta.notifyConfig?.feishuImageKey ?? '',
+      feishuShareChatId: meta.notifyConfig?.feishuShareChatId ?? ''
     },
     agentHint: meta.agentHint
   }

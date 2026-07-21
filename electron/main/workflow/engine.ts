@@ -31,6 +31,7 @@ import type { ToolContext } from '../agent/tools/types'
 import { getMainWindow } from '../window'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
 import { postNotifyMessage } from '../notify/send'
+import { queryFeishuMsgType } from '../../../shared/publish-channels'
 import { interpolateDeep } from './interpolate'
 import {
   interpolatePromptSoft,
@@ -332,8 +333,28 @@ async function executeNotifyNode(
     ? interpolatePromptSoft(node.titleTemplate, context)
     : undefined
   const content = interpolatePromptSoft(node.contentTemplate, context).trim()
-  logWorkflowNodeInput('通知节点 · 内容已解析', node, context, { title, content })
-  if (!content) {
+  const msgType = queryFeishuMsgType({
+    msgType: node.msgType,
+    richText: node.richText,
+    channelId: node.channelId
+  })
+  const imageKey = node.imageKey
+    ? interpolatePromptSoft(node.imageKey, context).trim() || undefined
+    : undefined
+  const shareChatId = node.shareChatId
+    ? interpolatePromptSoft(node.shareChatId, context).trim() || undefined
+    : undefined
+
+  logWorkflowNodeInput('通知节点 · 内容已解析', node, context, {
+    title,
+    content,
+    msgType,
+    imageKey,
+    shareChatId
+  })
+
+  const needsContent = msgType === 'text' || msgType === 'post'
+  if (needsContent && !content) {
     const msg = '通知正文为空，请检查 contentTemplate 或上游 outputKeys'
     appendWorkflowMessage(session, {
       role: 'assistant',
@@ -345,15 +366,16 @@ async function executeNotifyNode(
     return { context, summary: msg }
   }
 
-  const useRichText = node.channelId === 'feishu' ? node.richText !== false : Boolean(node.richText)
   const resolvedTitle =
-    title?.trim() || (useRichText ? queryMarkdownHeadingTitle(content) : undefined)
+    title?.trim() || (msgType === 'post' ? queryMarkdownHeadingTitle(content) : undefined)
 
   const result = await postNotifyMessage({
     channelId: node.channelId,
     title: resolvedTitle,
     content,
-    richText: useRichText
+    msgType,
+    imageKey,
+    shareChatId
   })
 
   const summary = result.ok

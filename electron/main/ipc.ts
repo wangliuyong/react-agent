@@ -92,6 +92,10 @@ import {
 } from './workflow/migrate-publish'
 import { createBuiltinPublishPlans } from '../../shared/builtin-seeds'
 import type { PublishChannelUpsertInput } from '../../shared/publish-channels'
+import {
+  queryFeishuMsgType,
+  queryPublishChannelMeta
+} from '../../shared/publish-channels'
 import type { WorkflowDefinition } from '../../shared/types'
 import { postNotifyMessage } from './notify/send'
 
@@ -216,10 +220,48 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IpcChannels.postInitPublishChannels, () => postInitPublishChannels())
   ipcMain.handle(IpcChannels.postNotifyChannelTest, async (_e, channelId: string) => {
+    const id = String(channelId)
+    // 确保渠道注册表已从磁盘加载
+    const { queryPublishChannels } = await import('./store/channels')
+    queryPublishChannels()
+    const meta = queryPublishChannelMeta(id)
+    const msgType = queryFeishuMsgType({
+      msgType: meta.notifyConfig?.feishuMsgType,
+      channelId: meta.id,
+      // 测试发送：渠道未配类型时默认 post（富文本）
+      channelDefault: 'post'
+    })
+
+    if (msgType === 'image') {
+      return postNotifyMessage({
+        channelId: id,
+        content: '',
+        msgType: 'image',
+        imageKey: meta.notifyConfig?.feishuImageKey
+      })
+    }
+    if (msgType === 'share_chat') {
+      return postNotifyMessage({
+        channelId: id,
+        content: '',
+        msgType: 'share_chat',
+        shareChatId: meta.notifyConfig?.feishuShareChatId
+      })
+    }
+    if (msgType === 'post') {
+      return postNotifyMessage({
+        channelId: id,
+        title: '灵犀通知测试',
+        content:
+          '这是一条**富文本**测试消息。\n详见 [飞书自定义机器人文档](https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot)',
+        msgType: 'post'
+      })
+    }
     return postNotifyMessage({
-      channelId: String(channelId),
+      channelId: id,
       title: '灵犀通知测试',
-      content: '这是一条来自渠道页的测试消息。'
+      content: '这是一条来自渠道页的测试消息。',
+      msgType: 'text'
     })
   })
 

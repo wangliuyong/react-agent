@@ -1,8 +1,9 @@
 import type { CSSProperties } from 'react'
-import type { ChannelKind, PublishChannelUpsertInput } from '@shared/publish-channels'
+import type { ChannelKind, FeishuNotifyMsgType, PublishChannelUpsertInput } from '@shared/publish-channels'
 import {
   isNotifyChannelConfigured,
   normalizeChannelKind,
+  normalizeFeishuMsgType,
   queryPublishChannelMeta
 } from '@shared/publish-channels'
 import type { ChannelLoginState, ChannelLoginStatus, PublishChannelMeta } from '@shared/types'
@@ -23,6 +24,14 @@ import {
 import styles from './ChannelsPage.module.css'
 
 const { Title, Text } = Typography
+
+/** 飞书通知类型展示名 */
+const FEISHU_MSG_TYPE_LABELS: Record<FeishuNotifyMsgType, string> = {
+  text: '文本',
+  post: '富文本',
+  image: '图片消息',
+  share_chat: '群名片'
+}
 
 type ChannelFilter = 'all' | 'enabled' | 'reserved'
 
@@ -132,6 +141,10 @@ export function ChannelsPage(): React.ReactElement {
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm<PublishChannelUpsertInput>()
   const editKind = Form.useWatch('kind', form) as ChannelKind | undefined
+  const editChannelId = Form.useWatch('id', form) as string | undefined
+  const editFeishuMsgType = Form.useWatch(['notifyConfig', 'feishuMsgType'], form) as
+    | FeishuNotifyMsgType
+    | undefined
 
   useEffect(() => {
     void hydrate()
@@ -243,7 +256,19 @@ export function ChannelsPage(): React.ReactElement {
           kind === 'notify'
             ? {
                 webhookUrl: webhookUrl || undefined,
-                secret: values.notifyConfig?.secret?.trim() || undefined
+                secret: values.notifyConfig?.secret?.trim() || undefined,
+                feishuMsgType:
+                  normalizedId === 'feishu'
+                    ? normalizeFeishuMsgType(values.notifyConfig?.feishuMsgType) ?? 'post'
+                    : undefined,
+                feishuImageKey:
+                  normalizedId === 'feishu'
+                    ? values.notifyConfig?.feishuImageKey?.trim() || undefined
+                    : undefined,
+                feishuShareChatId:
+                  normalizedId === 'feishu'
+                    ? values.notifyConfig?.feishuShareChatId?.trim() || undefined
+                    : undefined
               }
             : undefined,
         loginCheckUrl: values.loginCheckUrl?.trim() || undefined,
@@ -359,6 +384,8 @@ export function ChannelsPage(): React.ReactElement {
   // 为什么：弹窗刚挂载时 useWatch 可能尚未就绪，优先用 editDraft.kind，避免误判为发布渠道而卸掉 Webhook 表单项
   const formIsNotify =
     normalizeChannelKind(editKind ?? editDraft?.kind ?? kindTab) === 'notify'
+  const formIsFeishu =
+    (editChannelId || editDraft?.id || '').trim() === 'feishu'
 
   return (
     <div className={styles.page}>
@@ -655,6 +682,36 @@ export function ChannelsPage(): React.ReactElement {
                         {detailChannel.notifyConfig?.webhookUrl ? '已配置' : '未配置'}
                       </span>
                     </div>
+                    {detailChannel.id === 'feishu' ? (
+                      <>
+                        <div className={styles.metaRow}>
+                          <span className={styles.metaLabel}>通知类型</span>
+                          <span className={styles.metaValue}>
+                            {FEISHU_MSG_TYPE_LABELS[
+                              detailChannel.notifyConfig?.feishuMsgType ?? 'post'
+                            ]}
+                          </span>
+                        </div>
+                        {detailChannel.notifyConfig?.feishuMsgType === 'image' ? (
+                          <div className={styles.metaRow}>
+                            <span className={styles.metaLabel}>image_key</span>
+                            <span className={styles.metaValue}>
+                              {detailChannel.notifyConfig?.feishuImageKey ? '已配置' : '未配置'}
+                            </span>
+                          </div>
+                        ) : null}
+                        {detailChannel.notifyConfig?.feishuMsgType === 'share_chat' ? (
+                          <div className={styles.metaRow}>
+                            <span className={styles.metaLabel}>share_chat_id</span>
+                            <span className={styles.metaValue}>
+                              {detailChannel.notifyConfig?.feishuShareChatId
+                                ? '已配置'
+                                : '未配置'}
+                            </span>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : null}
                   </>
                 ) : (
                   <>
@@ -806,6 +863,40 @@ export function ChannelsPage(): React.ReactElement {
                 >
                   <Input.Password placeholder="可选" />
                 </Form.Item>
+                {formIsFeishu ? (
+                  <>
+                    <Form.Item
+                      name={['notifyConfig', 'feishuMsgType']}
+                      label="通知类型"
+                      tooltip="对应飞书自定义机器人 msg_type；测试发送将按此类型推送"
+                      initialValue="post"
+                    >
+                      <Select
+                        options={(
+                          Object.entries(FEISHU_MSG_TYPE_LABELS) as [FeishuNotifyMsgType, string][]
+                        ).map(([value, label]) => ({ value, label }))}
+                      />
+                    </Form.Item>
+                    {editFeishuMsgType === 'image' ? (
+                      <Form.Item
+                        name={['notifyConfig', 'feishuImageKey']}
+                        label="image_key"
+                        tooltip="通过飞书「上传图片」API 获取；测试发送与默认通知将使用此 key"
+                      >
+                        <Input placeholder="img_xxx" />
+                      </Form.Item>
+                    ) : null}
+                    {editFeishuMsgType === 'share_chat' ? (
+                      <Form.Item
+                        name={['notifyConfig', 'feishuShareChatId']}
+                        label="share_chat_id"
+                        tooltip="群 ID；机器人只能分享其所在群的群名片"
+                      >
+                        <Input placeholder="oc_xxx" />
+                      </Form.Item>
+                    ) : null}
+                  </>
+                ) : null}
               </>
             ) : (
               <>

@@ -46,6 +46,7 @@ const ROLE_PROMPTS: Record<AgentRoleName, string> = {
 3. 每完成一步更新任务清单状态
 4. 不要建议用脚本直接改 DOM；所有交互都应通过工具完成
 5. 通知类工具（notify_message）成功后立即结束；禁止对相同渠道/相同正文重复发送
+   - 飞书可选 msgType：post 推送 Markdown 富文本；image 需 imageKey；share_chat 需 shareChatId
 6. 天气用 query_weather；热点用 fetch_hot_topics
 7. 用户要求「生成/画一张图」且不要网图时：必须调用 generate_image；禁止用 fetch_web_images；禁止未拿到工具成功结果就声称已生成
 8. generate_image 成功后，回复中保留工具返回的本地 png 路径，便于界面预览
@@ -113,7 +114,7 @@ const ROLE_PROMPTS: Record<AgentRoleName, string> = {
 3. 全片审核：音画同步、叙事连贯、是否有畸形/闪烁残留；有问题在回复中说明
 4. 成片路径以工具返回为准；提醒用户可在聊天内直接播放 videoPath
 5. 保留 manifest 与提示词版本路径，便于二次修改
-6. 可按需 notify_message 通知用户
+6. 可按需 notify_message 通知用户（飞书 msgType=post 可推 Markdown 富文本）
 7. 需要时可 switch_model
 不要重新生成分镜。`
 }

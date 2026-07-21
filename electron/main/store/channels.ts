@@ -3,6 +3,7 @@ import { join } from 'path'
 import {
   DEFAULT_PUBLISH_CHANNELS,
   normalizeChannelKind,
+  normalizeFeishuMsgType,
   setPublishChannelRegistry,
   type ChannelKind,
   type PublishChannelMeta,
@@ -83,7 +84,10 @@ function normalizeChannel(raw: PublishChannelMeta): PublishChannelMeta {
       kind === 'notify'
         ? {
             webhookUrl: raw.notifyConfig?.webhookUrl?.trim() || undefined,
-            secret: raw.notifyConfig?.secret?.trim() || undefined
+            secret: raw.notifyConfig?.secret?.trim() || undefined,
+            feishuMsgType: normalizeFeishuMsgType(raw.notifyConfig?.feishuMsgType),
+            feishuImageKey: raw.notifyConfig?.feishuImageKey?.trim() || undefined,
+            feishuShareChatId: raw.notifyConfig?.feishuShareChatId?.trim() || undefined
           }
         : undefined,
     loginCheckUrl: raw.loginCheckUrl?.trim() || undefined,

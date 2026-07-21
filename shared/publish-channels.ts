@@ -10,10 +10,63 @@ export type PublishChannelId = string
 /** 渠道类型：发布到内容平台 / 推送通知消息 */
 export type ChannelKind = 'publish' | 'notify'
 
+/**
+ * 飞书自定义机器人 Webhook 支持的消息类型。
+ * 文档：https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot
+ */
+export type FeishuNotifyMsgType = 'text' | 'post' | 'image' | 'share_chat'
+
+/** 飞书消息类型合法值集合，用于读盘 / 工具参数归一化 */
+export const FEISHU_NOTIFY_MSG_TYPES: readonly FeishuNotifyMsgType[] = [
+  'text',
+  'post',
+  'image',
+  'share_chat'
+] as const
+
 /** 通知渠道配置（敏感信息仅存本地 userData） */
 export interface ChannelNotifyConfig {
   webhookUrl?: string
   secret?: string
+  /** 飞书默认消息类型；缺省 text */
+  feishuMsgType?: FeishuNotifyMsgType
+  /** 图片消息 image_key（可通过飞书上传图片 API 获取） */
+  feishuImageKey?: string
+  /** 群名片 share_chat_id */
+  feishuShareChatId?: string
+}
+
+/**
+ * 将任意输入归一化为合法的飞书消息类型；非法值返回 undefined。
+ */
+export function normalizeFeishuMsgType(raw: unknown): FeishuNotifyMsgType | undefined {
+  if (typeof raw !== 'string') return undefined
+  const trimmed = raw.trim() as FeishuNotifyMsgType
+  return FEISHU_NOTIFY_MSG_TYPES.includes(trimmed) ? trimmed : undefined
+}
+
+/**
+ * 解析飞书通知消息类型。
+ * 优先级：显式 msgType → richText 兼容回退 → 飞书渠道默认 post / 其他 text。
+ */
+export function queryFeishuMsgType(opts: {
+  msgType?: unknown
+  richText?: boolean
+  channelId?: string
+  channelDefault?: FeishuNotifyMsgType
+}): FeishuNotifyMsgType {
+  const explicit = normalizeFeishuMsgType(opts.msgType)
+  if (explicit) return explicit
+
+  // 兼容旧工作流节点：richText 布尔开关
+  if (opts.richText === false) return 'text'
+  if (opts.richText === true) return 'post'
+
+  if (opts.channelDefault) return opts.channelDefault
+
+  // 飞书工作流节点历史缺省为富文本
+  if (opts.channelId === 'feishu') return 'post'
+  return 'text'
 }
 
 export interface PublishChannelMeta {
@@ -137,11 +190,15 @@ export const DEFAULT_PUBLISH_CHANNELS: PublishChannelMeta[] = [
     id: 'feishu',
     kind: 'notify',
     label: '飞书',
-    description: '通过自定义机器人 Webhook 推送文本通知。',
+    description:
+      '通过自定义机器人 Webhook 推送通知；支持文本、富文本、图片消息与群名片。',
     enabled: true,
     notifyTool: 'notify_message',
-    notifyConfig: {},
-    agentHint: '使用 notify_message，channelId 传 feishu；勿在参数中填写 webhook。',
+    notifyConfig: { feishuMsgType: 'post' },
+    agentHint:
+      '使用 notify_message，channelId 传 feishu；勿在参数中填写 webhook。' +
+      '可选 msgType：text / post / image / share_chat；' +
+      'post 时 content 可用 Markdown；image 需传 imageKey；share_chat 需传 shareChatId。',
     isBuiltin: true
   },
   {
