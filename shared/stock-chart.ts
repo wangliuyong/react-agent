@@ -153,6 +153,10 @@ export interface AshareKlineRefreshRequest {
   range: StockKlineRange
   startDate?: string
   endDate?: string
+  /** 股票名称（降级刷新时保留展示） */
+  name?: string
+  /** 当前周期已有 K 线；全量拉取失败时用于行情降级修补 */
+  existingBars?: StockKlineBar[]
 }
 
 /** 展示用：去掉 K 线嵌入块 */

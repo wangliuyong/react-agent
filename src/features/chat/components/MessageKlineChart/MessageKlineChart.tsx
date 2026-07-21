@@ -5,8 +5,7 @@ import {
   TooltipComponent,
   DataZoomComponent,
   LegendComponent,
-  MarkPointComponent,
-  TitleComponent
+  MarkPointComponent
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type {
@@ -29,7 +28,6 @@ echarts.use([
   DataZoomComponent,
   LegendComponent,
   MarkPointComponent,
-  TitleComponent,
   CanvasRenderer
 ])
 
@@ -49,7 +47,7 @@ function queryBarsForRange(chart: StockChartPayload, range: StockKlineRange): St
 
 function queryAvailableRanges(chart: StockChartPayload): StockKlineRange[] {
   const ranges: StockKlineRange[] = []
-  const candidates: StockKlineRange[] = ['today', 'week', 'month', 'custom']
+  const candidates: StockKlineRange[] = ['today', 'week', 'month']
   for (const r of candidates) {
     if (r === 'custom' && !chart.startDate && !chart.rangeBars?.custom) continue
     const bars = queryBarsForRange(chart, r)
@@ -118,10 +116,19 @@ export function MessageKlineChart({
   const [chartData, setChartData] = useState<StockChartPayload[]>(charts)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefreshAt, setLastRefreshAt] = useState<number | null>(null)
+  /** 手动刷新后重置轮询计时，避免刚点刷新又立刻被静默轮询覆盖 */
+  const [pollEpoch, setPollEpoch] = useState(0)
   const chartRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<echarts.ECharts | null>(null)
+  /** 供 postRefresh 读取最新图表上下文，避免 useCallback 随行情更新反复重建 */
+  const chartContextRef = useRef<{
+    activeChart?: StockChartPayload
+    activeSymbol: string
+    chartData: StockChartPayload[]
+  }>({ activeSymbol: '', chartData: [] })
 
   const activeChart = chartData.find((c) => c.symbol === activeSymbol) ?? chartData[0]
+  chartContextRef.current = { activeChart, activeSymbol, chartData }
   const availableRanges = activeChart ? queryAvailableRanges(activeChart) : []
   const rawBars = activeChart ? queryBarsForRange(activeChart, activeRange) : []
   // 当天模式下用最新价修补最后一根，保证预览实时跳动
@@ -148,45 +155,69 @@ export function MessageKlineChart({
     }
   }, [chartData, activeSymbol, liveRefresh])
 
-  /** 拉取指定周期最新数据（含实时行情） */
-  const postRefresh = async (range: StockKlineRange, silent = false): Promise<void> => {
-    if (!activeChart) return
-    if (!silent) setRefreshing(true)
-    try {
-      const req: AshareKlineRefreshRequest = {
-        symbol: activeChart.symbol,
-        range,
-        startDate: activeChart.startDate,
-        endDate: activeChart.endDate
-      }
-      const updated = await queryAshareKlineRefresh(req)
-      if (!updated) return
-      setLastRefreshAt(Date.now())
-      setChartData((prev) =>
-        prev.map((c) =>
-          c.symbol === updated.symbol
+  /** 拉取指定周期最新数据（含实时行情）；返回是否成功 */
+  const postRefresh = useCallback(
+    async (range: StockKlineRange, silent = false): Promise<boolean> => {
+      const { activeChart: chart } = chartContextRef.current
+      if (!chart) return false
+      if (!silent) setRefreshing(true)
+      try {
+        const existingBars = queryBarsForRange(chart, range)
+        const req: AshareKlineRefreshRequest = {
+          symbol: chart.symbol,
+          name: chart.name,
+          range,
+          existingBars,
+          ...(range === 'custom'
             ? {
+              startDate:
+                chart.startDate != null ? String(chart.startDate) : undefined,
+              endDate: chart.endDate != null ? String(chart.endDate) : undefined
+            }
+            : {})
+        }
+        const updated = await queryAshareKlineRefresh(req)
+        if (!updated) return false
+        setLastRefreshAt(Date.now())
+        setChartData((prev) =>
+          prev.map((c) =>
+            c.symbol === updated.symbol
+              ? {
                 ...c,
                 analysis: updated.analysis ?? c.analysis,
                 quote: updated.quote ?? c.quote,
                 rangeBars: { ...c.rangeBars, [range]: updated.bars },
-                bars: range === c.range ? updated.bars : c.bars,
-                range: range === 'today' && liveRefresh ? c.range : c.range
+                bars: range === c.range ? updated.bars : c.bars
               }
-            : c
+              : c
+          )
         )
-      )
-    } finally {
-      if (!silent) setRefreshing(false)
+        return true
+      } catch {
+        return false
+      } finally {
+        if (!silent) setRefreshing(false)
+      }
+    },
+    []
+  )
+
+  /** 用户点击刷新：立即重拉当前周期 K 线与实时行情 */
+  const handleManualRefresh = useCallback(async (): Promise<void> => {
+    const ok = await postRefresh(activeRange, false)
+    if (ok) {
+      setPollEpoch((n) => n + 1)
+      message.success('已刷新实时数据')
+    } else {
+      message.warning('刷新失败，请稍后重试')
     }
-  }
+  }, [activeRange, postRefresh])
 
   // 切换股票/周期：立即刷新
   useEffect(() => {
     if (!activeChart) return
-    void postRefresh(activeRange)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在 symbol/range 变化时触发
-  }, [activeChart?.symbol, activeRange])
+    void postRefresh(activeRange, true)
+  }, [activeChart?.symbol, activeRange, postRefresh])
 
   // 当天实时：定时轮询完整分时 K 线
   useEffect(() => {
@@ -197,8 +228,7 @@ export function MessageKlineChart({
     }, LIVE_KLINE_MS)
 
     return () => window.clearInterval(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLiveMode, activeChart?.symbol])
+  }, [isLiveMode, activeChart?.symbol, pollEpoch, postRefresh])
 
   useEffect(() => {
     const el = chartRef.current
@@ -238,20 +268,13 @@ export function MessageKlineChart({
       })
       .filter(Boolean)
 
-    const rangeLabel = STOCK_RANGE_LABELS[activeRange]
-    const quote = activeChart.quote
-    const titleExtra =
-      quote != null
-        ? `  现价 ${quote.price.toFixed(2)} (${quote.changePct >= 0 ? '+' : ''}${quote.changePct.toFixed(2)}%)`
-        : ''
-
     chart.setOption(
       {
         animation: false,
         legend: { data: ['K线', 'MA5', 'MA20', '成交量'], top: 4 },
         tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
         grid: [
-          { left: 52, right: 16, top: 40, height: '54%' },
+          { left: 52, right: 16, top: 32, height: '55%' },
           { left: 52, right: 16, top: '74%', height: '16%' }
         ],
         xAxis: [
@@ -338,13 +361,7 @@ export function MessageKlineChart({
             data: volumes,
             itemStyle: { color: 'rgba(84, 112, 198, 0.45)' }
           }
-        ],
-        title: {
-          text: `${activeChart.name}（${activeChart.symbol}）${rangeLabel}${titleExtra}`,
-          left: 8,
-          top: 0,
-          textStyle: { fontSize: 13, fontWeight: 500 }
-        }
+        ]
       },
       true
     )
@@ -377,6 +394,8 @@ export function MessageKlineChart({
   const trendTag = queryTrendTag(analysis?.trend)
   const prediction = analysis?.prediction
   const clock = queryFormatClock(lastRefreshAt ?? activeChart?.quote?.updatedAt)
+  const quote = activeChart?.quote
+  const rangeLabel = STOCK_RANGE_LABELS[activeRange]
 
   return (
     <div className={styles.wrap}>
@@ -404,9 +423,9 @@ export function MessageKlineChart({
           />
         ) : null}
         <div className={styles.liveActions}>
-          {isLiveMode ? (
+          {isLiveMode || lastRefreshAt ? (
             <Tag color="processing" className={styles.liveTag}>
-              {refreshing ? '刷新中…' : '实时'}
+              {refreshing ? '刷新中…' : isLiveMode ? '实时' : '已更新'}
               {clock ? ` · ${clock}` : ''}
             </Tag>
           ) : null}
@@ -414,12 +433,30 @@ export function MessageKlineChart({
             size="small"
             type="link"
             loading={refreshing}
-            onClick={() => void postRefresh(activeRange)}
+            onClick={() => void handleManualRefresh()}
           >
             刷新
           </Button>
         </div>
       </div>
+
+      {activeChart ? (
+        <div className={styles.chartMeta} aria-label="K线标题与现价">
+          <span className={styles.chartMetaTitle}>
+            {activeChart.name}（{activeChart.symbol}）{rangeLabel}
+          </span>
+          {quote != null ? (
+            <span
+              className={
+                quote.changePct >= 0 ? styles.chartMetaQuoteUp : styles.chartMetaQuoteDown
+              }
+            >
+              现价 {quote.price.toFixed(2)}（{quote.changePct >= 0 ? '+' : ''}
+              {quote.changePct.toFixed(2)}%）
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <div ref={chartRef} className={styles.chart} role="img" aria-label="A股实时K线图" />
 

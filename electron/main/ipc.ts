@@ -303,19 +303,12 @@ export function registerIpcHandlers(): void {
     queryLocalMediaUrl(filePath)
   )
   ipcMain.handle(IpcChannels.queryAshareKlineRefresh, async (_e, req) => {
-    const { queryAshareKlineByRange } = await import('./net/ashare-kline')
-    const { queryAnalyzeStockChart } = await import('./net/stock-analysis')
-    try {
-      const chart = await queryAshareKlineByRange(req.symbol, {
-        range: req.range,
-        startDate: req.startDate,
-        endDate: req.endDate
-      })
-      chart.analysis = queryAnalyzeStockChart(chart)
-      return chart
-    } catch {
-      return null
-    }
+    const { queryAshareKlineRefreshChart } = await import('./net/ashare-kline')
+    const { queryAnalyzeStockChart, queryApplyLiveQuote } = await import('./net/stock-analysis')
+    return queryAshareKlineRefreshChart(req, {
+      queryAnalyze: queryAnalyzeStockChart,
+      queryApplyQuote: queryApplyLiveQuote
+    })
   })
 
   ipcMain.handle(IpcChannels.queryAgentRules, () => queryAgentRules())

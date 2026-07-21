@@ -1,5 +1,6 @@
 import { queryHttpJson } from './http-client'
 import type {
+  AshareKlineRefreshRequest,
   StockChartPayload,
   StockKlineBar,
   StockKlinePeriod,
@@ -48,9 +49,11 @@ export function queryShanghaiYmd(date = new Date()): string {
   return `${y}${m}${d}`
 }
 
-/** YYYY-MM-DD → YYYYMMDD */
-export function queryNormalizeYmdInput(raw: string): string {
-  const s = raw.trim().replace(/-/g, '')
+/** YYYY-MM-DD / YYYYMMDD / 数字日期 → YYYYMMDD */
+export function queryNormalizeYmdInput(raw: string | number): string {
+  const s = String(raw ?? '')
+    .trim()
+    .replace(/-/g, '')
   if (!/^\d{8}$/.test(s)) {
     throw new Error(`无效日期：${raw}，请使用 YYYY-MM-DD`)
   }
@@ -213,18 +216,14 @@ export async function queryAshareLiveQuote(symbol: string): Promise<StockLiveQuo
   }
 }
 
-/**
- * 按时间范围拉取 K 线（支持当天 5 分钟、本周/本月/自定义日 K）。
- */
-export async function queryAshareKlineByRange(
-  symbol: string,
-  rangeParams: AshareRangeParams,
-  count = 500
-): Promise<StockChartPayload> {
-  const { code, secid } = queryNormalizeAshareSymbol(symbol)
-  const { beg, end, klt, period } = queryResolveRangeParams(rangeParams)
-  const lmt = Math.min(1000, Math.max(30, Math.floor(count) || 500))
-
+/** 拉取东方财富 K 线原始 bars */
+async function queryFetchEastMoneyBars(
+  secid: string,
+  beg: string,
+  end: string,
+  klt: number,
+  lmt: number
+): Promise<{ bars: StockKlineBar[]; name: string }> {
   const url =
     'https://push2his.eastmoney.com/api/qt/stock/kline/get' +
     `?secid=${encodeURIComponent(secid)}` +
@@ -243,6 +242,30 @@ export async function queryAshareKlineByRange(
     .map(queryParseKlineRow)
     .filter((b): b is StockKlineBar => b != null)
 
+  return { bars, name: String(data.data?.name ?? '') }
+}
+
+/**
+ * 按时间范围拉取 K 线（支持当天 5 分钟、本周/本月/自定义日 K）。
+ */
+export async function queryAshareKlineByRange(
+  symbol: string,
+  rangeParams: AshareRangeParams,
+  count = 500
+): Promise<StockChartPayload> {
+  const { code, secid } = queryNormalizeAshareSymbol(symbol)
+  const { beg, end, klt, period } = queryResolveRangeParams(rangeParams)
+  const lmt = Math.min(1000, Math.max(30, Math.floor(count) || 500))
+
+  let { bars, name } = await queryFetchEastMoneyBars(secid, beg, end, klt, lmt)
+
+  // 当天 5 分钟线偶发为空（收盘后/接口抖动），降级为当日日 K
+  if (bars.length === 0 && rangeParams.range === 'today') {
+    const fallback = await queryFetchEastMoneyBars(secid, beg, end, PERIOD_KLT.daily, lmt)
+    bars = fallback.bars
+    name = fallback.name || name
+  }
+
   if (bars.length === 0) {
     throw new Error(`${code} 未返回 K 线（${RANGE_LABEL[rangeParams.range]}，可能停牌）`)
   }
@@ -256,13 +279,95 @@ export async function queryAshareKlineByRange(
 
   return {
     symbol: code,
-    name: String(data.data?.name || code),
+    name: name || code,
     range: rangeParams.range,
     period,
     bars,
     startDate: beg,
     endDate: end,
     quote
+  }
+}
+
+/** 解析聊天内刷新请求的时间范围参数 */
+export function queryResolveRefreshRangeParams(
+  req: AshareKlineRefreshRequest
+): AshareRangeParams {
+  const range = req.range ?? 'today'
+  if (range !== 'custom') {
+    return { range }
+  }
+  return {
+    range,
+    startDate: req.startDate != null ? String(req.startDate) : undefined,
+    endDate: req.endDate != null ? String(req.endDate) : undefined
+  }
+}
+
+/**
+ * 聊天内 K 线刷新：优先全量拉取；失败时用已有 K 线 + 实时行情降级。
+ */
+export async function queryAshareKlineRefreshChart(
+  req: AshareKlineRefreshRequest,
+  options?: {
+    queryAnalyze?: (chart: StockChartPayload) => StockChartPayload['analysis']
+    queryApplyQuote?: (
+      chart: StockChartPayload,
+      quote: StockLiveQuote
+    ) => StockChartPayload
+  }
+): Promise<StockChartPayload | null> {
+  const symbol = String(req?.symbol ?? '').trim()
+  if (!symbol) return null
+
+  const rangeParams = queryResolveRefreshRangeParams(req)
+  const existingBars = Array.isArray(req.existingBars)
+    ? req.existingBars.filter((b) => b && typeof b.date === 'string')
+    : []
+
+  try {
+    const chart = await queryAshareKlineByRange(symbol, rangeParams)
+    if (options?.queryAnalyze) {
+      try {
+        chart.analysis = options.queryAnalyze(chart)
+      } catch (err) {
+        console.warn('[ashare-kline-refresh] analysis failed:', err)
+      }
+    }
+    return chart
+  } catch (err) {
+    console.warn('[ashare-kline-refresh] kline fetch failed:', err)
+    if (existingBars.length === 0) return null
+
+    try {
+      const { code } = queryNormalizeAshareSymbol(symbol)
+      const quote = await queryAshareLiveQuote(symbol)
+      let chart: StockChartPayload = {
+        symbol: code,
+        name: String(req.name || code),
+        range: rangeParams.range,
+        bars: existingBars,
+        startDate:
+          rangeParams.startDate != null ? queryNormalizeYmdInput(rangeParams.startDate) : undefined,
+        endDate:
+          rangeParams.endDate != null ? queryNormalizeYmdInput(rangeParams.endDate) : undefined,
+        quote
+      }
+      if (options?.queryApplyQuote) {
+        chart = options.queryApplyQuote(chart, quote)
+      }
+      if (options?.queryAnalyze) {
+        try {
+          chart.analysis = options.queryAnalyze(chart)
+        } catch (analysisErr) {
+          console.warn('[ashare-kline-refresh] fallback analysis failed:', analysisErr)
+        }
+      }
+      return chart
+    } catch (fallbackErr) {
+      console.error('[ashare-kline-refresh] quote fallback failed:', fallbackErr)
+      return null
+    }
   }
 }
 

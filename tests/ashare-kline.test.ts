@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   queryNormalizeAshareSymbol,
   queryNormalizeQuotePrice,
+  queryNormalizeYmdInput,
   queryParseAshareSymbols,
   queryParseKlineRow,
   queryResolveRangeParams,
+  queryResolveRefreshRangeParams,
   queryShanghaiYmd
 } from '../electron/main/net/ashare-kline'
 
@@ -49,5 +51,34 @@ describe('ashare-kline', () => {
   it('行情价格统一 /100', () => {
     expect(queryNormalizeQuotePrice(1087)).toBe(10.87)
     expect(queryNormalizeQuotePrice(130169)).toBe(1301.69)
+  })
+
+  it('日期入参兼容数字 YYYYMMDD', () => {
+    expect(queryNormalizeYmdInput(20260721)).toBe('20260721')
+    expect(queryNormalizeYmdInput('2026-07-21')).toBe('20260721')
+  })
+
+  it('刷新请求仅 custom 携带日期', () => {
+    expect(
+      queryResolveRefreshRangeParams({
+        symbol: '600900',
+        range: 'today',
+        startDate: '20260701',
+        endDate: '20260721'
+      })
+    ).toEqual({ range: 'today' })
+
+    expect(
+      queryResolveRefreshRangeParams({
+        symbol: '600900',
+        range: 'custom',
+        startDate: 20260701,
+        endDate: 20260721
+      })
+    ).toEqual({
+      range: 'custom',
+      startDate: '20260701',
+      endDate: '20260721'
+    })
   })
 })

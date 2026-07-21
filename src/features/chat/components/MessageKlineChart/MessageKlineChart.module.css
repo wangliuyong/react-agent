@@ -25,6 +25,30 @@
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  padding-bottom: 14px;
+}
+
+.chartMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.chartMetaTitle {
+  font-weight: 500;
+  color: var(--db-text-primary, rgba(0, 0, 0, 0.88));
+}
+
+.chartMetaQuoteUp {
+  color: #ef5350;
+}
+
+.chartMetaQuoteDown {
+  color: #26a69a;
 }
 
 .chart {
