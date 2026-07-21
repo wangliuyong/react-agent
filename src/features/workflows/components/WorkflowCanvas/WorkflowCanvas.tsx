@@ -601,9 +601,6 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
             onNodesChange={onNodesChange as OnNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onNodeClick={(_, node) => {
-              if (node.type === 'workflow') onEditRef.current(node.id)
-            }}
             onEdgeDoubleClick={onEdgeDoubleClick}
             nodeTypes={nodeTypes}
             fitView

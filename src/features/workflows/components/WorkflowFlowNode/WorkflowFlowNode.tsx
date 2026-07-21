@@ -63,7 +63,7 @@ export function WorkflowFlowNode({
         .filter(Boolean)
         .join(' ')}
       onDoubleClick={() => onEdit(leaf.id)}
-      title={statusLabel ? `${leaf.title || '未命名步骤'} · ${statusLabel}` : '单击编辑'}
+      title={statusLabel ? `${leaf.title || '未命名步骤'} · ${statusLabel}` : '双击编辑'}
       aria-label={statusLabel}
     >
       <Handle type="target" position={Position.Top} className={styles.handle} />
