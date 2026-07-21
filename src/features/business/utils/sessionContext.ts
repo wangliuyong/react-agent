@@ -1,6 +1,29 @@
-import type { ChatMessage, Session, TaskItem, WorkflowRun } from '@shared/types'
+import type { ChatMessage, MessageRole, Session, TaskItem, WorkflowRun } from '@shared/types'
 import { queryNodeExecution } from '@shared/workflow-node-execution'
 import type { NodeExecutionContext, NotifyContextDebug, SessionContextSummary } from '../types'
+
+/** 关联消息区块说明：为何按角色留存对话记录 */
+export const RELATED_MESSAGES_PURPOSE =
+  '区分对话双方，完整留存一轮交互的输入与输出记录。'
+
+/**
+ * 消息角色 Tooltip 文案。
+ * user / assistant 用于区分指令与回复；其余角色补充调试语义。
+ */
+export function queryMessageRoleTooltip(role: MessageRole): string | undefined {
+  switch (role) {
+    case 'user':
+      return '代表用户下发的指令、提问'
+    case 'assistant':
+      return '代表 AI 助手输出的回复内容（天气简报、流程结束提示都属于这一类）'
+    case 'system':
+      return '系统提示或内部约束，一般不直接对用户展示'
+    case 'tool':
+      return '工具调用结果，供助手继续推理或写入工作流上下文'
+    default:
+      return undefined
+  }
+}
 
 /** 将对象格式化为缩进 JSON，便于业务系统展示 */
 export function formatContextJson(value: unknown): string {

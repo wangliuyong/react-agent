@@ -1,11 +1,13 @@
-import type { CSSProperties } from 'react'
-import type { Session, SessionType } from '@shared/types'
+import type { CSSProperties, ReactNode } from 'react'
+import type { ChatMessage, MessageRole, Session, SessionType } from '@shared/types'
 import { querySessionType, useSessionStore } from '@/features/chat'
 import { SESSION_TYPE_FILTER_OPTIONS, SESSION_TYPE_ICONS, type SessionTypeFilter } from '@/layouts/AppShell/config/session-type-icons'
 import { queryLatestWorkflowRunBySession } from '../../api'
 import type { NodeExecutionContext, SessionContextSummary } from '../../types'
 import {
+  RELATED_MESSAGES_PURPOSE,
   formatContextJson,
+  queryMessageRoleTooltip,
   queryNodeExecutionContexts,
   querySessionContextSummary,
   querySessionTypeLabel,
@@ -108,6 +110,31 @@ function querySessionTypeTagClass(type: SessionType): string {
     default:
       return styles.typeTag_chat
   }
+}
+
+/** 角色名带 Tooltip；无说明时退化为纯文本 */
+function MessageRoleLabel({ role }: { role: MessageRole }): ReactNode {
+  const tip = queryMessageRoleTooltip(role)
+  if (!tip) return role
+  return (
+    <Tooltip title={tip} placement="topLeft">
+      <span className={styles.messageRoleHint} tabIndex={0}>
+        {role}
+      </span>
+    </Tooltip>
+  )
+}
+
+/** 关联消息行：角色（可悬停说明）· 工具名 · 时间 */
+function RelatedMessageMeta({ msg }: { msg: ChatMessage }): React.ReactElement {
+  return (
+    <div className={styles.messageRole}>
+      <MessageRoleLabel role={msg.role} />
+      {msg.toolName ? ` · ${msg.toolName}` : ''}
+      {' · '}
+      {formatTime(msg.createdAt)}
+    </div>
+  )
 }
 
 interface HistorySessionCardProps {
@@ -629,7 +656,13 @@ export function HistoryConversations({
                           </Text>
                           <pre className={styles.contextPre}>{node.contextJson || '{}'}</pre>
 
-                          <h4 className={styles.sectionLabel}>关联消息</h4>
+                          <h4 className={styles.sectionLabel}>
+                            <Tooltip title={RELATED_MESSAGES_PURPOSE} placement="topLeft">
+                              <span className={styles.sectionLabelHint} tabIndex={0}>
+                                关联消息
+                              </span>
+                            </Tooltip>
+                          </h4>
                           {node.relatedMessages.length === 0 ? (
                             <Text type="secondary" className={styles.emptyHint}>
                               未匹配到与该节点标题相关的消息
@@ -638,12 +671,7 @@ export function HistoryConversations({
                             <div className={styles.messageList}>
                               {node.relatedMessages.map((msg) => (
                                 <div key={msg.id} className={styles.messageItem}>
-                                  <div className={styles.messageRole}>
-                                    {msg.role}
-                                    {msg.toolName ? ` · ${msg.toolName}` : ''}
-                                    {' · '}
-                                    {formatTime(msg.createdAt)}
-                                  </div>
+                                  <RelatedMessageMeta msg={msg} />
                                   <pre className={styles.messageContent}>{msg.content}</pre>
                                 </div>
                               ))}

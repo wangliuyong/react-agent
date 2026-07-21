@@ -392,6 +392,21 @@
   margin-bottom: 4px;
 }
 
+/** 可悬停角色 / 区块标题：点状下划线提示有说明 */
+.messageRoleHint,
+.sectionLabelHint {
+  cursor: help;
+  border-bottom: 1px dotted color-mix(in srgb, currentColor 55%, transparent);
+  text-underline-offset: 2px;
+}
+
+.messageRoleHint:focus-visible,
+.sectionLabelHint:focus-visible {
+  outline: 2px solid var(--db-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .messageContent {
   margin: 0;
   font-size: 12px;
