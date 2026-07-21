@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { StockChartPayload } from '../shared/stock-chart'
-import { queryAnalyzeStockChart } from '../electron/main/net/stock-analysis'
+import { queryAnalyzeStockChart } from '../shared/stock-analysis'
 
 function queryMockBars(count: number, startPrice = 100): StockChartPayload['bars'] {
   const bars: StockChartPayload['bars'] = []
@@ -38,5 +38,19 @@ describe('stock-analysis', () => {
     expect(['up', 'down', 'sideways']).toContain(result.prediction.direction)
     expect(result.prediction.confidence).toBeGreaterThan(0)
     expect(result.summary).toContain('600519')
+  })
+
+  it('买卖信号日期必须落在当前 K 线序列内（可供图表 markPoint 对齐）', () => {
+    const bars = queryMockBars(40, 100)
+    const result = queryAnalyzeStockChart({
+      symbol: '600900',
+      name: '长江电力',
+      range: 'month',
+      bars
+    })
+    const dateSet = new Set(bars.map((b) => b.date))
+    for (const signal of result.tradeSignals) {
+      expect(dateSet.has(signal.date)).toBe(true)
+    }
   })
 })

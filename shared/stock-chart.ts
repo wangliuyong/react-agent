@@ -147,15 +147,15 @@ export function queryStockChartLiveRefresh(content: string): boolean {
   return envelope?.liveRefresh === true
 }
 
-/** 聊天内轮询刷新请求 */
+/** 聊天内手动刷新请求（IPC 走 query_ashare_realtime_analysis 同源拉数） */
 export interface AshareKlineRefreshRequest {
   symbol: string
   range: StockKlineRange
   startDate?: string
   endDate?: string
-  /** 股票名称（降级刷新时保留展示） */
+  /** 股票名称（兼容旧字段） */
   name?: string
-  /** 当前周期已有 K 线；全量拉取失败时用于行情降级修补 */
+  /** @deprecated 刷新已改为完整重拉，不再使用已有 K 线降级 */
   existingBars?: StockKlineBar[]
 }
 

@@ -16,6 +16,7 @@ import type {
   StockLiveQuote
 } from '@shared/stock-chart'
 import { STOCK_RANGE_LABELS } from '@shared/stock-chart'
+import { queryAnalyzeStockChart } from '@shared/stock-analysis'
 import { queryAshareKlineRefresh } from '../../api'
 import styles from './MessageKlineChart.module.css'
 
@@ -132,7 +133,24 @@ export function MessageKlineChart({
     activeRange === 'today'
       ? queryPatchBarsWithQuote(rawBars, activeChart?.quote)
       : rawBars
-  const analysis = activeChart?.analysis
+  /**
+   * 按「当前展示周期」的 K 线本地重算买卖信号。
+   * 原因：消息里的 analysis 只对应工具拉取时的主周期；关掉自动刷新后，
+   * 若仍直接用 payload.analysis，切周期或首次展示会出现买卖点缺失，
+   * 只有点「刷新」走 IPC 重算后才出来。
+   */
+  const analysis = useMemo(() => {
+    if (!activeChart || displayBars.length === 0) return activeChart?.analysis
+    try {
+      return queryAnalyzeStockChart({
+        ...activeChart,
+        range: activeRange,
+        bars: displayBars
+      })
+    } catch {
+      return activeChart.analysis
+    }
+  }, [activeChart, activeRange, displayBars])
 
   useEffect(() => {
     setChartData(charts)
@@ -150,42 +168,35 @@ export function MessageKlineChart({
     }
   }, [chartData, activeSymbol, liveRefresh])
 
-  /** 拉取指定周期最新数据（含实时行情）；返回是否成功 */
+  /**
+   * 手动刷新：走 query_ashare_realtime_analysis 同源 IPC，
+   * 重新拉取多周期 K 线 + 综合分析（非轻量行情修补）。
+   */
   const postRefresh = useCallback(
     async (range: StockKlineRange, silent = false): Promise<boolean> => {
       const { activeChart: chart } = chartContextRef.current
       if (!chart) return false
       if (!silent) setRefreshing(true)
       try {
-        const existingBars = queryBarsForRange(chart, range)
         const req: AshareKlineRefreshRequest = {
           symbol: chart.symbol,
           name: chart.name,
           range,
-          existingBars,
           ...(range === 'custom'
             ? {
-              startDate:
-                chart.startDate != null ? String(chart.startDate) : undefined,
-              endDate: chart.endDate != null ? String(chart.endDate) : undefined
-            }
+                startDate:
+                  chart.startDate != null ? String(chart.startDate) : undefined,
+                endDate: chart.endDate != null ? String(chart.endDate) : undefined
+              }
             : {})
         }
+        // IPC 内部调用 queryAshareRealtimeAnalysisCharts（与工具同逻辑）
         const updated = await queryAshareKlineRefresh(req)
         if (!updated) return false
         setLastRefreshAt(Date.now())
+        // 整表替换：含 rangeBars / analysis / quote，与工具首次返回结构一致
         setChartData((prev) =>
-          prev.map((c) =>
-            c.symbol === updated.symbol
-              ? {
-                ...c,
-                analysis: updated.analysis ?? c.analysis,
-                quote: updated.quote ?? c.quote,
-                rangeBars: { ...c.rangeBars, [range]: updated.bars },
-                bars: range === c.range ? updated.bars : c.bars
-              }
-              : c
-          )
+          prev.map((c) => (c.symbol === updated.symbol ? updated : c))
         )
         return true
       } catch {
@@ -197,11 +208,11 @@ export function MessageKlineChart({
     []
   )
 
-  /** 用户点击刷新：立即重拉当前周期 K 线与实时行情 */
+  /** 用户点击刷新：用 realtime analysis 工具链路重拉当前股票 */
   const handleManualRefresh = useCallback(async (): Promise<void> => {
     const ok = await postRefresh(activeRange, false)
     if (ok) {
-      message.success('已刷新实时数据')
+      message.success('已重新拉取实时分析')
     } else {
       message.warning('刷新失败，请稍后重试')
     }
@@ -248,8 +259,51 @@ export function MessageKlineChart({
     chart.setOption(
       {
         animation: false,
-        legend: { data: ['K线', 'MA5', 'MA20', '成交量'], top: 4 },
-        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        legend: { data: ['K线', '5日均线', '20日均线', '成交量'], top: 4 },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'cross' },
+          // candlestick 默认展示 open/close/lowest/highest，映射为 A 股常用中文
+          formatter: (params: unknown) => {
+            const items = Array.isArray(params) ? params : [params]
+            if (!items.length) return ''
+            const axisValue = String(
+              (items[0] as { axisValueLabel?: string; axisValue?: string }).axisValueLabel ??
+                (items[0] as { axisValue?: string }).axisValue ??
+                ''
+            )
+            const lines: string[] = [axisValue]
+            for (const raw of items) {
+              const item = raw as {
+                seriesName?: string
+                marker?: string
+                value?: number | number[] | null
+                data?: number | number[] | null
+              }
+              const marker = item.marker ?? ''
+              const name = item.seriesName ?? ''
+              const value = item.value ?? item.data
+              if (name === 'K线' && Array.isArray(value) && value.length >= 4) {
+                // ECharts candlestick 数据顺序：[open, close, lowest, highest]
+                const [open, close, lowest, highest] = value as number[]
+                lines.push(`${marker}${name}`)
+                lines.push(`开盘：${Number(open).toFixed(2)}`)
+                lines.push(`收盘：${Number(close).toFixed(2)}`)
+                lines.push(`最低：${Number(lowest).toFixed(2)}`)
+                lines.push(`最高：${Number(highest).toFixed(2)}`)
+                continue
+              }
+              if (typeof value === 'number' && Number.isFinite(value)) {
+                const text =
+                  name === '成交量'
+                    ? value.toLocaleString('zh-CN')
+                    : value.toFixed(2)
+                lines.push(`${marker}${name}：${text}`)
+              }
+            }
+            return lines.join('<br/>')
+          }
+        },
         // 主图与成交量分栏；底部预留标签 + dataZoom 滑条，避免 xlabel 压住成交量
         grid: [
           { left: 52, right: 16, top: 32, height: '52%' },
@@ -349,7 +403,7 @@ export function MessageKlineChart({
             }
           },
           {
-            name: 'MA5',
+            name: '5日均线',
             type: 'line',
             data: ma5,
             smooth: true,
@@ -357,7 +411,7 @@ export function MessageKlineChart({
             lineStyle: { width: 1, color: '#f6c022' }
           },
           {
-            name: 'MA20',
+            name: '20日均线',
             type: 'line',
             data: ma20,
             smooth: true,

@@ -302,13 +302,23 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.queryLocalMediaUrl, (_e, filePath: string) =>
     queryLocalMediaUrl(filePath)
   )
+  /** 聊天内手动刷新：与工具 query_ashare_realtime_analysis 同源拉数（含多周期 + 分析） */
   ipcMain.handle(IpcChannels.queryAshareKlineRefresh, async (_e, req) => {
-    const { queryAshareKlineRefreshChart } = await import('./net/ashare-kline')
-    const { queryAnalyzeStockChart, queryApplyLiveQuote } = await import('./net/stock-analysis')
-    return queryAshareKlineRefreshChart(req, {
-      queryAnalyze: queryAnalyzeStockChart,
-      queryApplyQuote: queryApplyLiveQuote
+    const { queryAshareRealtimeAnalysisCharts } = await import('./agent/tools/stock-tools')
+    const symbol = String(req?.symbol ?? '').trim()
+    if (!symbol) return null
+
+    const range = (req?.range ?? 'today') as import('../../shared/stock-chart').StockKlineRange
+    const startDate = req?.startDate != null ? String(req.startDate) : undefined
+    const endDate = req?.endDate != null ? String(req.endDate) : undefined
+
+    const { charts } = await queryAshareRealtimeAnalysisCharts([symbol], range, {
+      startDate,
+      endDate,
+      // 与工具默认一致：预加载今天/本周/本月，刷新后切周期仍有数据
+      preloadRanges: true
     })
+    return charts[0] ?? null
   })
 
   ipcMain.handle(IpcChannels.queryAgentRules, () => queryAgentRules())

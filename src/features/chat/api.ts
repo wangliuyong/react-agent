@@ -57,7 +57,7 @@ export async function queryLocalMediaUrl(filePath: string): Promise<string | nul
   return window.api.queryLocalMediaUrl(filePath)
 }
 
-/** 聊天内 A 股 K 线实时刷新 */
+/** 聊天内手动刷新：走 query_ashare_realtime_analysis 同源拉数 */
 export async function queryAshareKlineRefresh(
   req: import('@shared/stock-chart').AshareKlineRefreshRequest
 ): Promise<import('@shared/stock-chart').StockChartPayload | null> {

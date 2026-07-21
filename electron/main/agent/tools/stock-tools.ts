@@ -24,7 +24,11 @@ function queryParseRange(raw: unknown): StockKlineRange {
   return VALID_RANGES.has(range) ? range : 'today'
 }
 
-async function queryBuildChartsWithAnalysis(
+/**
+ * query_ashare_realtime_analysis 的核心拉数逻辑（工具执行与聊天内手动刷新共用）。
+ * preloadRanges 默认 true：预加载今天/本周/本月，与工具默认行为一致。
+ */
+export async function queryAshareRealtimeAnalysisCharts(
   symbols: string[],
   range: StockKlineRange,
   options: {
@@ -32,15 +36,17 @@ async function queryBuildChartsWithAnalysis(
     endDate?: string
     preloadRanges?: boolean
     count?: number
-  }
+  } = {}
 ): Promise<{ charts: StockChartPayload[]; errors: string[] }> {
   const charts: StockChartPayload[] = []
   const errors: string[] = []
+  const preloadRanges = options.preloadRanges !== false
+  const count = options.count ?? 500
 
   for (const symbol of symbols) {
     try {
       let chart: StockChartPayload
-      if (options.preloadRanges) {
+      if (preloadRanges) {
         chart = await queryAshareKlineMultiRange(symbol, range, {
           startDate: options.startDate,
           endDate: options.endDate
@@ -49,9 +55,10 @@ async function queryBuildChartsWithAnalysis(
         chart = await queryAshareKlineByRange(
           symbol,
           { range, startDate: options.startDate, endDate: options.endDate },
-          options.count ?? 500
+          count
         )
       }
+      // 主周期 bars 上挂综合分析，供聊天预览与刷新后即时展示
       chart.analysis = queryAnalyzeStockChart(chart)
       charts.push(chart)
     } catch (e) {
@@ -198,7 +205,7 @@ export const queryAshareRealtimeAnalysisTool: AgentTool = {
       )
     }
 
-    const { charts, errors } = await queryBuildChartsWithAnalysis(symbols, range, {
+    const { charts, errors } = await queryAshareRealtimeAnalysisCharts(symbols, range, {
       startDate,
       endDate,
       preloadRanges,
