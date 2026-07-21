@@ -107,11 +107,11 @@ function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): Sched
     weekday: values.repeat === 'weekly' ? values.weekday : base.weekday,
     ...(values.repeat !== 'once'
       ? (() => {
-          const timesOfDay = normalizeScheduleTimesOfDay(
-            (values.timesOfDay ?? []).map((item) => item?.format('HH:mm') ?? '09:00')
-          )
-          return { timesOfDay, timeOfDay: timesOfDay[0] }
-        })()
+        const timesOfDay = normalizeScheduleTimesOfDay(
+          (values.timesOfDay ?? []).map((item) => item?.format('HH:mm') ?? '09:00')
+        )
+        return { timesOfDay, timeOfDay: timesOfDay[0] }
+      })()
       : {}),
     actionType: values.actionType,
     publishPlanId: values.actionType === 'publish_plan' ? values.publishPlanId : undefined,
@@ -452,7 +452,7 @@ function TaskCard({
   const actionSub =
     task.actionType === 'custom_prompt'
       ? (task.customPrompt?.slice(0, 36) ?? '') +
-        (task.customPrompt && task.customPrompt.length > 36 ? '…' : '')
+      (task.customPrompt && task.customPrompt.length > 36 ? '…' : '')
       : planTitle
 
   return (
@@ -481,7 +481,10 @@ function TaskCard({
       </div>
 
       <div className={styles.taskDescription}>
-        <p className={styles.taskDescriptionPrompt}>{bodyText}</p>
+        <Tooltip title={bodyText}>
+          <p className={styles.taskDescriptionPrompt}>{bodyText}</p>
+        </Tooltip>
+
       </div>
 
       <div className={styles.infoGrid}>
