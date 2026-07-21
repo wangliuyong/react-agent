@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  queryDecodeSinaText,
   queryNormalizeAshareSymbol,
   queryNormalizeQuotePrice,
   queryNormalizeYmdInput,
@@ -101,5 +102,23 @@ describe('ashare-kline', () => {
       high: 1344.7,
       low: 1296.87
     })
+  })
+
+  it('按 GB18030 解码新浪行情二进制体（避免股票名乱码）', () => {
+    // 「长江电力」的 GB18030 字节（与 hq.sinajs.cn 实际响应一致）
+    const nameGbk = Uint8Array.of(0xb3, 0xa4, 0xbd, 0xad, 0xb5, 0xe7, 0xc1, 0xa6)
+    const prefix = new TextEncoder().encode('var hq_str_sh600900="')
+    const suffix = new TextEncoder().encode(',29.000,28.980,28.730,29.540,28.510";')
+    const body = new Uint8Array(prefix.length + nameGbk.length + suffix.length)
+    body.set(prefix, 0)
+    body.set(nameGbk, prefix.length)
+    body.set(suffix, prefix.length + nameGbk.length)
+
+    // 误用 UTF-8 会得到替换字符，正确解码应为「长江电力」
+    const asUtf8 = new TextDecoder('utf-8').decode(body)
+    expect(asUtf8.includes('长江电力')).toBe(false)
+
+    const text = queryDecodeSinaText(body)
+    expect(queryParseSinaQuoteText(text)?.name).toBe('长江电力')
   })
 })

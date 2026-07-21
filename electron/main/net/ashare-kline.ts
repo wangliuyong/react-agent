@@ -242,6 +242,20 @@ export function queryParseSinaQuoteText(text: string): {
   return { name: parts[0], open, prevClose, price, high, low }
 }
 
+/**
+ * 将新浪行情响应体按 GB18030 解码。
+ * 为什么：hq.sinajs.cn 声明 charset=GB18030；若用 res.text()（默认 UTF-8）则中文股票名会乱码。
+ */
+export function queryDecodeSinaText(input: ArrayBuffer | Uint8Array): string {
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input)
+  return new TextDecoder('gb18030').decode(bytes)
+}
+
+/** 读取新浪行情 Response 并按 GB18030 解码为文本 */
+async function queryReadSinaResponseText(res: Response): Promise<string> {
+  return queryDecodeSinaText(await res.arrayBuffer())
+}
+
 /** 东方财富 push2 实时行情 */
 async function queryEastMoneyLiveQuote(symbol: string): Promise<StockLiveQuote> {
   const { code, secid } = queryNormalizeAshareSymbol(symbol)
@@ -290,7 +304,7 @@ async function querySinaLiveQuote(symbol: string): Promise<StockLiveQuote> {
     timeoutMs: 10_000,
     retries: 1
   })
-  const parsed = queryParseSinaQuoteText(await res.text())
+  const parsed = queryParseSinaQuoteText(await queryReadSinaResponseText(res))
   if (!parsed || !Number.isFinite(parsed.price) || parsed.price <= 0) {
     throw new Error(`${code} 新浪实时行情不可用`)
   }
@@ -425,7 +439,7 @@ async function queryFetchSinaBars(
         retries: 0
       }
     )
-    const parsed = queryParseSinaQuoteText(await quoteRes.text())
+    const parsed = queryParseSinaQuoteText(await queryReadSinaResponseText(quoteRes))
     if (parsed?.name) name = parsed.name
   } catch {
     // 名称获取失败不阻断 K 线
