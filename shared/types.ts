@@ -1139,8 +1139,10 @@ export interface ScheduledTask {
   /** 关闭后调度器跳过，nextRunAt 置空 */
   enabled: boolean
   repeat: ScheduleRepeat
-  /** HH:mm，daily / weekly 使用 */
+  /** HH:mm，daily / weekly 使用（兼容旧数据；新数据以 timesOfDay 为准） */
   timeOfDay: string
+  /** 每日/每周多个执行时刻，HH:mm 数组，升序去重 */
+  timesOfDay?: string[]
   /** weekly 时 0=周日 … 6=周六 */
   weekday?: number
   /** once 时执行的 Unix 毫秒时间戳 */

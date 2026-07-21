@@ -44,6 +44,7 @@ import { isGraphInterrupt } from '@langchain/langgraph'
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import {
+  mergeParallelNodeContexts,
   patchContextWithNodeExecution,
   patchContextWithSkippedNode,
   queryContextSnapshotForDisplay
@@ -459,6 +460,7 @@ async function executeToastNode(
   node: Extract<WorkflowLeafNode, { type: 'toast' }>,
   context: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
+  const beforeContext = context
   logWorkflowNodeInput('Toast 节点 · 上下文', node, context)
   const content = interpolatePromptSoft(node.contentTemplate, context).trim()
   const display = content || '（空通知）'
@@ -471,14 +473,23 @@ async function executeToastNode(
   })
 
   const nextContext = { ...context }
+  const output: Record<string, unknown> = {}
   if (node.outputKeys?.length) {
     for (const key of node.outputKeys) {
       nextContext[key] = display
+      output[key] = display
     }
   } else {
     nextContext[`toast_${node.id}`] = display
+    output[`toast_${node.id}`] = display
   }
-  return nextContext
+  return patchContextWithNodeExecution(
+    beforeContext,
+    nextContext,
+    node,
+    { content: display, level: node.level },
+    output
+  )
 }
 
 const INPUT_KIND_LABELS: Record<string, string> = {
@@ -498,11 +509,13 @@ async function executeInputNode(
   context: Record<string, unknown>,
   signal: AbortSignal
 ): Promise<Record<string, unknown>> {
+  const beforeContext = context
   const sessionId = session.id
   const kinds = node.inputKinds.length ? node.inputKinds : (['text'] as const)
   const kindHint = kinds.map((k) => INPUT_KIND_LABELS[k] ?? k).join('、')
   const reason = node.prompt?.trim() || `请提供：${kindHint}`
-  logWorkflowNodeInput('输入节点 · 等待用户', node, context, { reason, kinds })
+  const nodeInput = { reason, kinds, prompt: node.prompt }
+  logWorkflowNodeInput('输入节点 · 等待用户', node, context, nodeInput)
 
   appendWorkflowMessage(session, {
     role: 'assistant',
@@ -534,7 +547,10 @@ async function executeInputNode(
   }
 
   logWorkflowNodeInput('输入节点 · 已采集', node, nextContext)
-  return nextContext
+  const output: Record<string, unknown> = {}
+  if (kinds.includes('text') && text) output[textKey] = text
+  if (needsFiles && attachmentPaths.length) output[fileKey] = attachmentPaths
+  return patchContextWithNodeExecution(beforeContext, nextContext, node, nodeInput, output)
 }
 
 /** 按输出格式补全文件扩展名 */
@@ -561,6 +577,7 @@ async function executeOutputNode(
   node: Extract<WorkflowLeafNode, { type: 'output' }>,
   context: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
+  const beforeContext = context
   logWorkflowNodeInput('输出节点 · 上下文', node, context)
   const outputDir = node.outputDir.trim()
   if (!outputDir) {
@@ -574,6 +591,12 @@ async function executeOutputNode(
   const ext = queryOutputFileExtension(node.outputFormat)
   const fileName = fileNameRaw.includes('.') || !ext ? fileNameRaw : `${fileNameRaw}${ext}`
   const targetPath = join(outputDir, fileName)
+  const nodeInput = {
+    outputDir,
+    fileName,
+    outputFormat: node.outputFormat,
+    contentTemplate: interpolatePromptSoft(node.contentTemplate, context).trim()
+  }
 
   if (node.outputFormat === 'file') {
     const sourcePath = interpolatePromptSoft(node.contentTemplate, context).trim()
@@ -605,10 +628,12 @@ async function executeOutputNode(
 
   const nextContext = { ...context }
   const keys = node.outputKeys?.length ? node.outputKeys : ['outputPath']
+  const output: Record<string, unknown> = { targetPath }
   for (const key of keys) {
     nextContext[key] = targetPath
+    output[key] = targetPath
   }
-  return nextContext
+  return patchContextWithNodeExecution(beforeContext, nextContext, node, nodeInput, output)
 }
 
 async function executeLeafNode(
@@ -637,6 +662,7 @@ async function executeLeafNode(
   }
 
   if (node.type === 'await_user') {
+    const beforeContext = run.context
     run = patchRun(run, { status: 'awaiting_user' })
     appendWorkflowMessage(session, {
       role: 'assistant',
@@ -651,15 +677,17 @@ async function executeLeafNode(
     if (signal.aborted) throw new Error('__aborted__')
     let nextContext = run.context
     const trimmed = userInput?.trim()
+    const outputKeys = node.outputKeys?.length ? node.outputKeys : ['userInput']
+    const output: Record<string, unknown> = {}
     if (trimmed) {
       appendWorkflowMessage(session, { role: 'user', content: trimmed })
-      nextContext = patchAgentOutputToContext(
-        run.context,
-        trimmed,
-        node.outputKeys?.length ? node.outputKeys : ['userInput']
-      )
+      nextContext = patchAgentOutputToContext(run.context, trimmed, outputKeys)
+      for (const key of outputKeys) {
+        if (key in nextContext) output[key] = nextContext[key]
+      }
     }
-    return patchRun(run, { context: nextContext, status: 'running' })
+    const patched = patchContextWithNodeExecution(beforeContext, nextContext, node, { reason }, output)
+    return patchRun(run, { context: patched, status: 'running' })
   }
 
   if (node.type === 'tool') {
@@ -680,6 +708,7 @@ async function executeLeafNode(
   }
 
   // agent：本步目标写进会话；prompt 支持 {{contextKey}} 软插值
+  const beforeContext = run.context
   const stepPrompt = interpolatePromptSoft(
     [
       `【工作流步骤】${node.title}`,
@@ -710,7 +739,19 @@ async function executeLeafNode(
   const sessionAfter = querySession(sessionId)
   const agentOutput = queryAgentStepOutput(sessionAfter?.messages ?? [], msgCountBefore)
   const nextContext = patchAgentOutputToContext(run.context, agentOutput, node.outputKeys)
-  return patchRun(run, { context: nextContext, status: 'running' })
+  const outputKeys = node.outputKeys?.length ? node.outputKeys : ['summary']
+  const output: Record<string, unknown> = {}
+  for (const key of outputKeys) {
+    if (key in nextContext) output[key] = nextContext[key]
+  }
+  const patched = patchContextWithNodeExecution(
+    beforeContext,
+    nextContext,
+    node,
+    { prompt: stepPrompt, toolWhitelist: node.toolWhitelist },
+    output
+  )
+  return patchRun(run, { context: patched, status: 'running' })
 }
 
 /** 从 Agent 回复文本中解析分支 key */
@@ -787,6 +828,7 @@ async function executeConditionNode(
   session: Session,
   signal: AbortSignal
 ): Promise<WorkflowRun> {
+  const beforeContext = run.context
   statusMap.set(node.id, 'running')
   for (const arm of node.cases) {
     for (const child of arm.nodes) statusMap.set(child.id, 'pending')
@@ -808,17 +850,24 @@ async function executeConditionNode(
 
   const prevBranch =
     (run.context.__branchKeys as Record<string, string> | undefined) ?? {}
+  const branchContext = {
+    ...run.context,
+    __branchKeys: { ...prevBranch, [node.id]: selectedKey }
+  }
+  const chosen = node.cases.find((c) => c.key === selectedKey)
+  if (!chosen) throw new Error(`条件分支无 case: ${selectedKey}`)
+
   run = patchRun(run, {
-    context: {
-      ...run.context,
-      __branchKeys: { ...prevBranch, [node.id]: selectedKey }
-    },
+    context: patchContextWithNodeExecution(
+      beforeContext,
+      branchContext,
+      node,
+      { mode: node.mode, caseKeys: node.cases.map((c) => c.key) },
+      { branchKey: selectedKey, branchLabel: chosen.label || selectedKey }
+    ),
     cursorNodeId: node.id,
     status: 'running'
   })
-
-  const chosen = node.cases.find((c) => c.key === selectedKey)
-  if (!chosen) throw new Error(`条件分支无 case: ${selectedKey}`)
 
   // expression 模式无 agent 消息时补一条选路说明；agent 模式已有 ReAct 记录
   if (node.mode !== 'agent') {
@@ -830,7 +879,16 @@ async function executeConditionNode(
 
   for (const arm of node.cases) {
     if (arm.key === selectedKey) continue
-    for (const child of arm.nodes) statusMap.set(child.id, 'skipped')
+    for (const child of arm.nodes) {
+      statusMap.set(child.id, 'skipped')
+      run = patchRun(run, {
+        context: patchContextWithSkippedNode(
+          run.context,
+          child,
+          `未选中分支：${arm.label || arm.key}`
+        )
+      })
+    }
   }
   persistSessionTasks(session, buildTasks(specs, statusMap))
 
@@ -871,6 +929,7 @@ async function executeTopLevelNode(
   signal: AbortSignal
 ): Promise<WorkflowRun> {
   if (node.type === 'start' || node.type === 'end') {
+    const beforeContext = run.context
     logWorkflowNodeInput(`${node.type === 'start' ? '开始' : '结束'}节点 · 开始执行`, node, run.context)
     statusMap.set(node.id, 'running')
     persistSessionTasks(session, buildTasks(specs, statusMap))
@@ -879,9 +938,18 @@ async function executeTopLevelNode(
       role: 'assistant',
       content: node.type === 'start' ? `流程开始：${node.title}` : `流程结束：${node.title}`
     })
+    const patched = patchContextWithNodeExecution(
+      beforeContext,
+      run.context,
+      node,
+      { context: queryContextSnapshotForDisplay(beforeContext) },
+      node.type === 'end'
+        ? { context: queryContextSnapshotForDisplay(run.context) }
+        : {}
+    )
     statusMap.set(node.id, 'done')
     persistSessionTasks(session, buildTasks(specs, statusMap))
-    return run
+    return patchRun(run, { context: patched })
   }
 
   if (node.type === 'condition') {
@@ -974,16 +1042,25 @@ async function executeTopLevelNode(
         throw err instanceof Error ? err : new Error(String(err))
       }
 
-      let merged = { ...baseContext }
-      for (const r of settled) {
-        if (r.ok) merged = { ...merged, ...r.context }
-      }
+      let merged = mergeParallelNodeContexts(
+        baseContext,
+        settled.filter((r) => r.ok).map((r) => r.context)
+      )
+      const parallelBefore = run.context
+      merged = patchContextWithNodeExecution(
+        parallelBefore,
+        merged,
+        node,
+        { childIds: node.children.map((c) => c.id), mode: 'parallel_tools' },
+        undefined
+      )
       statusMap.set(node.id, 'done')
       persistSessionTasks(session, buildTasks(specs, statusMap))
       return patchRun(run, { context: merged, status: 'running' })
     }
 
     // 含 agent / await：串行，保证 Session ReAct 独占
+    const parallelBefore = run.context
     for (const child of node.children) {
       statusMap.set(child.id, 'running')
       persistSessionTasks(session, buildTasks(specs, statusMap))
@@ -1001,7 +1078,14 @@ async function executeTopLevelNode(
     }
     statusMap.set(node.id, 'done')
     persistSessionTasks(session, buildTasks(specs, statusMap))
-    return run
+    const patched = patchContextWithNodeExecution(
+      parallelBefore,
+      run.context,
+      node,
+      { childIds: node.children.map((c) => c.id), mode: 'parallel_serial' },
+      undefined
+    )
+    return patchRun(run, { context: patched, status: 'running' })
   } catch (e) {
     if (!(e instanceof Error && e.message === '__aborted__')) {
       if (statusMap.get(node.id) !== 'failed') {

@@ -1,4 +1,5 @@
 import type { ChatMessage, Session, TaskItem, WorkflowRun } from '@shared/types'
+import { queryNodeExecution } from '@shared/workflow-node-execution'
 import type { NodeExecutionContext, NotifyContextDebug, SessionContextSummary } from '../types'
 
 /** 将对象格式化为缩进 JSON，便于业务系统展示 */
@@ -8,6 +9,34 @@ export function formatContextJson(value: unknown): string {
   } catch {
     return String(value)
   }
+}
+
+/** 从节点出参解析渠道通知请求快照 */
+function queryNotifyDebugFromNodeOutput(
+  output: Record<string, unknown>
+): NotifyContextDebug | undefined {
+  for (const [key, value] of Object.entries(output)) {
+    if (!key.startsWith('notify_')) continue
+    if (typeof value === 'string') return { summary: value }
+    if (value && typeof value === 'object') {
+      const record = value as Record<string, unknown>
+      const summary =
+        typeof record.summary === 'string' ? record.summary : String(record.summary ?? '')
+      const requestPath =
+        typeof record.requestPath === 'string' ? record.requestPath : undefined
+      const requestBody =
+        record.requestBody && typeof record.requestBody === 'object'
+          ? (record.requestBody as Record<string, unknown>)
+          : undefined
+      const requestHeaders =
+        record.requestHeaders && typeof record.requestHeaders === 'object'
+          ? (record.requestHeaders as Record<string, string>)
+          : undefined
+      const deduped = record.deduped === true
+      return { summary, requestPath, requestBody, requestHeaders, deduped }
+    }
+  }
+  return undefined
 }
 
 /** 从 context 切片解析渠道通知节点的请求快照（兼容旧版纯字符串） */
@@ -112,20 +141,35 @@ export function queryNodeExecutionContexts(
         },
         relatedMessages: session.messages,
         contextSlice: context ?? {},
-        contextJson: formatContextJson(context ?? {})
+        contextJson: formatContextJson(context ?? {}),
+        nodeInput: {},
+        nodeInputJson: '{}',
+        nodeOutput: {},
+        nodeOutputJson: '{}'
       }
     ]
   }
 
   return tasks.map((task) => {
-    const contextSlice = queryContextSliceForTask(context, task)
-    const notifyDebug = queryNotifyDebugFromContextSlice(contextSlice)
+    const execution = queryNodeExecution(context, task.id)
+    const contextSlice =
+      execution?.contextSnapshot ?? queryContextSliceForTask(context, task)
+    const nodeInput = execution?.input ?? {}
+    const nodeOutput = execution?.output ?? {}
+    const notifyDebug =
+      queryNotifyDebugFromNodeOutput(nodeOutput) ??
+      queryNotifyDebugFromContextSlice(contextSlice)
     return {
       task,
       relatedMessages: queryRelatedMessagesForTask(session, task),
       contextSlice,
       contextJson: formatContextJson(contextSlice),
-      notifyDebug
+      nodeInput,
+      nodeInputJson: formatContextJson(nodeInput),
+      nodeOutput,
+      nodeOutputJson: formatContextJson(nodeOutput),
+      notifyDebug,
+      skipped: nodeOutput.skipped === true
     }
   })
 }

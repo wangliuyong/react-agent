@@ -125,3 +125,25 @@ export function patchContextWithSkippedNode(
   }
   return patchNodeExecution(context, record)
 }
+
+/**
+ * 并行 tool 节点合并 context：保留各子节点执行记录，避免 __nodeExecutions__ 被覆盖。
+ */
+export function mergeParallelNodeContexts(
+  base: Record<string, unknown>,
+  childContexts: Record<string, unknown>[]
+): Record<string, unknown> {
+  let merged: Record<string, unknown> = { ...base }
+  const executions = { ...queryNodeExecutions(base) }
+  for (const ctx of childContexts) {
+    for (const [key, value] of Object.entries(ctx)) {
+      if (WORKFLOW_INTERNAL_CONTEXT_KEYS.has(key)) continue
+      merged[key] = value
+    }
+    Object.assign(executions, queryNodeExecutions(ctx))
+  }
+  return {
+    ...merged,
+    [WORKFLOW_NODE_EXECUTIONS_KEY]: executions
+  }
+}

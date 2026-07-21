@@ -566,6 +566,25 @@ export function HistoryConversations({
                             <span className={styles.metaValue}>{node.task.id}</span>
                           </div>
 
+                          {node.skipped ? (
+                            <Text type="secondary" className={styles.emptyHint}>
+                              该节点已跳过
+                              {typeof node.nodeOutput.reason === 'string'
+                                ? `：${node.nodeOutput.reason}`
+                                : ''}
+                            </Text>
+                          ) : null}
+
+                          <h4 className={styles.sectionLabel}>入参</h4>
+                          <pre className={styles.contextPre}>
+                            {node.nodeInputJson || '{}'}
+                          </pre>
+
+                          <h4 className={styles.sectionLabel}>出参</h4>
+                          <pre className={styles.contextPre}>
+                            {node.nodeOutputJson || '{}'}
+                          </pre>
+
                           {node.notifyDebug ? (
                             <>
                               <h4 className={styles.sectionLabel}>渠道通知结果</h4>
@@ -605,6 +624,9 @@ export function HistoryConversations({
                           ) : null}
 
                           <h4 className={styles.sectionLabel}>Context 切片</h4>
+                          <Text type="secondary" className={styles.emptyHint} style={{ marginBottom: 8 }}>
+                            节点执行时可用的 workflow context 快照
+                          </Text>
                           <pre className={styles.contextPre}>{node.contextJson || '{}'}</pre>
 
                           <h4 className={styles.sectionLabel}>关联消息</h4>

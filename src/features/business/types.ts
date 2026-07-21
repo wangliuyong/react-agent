@@ -30,12 +30,20 @@ export interface NodeExecutionContext {
   task: TaskItem
   /** 与该节点相关的消息（按标题 / 工具名 / 步骤标记匹配） */
   relatedMessages: ChatMessage[]
-  /** 从 WorkflowRun.context 中提取的与该节点相关的键值 */
+  /** 节点执行时可用的 context 快照 */
   contextSlice: Record<string, unknown>
   /** 格式化的 context JSON，便于 Drawer 展示 */
   contextJson: string
-  /** 渠道通知节点：HTTP 请求路径与请求体（从 context 解析） */
+  /** 节点入参 */
+  nodeInput: Record<string, unknown>
+  nodeInputJson: string
+  /** 节点出参 */
+  nodeOutput: Record<string, unknown>
+  nodeOutputJson: string
+  /** 渠道通知节点：HTTP 请求路径与请求体 */
   notifyDebug?: NotifyContextDebug
+  /** 条件分支未选中时被跳过 */
+  skipped?: boolean
 }
 
 /** 渠道通知节点写入 workflow context 的请求快照（供历史对话排查） */

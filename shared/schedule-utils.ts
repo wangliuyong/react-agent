@@ -11,19 +11,50 @@ export function parseTimeOfDay(timeOfDay: string): { hours: number; minutes: num
   return { hours, minutes }
 }
 
+/** 将 HH:mm 规范为两位小时与分钟 */
+export function formatTimeOfDayLabel(timeOfDay: string): string {
+  const { hours, minutes } = parseTimeOfDay(timeOfDay)
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
 /**
- * 根据重复规则计算下次执行时间。
- * 一次性任务若 runAt 已过期则返回 null。
+ * 归一化时刻列表：校验格式、去重、升序排列。
+ * 空数组时回退 ['09:00']。
  */
-export function computeNextRunAt(task: ScheduledTask, fromTime = Date.now()): number | null {
-  if (!task.enabled) return null
-
-  if (task.repeat === 'once') {
-    if (task.runAt != null && task.runAt > fromTime) return task.runAt
-    return null
+export function normalizeScheduleTimesOfDay(times: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const raw of times) {
+    const label = formatTimeOfDayLabel(raw)
+    if (seen.has(label)) continue
+    seen.add(label)
+    result.push(label)
   }
+  result.sort()
+  return result.length > 0 ? result : ['09:00']
+}
 
-  const { hours, minutes } = parseTimeOfDay(task.timeOfDay)
+/**
+ * 读取任务的有效执行时刻列表。
+ * 优先 timesOfDay，否则回退到 timeOfDay 单值（兼容旧数据）。
+ */
+export function queryScheduleTimesOfDay(task: ScheduledTask): string[] {
+  if (task.timesOfDay?.length) {
+    return normalizeScheduleTimesOfDay(task.timesOfDay)
+  }
+  if (task.timeOfDay?.trim()) {
+    return normalizeScheduleTimesOfDay([task.timeOfDay])
+  }
+  return ['09:00']
+}
+
+/** 按重复规则计算单个时刻的下次执行时间 */
+function computeNextRunAtForTime(
+  task: ScheduledTask,
+  hours: number,
+  minutes: number,
+  fromTime: number
+): number | null {
   const next = new Date(fromTime)
   next.setSeconds(0, 0)
   next.setHours(hours, minutes, 0, 0)
@@ -49,10 +80,33 @@ export function computeNextRunAt(task: ScheduledTask, fromTime = Date.now()): nu
   return null
 }
 
+/**
+ * 根据重复规则计算下次执行时间。
+ * 一次性任务若 runAt 已过期则返回 null。
+ */
+export function computeNextRunAt(task: ScheduledTask, fromTime = Date.now()): number | null {
+  if (!task.enabled) return null
+
+  if (task.repeat === 'once') {
+    if (task.runAt != null && task.runAt > fromTime) return task.runAt
+    return null
+  }
+
+  const times = queryScheduleTimesOfDay(task)
+  let best: number | null = null
+  for (const time of times) {
+    const { hours, minutes } = parseTimeOfDay(time)
+    const candidate = computeNextRunAtForTime(task, hours, minutes, fromTime)
+    if (candidate != null && (best == null || candidate < best)) {
+      best = candidate
+    }
+  }
+  return best
+}
+
 /** 人类可读的调度摘要，用于列表与详情展示 */
 export function formatScheduleSummary(task: ScheduledTask): string {
-  const { hours, minutes } = parseTimeOfDay(task.timeOfDay)
-  const timeLabel = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  const timeLabel = queryScheduleTimesOfDay(task).map(formatTimeOfDayLabel).join('、')
 
   if (task.repeat === 'once' && task.runAt) {
     const d = new Date(task.runAt)
