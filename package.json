@@ -5,6 +5,13 @@
   "main": "./out/main/index.js",
   "build": {
     "productName": "灵犀",
+    "icon": "build/icon.png",
+    "mac": {
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "icon": "build/icon.png"
+    },
     "extraResources": [
       {
         "from": "resources",
@@ -22,6 +29,7 @@
     "preview": "electron-vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
+    "generate:icon": "node scripts/generate-app-icon.mjs",
     "install:browser": "node scripts/install-browser.mjs",
     "install:browser:official": "playwright install chromium",
     "postinstall": "electron-builder install-app-deps",

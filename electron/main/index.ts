@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, nativeImage } from 'electron'
+import { existsSync } from 'fs'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc'
 import { getDataRoot } from './store/paths'
@@ -22,13 +23,42 @@ registerMediaScheme()
 
 let mainWindow: BrowserWindow | null = null
 
+/** 解析应用图标：开发期读仓库 resources，安装版读 extraResources */
+function resolveAppIconPath(): string {
+  const candidates = [
+    join(__dirname, '../../resources/lingxi-avatar.png'),
+    join(process.resourcesPath, 'resources/lingxi-avatar.png')
+  ]
+  return candidates.find((p) => existsSync(p)) ?? candidates[0]
+}
+
+/** 开发模式下同步 Dock / 窗口图标，避免显示 Electron 默认图标 */
+function applyAppIcon(): void {
+  const iconPath = resolveAppIconPath()
+  if (!existsSync(iconPath)) return
+
+  const icon = nativeImage.createFromPath(iconPath)
+  if (icon.isEmpty()) return
+
+  if (process.platform === 'darwin') {
+    app.dock?.setIcon(icon)
+  }
+}
+
 function createWindow(): void {
+  const iconPath = resolveAppIconPath()
+  const icon =
+    existsSync(iconPath) && !nativeImage.createFromPath(iconPath).isEmpty()
+      ? nativeImage.createFromPath(iconPath)
+      : undefined
+
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 1100,
     minHeight: 700,
     title: '灵犀 · AI助手',
+    ...(icon ? { icon } : {}),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 16, y: 16 },
     backgroundColor: '#f5f5f7',
@@ -62,6 +92,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  applyAppIcon()
   getDataRoot()
   initializeResources()
   initPublishChannelRegistry()
