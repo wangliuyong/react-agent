@@ -45,7 +45,8 @@ export function WorkflowDetailModal({
       footer={
         draft ? (
           <div className={styles.footer}>
-            <Button onClick={onClose}>关闭</Button>
+            <span></span>
+            {/* <Button onClick={onClose}>关闭</Button> */}
             <Space>
               <Button onClick={onSave} loading={saving}>
                 保存
