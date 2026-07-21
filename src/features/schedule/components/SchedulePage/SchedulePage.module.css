@@ -384,9 +384,14 @@
   gap: 4px;
 }
 
+.timesOfDayListWrap{
+   display: flex;
+   flex-wrap: wrap;
+}
+
 .timesOfDayRow {
   display: flex;
-  width: 100%;
+  /* width: 100%; */
 }
 
 .timesOfDayItem {

@@ -295,27 +295,31 @@ function TaskEditModal({
             >
               {(fields, { add, remove }) => (
                 <div className={styles.timesOfDayList}>
-                  {fields.map((field) => (
-                    <Space key={field.key} align="baseline" className={styles.timesOfDayRow}>
-                      <Form.Item
-                        {...field}
-                        label={fields.length > 1 ? `时刻 ${field.name + 1}` : '时刻'}
-                        rules={[{ required: true, message: '请选择时刻' }]}
-                        className={styles.timesOfDayItem}
-                      >
-                        <TimePicker format="HH:mm" style={{ width: '100%' }} />
-                      </Form.Item>
-                      {fields.length > 1 ? (
-                        <Button
-                          type="text"
-                          danger
-                          icon={<MinusCircleOutlined />}
-                          aria-label="删除时刻"
-                          onClick={() => remove(field.name)}
-                        />
-                      ) : null}
-                    </Space>
-                  ))}
+                  <div className={styles.timesOfDayListWrap}>
+
+                    {fields.map((field) => (
+                      <Space key={field.key} align="baseline" className={styles.timesOfDayRow}>
+                        <Form.Item
+                          {...field}
+                          label={fields.length > 1 ? `时刻 ${field.name + 1}` : '时刻'}
+                          rules={[{ required: true, message: '请选择时刻' }]}
+                          className={styles.timesOfDayItem}
+                        >
+                          <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                        </Form.Item>
+                        {fields.length > 1 ? (
+                          <Button
+                            type="text"
+                            danger
+                            icon={<MinusCircleOutlined />}
+                            aria-label="删除时刻"
+                            onClick={() => remove(field.name)}
+                          />
+                        ) : null}
+                      </Space>
+                    ))}
+                  </div>
+
                   <Button
                     type="dashed"
                     block
