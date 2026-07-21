@@ -5,7 +5,8 @@ import {
   TooltipComponent,
   DataZoomComponent,
   LegendComponent,
-  MarkPointComponent
+  MarkPointComponent,
+  TitleComponent
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type {
@@ -28,6 +29,7 @@ echarts.use([
   DataZoomComponent,
   LegendComponent,
   MarkPointComponent,
+  TitleComponent,
   CanvasRenderer
 ])
 
