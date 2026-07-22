@@ -36,7 +36,7 @@ export function SettingsPage(): React.ReactElement {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
+      <header className={`${styles.header} app-drag`}>
         <div className={styles.headerMain}>
           <div className={styles.headerIcon}>
             <SettingOutlined />

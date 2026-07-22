@@ -437,7 +437,7 @@ export function ChannelsPage(): React.ReactElement {
   return (
     <div className={styles.page}>
       {/* 顶栏：对齐技能市场 — 图标标题 + 全局操作 */}
-      <header className={styles.header}>
+      <header className={`${styles.header} app-drag`}>
         <div className={styles.headerMain}>
           <div className={styles.headerIcon}>
             <ApiOutlined />
@@ -456,7 +456,7 @@ export function ChannelsPage(): React.ReactElement {
             </Text>
           </div>
         </div>
-        <Space wrap>
+        <Space wrap className="app-no-drag">
           <Popconfirm
             title="初始化内置渠道？"
             description="将恢复小红书、抖音、视频号、飞书等为默认配置，自定义渠道不受影响。"

@@ -21,7 +21,7 @@ export function BusinessPanel(): React.ReactElement {
   return (
     <div className={styles.panel}>
       <header className={`${styles.header} app-drag`}>
-        <div className={`${styles.headerLeft} app-no-drag`}>
+        <div className={styles.headerLeft}>
           {activeMenu === 'history' && historyHeader ? (
             <div className={styles.subPageHeader}>
               <div className={styles.subPageHeaderIcon}>

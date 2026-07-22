@@ -72,14 +72,14 @@ export function ChatPage(): React.ReactElement {
   return (
     <div className={styles.page} data-task-checklist-anchor>
       <header className={`${styles.header} app-drag`}>
-        {/* 左侧：会话标题 */}
+        {/* 左侧：会话标题（保留在拖拽区内，便于拖动窗口） */}
         <div className={styles.headerLeft}>
           <div className={styles.titleWrap}>
-            <Title level={5} className={`${styles.title} app-no-drag`}>
+            <Title level={5} className={styles.title}>
               {session?.title ?? '新会话'}
             </Title>
             {!isEmpty && headerStatus ? (
-              <span className={`${styles.headerStatus} app-no-drag`}>
+              <span className={styles.headerStatus}>
                 <span className={styles.statusDot} />
                 {headerStatus}
               </span>

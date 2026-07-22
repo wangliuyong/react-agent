@@ -328,7 +328,7 @@ export function PublishWorkbench(): React.ReactElement {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
+      <header className={`${styles.header} app-drag`}>
         <div className={styles.headerMain}>
           <div className={styles.headerIcon}>
             <CloudUploadOutlined />
@@ -345,7 +345,7 @@ export function PublishWorkbench(): React.ReactElement {
             </Text>
           </div>
         </div>
-        <Space wrap>
+        <Space wrap className="app-no-drag">
           <Button
             onClick={async () => {
               await addBuiltinPlans()

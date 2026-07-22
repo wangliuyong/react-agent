@@ -436,7 +436,7 @@ export function SkillsPage(): React.ReactElement {
   return (
     <div className={styles.page}>
       {/* 顶栏：标题 + 全局操作 */}
-      <header className={styles.header}>
+      <header className={`${styles.header} app-drag`}>
         <div className={styles.headerMain}>
           <div className={styles.headerIcon}>
             <ThunderboltOutlined />
@@ -453,7 +453,7 @@ export function SkillsPage(): React.ReactElement {
             </Text>
           </div>
         </div>
-        <Space wrap>
+        <Space wrap className="app-no-drag">
           <Button icon={<ImportOutlined />} onClick={openImportModal}>
             导入
           </Button>
