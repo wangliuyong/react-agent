@@ -128,10 +128,25 @@ ipcMain.handle('shell:open-external', async (_e, url: string) => {
 
 ipcMain.handle('post:reveal-path', async (_e, filePath: string) => {
   const { existsSync } = await import('fs')
-  const target = String(filePath ?? '').trim()
-  if (!target) return { ok: false as const, error: '路径为空' }
+  const { normalize, resolve } = await import('path')
+  const raw = String(filePath ?? '').trim()
+  if (!raw) return { ok: false as const, error: '路径为空' }
+  const target = normalize(resolve(raw))
   if (!existsSync(target)) return { ok: false as const, error: '文件不存在' }
   shell.showItemInFolder(target)
+  return { ok: true as const }
+})
+
+/** 在系统默认浏览器中打开本地 HTML 等文件 */
+ipcMain.handle('post:open-local-file', async (_e, filePath: string) => {
+  const { existsSync } = await import('fs')
+  const { normalize, resolve } = await import('path')
+  const { pathToFileURL } = await import('url')
+  const raw = String(filePath ?? '').trim()
+  if (!raw) return { ok: false as const, error: '路径为空' }
+  const target = normalize(resolve(raw))
+  if (!existsSync(target)) return { ok: false as const, error: '文件不存在' }
+  await shell.openExternal(pathToFileURL(target).href)
   return { ok: true as const }
 })
 

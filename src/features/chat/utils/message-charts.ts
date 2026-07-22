@@ -3,6 +3,7 @@ import {
   stripMediaPathsFromDisplayText,
   extractMessageMedia
 } from './message-media'
+import { extractMessageHtml } from './message-html'
 import {
   queryExtractStockCharts,
   queryExtractStockChartEnvelope,
@@ -27,13 +28,19 @@ export function queryStockLiveRefresh(content: string): boolean {
   return envelope?.liveRefresh === true
 }
 
-/** 展示用正文：去掉 workflow 前缀、媒体路径与 K 线 JSON 块 */
+/** 展示用正文：去掉 workflow 前缀、媒体/HTML 路径与 K 线 JSON 块 */
 export function queryDisplayContentWithCharts(
   content: string,
   imagePaths: { src: string; kind: string }[] = []
 ): string {
   const { audio, video } = extractMessageMedia(content)
+  const htmlRefs = extractMessageHtml(content)
   let text = stripMediaPathsFromDisplayText(content, audio, video)
+
+  for (const ref of htmlRefs) {
+    text = text.split(ref.src).join('').trim()
+  }
+
   text = stripStockChartBlock(text)
 
   for (const img of imagePaths) {
@@ -42,6 +49,6 @@ export function queryDisplayContentWithCharts(
     }
   }
   text = text.replace(/!\[[^\]]*]\([^)]+\)/g, '').trim()
-  text = text.replace(/(?:本地|图片|视频|音频|旁白|成片)?路径[：:]\s*/g, '').trim()
+  text = text.replace(/(?:本地|图片|视频|音频|旁白|成片|HTML|网页|页面)?路径[：:]\s*/g, '').trim()
   return text
 }

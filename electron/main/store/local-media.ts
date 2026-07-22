@@ -1,6 +1,6 @@
 /**
- * 本地音视频文件 → media:// 协议 URL，供聊天内联播放。
- * 为什么：视频/音频体积大，不适合走 base64 data URL（图片 ≤8MB 仍用 queryLocalImageDataUrl）。
+ * 本地媒体与 HTML 文件 → media:// 协议 URL，供聊天内联播放/预览。
+ * 为什么：视频/音频/HTML 体积大，不适合走 base64 data URL（图片 ≤8MB 仍用 queryLocalImageDataUrl）。
  */
 
 import { existsSync } from 'fs'
@@ -10,6 +10,8 @@ import { extname, normalize, resolve } from 'path'
 const AUDIO_EXT = new Set(['.wav', '.mp3', '.m4a', '.aac', '.ogg'])
 /** 允许在聊天内预览的视频扩展名 */
 const VIDEO_EXT = new Set(['.mp4', '.mov', '.webm', '.mkv'])
+/** 允许在聊天内 iframe 预览的 HTML 扩展名 */
+const HTML_EXT = new Set(['.html', '.htm'])
 
 const MIME: Record<string, string> = {
   '.wav': 'audio/wav',
@@ -20,10 +22,12 @@ const MIME: Record<string, string> = {
   '.mp4': 'video/mp4',
   '.mov': 'video/quicktime',
   '.webm': 'video/webm',
-  '.mkv': 'video/x-matroska'
+  '.mkv': 'video/x-matroska',
+  '.html': 'text/html',
+  '.htm': 'text/html'
 }
 
-export type LocalMediaKind = 'audio' | 'video'
+export type LocalMediaKind = 'audio' | 'video' | 'html'
 
 /** 校验并解析本地媒体绝对路径 */
 export function queryResolveLocalMediaPath(filePath: string): {
@@ -38,9 +42,13 @@ export function queryResolveLocalMediaPath(filePath: string): {
   const mime = MIME[ext]
   if (!mime) return null
   if (!existsSync(abs)) return null
-  if (!AUDIO_EXT.has(ext) && !VIDEO_EXT.has(ext)) return null
+  if (!AUDIO_EXT.has(ext) && !VIDEO_EXT.has(ext) && !HTML_EXT.has(ext)) return null
 
-  const kind: LocalMediaKind = AUDIO_EXT.has(ext) ? 'audio' : 'video'
+  const kind: LocalMediaKind = AUDIO_EXT.has(ext)
+    ? 'audio'
+    : VIDEO_EXT.has(ext)
+      ? 'video'
+      : 'html'
 
   return { abs, kind, mime }
 }

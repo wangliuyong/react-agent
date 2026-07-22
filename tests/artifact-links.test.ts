@@ -8,13 +8,15 @@ const localMediaSource = readFileSync(
 )
 
 describe('queryArtifactPaths', () => {
-  it('提取成片与剧本绝对路径', () => {
+  it('提取成片、剧本与 HTML 绝对路径', () => {
     const text =
       '成片已生成：/Users/wly/Desktop/react-agent-data/videos/projects/s1/final-1.mp4\n' +
-      '剧本：/tmp/script.md'
+      '剧本：/tmp/script.md\n' +
+      '页面：/tmp/report.html'
     expect(queryArtifactPaths(text)).toEqual([
       '/Users/wly/Desktop/react-agent-data/videos/projects/s1/final-1.mp4',
-      '/tmp/script.md'
+      '/tmp/script.md',
+      '/tmp/report.html'
     ])
   })
 

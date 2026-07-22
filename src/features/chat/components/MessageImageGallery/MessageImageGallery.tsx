@@ -1,6 +1,7 @@
 import { Image } from 'antd'
 import { queryLocalImageDataUrl } from '../../api'
 import type { MessageImageRef } from '../../utils/message-images'
+import { ArtifactFileActions } from '../ArtifactFileActions'
 import styles from './MessageImageGallery.module.css'
 
 interface MessageImageGalleryProps {
@@ -81,6 +82,9 @@ export function MessageImageGallery({ images }: MessageImageGalleryProps): React
                 onError={() => handleImageError(img.key)}
               />
               <span className={styles.thumbLabel}>{img.label}</span>
+              {img.kind === 'local' ? (
+                <ArtifactFileActions filePath={img.src} className={styles.fileActions} />
+              ) : null}
             </div>
           ))}
         </Image.PreviewGroup>

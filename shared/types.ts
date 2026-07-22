@@ -91,7 +91,9 @@ export const IpcChannels = {
   onBrowserFrame: 'event:browser-frame',
   onScheduleUpdate: 'event:schedule-update',
   /** 在系统文件管理器中显示本地路径 */
-  postRevealPath: 'post:reveal-path'
+  postRevealPath: 'post:reveal-path',
+  /** 在系统默认浏览器中打开本地文件（HTML 等） */
+  postOpenLocalFile: 'post:open-local-file'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -1780,6 +1782,8 @@ export interface ElectronApi {
   postOpenExternal: (url: string) => Promise<void>
   /** 在系统文件管理器中显示本地文件（成片/剧本等产物） */
   postRevealPath: (filePath: string) => Promise<{ ok: true } | { ok: false; error: string }>
+  /** 在系统默认浏览器中打开本地文件 */
+  postOpenLocalFile: (filePath: string) => Promise<{ ok: true } | { ok: false; error: string }>
 }
 
 declare global {

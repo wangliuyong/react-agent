@@ -3,12 +3,14 @@ import { ChatMarkdown } from '../ChatMarkdown'
 import { MessageImageGallery } from '../MessageImageGallery'
 import { MessageAudioPlayer } from '../MessageAudioPlayer'
 import { MessageVideoPlayer } from '../MessageVideoPlayer'
+import { MessageHtmlPreview } from '../MessageHtmlPreview'
 import { ArtifactLinks } from '../ArtifactLinks'
 import {
   extractMessageImages,
   type MessageImageRef
 } from '../../utils/message-images'
 import { extractMessageMedia } from '../../utils/message-media'
+import { extractMessageHtml } from '../../utils/message-html'
 import {
   extractStockCharts,
   queryDisplayContentWithCharts,
@@ -26,7 +28,7 @@ interface MessageRichContentProps {
 }
 
 /**
- * 消息富媒体展示：Markdown + 图片画廊 + 音频/视频播放器 + 产物链接。
+ * 消息富媒体展示：Markdown + 图片画廊 + 音频/视频/HTML 预览 + 产物链接。
  */
 export function MessageRichContent({
   content,
@@ -37,6 +39,7 @@ export function MessageRichContent({
 }: MessageRichContentProps): React.ReactElement {
   const images = extractMessageImages(content, attachmentPaths)
   const { audio, video } = extractMessageMedia(content)
+  const htmlItems = extractMessageHtml(content)
   const stockCharts = extractStockCharts(content)
   const stockLiveRefresh = queryStockLiveRefresh(content)
   const displayText = queryDisplayContentWithCharts(content, images)
@@ -44,7 +47,8 @@ export function MessageRichContent({
   const previewPaths = [
     ...images.filter((i) => i.kind === 'local').map((i) => i.src),
     ...audio.map((a) => a.src),
-    ...video.map((v) => v.src)
+    ...video.map((v) => v.src),
+    ...htmlItems.map((h) => h.src)
   ]
 
   return (
@@ -58,6 +62,7 @@ export function MessageRichContent({
       <MessageImageGallery images={images} />
       <MessageAudioPlayer items={audio} />
       <MessageVideoPlayer items={video} />
+      <MessageHtmlPreview items={htmlItems} />
       <ArtifactLinks content={content} excludePaths={previewPaths} />
       {showDoneAlert && /执行完毕/.test(content) ? (
         <Alert type="success" showIcon message="执行完毕" className={styles.doneAlert} />
@@ -70,12 +75,14 @@ export function MessageRichContent({
 export function queryMediaCountLabel(content: string, attachmentPaths?: string[]): string {
   const images = extractMessageImages(content, attachmentPaths)
   const { audio, video } = extractMessageMedia(content)
+  const htmlItems = extractMessageHtml(content)
   const stockCharts = extractStockCharts(content)
   const parts: string[] = []
   if (stockCharts.length) parts.push(`${stockCharts.length} 只K线`)
   if (images.length) parts.push(`${images.length} 张图`)
   if (audio.length) parts.push(`${audio.length} 段音频`)
   if (video.length) parts.push(`${video.length} 个视频`)
+  if (htmlItems.length) parts.push(`${htmlItems.length} 个网页`)
   return parts.length ? ` · ${parts.join(' · ')}` : ''
 }
 

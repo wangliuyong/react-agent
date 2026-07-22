@@ -11,6 +11,7 @@ import {
 const dir = join(tmpdir(), `lingxi-media-test-${Date.now()}`)
 const wavPath = join(dir, 'shot_1.wav')
 const mp4Path = join(dir, 'shot_1.mp4')
+const htmlPath = join(dir, 'preview.html')
 const spacedDir = join(dir, 'Application Support', 'lingxi')
 const spacedMp4 = join(spacedDir, 'cat.mp4')
 
@@ -19,6 +20,7 @@ beforeAll(() => {
   // 最小合法文件头即可通过 exists + 扩展名校验
   writeFileSync(wavPath, Buffer.from('RIFF'))
   writeFileSync(mp4Path, Buffer.from('ftyp'))
+  writeFileSync(htmlPath, '<!doctype html><title>t</title>')
   writeFileSync(spacedMp4, Buffer.from('ftyp'))
 })
 
@@ -27,9 +29,10 @@ afterAll(() => {
 })
 
 describe('local-media URL roundtrip', () => {
-  it('解析存在的 wav/mp4', () => {
+  it('解析存在的 wav/mp4/html', () => {
     expect(queryResolveLocalMediaPath(wavPath)?.kind).toBe('audio')
     expect(queryResolveLocalMediaPath(mp4Path)?.kind).toBe('video')
+    expect(queryResolveLocalMediaPath(htmlPath)?.kind).toBe('html')
   })
 
   it('生成 ?path= 查询串 URL，并可反解回绝对路径', () => {

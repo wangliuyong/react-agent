@@ -1,16 +1,16 @@
 import { queryLocalMediaUrl } from '../../api'
-import type { MessageMediaRef } from '../../utils/message-media'
+import type { MessageHtmlRef } from '../../utils/message-html'
 import { ArtifactFileActions } from '../ArtifactFileActions'
-import styles from './MessageVideoPlayer.module.css'
+import styles from './MessageHtmlPreview.module.css'
 
-interface MessageVideoPlayerProps {
-  items: MessageMediaRef[]
+interface MessageHtmlPreviewProps {
+  items: MessageHtmlRef[]
 }
 
 /**
- * 聊天消息视频播放器：本地路径经 IPC 转为 media:// URL，支持 seek。
+ * 聊天消息 HTML 预览：iframe 内嵌展示，支持在系统浏览器中打开与定位文件。
  */
-export function MessageVideoPlayer({ items }: MessageVideoPlayerProps): React.ReactElement | null {
+export function MessageHtmlPreview({ items }: MessageHtmlPreviewProps): React.ReactElement | null {
   const [urlMap, setUrlMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const itemKeys = items.map((item) => item.key).join('\0')
@@ -53,15 +53,20 @@ export function MessageVideoPlayer({ items }: MessageVideoPlayerProps): React.Re
     <div className={styles.gallery}>
       {loading && ready.length === 0 ? <Spin size="small" /> : null}
       {ready.map((item) => (
-        <div key={item.key} className={styles.item} title={item.label}>
-          <video
-            controls
-            preload="metadata"
-            className={styles.player}
+        <div key={item.key} className={styles.item}>
+          <div className={styles.header}>
+            <span className={styles.label} title={item.src}>
+              <FileTextOutlined className={styles.fileIcon} />
+              {item.label}
+            </span>
+            <ArtifactFileActions filePath={item.src} showBrowserOpen className={styles.actions} />
+          </div>
+          <iframe
+            className={styles.frame}
+            title={item.label}
             src={urlMap[item.key]}
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           />
-          <span className={styles.label}>{item.label}</span>
-          <ArtifactFileActions filePath={item.src} />
         </div>
       ))}
     </div>

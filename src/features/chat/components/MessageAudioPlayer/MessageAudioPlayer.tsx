@@ -1,5 +1,6 @@
 import { queryLocalMediaUrl } from '../../api'
 import type { MessageMediaRef } from '../../utils/message-media'
+import { ArtifactFileActions } from '../ArtifactFileActions'
 import styles from './MessageAudioPlayer.module.css'
 
 interface MessageAudioPlayerProps {
@@ -55,6 +56,7 @@ export function MessageAudioPlayer({ items }: MessageAudioPlayerProps): React.Re
         <div key={item.key} className={styles.item} title={item.label}>
           <audio controls preload="metadata" className={styles.player} src={urlMap[item.key]} />
           <span className={styles.label}>{item.label}</span>
+          <ArtifactFileActions filePath={item.src} />
         </div>
       ))}
     </div>

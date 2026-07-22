@@ -13,12 +13,28 @@
 
 .list {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
+  width: 100%;
 }
 
-.btn {
-  max-width: 220px;
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--lx-border, #f0f0f0);
+  border-radius: var(--lx-radius-sm, 6px);
+  background: var(--lx-bg-subtle, #fafafa);
+}
+
+.fileName {
+  font-size: 12px;
+  color: var(--lx-text-primary, #262626);
+  max-width: 280px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }

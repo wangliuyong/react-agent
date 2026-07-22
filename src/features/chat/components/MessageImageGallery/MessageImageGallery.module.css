@@ -39,3 +39,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.fileActions {
+  width: 100%;
+  justify-content: center;
+}

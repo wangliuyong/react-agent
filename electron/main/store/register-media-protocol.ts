@@ -1,5 +1,5 @@
 /**
- * 注册 media:// 自定义协议，安全地向渲染进程提供本地音视频文件。
+ * 注册 media:// 自定义协议，安全地向渲染进程提供本地音视频与 HTML 文件。
  */
 
 import { net, protocol } from 'electron'

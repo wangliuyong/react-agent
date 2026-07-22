@@ -149,7 +149,9 @@ const api: ElectronApi = {
   postSelectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),
   postOpenExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
   postRevealPath: (filePath: string) =>
-    ipcRenderer.invoke(IpcChannels.postRevealPath, filePath)
+    ipcRenderer.invoke(IpcChannels.postRevealPath, filePath),
+  postOpenLocalFile: (filePath: string) =>
+    ipcRenderer.invoke(IpcChannels.postOpenLocalFile, filePath)
 }
 
 contextBridge.exposeInMainWorld('api', api)

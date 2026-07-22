@@ -1,0 +1,12 @@
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn {
+  padding-inline: 4px;
+  height: auto;
+  font-size: 12px;
+}
