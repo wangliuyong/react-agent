@@ -1,0 +1,33 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.topRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fileName {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--db-text-primary, #262626);
+}
+
+.path {
+  display: block;
+  font-size: 11px;
+  color: var(--db-text-secondary, #8c8c8c);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.path :global(.ant-typography-copy) {
+  color: var(--db-text-secondary, #8c8c8c);
+}

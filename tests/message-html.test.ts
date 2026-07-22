@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { extractMessageHtml } from '../src/features/chat/utils/message-html'
+import {
+  extractMessageHtml,
+  stripOrphanedPathLabels
+} from '../src/features/chat/utils/message-html'
 
 describe('extractMessageHtml', () => {
   it('提取本地 HTML 绝对路径', () => {
@@ -29,5 +32,15 @@ describe('extractMessageHtml', () => {
 
   it('无 HTML 路径时返回空数组', () => {
     expect(extractMessageHtml('没有本地文件')).toEqual([])
+  })
+})
+
+describe('stripOrphanedPathLabels', () => {
+  it('去掉路径剥离后残留的文件位置标题', () => {
+    expect(stripOrphanedPathLabels('场景说明如下。\n\n文件位置\n\n你可以直接用浏览器打开。')).toBe(
+      '场景说明如下。\n\n你可以直接用浏览器打开。'
+    )
+    expect(stripOrphanedPathLabels('文件位置：')).toBe('')
+    expect(stripOrphanedPathLabels('保存至文件位置：\n\n说明')).toBe('保存至\n\n说明')
   })
 })

@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { rmSync, existsSync } from 'fs'
+import { normalize, resolve } from 'path'
 import { IpcChannels } from '../../shared/types'
 import type {
   AgentChatRequest,
@@ -302,6 +303,11 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.queryLocalMediaUrl, (_e, filePath: string) =>
     queryLocalMediaUrl(filePath)
   )
+  ipcMain.handle(IpcChannels.queryLocalPathExists, (_e, filePath: string) => {
+    const raw = String(filePath ?? '').trim()
+    if (!raw) return false
+    return existsSync(normalize(resolve(raw)))
+  })
   /** 聊天内手动刷新：与工具 query_ashare_realtime_analysis 同源拉数（含多周期 + 分析） */
   ipcMain.handle(IpcChannels.queryAshareKlineRefresh, async (_e, req) => {
     const { queryAshareRealtimeAnalysisCharts } = await import('./agent/tools/stock-tools')

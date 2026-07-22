@@ -17,34 +17,22 @@
 
 .header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: 8px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--db-border, #e8e8e8);
   background: var(--db-bg-subtle, #fafafa);
 }
 
-.label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--db-text-primary, #262626);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .fileIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
   color: var(--db-text-secondary, #8c8c8c);
 }
 
-.actions {
-  margin-left: auto;
+.meta {
+  flex: 1;
+  min-width: 0;
 }
 
 .frame {
@@ -53,4 +41,18 @@
   border: none;
   display: block;
   background: #fff;
+}
+
+.framePlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 360px;
+  background: var(--db-bg-subtle, #fafafa);
+}
+
+.frameHint {
+  font-size: 12px;
+  color: var(--db-text-secondary, #8c8c8c);
 }

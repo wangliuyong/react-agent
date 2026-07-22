@@ -1,11 +1,24 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { queryArtifactPaths } from '../src/features/chat/components/ArtifactLinks/ArtifactLinks'
+import {
+  queryArtifactPaths,
+  queryIsPlausibleArtifactPath
+} from '../src/features/chat/utils/artifact-paths'
 
-const localMediaSource = readFileSync(
-  new URL('../electron/main/store/local-media.ts', import.meta.url),
-  'utf8'
-)
+describe('queryIsPlausibleArtifactPath', () => {
+  it('接受真实用户目录路径', () => {
+    expect(
+      queryIsPlausibleArtifactPath(
+        '/Users/wly/Library/Application Support/lingxi/react-agent-data/artifacts/a.html'
+      )
+    ).toBe(true)
+  })
+
+  it('拒绝根级伪路径与三方库路径', () => {
+    expect(queryIsPlausibleArtifactPath('/three.module.js')).toBe(false)
+    expect(queryIsPlausibleArtifactPath('/examples/jsm/controls/OrbitControls.js')).toBe(false)
+    expect(queryIsPlausibleArtifactPath('/node_modules/three/build/three.module.js')).toBe(false)
+  })
+})
 
 describe('queryArtifactPaths', () => {
   it('提取成片、剧本与 HTML 绝对路径', () => {
@@ -34,15 +47,17 @@ describe('queryArtifactPaths', () => {
     expect(queryArtifactPaths(text)).toEqual([scriptPath])
   })
 
+  it('忽略消息中的 three.js 库引用伪路径', () => {
+    const text =
+      '依赖：/examples/jsm/controls/OrbitControls.js\n' +
+      '以及 /three.module.js 与 /jsm/renderers/CSS2DRenderer.js\n' +
+      '已写入: /Users/wly/Desktop/react-agent-data/artifacts/community.html'
+    expect(queryArtifactPaths(text)).toEqual([
+      '/Users/wly/Desktop/react-agent-data/artifacts/community.html'
+    ])
+  })
+
   it('无路径时返回空数组', () => {
     expect(queryArtifactPaths('没有本地文件')).toEqual([])
-  })
-})
-
-describe('local-media 协议', () => {
-  it('生成 media://local/?path= URL', () => {
-    expect(localMediaSource).toContain('media://local/?path=')
-    expect(localMediaSource).toContain('queryLocalMediaUrl')
-    expect(localMediaSource).toContain('searchParams.get(')
   })
 })

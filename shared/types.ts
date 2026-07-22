@@ -68,6 +68,8 @@ export const IpcChannels = {
   queryLocalImageDataUrl: 'query:local-image-data-url',
   /** 本地音视频 → media:// URL，供聊天内联播放 */
   queryLocalMediaUrl: 'query:local-media-url',
+  /** 校验本地文件/目录是否存在（产物按钮展示前过滤） */
+  queryLocalPathExists: 'query:local-path-exists',
   /** A 股 K 线实时刷新（聊天预览轮询） */
   queryAshareKlineRefresh: 'query:ashare-kline-refresh',
   /** Agent 工具注册表 + 角色注入（设置页只读） */
@@ -1752,6 +1754,8 @@ export interface ElectronApi {
   postSummarizeSkillFromSession: (sessionId: string) => Promise<SkillUpsertInput>
   queryLocalImageDataUrl: (filePath: string) => Promise<string | null>
   queryLocalMediaUrl: (filePath: string) => Promise<string | null>
+  /** 校验本地路径是否存在 */
+  queryLocalPathExists: (filePath: string) => Promise<boolean>
   queryAshareKlineRefresh: (req: import('./stock-chart').AshareKlineRefreshRequest) => Promise<import('./stock-chart').StockChartPayload | null>
   /** 设置页：工具注册表 + 源码预览 + 角色注入 */
   queryAgentToolsCatalog: () => Promise<AgentToolCatalog>

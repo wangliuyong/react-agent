@@ -1,3 +1,9 @@
+/**
+ * 从聊天消息正文提取可预览的本地 HTML 路径。
+ */
+
+import { queryIsPlausibleArtifactPath } from './artifact-paths'
+
 /** 消息内识别出的本地 HTML 文件引用 */
 export interface MessageHtmlRef {
   key: string
@@ -42,6 +48,7 @@ function addRef(refs: MessageHtmlRef[], seen: Set<string>, src: string): void {
     .replace(/^["'`]+|["'`]+$/g, '')
     .replace(/[，,;；]+$/g, '')
   if (!trimmed || seen.has(trimmed) || !isLocalPath(trimmed) || !isHtmlPath(trimmed)) return
+  if (!queryIsPlausibleArtifactPath(trimmed)) return
   seen.add(trimmed)
   refs.push({
     key: trimmed,
@@ -100,12 +107,22 @@ export function extractMessageHtml(content: string): MessageHtmlRef[] {
   return refs
 }
 
+/** 去掉路径剥离后残留的空「文件位置 / 路径」标题行 */
+export function stripOrphanedPathLabels(text: string): string {
+  return text
+    .replace(/(?:文件位置|本地路径|保存路径|输出路径|产物路径)[：:][ \t]*/g, '')
+    .replace(/^[ \t]*(?:文件位置|本地路径|保存路径|输出路径|产物路径)[：:]*[ \t]*$/gim, '')
+    .replace(/^[ \t]*(?:文件位置|本地路径|保存路径|输出路径|产物路径)[ \t]*$/gim, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 /** 展示用：去掉已识别 HTML 路径 */
 export function stripHtmlPathsFromDisplayText(content: string, htmlRefs: MessageHtmlRef[]): string {
   let text = queryDecodeWorkflowCtxMessage(content)
   for (const ref of htmlRefs) {
     text = text.split(ref.src).join('').trim()
   }
-  text = text.replace(/(?:本地|HTML|网页|页面)?路径[：:]\s*/g, '').trim()
-  return text
+  text = text.replace(/(?:文件位置|本地|HTML|网页|页面|本地路径|保存路径)?路径[：:]\s*/g, '').trim()
+  return stripOrphanedPathLabels(text)
 }

@@ -57,6 +57,11 @@ export async function queryLocalMediaUrl(filePath: string): Promise<string | nul
   return window.api.queryLocalMediaUrl(filePath)
 }
 
+/** 校验本地路径是否存在（产物列表展示前过滤） */
+export async function queryLocalPathExists(filePath: string): Promise<boolean> {
+  return window.api.queryLocalPathExists(filePath)
+}
+
 /** 聊天内手动刷新：走 query_ashare_realtime_analysis 同源拉数 */
 export async function queryAshareKlineRefresh(
   req: import('@shared/stock-chart').AshareKlineRefreshRequest

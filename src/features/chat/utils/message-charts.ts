@@ -3,7 +3,7 @@ import {
   stripMediaPathsFromDisplayText,
   extractMessageMedia
 } from './message-media'
-import { extractMessageHtml } from './message-html'
+import { extractMessageHtml, stripOrphanedPathLabels } from './message-html'
 import {
   queryExtractStockCharts,
   queryExtractStockChartEnvelope,
@@ -49,6 +49,8 @@ export function queryDisplayContentWithCharts(
     }
   }
   text = text.replace(/!\[[^\]]*]\([^)]+\)/g, '').trim()
-  text = text.replace(/(?:本地|图片|视频|音频|旁白|成片|HTML|网页|页面)?路径[：:]\s*/g, '').trim()
-  return text
+  text = text
+    .replace(/(?:文件位置|本地|图片|视频|音频|旁白|成片|HTML|网页|页面|本地路径|保存路径)?路径[：:]\s*/g, '')
+    .trim()
+  return stripOrphanedPathLabels(text)
 }

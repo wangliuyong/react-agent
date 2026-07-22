@@ -1,6 +1,6 @@
 import { queryLocalMediaUrl } from '../../api'
 import type { MessageHtmlRef } from '../../utils/message-html'
-import { ArtifactFileActions } from '../ArtifactFileActions'
+import { ArtifactPathMeta } from '../ArtifactPathMeta'
 import styles from './MessageHtmlPreview.module.css'
 
 interface MessageHtmlPreviewProps {
@@ -46,27 +46,28 @@ export function MessageHtmlPreview({ items }: MessageHtmlPreviewProps): React.Re
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 以 itemKeys 稳定依赖
   }, [itemKeys])
 
-  const ready = items.filter((item) => urlMap[item.key])
-  if (!ready.length && !loading) return null
+  if (items.length === 0) return null
 
   return (
     <div className={styles.gallery}>
-      {loading && ready.length === 0 ? <Spin size="small" /> : null}
-      {ready.map((item) => (
+      {items.map((item) => (
         <div key={item.key} className={styles.item}>
           <div className={styles.header}>
-            <span className={styles.label} title={item.src}>
-              <FileTextOutlined className={styles.fileIcon} />
-              {item.label}
-            </span>
-            <ArtifactFileActions filePath={item.src} showBrowserOpen className={styles.actions} />
+            <FileTextOutlined className={styles.fileIcon} />
+            <ArtifactPathMeta filePath={item.src} showBrowserOpen className={styles.meta} />
           </div>
-          <iframe
-            className={styles.frame}
-            title={item.label}
-            src={urlMap[item.key]}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-          />
+          {urlMap[item.key] ? (
+            <iframe
+              className={styles.frame}
+              title={item.label}
+              src={urlMap[item.key]}
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            />
+          ) : (
+            <div className={styles.framePlaceholder}>
+              {loading ? <Spin size="small" /> : <span className={styles.frameHint}>无法加载预览</span>}
+            </div>
+          )}
         </div>
       ))}
     </div>
