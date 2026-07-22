@@ -53,7 +53,7 @@ export function MessageHtmlPreview({ items }: MessageHtmlPreviewProps): React.Re
       {items.map((item) => (
         <div key={item.key} className={styles.item}>
           <div className={styles.header}>
-            <FileTextOutlined className={styles.fileIcon} />
+            {/* <FileTextOutlined className={styles.fileIcon} /> */}
             <ArtifactPathMeta filePath={item.src} showBrowserOpen className={styles.meta} />
           </div>
           {urlMap[item.key] ? (

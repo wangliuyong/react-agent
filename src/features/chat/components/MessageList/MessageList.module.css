@@ -1,8 +1,4 @@
 .list {
-  /* 消息区滚动容器：占满 body 剩余高度，滚动条出现在列表层而非 ChatPage.body */
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -11,13 +7,6 @@
   width: 100%;
   padding-top: 28px;
   padding-bottom: 16px;
-  /* 保留滚动能力，隐藏滚动条 */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.list::-webkit-scrollbar {
-  display: none;
 }
 
 .row {

@@ -1,3 +1,4 @@
+import { useElementStickToBottom } from '@/components/VirtualList'
 import { useBrowserControl } from '@/features/browser'
 import type { ChatMode } from '@/features/business'
 import { useSettingsStore } from '@/features/settings'
@@ -54,7 +55,15 @@ export function ChatPage(): React.ReactElement {
   }, [settings.apiKey, settings.baseUrl, settingsLoaded, setView])
 
   const messages = session?.messages ?? []
+  const tasks = session?.tasks ?? []
   const isEmpty = messages.length === 0 && !streamingText && !running
+
+  /** 消息区滚动容器：在 body 层统一滚动，便于与顶栏/输入区解耦 */
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const { onScroll } = useElementStickToBottom(bodyRef, {
+    enabled: !isEmpty,
+    deps: [messages.length, streamingText, thinkingText, running, activeToolName, tasks]
+  })
 
   const headerStatus = queryAgentStatusLabel({
     running,
@@ -137,7 +146,7 @@ export function ChatPage(): React.ReactElement {
         onResume={() => void resumeRun()}
       />
 
-      <div className={styles.body} data-empty={isEmpty}>
+      <div ref={bodyRef} className={styles.body} data-empty={isEmpty} onScroll={onScroll}>
         {isEmpty ? (
           <WelcomeHero
             onPick={(prompt) => {

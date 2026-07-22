@@ -1,6 +1,5 @@
 import type { ChatMessage, TaskItem } from '@shared/types'
 import { Fragment } from 'react'
-import { useElementStickToBottom } from '@/components/VirtualList'
 import {
   queryAgentBusyLabel,
   queryAgentPhase
@@ -43,8 +42,6 @@ export function MessageList({
   activeToolName = null,
   awaitUserReason = null
 }: MessageListProps): React.ReactElement {
-  /** 列表层滚动容器，自动滚底时直接操作此节点 */
-  const listRef = useRef<HTMLDivElement>(null)
   const visible = messages.filter((m) => m.role !== 'system')
 
   const statusInput = {
@@ -98,13 +95,8 @@ export function MessageList({
   const showThinking = thinkingText.trim().length > 0 || thinkingInProgress
   const displayStreamingText = thinkingInProgress ? '' : streamingText
 
-  /** 新消息 / 流式输出 / 任务状态变化时在 .list 层贴底跟随（用户上滑阅读时不抢滚动） */
-  const { onScroll } = useElementStickToBottom(listRef, {
-    deps: [messages.length, streamingText, thinkingText, running, activeToolName, tasks]
-  })
-
   return (
-    <div ref={listRef} className={styles.list} onScroll={onScroll}>
+    <div className={styles.list}>
       {timeline.map((item) => {
         if (item.kind === 'user') {
           const m = item.message

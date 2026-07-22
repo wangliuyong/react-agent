@@ -185,12 +185,19 @@
 .body {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   position: relative;
   z-index: 1;
   background: transparent;
+  /* 保留滚动能力，隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.body::-webkit-scrollbar {
+  display: none;
 }
 
 /* 新会话空态：欢迎区垂直居中 */

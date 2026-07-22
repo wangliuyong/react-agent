@@ -25,7 +25,7 @@ export function ArtifactPathMeta({
   return (
     <div className={[styles.wrap, className].filter(Boolean).join(' ')}>
       <div className={styles.topRow}>
-        <span className={styles.fileName}>{queryFileName(filePath)}</span>
+        {/* <span className={styles.fileName}>{queryFileName(filePath)}</span> */}
         <ArtifactFileActions filePath={filePath} showBrowserOpen={showBrowserOpen} />
       </div>
       <Typography.Text copyable className={styles.path} title={filePath}>
