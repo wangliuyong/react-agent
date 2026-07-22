@@ -402,6 +402,17 @@
   padding: 20px 24px 24px;
 }
 
+/* 保存中 Spin 需占满抽屉宽度，否则表单控件会收缩为内容宽度 */
+.editDrawer :global(.ant-spin-nested-loading),
+.editDrawer :global(.ant-spin-container),
+.editDrawer :global(.ant-form) {
+  width: 100%;
+}
+
+.editDrawer :global(.ant-spin-container) {
+  display: block;
+}
+
 .editDrawer :global(.ant-drawer-footer) {
   padding: 12px 24px;
   border-top: 1px solid var(--db-border-light);
