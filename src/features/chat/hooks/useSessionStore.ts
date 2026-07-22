@@ -15,6 +15,7 @@ import {
 import { queryAwaitUserReasonFromMessages } from '../utils/queryAwaitUserReasonFromMessages'
 import { querySessionType } from '../utils/querySessionType'
 import { queryShouldResumeViaWorkflow } from '../utils/queryShouldResumeViaWorkflow'
+import { postChatExecutionCommand } from '../utils/postChatExecutionCommand'
 import { useAppStore } from '@/stores/app-store'
 import { appMessage } from '@/lib/app-message'
 
@@ -441,21 +442,47 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   sendMessage: async (content, attachmentPaths) => {
-    let { activeSessionId, runningSessionIds } = get()
-    if (!activeSessionId) {
-      const session = await get().createSession()
-      activeSessionId = session.id
-    } else if (runningSessionIds.has(activeSessionId)) {
+    const { activeSessionId, runningSessionIds } = get()
+    if (activeSessionId && runningSessionIds.has(activeSessionId)) {
       appMessage.warning('当前会话正在执行中，请稍候或点击中断')
       return
     }
+
+    // 无附件时尝试解析「执行定时任务/任务/流程 xxx」快捷指令
+    if (!attachmentPaths?.length) {
+      const commandResult = await postChatExecutionCommand(content)
+      if (commandResult.handled) {
+        if (!commandResult.success) {
+          appMessage.error(commandResult.message)
+          return
+        }
+
+        if (commandResult.runInBackground) {
+          appMessage.success(commandResult.message)
+          return
+        }
+
+        await get().hydrate()
+        get().setActive(commandResult.sessionId)
+        get().beginExternalRun(commandResult.sessionId)
+        useAppStore.getState().setView('chat')
+        appMessage.success(commandResult.message)
+        return
+      }
+    }
+
+    let resolvedSessionId = activeSessionId
+    if (!resolvedSessionId) {
+      const session = await get().createSession()
+      resolvedSessionId = session.id
+    }
     set((state) => ({
-      runningSessionIds: withRunningSession(state.runningSessionIds, activeSessionId),
+      runningSessionIds: withRunningSession(state.runningSessionIds, resolvedSessionId),
       running: true,
       awaitUserReason: null,
       pendingAwaitReasons: withoutPendingAwaitReason(
         state.pendingAwaitReasons,
-        activeSessionId
+        resolvedSessionId
       ),
       canResume: false,
       streamingText: '',
@@ -466,7 +493,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       activeToolName: null,
       activeModelLabel: null
     }))
-    await postAgentChat(activeSessionId, content, attachmentPaths)
+    await postAgentChat(resolvedSessionId, content, attachmentPaths)
   },
 
   abort: async () => {
