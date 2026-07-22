@@ -104,6 +104,14 @@ const api: ElectronApi = {
   queryAshareKlineRefresh: (req) =>
     ipcRenderer.invoke(IpcChannels.queryAshareKlineRefresh, req),
   queryAgentToolsCatalog: () => ipcRenderer.invoke(IpcChannels.queryAgentToolsCatalog),
+  queryAgentAssets: (options) => ipcRenderer.invoke(IpcChannels.queryAgentAssets, options),
+  postDeleteAgentAsset: (filePath: string) =>
+    ipcRenderer.invoke(IpcChannels.postDeleteAgentAsset, filePath),
+  postDeleteAgentAssets: (filePaths: string[]) =>
+    ipcRenderer.invoke(IpcChannels.postDeleteAgentAssets, filePaths),
+  postClearAgentAssets: () => ipcRenderer.invoke(IpcChannels.postClearAgentAssets),
+  queryAgentAssetTextPreview: (filePath: string) =>
+    ipcRenderer.invoke(IpcChannels.queryAgentAssetTextPreview, filePath),
 
   queryAgentRules: () => ipcRenderer.invoke(IpcChannels.queryAgentRules),
   postAgentRule: (input: AgentRuleUpsertInput) =>

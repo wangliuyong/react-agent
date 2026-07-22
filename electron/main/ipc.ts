@@ -77,6 +77,13 @@ import {
   postDeleteAgentRule
 } from './store/rules'
 import {
+  queryAgentAssets,
+  postDeleteAgentAsset,
+  postDeleteAgentAssets,
+  postClearAgentAssets,
+  queryAgentAssetTextPreview
+} from './store/assets'
+import {
   queryWorkflows,
   queryWorkflow,
   postWorkflow,
@@ -331,6 +338,18 @@ export function registerIpcHandlers(): void {
     const { queryAgentToolsCatalog } = await import('./agent/tools/catalog')
     return queryAgentToolsCatalog()
   })
+
+  ipcMain.handle(IpcChannels.queryAgentAssets, (_e, options) => queryAgentAssets(options))
+  ipcMain.handle(IpcChannels.postDeleteAgentAsset, (_e, filePath: string) =>
+    postDeleteAgentAsset(filePath)
+  )
+  ipcMain.handle(IpcChannels.postDeleteAgentAssets, (_e, filePaths: string[]) =>
+    postDeleteAgentAssets(filePaths)
+  )
+  ipcMain.handle(IpcChannels.postClearAgentAssets, () => postClearAgentAssets())
+  ipcMain.handle(IpcChannels.queryAgentAssetTextPreview, (_e, filePath: string) =>
+    queryAgentAssetTextPreview(filePath)
+  )
 
   ipcMain.handle(IpcChannels.queryAgentRules, () => queryAgentRules())
   ipcMain.handle(IpcChannels.postAgentRule, (_e, input: AgentRuleUpsertInput) =>

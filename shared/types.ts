@@ -74,6 +74,16 @@ export const IpcChannels = {
   queryAshareKlineRefresh: 'query:ashare-kline-refresh',
   /** Agent 工具注册表 + 角色注入（设置页只读） */
   queryAgentToolsCatalog: 'query:agent-tools-catalog',
+  /** 设置页：列举 Agent 生成的本地文件 */
+  queryAgentAssets: 'query:agent-assets',
+  /** 设置页：删除单个 Agent 产出文件 */
+  postDeleteAgentAsset: 'post:agent-asset:delete',
+  /** 设置页：批量删除 Agent 产出文件 */
+  postDeleteAgentAssets: 'post:agent-assets:delete-batch',
+  /** 设置页：一键清空全部 Agent 产出 */
+  postClearAgentAssets: 'post:agent-assets:clear',
+  /** 设置页：读取文本类资产预览 */
+  queryAgentAssetTextPreview: 'query:agent-asset:text-preview',
   // Agent 用户规则（持久指令，注入 SYSTEM_PROMPT）
   queryAgentRules: 'query:agent-rules',
   postAgentRule: 'post:agent-rule',
@@ -1759,6 +1769,18 @@ export interface ElectronApi {
   queryAshareKlineRefresh: (req: import('./stock-chart').AshareKlineRefreshRequest) => Promise<import('./stock-chart').StockChartPayload | null>
   /** 设置页：工具注册表 + 源码预览 + 角色注入 */
   queryAgentToolsCatalog: () => Promise<AgentToolCatalog>
+  /** 设置页：Agent 产出资产列表 */
+  queryAgentAssets: (
+    options?: import('./agent-assets').QueryAgentAssetsOptions
+  ) => Promise<import('./agent-assets').AgentAssetRecord[]>
+  /** 设置页：删除单个 Agent 产出 */
+  postDeleteAgentAsset: (filePath: string) => Promise<import('./agent-assets').AgentAssetMutationResult>
+  /** 设置页：批量删除 Agent 产出 */
+  postDeleteAgentAssets: (filePaths: string[]) => Promise<import('./agent-assets').AgentAssetMutationResult>
+  /** 设置页：一键清空全部 Agent 产出 */
+  postClearAgentAssets: () => Promise<import('./agent-assets').AgentAssetMutationResult>
+  /** 设置页：文本类资产内容预览 */
+  queryAgentAssetTextPreview: (filePath: string) => Promise<string | null>
   queryAgentRules: () => Promise<AgentRule[]>
   postAgentRule: (input: AgentRuleUpsertInput) => Promise<AgentRule>
   postDeleteAgentRule: (id: string) => Promise<void>

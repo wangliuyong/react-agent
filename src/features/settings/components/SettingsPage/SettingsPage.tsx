@@ -3,19 +3,21 @@ import { ChannelStatusPanel } from '../ChannelStatusPanel'
 import { ModelApiPanel } from '../ModelApiPanel'
 import { ModelConnectionsPanel } from '../ModelConnectionsPanel'
 import { ToolsPanel } from '../ToolsPanel'
+import { AssetsPanel } from '../AssetsPanel'
 import styles from './SettingsPage.module.css'
 
 const { Title, Paragraph, Text } = Typography
 
 /** 设置分类 Tab — 对齐技能市场 Segmented 信息架构 */
-type SettingsTab = 'model' | 'connections' | 'app' | 'channels' | 'tools'
+type SettingsTab = 'model' | 'connections' | 'app' | 'channels' | 'tools' | 'assets'
 
 const SETTINGS_TAB_OPTIONS: { label: string; value: SettingsTab }[] = [
   { label: '模型与 API', value: 'model' },
   { label: '多模型连接', value: 'connections' },
   { label: '应用与启动', value: 'app' },
   { label: '渠道状态', value: 'channels' },
-  { label: '工具', value: 'tools' }
+  { label: '工具', value: 'tools' },
+  { label: '资产', value: 'assets' }
 ]
 
 export function SettingsPage(): React.ReactElement {
@@ -36,7 +38,9 @@ export function SettingsPage(): React.ReactElement {
           ? '本机启动偏好'
           : tab === 'tools'
             ? 'Agent 工具注册表'
-            : '发布与通知渠道'
+            : tab === 'assets'
+              ? 'Agent 产出文件'
+              : '发布与通知渠道'
 
   return (
     <div className={styles.page}>
@@ -75,7 +79,9 @@ export function SettingsPage(): React.ReactElement {
       </div>
 
       {/* 工具 Tab 由面板内部列表滚动，外层 body 锁定避免整页滚动 */}
-      <div className={`${styles.body} ${tab === 'tools' ? styles.bodyLocked : ''}`}>
+      <div
+        className={`${styles.body} ${tab === 'tools' || tab === 'assets' ? styles.bodyLocked : ''}`}
+      >
         {tab === 'model' ? <ModelApiPanel key="model" /> : null}
 
         {tab === 'connections' ? (
@@ -145,6 +151,8 @@ export function SettingsPage(): React.ReactElement {
         {tab === 'channels' ? <ChannelStatusPanel key="channels" /> : null}
 
         {tab === 'tools' ? <ToolsPanel key="tools" /> : null}
+
+        {tab === 'assets' ? <AssetsPanel key="assets" /> : null}
       </div>
     </div>
   )

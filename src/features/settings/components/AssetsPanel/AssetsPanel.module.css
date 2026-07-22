@@ -1,0 +1,420 @@
+/* 设置页「资产」Tab — 卡片网格对齐工具 / 渠道面板 */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  animation: cardIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.title {
+  margin: 0 !important;
+  color: var(--db-text) !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+}
+
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 21px;
+  padding: 0 8px;
+  border-radius: var(--db-radius-pill);
+  background: var(--db-primary);
+  color: var(--db-on-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.panelDesc {
+  font-size: 13px;
+}
+
+.errorAlert {
+  flex-shrink: 0;
+  border-radius: var(--db-radius-md) !important;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  width: min(280px, 100%);
+}
+
+.resultCount {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+  margin-left: auto;
+}
+
+.batchBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-radius: var(--db-radius-md);
+  border: 1px solid var(--db-border-light);
+  background: var(--db-bg);
+}
+
+.batchHint {
+  font-size: 12px !important;
+}
+
+/* 仅资产列表滚动，标题与筛选栏固定 */
+.listScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+  padding-bottom: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.listScroll :global(.ant-spin-nested-loading),
+.listScroll :global(.ant-spin-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 200px;
+}
+
+.assetCard {
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--db-border-light) !important;
+  border-radius: var(--db-radius-lg) !important;
+  background: var(--db-bg-content) !important;
+  animation: cardIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--card-index, 0) * 32ms);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.assetCardSelected {
+  border-color: var(--db-primary-border-active) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--db-primary) 25%, transparent);
+  background: color-mix(in srgb, var(--db-primary-muted) 35%, var(--db-bg-content)) !important;
+}
+
+.assetCard:hover {
+  border-color: var(--db-primary-border-active) !important;
+  box-shadow: 0 4px 18px var(--db-primary-shadow);
+}
+
+.assetCard :global(.ant-card-body) {
+  display: flex;
+  min-height: 168px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px !important;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.assetIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cardCheckbox {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cardCheckbox :global(.ant-checkbox-inner) {
+  border-radius: 4px;
+}
+
+.assetIcon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 15px;
+}
+
+.assetIcon[data-kind='video'] {
+  background: color-mix(in srgb, #e85d4c 18%, transparent);
+  color: #c94a3a;
+}
+
+.assetIcon[data-kind='audio'] {
+  background: color-mix(in srgb, #7c5cbf 18%, transparent);
+  color: #6a4da8;
+}
+
+.assetIcon[data-kind='html'] {
+  background: color-mix(in srgb, #3b82c4 18%, transparent);
+  color: #2d6a9f;
+}
+
+.assetIcon[data-kind='document'] {
+  background: color-mix(in srgb, #c9a227 18%, transparent);
+  color: #9a7b1a;
+}
+
+.assetText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.assetName {
+  overflow: hidden;
+  color: var(--db-text) !important;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assetStats {
+  overflow: hidden;
+  color: var(--db-text-tertiary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assetMeta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.kindTag,
+.zoneTag {
+  flex-shrink: 0;
+  margin-inline-end: 0 !important;
+  border: 0 !important;
+  border-radius: var(--db-radius-pill) !important;
+  font-size: 11px !important;
+}
+
+.kindTag {
+  background: var(--db-primary-muted) !important;
+  color: var(--db-primary) !important;
+}
+
+.zoneTag {
+  align-self: flex-start;
+  background: var(--db-bg-hover) !important;
+  color: var(--db-text-tertiary) !important;
+}
+
+.assetPath {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 12px !important;
+  line-height: 1.55;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  word-break: break-all;
+}
+
+.cardFooter {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--db-border-light);
+}
+
+.footerActions {
+  flex-wrap: wrap;
+}
+
+.fileActions {
+  flex-wrap: wrap;
+}
+
+/* 预览抽屉 */
+.previewDrawer :global(.ant-drawer-body) {
+  padding-top: 12px;
+}
+
+.previewWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 200px;
+}
+
+.previewMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.previewPath {
+  font-size: 11px !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  word-break: break-all;
+}
+
+.previewLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 200px;
+}
+
+.previewImageWrap {
+  display: flex;
+  justify-content: center;
+  background: var(--db-bg);
+  border-radius: var(--db-radius-md);
+  padding: 12px;
+  border: 1px solid var(--db-border-light);
+}
+
+.previewImage {
+  max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: var(--db-radius-sm);
+}
+
+.previewMedia {
+  width: 100%;
+  max-height: 400px;
+  border-radius: var(--db-radius-md);
+  background: #000;
+}
+
+.previewAudio {
+  width: 100%;
+}
+
+.previewFrame {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-md);
+  background: #fff;
+}
+
+.previewText {
+  margin: 0;
+  padding: 14px 16px;
+  max-height: 420px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.55;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: var(--db-bg);
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-md);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.previewFallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 180px;
+  padding: 24px;
+  background: var(--db-bg);
+  border-radius: var(--db-radius-md);
+  border: 1px dashed var(--db-border-light);
+}
+
+.previewFallbackIcon {
+  font-size: 32px;
+  color: var(--db-text-tertiary);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 760px) {
+  .panelHeader {
+    flex-direction: column;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
