@@ -155,105 +155,110 @@ export function ToolsPanel(): React.ReactElement {
             </Text>
           </div>
 
-          <Spin spinning={loading && tools.length === 0}>
-            {filtered.length === 0 ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={loading ? '加载中…' : '暂无匹配工具'}
-                className={styles.empty}
-              />
-            ) : (
-              <div className={styles.grid}>
-                {filtered.map((tool, index) => {
-                  const perm = PERMISSION_META[tool.permission]
-                  const roles = rolesUsingTool(tool.name)
-                  return (
-                    <Card
-                      key={tool.name}
-                      variant="borderless"
-                      hoverable
-                      className={styles.toolCard}
-                      style={{ '--card-index': index } as CSSProperties}
-                      onClick={() => openDetail(tool)}
-                    >
-                      <div className={styles.cardHeader}>
-                        <div className={styles.toolIdentity}>
-                          <span className={styles.toolIcon}>
-                            <ToolOutlined />
-                          </span>
-                          <div className={styles.toolText}>
-                            <Text strong className={styles.toolName}>
-                              {queryToolLabel(tool.name)}
-                            </Text>
-                            <code className={styles.toolId}>{tool.name}</code>
+          {/* 滚动仅发生在卡片网格，标题与搜索栏保持固定 */}
+          <div className={styles.listScroll}>
+            <Spin spinning={loading && tools.length === 0}>
+              {filtered.length === 0 ? (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={loading ? '加载中…' : '暂无匹配工具'}
+                  className={styles.empty}
+                />
+              ) : (
+                <div className={styles.grid}>
+                  {filtered.map((tool, index) => {
+                    const perm = PERMISSION_META[tool.permission]
+                    const roles = rolesUsingTool(tool.name)
+                    return (
+                      <Card
+                        key={tool.name}
+                        variant="borderless"
+                        hoverable
+                        className={styles.toolCard}
+                        style={{ '--card-index': index } as CSSProperties}
+                        onClick={() => openDetail(tool)}
+                      >
+                        <div className={styles.cardHeader}>
+                          <div className={styles.toolIdentity}>
+                            <span className={styles.toolIcon}>
+                              <ToolOutlined />
+                            </span>
+                            <div className={styles.toolText}>
+                              <Text strong className={styles.toolName}>
+                                {queryToolLabel(tool.name)}
+                              </Text>
+                              <code className={styles.toolId}>{tool.name}</code>
+                            </div>
                           </div>
+                          <Tag className={styles[`tag_${perm.color}`]}>{perm.label}</Tag>
                         </div>
-                        <Tag className={styles[`tag_${perm.color}`]}>{perm.label}</Tag>
-                      </div>
-                      <p className={styles.toolDescription}>{tool.description}</p>
-                      <div className={styles.cardFooter}>
-                        <Text type="secondary" className={styles.localHint}>
-                          {roles.length
-                            ? `注入 ${roles.map((r) => ROLE_LABELS[r]).join('、')}`
-                            : '未注入任何角色'}
-                        </Text>
-                        <Button type="link" size="small" icon={<CodeOutlined />}>
-                          详情
-                        </Button>
-                      </div>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
-          </Spin>
+                        <p className={styles.toolDescription}>{tool.description}</p>
+                        <div className={styles.cardFooter}>
+                          <Text type="secondary" className={styles.localHint}>
+                            {roles.length
+                              ? `注入 ${roles.map((r) => ROLE_LABELS[r]).join('、')}`
+                              : '未注入任何角色'}
+                          </Text>
+                          <Button type="link" size="small" icon={<CodeOutlined />}>
+                            详情
+                          </Button>
+                        </div>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </Spin>
+          </div>
         </>
       ) : (
-        <Spin spinning={loading && injections.length === 0}>
-          <div className={styles.injectionList}>
-            {injections.map((row, index) => (
-              <Card
-                key={row.role}
-                variant="borderless"
-                className={styles.injectionCard}
-                style={{ '--card-index': index } as CSSProperties}
-              >
-                <div className={styles.injectionHead}>
-                  <div>
-                    <Text strong className={styles.injectionRole}>
-                      {ROLE_LABELS[row.role]}
-                    </Text>
-                    <code className={styles.toolId}>{row.role}</code>
-                  </div>
-                  <Space size={6}>
-                    <Tag color={row.mode === 'all' ? 'processing' : row.mode === 'none' ? 'default' : 'blue'}>
-                      {MODE_LABELS[row.mode]}
-                    </Tag>
-                    <span className={styles.countBadge}>{row.toolNames.length}</span>
-                  </Space>
-                </div>
-                {row.toolNames.length === 0 ? (
-                  <Text type="secondary">此角色不挂载任何工具（仅路由）</Text>
-                ) : (
-                  <div className={styles.chipWrap}>
-                    {row.toolNames.map((name) => (
-                      <Tag
-                        key={name}
-                        className={styles.toolChip}
-                        onClick={() => {
-                          const tool = tools.find((t) => t.name === name)
-                          if (tool) openDetail(tool)
-                        }}
-                      >
-                        {name}
+        <div className={styles.listScroll}>
+          <Spin spinning={loading && injections.length === 0}>
+            <div className={styles.injectionList}>
+              {injections.map((row, index) => (
+                <Card
+                  key={row.role}
+                  variant="borderless"
+                  className={styles.injectionCard}
+                  style={{ '--card-index': index } as CSSProperties}
+                >
+                  <div className={styles.injectionHead}>
+                    <div>
+                      <Text strong className={styles.injectionRole}>
+                        {ROLE_LABELS[row.role]}
+                      </Text>
+                      <code className={styles.toolId}>{row.role}</code>
+                    </div>
+                    <Space size={6}>
+                      <Tag color={row.mode === 'all' ? 'processing' : row.mode === 'none' ? 'default' : 'blue'}>
+                        {MODE_LABELS[row.mode]}
                       </Tag>
-                    ))}
+                      <span className={styles.countBadge}>{row.toolNames.length}</span>
+                    </Space>
                   </div>
-                )}
-              </Card>
-            ))}
-          </div>
-        </Spin>
+                  {row.toolNames.length === 0 ? (
+                    <Text type="secondary">此角色不挂载任何工具（仅路由）</Text>
+                  ) : (
+                    <div className={styles.chipWrap}>
+                      {row.toolNames.map((name) => (
+                        <Tag
+                          key={name}
+                          className={styles.toolChip}
+                          onClick={() => {
+                            const tool = tools.find((t) => t.name === name)
+                            if (tool) openDetail(tool)
+                          }}
+                        >
+                          {name}
+                        </Tag>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </Spin>
+        </div>
       )}
 
       <Modal

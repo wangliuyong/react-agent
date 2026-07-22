@@ -74,7 +74,8 @@ export function SettingsPage(): React.ReactElement {
         </div>
       </div>
 
-      <div className={styles.body}>
+      {/* 工具 Tab 由面板内部列表滚动，外层 body 锁定避免整页滚动 */}
+      <div className={`${styles.body} ${tab === 'tools' ? styles.bodyLocked : ''}`}>
         {tab === 'model' ? <ModelApiPanel key="model" /> : null}
 
         {tab === 'connections' ? (

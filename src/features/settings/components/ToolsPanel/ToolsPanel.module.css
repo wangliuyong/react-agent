@@ -6,6 +6,7 @@
   gap: 20px;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   animation: cardIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -15,6 +16,7 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .titleRow {
@@ -50,6 +52,7 @@
 }
 
 .errorAlert {
+  flex-shrink: 0;
   border-radius: var(--db-radius-md) !important;
 }
 
@@ -58,6 +61,7 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .searchInput {
@@ -68,6 +72,15 @@
   font-size: 12px;
 }
 
+/* 仅工具列表 / 角色注入区域滚动，标题与搜索栏固定 */
+.listScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+  padding-bottom: 8px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -75,8 +88,8 @@
   width: 100%;
 }
 
-.panel :global(.ant-spin-nested-loading),
-.panel :global(.ant-spin-container) {
+.listScroll :global(.ant-spin-nested-loading),
+.listScroll :global(.ant-spin-container) {
   flex: 1;
   min-height: 0;
   display: flex;

@@ -139,6 +139,12 @@
   flex-direction: column;
 }
 
+/* 工具面板自行管理列表滚动，禁止 body 整页滚动 */
+.bodyLocked {
+  overflow: hidden;
+  padding-bottom: 24px;
+}
+
 .formCard {
   width: 100%;
   background: var(--db-bg-content);
