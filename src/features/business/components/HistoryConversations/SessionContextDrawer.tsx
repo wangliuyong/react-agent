@@ -286,7 +286,7 @@ function OverviewPane({
         </section>
       )}
 
-      <section className={`${styles.panel} ${styles.overviewContext}`}>
+      <section className={`${styles.panel} ${styles.overviewContext}  ${styles.flexCoulmn}`} >
         <h3 className={styles.overviewSectionTitle}>Workflow Context</h3>
         <p className={styles.overviewSectionHint}>节点执行可读的全局上下文快照</p>
         <CodeBlock label="全局 Context" value={summary.workflowContextJson || '{}'} jsonPreview />

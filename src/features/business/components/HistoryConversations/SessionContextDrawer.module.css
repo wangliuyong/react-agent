@@ -312,6 +312,10 @@
   border: 1px solid var(--db-border-light);
   box-shadow: var(--db-shadow-sm);
 }
+.flexCoulmn{
+  display: flex;
+  flex-direction: column;
+}
 
 .panelTitle {
   display: flex;
