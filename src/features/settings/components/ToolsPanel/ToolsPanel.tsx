@@ -7,6 +7,7 @@ import type {
 } from '@shared/types'
 import { queryToolLabel } from '@/features/chat/utils/agent-status'
 import { queryAgentToolsCatalog } from '../../api'
+import cardStyles from '../../styles/settingsCard.module.css'
 import styles from './ToolsPanel.module.css'
 
 const { Text, Title, Paragraph } = Typography
@@ -24,13 +25,19 @@ const ROLE_LABELS: Record<AgentRoleName, string> = {
   editor: '剪辑师'
 }
 
+const PERMISSION_TAG_CLASS: Record<AgentToolPermission, string> = {
+  safe: cardStyles.successTag,
+  sensitive: cardStyles.warningTag,
+  dangerous: cardStyles.dangerTag
+}
+
 const PERMISSION_META: Record<
   AgentToolPermission,
-  { label: string; color: 'success' | 'warning' | 'danger' }
+  { label: string; tagClass: string }
 > = {
-  safe: { label: '安全', color: 'success' },
-  sensitive: { label: '敏感', color: 'warning' },
-  dangerous: { label: '危险', color: 'danger' }
+  safe: { label: '安全', tagClass: PERMISSION_TAG_CLASS.safe },
+  sensitive: { label: '敏感', tagClass: PERMISSION_TAG_CLASS.sensitive },
+  dangerous: { label: '危险', tagClass: PERMISSION_TAG_CLASS.dangerous }
 }
 
 const MODE_LABELS: Record<AgentRoleToolInjection['mode'], string> = {
@@ -165,7 +172,7 @@ export function ToolsPanel(): React.ReactElement {
                   className={styles.empty}
                 />
               ) : (
-                <div className={styles.grid}>
+                <div className={cardStyles.grid}>
                   {filtered.map((tool, index) => {
                     const perm = PERMISSION_META[tool.permission]
                     const roles = rolesUsingTool(tool.name)
@@ -174,27 +181,27 @@ export function ToolsPanel(): React.ReactElement {
                         key={tool.name}
                         variant="borderless"
                         hoverable
-                        className={styles.toolCard}
+                        className={cardStyles.card}
                         style={{ '--card-index': index } as CSSProperties}
                         onClick={() => openDetail(tool)}
                       >
-                        <div className={styles.cardHeader}>
-                          <div className={styles.toolIdentity}>
-                            <span className={styles.toolIcon}>
+                        <div className={cardStyles.cardHead}>
+                          <div className={cardStyles.cardIdentity}>
+                            <span className={cardStyles.cardIcon}>
                               <ToolOutlined />
                             </span>
-                            <div className={styles.toolText}>
-                              <Text strong className={styles.toolName}>
+                            <div className={cardStyles.cardTitleBlock}>
+                              <Text className={cardStyles.cardTitle}>
                                 {queryToolLabel(tool.name)}
                               </Text>
-                              <code className={styles.toolId}>{tool.name}</code>
+                              <code className={cardStyles.cardSubtitle}>{tool.name}</code>
                             </div>
                           </div>
-                          <Tag className={styles[`tag_${perm.color}`]}>{perm.label}</Tag>
+                          <Tag className={perm.tagClass}>{perm.label}</Tag>
                         </div>
-                        <p className={styles.toolDescription}>{tool.description}</p>
-                        <div className={styles.cardFooter}>
-                          <Text type="secondary" className={styles.localHint}>
+                        <p className={cardStyles.cardDescription}>{tool.description}</p>
+                        <div className={cardStyles.cardFooter}>
+                          <Text type="secondary" className={cardStyles.footerHint}>
                             {roles.length
                               ? `注入 ${roles.map((r) => ROLE_LABELS[r]).join('、')}`
                               : '未注入任何角色'}
@@ -219,18 +226,24 @@ export function ToolsPanel(): React.ReactElement {
                 <Card
                   key={row.role}
                   variant="borderless"
-                  className={styles.injectionCard}
+                  className={cardStyles.card}
                   style={{ '--card-index': index } as CSSProperties}
                 >
-                  <div className={styles.injectionHead}>
-                    <div>
-                      <Text strong className={styles.injectionRole}>
-                        {ROLE_LABELS[row.role]}
-                      </Text>
-                      <code className={styles.toolId}>{row.role}</code>
+                  <div className={cardStyles.cardHead}>
+                    <div className={cardStyles.cardTitleBlock}>
+                      <Text className={cardStyles.cardTitle}>{ROLE_LABELS[row.role]}</Text>
+                      <code className={cardStyles.cardSubtitle}>{row.role}</code>
                     </div>
                     <Space size={6}>
-                      <Tag color={row.mode === 'all' ? 'processing' : row.mode === 'none' ? 'default' : 'blue'}>
+                      <Tag
+                        className={
+                          row.mode === 'all'
+                            ? cardStyles.primaryTag
+                            : row.mode === 'none'
+                              ? cardStyles.mutedTag
+                              : cardStyles.successTag
+                        }
+                      >
                         {MODE_LABELS[row.mode]}
                       </Tag>
                       <span className={styles.countBadge}>{row.toolNames.length}</span>
@@ -276,7 +289,7 @@ export function ToolsPanel(): React.ReactElement {
           <div className={styles.detailBody}>
             <div className={styles.detailMeta}>
               <code className={styles.detailId}>{detail.name}</code>
-              <Tag className={styles[`tag_${PERMISSION_META[detail.permission].color}`]}>
+              <Tag className={PERMISSION_META[detail.permission].tagClass}>
                 {PERMISSION_META[detail.permission].label}
               </Tag>
               {detail.source ? (

@@ -11,6 +11,7 @@ import {
   queryChannelLoginStatuses,
   useChannelsStore
 } from '@/features/channels'
+import cardStyles from '../../styles/settingsCard.module.css'
 import styles from './ChannelStatusPanel.module.css'
 
 const { Text, Title } = Typography
@@ -19,26 +20,26 @@ type ChannelDisplayState = ChannelLoginState | 'configured' | 'unconfigured'
 
 interface ChannelStateMeta {
   label: string
-  color: 'success' | 'warning' | 'danger' | 'muted'
+  tagClass: string
 }
 
 /** 将发布登录态与通知配置态归一为同一套展示语义。 */
 function queryChannelStateMeta(state: ChannelDisplayState | undefined): ChannelStateMeta {
   switch (state) {
     case 'logged_in':
-      return { label: '已登录', color: 'success' }
+      return { label: '已登录', tagClass: cardStyles.successTag }
     case 'logged_out':
-      return { label: '未登录', color: 'warning' }
+      return { label: '未登录', tagClass: cardStyles.warningTag }
     case 'configured':
-      return { label: '已配置', color: 'success' }
+      return { label: '已配置', tagClass: cardStyles.successTag }
     case 'unconfigured':
-      return { label: '未配置', color: 'warning' }
+      return { label: '未配置', tagClass: cardStyles.warningTag }
     case 'error':
-      return { label: '检测失败', color: 'danger' }
+      return { label: '检测失败', tagClass: cardStyles.dangerTag }
     case 'unsupported':
-      return { label: '即将上线', color: 'muted' }
+      return { label: '即将上线', tagClass: cardStyles.mutedTag }
     default:
-      return { label: '未检测', color: 'muted' }
+      return { label: '未检测', tagClass: cardStyles.mutedTag }
   }
 }
 
@@ -145,19 +146,17 @@ export function ChannelStatusPanel(): React.ReactElement {
       <Card
         key={channel.id}
         variant="borderless"
-        className={styles.channelCard}
+        className={cardStyles.card}
         style={{ '--card-index': index } as CSSProperties}
       >
-        <div className={styles.cardHeader}>
-          <div className={styles.channelIdentity}>
-            <span className={styles.channelIcon}>
+        <div className={cardStyles.cardHead}>
+          <div className={cardStyles.cardIdentity}>
+            <span className={cardStyles.cardIcon}>
               {isPublish ? <UploadOutlined /> : <NotificationOutlined />}
             </span>
-            <div className={styles.channelText}>
-              <Text strong className={styles.channelName}>
-                {channel.label}
-              </Text>
-              <Text type="secondary" className={styles.channelKind}>
+            <div className={cardStyles.cardTitleBlock}>
+              <Text className={cardStyles.cardTitle}>{channel.label}</Text>
+              <Text type="secondary" className={cardStyles.cardSubtitle}>
                 {isPublish
                   ? channel.humanized
                     ? '发布 · 拟人浏览器'
@@ -166,15 +165,15 @@ export function ChannelStatusPanel(): React.ReactElement {
               </Text>
             </div>
           </div>
-          <Tag className={styles[`tag_${stateMeta.color}`]}>{stateMeta.label}</Tag>
+          <Tag className={stateMeta.tagClass}>{stateMeta.label}</Tag>
         </div>
 
-        <p className={styles.channelDescription}>
+        <p className={cardStyles.cardDescription}>
           {detail || channel.description || '暂无状态说明'}
         </p>
 
-        <div className={styles.cardFooter}>
-          <Text type="secondary" className={styles.localHint}>
+        <div className={cardStyles.cardFooter}>
+          <Text type="secondary" className={cardStyles.footerHint}>
             {isPublish
               ? channel.humanized
                 ? '拟人模式：Cookie 缓存在本机 Profile'
@@ -260,7 +259,7 @@ export function ChannelStatusPanel(): React.ReactElement {
                 <span>发布渠道</span>
                 <Text type="secondary">{publishChannels.length} 项</Text>
               </div>
-              <div className={styles.grid}>
+              <div className={cardStyles.grid}>
                 {publishChannels.map((channel, index) => {
                   const status = statusMap[channel.id]
                   return renderChannelCard(channel, index, status?.state, status?.message)
@@ -273,7 +272,7 @@ export function ChannelStatusPanel(): React.ReactElement {
                 <span>通知渠道</span>
                 <Text type="secondary">{notifyChannels.length} 项</Text>
               </div>
-              <div className={styles.grid}>
+              <div className={cardStyles.grid}>
                 {notifyChannels.map((channel, index) =>
                   renderChannelCard(
                     channel,

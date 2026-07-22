@@ -1,4 +1,4 @@
-/* 设置页「资产」Tab — 卡片网格对齐工具 / 渠道面板 */
+/* 设置页「资产」Tab — 面板布局与类型色标 */
 
 .panel {
   display: flex;
@@ -13,9 +13,18 @@
 .panelHeader {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
   flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.headerMain {
+  flex: 1;
+  min-width: min(100%, 240px);
+}
+
+.headerActions {
+  align-items: center;
   flex-shrink: 0;
 }
 
@@ -51,6 +60,30 @@
   font-size: 13px;
 }
 
+.headerDivider {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  flex-shrink: 0;
+  background: var(--db-border-light);
+}
+
+.selectAllCheckbox {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.selectAllCheckbox :global(.ant-checkbox-inner) {
+  border-radius: 4px;
+}
+
+.selectionSummary {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+  white-space: nowrap;
+  padding: 0 2px;
+}
+
 .errorAlert {
   flex-shrink: 0;
   border-radius: var(--db-radius-md) !important;
@@ -74,37 +107,12 @@
   margin-left: auto;
 }
 
-.batchBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  flex-shrink: 0;
-  padding: 10px 14px;
-  border-radius: var(--db-radius-md);
-  border: 1px solid var(--db-border-light);
-  background: var(--db-bg);
-}
-
-.batchHint {
-  font-size: 12px !important;
-}
-
-/* 仅资产列表滚动，标题与筛选栏固定 */
 .listScroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
   padding-bottom: 8px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  width: 100%;
 }
 
 .listScroll :global(.ant-spin-nested-loading),
@@ -126,72 +134,11 @@
   min-height: 200px;
 }
 
-.assetCard {
-  overflow: hidden;
-  cursor: pointer;
-  border: 1px solid var(--db-border-light) !important;
-  border-radius: var(--db-radius-lg) !important;
-  background: var(--db-bg-content) !important;
-  animation: cardIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--card-index, 0) * 32ms);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.assetCardSelected {
-  border-color: var(--db-primary-border-active) !important;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--db-primary) 25%, transparent);
-  background: color-mix(in srgb, var(--db-primary-muted) 35%, var(--db-bg-content)) !important;
-}
-
-.assetCard:hover {
-  border-color: var(--db-primary-border-active) !important;
-  box-shadow: 0 4px 18px var(--db-primary-shadow);
-}
-
-.assetCard :global(.ant-card-body) {
-  display: flex;
-  min-height: 168px;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px !important;
-}
-
-.cardHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
 .assetIdentity {
   display: flex;
   min-width: 0;
   align-items: flex-start;
   gap: 8px;
-}
-
-.cardCheckbox {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.cardCheckbox :global(.ant-checkbox-inner) {
-  border-radius: 4px;
-}
-
-.assetIcon {
-  display: inline-flex;
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: var(--db-primary-muted);
-  color: var(--db-primary);
-  font-size: 15px;
 }
 
 .assetIcon[data-kind='video'] {
@@ -214,77 +161,11 @@
   color: #9a7b1a;
 }
 
-.assetText {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.assetName {
-  overflow: hidden;
-  color: var(--db-text) !important;
-  font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.assetStats {
-  overflow: hidden;
-  color: var(--db-text-tertiary);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.assetMeta {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-}
-
-.kindTag,
-.zoneTag {
-  flex-shrink: 0;
-  margin-inline-end: 0 !important;
-  border: 0 !important;
-  border-radius: var(--db-radius-pill) !important;
-  font-size: 11px !important;
-}
-
-.kindTag {
-  background: var(--db-primary-muted) !important;
-  color: var(--db-primary) !important;
-}
-
-.zoneTag {
-  align-self: flex-start;
-  background: var(--db-bg-hover) !important;
-  color: var(--db-text-tertiary) !important;
-}
-
 .assetPath {
   display: -webkit-box;
-  margin: 0;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: 12px !important;
-  line-height: 1.55;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  word-break: break-all;
-}
-
-.cardFooter {
-  display: flex;
-  min-height: 28px;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--db-border-light);
 }
 
 .footerActions {
@@ -295,7 +176,6 @@
   flex-wrap: wrap;
 }
 
-/* 预览抽屉 */
 .previewDrawer :global(.ant-drawer-body) {
   padding-top: 12px;
 }
@@ -414,7 +294,7 @@
     flex-direction: column;
   }
 
-  .grid {
-    grid-template-columns: 1fr;
+  .headerActions {
+    width: 100%;
   }
 }

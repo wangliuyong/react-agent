@@ -15,6 +15,7 @@ import {
   type ProviderFormDraft,
   type ProviderFormDraftMap
 } from '../SettingsPage/settingsFormSync'
+import cardStyles from '../../styles/settingsCard.module.css'
 import styles from './ModelApiPanel.module.css'
 
 const { Text, Title } = Typography
@@ -177,7 +178,7 @@ export function ModelApiPanel(): React.ReactElement {
 
   if (!loaded) {
     return (
-      <div className={styles.loading}>
+      <div className={cardStyles.loading}>
         <Spin />
         <Text type="secondary">正在加载本机配置…</Text>
       </div>
@@ -214,7 +215,7 @@ export function ModelApiPanel(): React.ReactElement {
         </Space>
       </div>
 
-      <div className={styles.grid}>
+      <div className={cardStyles.grid}>
         {providerOptions.map((option, index) => {
           const draft = providerDrafts[option.value] ?? {
             apiKey: '',
@@ -229,29 +230,29 @@ export function ModelApiPanel(): React.ReactElement {
             <Card
               key={option.value}
               variant="borderless"
-              className={`${styles.card} ${isActive ? styles.cardActive : ''}`}
+              className={`${cardStyles.card} ${isActive ? cardStyles.cardActive : ''}`}
               style={{ '--card-index': index } as CSSProperties}
             >
-              <div className={styles.cardHead}>
-                <div className={styles.cardTitleBlock}>
-                  <Text className={styles.cardTitle} ellipsis={{ tooltip: option.label }}>
+              <div className={cardStyles.cardHead}>
+                <div className={cardStyles.cardTitleBlock}>
+                  <Text className={cardStyles.cardTitle} ellipsis={{ tooltip: option.label }}>
                     {option.label}
                   </Text>
-                  <div className={styles.tagRow}>
-                    {isActive ? <Tag className={styles.activeTag}>当前选用</Tag> : null}
-                    {isCustom ? <Tag className={styles.customTag}>自定义</Tag> : null}
-                    <Tag className={configured ? styles.configuredTag : styles.unconfiguredTag}>
+                  <div className={cardStyles.tagRow}>
+                    {isActive ? <Tag className={cardStyles.primaryTag}>当前选用</Tag> : null}
+                    {isCustom ? <Tag className={cardStyles.mutedTag}>自定义</Tag> : null}
+                    <Tag className={configured ? cardStyles.successTag : cardStyles.neutralTag}>
                       {configured ? '已配置' : '未配置'}
                     </Tag>
                   </div>
                 </div>
-                <div className={styles.cardActions}>
+                <div className={cardStyles.cardActions}>
                   {!isActive ? (
                     <Tooltip title="设为当前选用">
                       <Button
                         type="text"
                         size="small"
-                        className={styles.actionBtn}
+                        className={cardStyles.actionBtn}
                         icon={<StarOutlined />}
                         aria-label={`将 ${option.label} 设为当前选用`}
                         onClick={() => setActiveProvider(option.value)}
@@ -262,7 +263,7 @@ export function ModelApiPanel(): React.ReactElement {
                     <Button
                       type="text"
                       size="small"
-                      className={styles.actionBtn}
+                      className={cardStyles.actionBtn}
                       icon={<EditOutlined />}
                       aria-label={`编辑 ${option.label}`}
                       onClick={() => setEditingProvider(option.value)}
@@ -274,7 +275,7 @@ export function ModelApiPanel(): React.ReactElement {
                         type="text"
                         danger
                         size="small"
-                        className={styles.actionBtn}
+                        className={cardStyles.actionBtn}
                         icon={<DeleteOutlined />}
                         aria-label={`删除 ${option.label}`}
                         onClick={() => handleConfirmDelete(option.value, option.label)}
@@ -284,35 +285,35 @@ export function ModelApiPanel(): React.ReactElement {
                 </div>
               </div>
 
-              <div className={styles.cardBody}>
-                <div className={styles.metaRow}>
-                  <Text type="secondary" className={styles.metaLabel}>
+              <div className={cardStyles.cardBody}>
+                <div className={cardStyles.metaRow}>
+                  <Text type="secondary" className={cardStyles.metaLabel}>
                     API Key
                   </Text>
                   <Text
-                    className={`${styles.metaValue} ${!configured ? styles.metaValueMuted : ''}`}
+                    className={`${cardStyles.metaValue} ${!configured ? cardStyles.metaValueMuted : ''}`}
                     ellipsis={{ tooltip: configured ? queryMaskApiKey(draft.apiKey) : '未配置' }}
                   >
                     {queryMaskApiKey(draft.apiKey)}
                   </Text>
                 </div>
-                <div className={styles.metaRow}>
-                  <Text type="secondary" className={styles.metaLabel}>
+                <div className={cardStyles.metaRow}>
+                  <Text type="secondary" className={cardStyles.metaLabel}>
                     Base URL
                   </Text>
                   <Text
-                    className={styles.metaValue}
+                    className={cardStyles.metaValue}
                     ellipsis={{ tooltip: draft.baseUrl || option.defaultBaseUrl }}
                   >
                     {draft.baseUrl || option.defaultBaseUrl}
                   </Text>
                 </div>
-                <div className={styles.metaRow}>
-                  <Text type="secondary" className={styles.metaLabel}>
+                <div className={cardStyles.metaRow}>
+                  <Text type="secondary" className={cardStyles.metaLabel}>
                     默认模型
                   </Text>
                   <Text
-                    className={styles.metaValue}
+                    className={cardStyles.metaValue}
                     ellipsis={{ tooltip: draft.model || option.defaultModel }}
                   >
                     {draft.model || option.defaultModel}

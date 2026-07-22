@@ -1,0 +1,328 @@
+/* 设置页通用卡片 — 与「模型与 API」面板视觉一致 */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--db-border-light) !important;
+  border-radius: var(--db-radius-lg) !important;
+  background: var(--db-bg-content) !important;
+  animation: cardIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--card-index, 0) * 32ms);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--db-primary) 50%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.cardActive {
+  border-color: color-mix(in srgb, var(--db-primary) 28%, var(--db-border-light)) !important;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--db-primary) 5%, var(--db-bg-content)) 0%,
+    var(--db-bg-content) 42%
+  ) !important;
+}
+
+.cardActive::before {
+  opacity: 1;
+}
+
+.cardSelectable {
+  cursor: pointer;
+}
+
+.card:hover {
+  border-color: var(--db-primary-border-active) !important;
+  box-shadow: 0 6px 22px var(--db-primary-shadow);
+  transform: translateY(-1px);
+}
+
+.card:hover::before {
+  opacity: 1;
+}
+
+.card :global(.ant-card-body) {
+  padding: 14px 14px 16px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 152px;
+}
+
+.cardHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cardIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cardIcon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 15px;
+}
+
+.cardTitleBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cardTitle {
+  display: block;
+  width: 100%;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--db-text);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardSubtitle {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  color: var(--db-text-tertiary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.primaryTag,
+.mutedTag,
+.successTag,
+.warningTag,
+.dangerTag,
+.neutralTag {
+  flex-shrink: 0;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-size: 10px !important;
+  line-height: 18px !important;
+  padding-inline: 6px !important;
+}
+
+.primaryTag {
+  background: var(--db-primary-muted) !important;
+  color: var(--db-primary) !important;
+}
+
+.mutedTag {
+  background: var(--db-bg-hover) !important;
+  color: var(--db-text-tertiary) !important;
+}
+
+.successTag {
+  background: color-mix(in srgb, #00b578 12%, transparent) !important;
+  color: #008f5d !important;
+}
+
+.warningTag {
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #d97706 !important;
+}
+
+.dangerTag {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #dc2626 !important;
+}
+
+.neutralTag {
+  background: var(--db-bg-subtle) !important;
+  color: var(--db-text-tertiary) !important;
+}
+
+.cardActions {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.actionBtn {
+  width: 26px !important;
+  height: 26px !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+}
+
+.actionBtn:hover {
+  background: var(--db-bg-subtle) !important;
+}
+
+.cardBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.cardDescription {
+  display: -webkit-box;
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--db-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.metaRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.metaLabel {
+  flex-shrink: 0;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.metaValue {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--db-text);
+  text-align: right;
+}
+
+.metaValueMuted {
+  color: var(--db-text-tertiary);
+  font-weight: 400;
+}
+
+.metaMono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px !important;
+  line-height: 1.55;
+  word-break: break-all;
+}
+
+.cardFooter {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--db-border-light);
+}
+
+.footerHint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardCheckbox {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cardCheckbox :global(.ant-checkbox-inner) {
+  border-radius: 4px;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 220px;
+  padding: 24px;
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-lg);
+  background: var(--db-bg-content);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1400px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

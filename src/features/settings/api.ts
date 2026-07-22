@@ -24,7 +24,15 @@ export async function postDeleteAgentAsset(filePath: string): Promise<AgentAsset
 
 /** 批量删除 Agent 产出文件 */
 export async function postDeleteAgentAssets(filePaths: string[]): Promise<AgentAssetMutationResult> {
-  return window.api.postDeleteAgentAssets(filePaths)
+  if (typeof window.api.postDeleteAgentAssets === 'function') {
+    return window.api.postDeleteAgentAssets(filePaths)
+  }
+  let deletedCount = 0
+  for (const filePath of filePaths) {
+    const result = await window.api.postDeleteAgentAsset(filePath)
+    deletedCount += result.deletedCount
+  }
+  return { ok: true, deletedCount }
 }
 
 /** 一键清空全部 Agent 产出 */

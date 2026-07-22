@@ -18,6 +18,7 @@ import {
   queryAgentAssetTextPreview,
   queryAgentAssets
 } from '../../api'
+import cardStyles from '../../styles/settingsCard.module.css'
 import styles from './AssetsPanel.module.css'
 
 const { Text, Title, Paragraph } = Typography
@@ -442,7 +443,7 @@ export function AssetsPanel(): React.ReactElement {
               description={assets.length === 0 ? '暂无 Agent 产出文件' : '没有匹配的资产'}
             />
           ) : (
-            <div className={styles.grid}>
+            <div className={cardStyles.grid}>
               {filtered.map((asset, index) => {
                 const isSelected = selectedPaths.has(asset.path)
                 return (
@@ -450,45 +451,47 @@ export function AssetsPanel(): React.ReactElement {
                     key={asset.path}
                     variant="borderless"
                     hoverable
-                    className={`${styles.assetCard}${isSelected ? ` ${styles.assetCardSelected}` : ''}`}
+                    className={`${cardStyles.card} ${cardStyles.cardSelectable}${isSelected ? ` ${cardStyles.cardActive}` : ''}`}
                     style={{ '--card-index': index } as CSSProperties}
                     onClick={() => toggleAssetSelected(asset.path, !isSelected)}
                   >
-                    <div className={styles.cardHeader}>
+                    <div className={cardStyles.cardHead}>
                       <div className={styles.assetIdentity}>
                         <Checkbox
-                          className={styles.cardCheckbox}
+                          className={cardStyles.cardCheckbox}
                           checked={isSelected}
                           onClick={(e) => e.stopPropagation()}
                           onChange={(e) => toggleAssetSelected(asset.path, e.target.checked)}
                         />
-                        <span className={styles.assetIcon} data-kind={asset.kind}>
+                        <span className={`${cardStyles.cardIcon} ${styles.assetIcon}`} data-kind={asset.kind}>
                           {KIND_ICON[asset.kind]}
                         </span>
-                        <div className={styles.assetText}>
-                          <Text strong className={styles.assetName} title={asset.name}>
+                        <div className={cardStyles.cardTitleBlock}>
+                          <Text className={cardStyles.cardTitle} title={asset.name}>
                             {asset.name}
                           </Text>
-                          <span className={styles.assetStats}>
+                          <span className={cardStyles.cardSubtitle}>
                             {queryFormatAssetSize(asset.size)} · {queryMtimeLabel(asset.mtime)}
                           </span>
                         </div>
                       </div>
-                      <Tag className={styles.kindTag}>{AGENT_ASSET_KIND_LABELS[asset.kind]}</Tag>
+                      <Tag className={cardStyles.primaryTag}>{AGENT_ASSET_KIND_LABELS[asset.kind]}</Tag>
                     </div>
 
-                    <div className={styles.assetMeta}>
-                      <Tag className={styles.zoneTag}>{AGENT_ASSET_ZONE_LABELS[asset.zone]}</Tag>
+                    <div className={cardStyles.cardBody}>
+                      <div className={cardStyles.tagRow}>
+                        <Tag className={cardStyles.mutedTag}>{AGENT_ASSET_ZONE_LABELS[asset.zone]}</Tag>
+                      </div>
                       <Text
                         type="secondary"
-                        className={styles.assetPath}
+                        className={`${cardStyles.metaMono} ${styles.assetPath}`}
                         ellipsis={{ tooltip: asset.path }}
                       >
                         {asset.path}
                       </Text>
                     </div>
 
-                    <div className={styles.cardFooter} onClick={(e) => e.stopPropagation()}>
+                    <div className={cardStyles.cardFooter} onClick={(e) => e.stopPropagation()}>
                       <Space size={0} wrap className={styles.footerActions}>
                         <Button type="link" size="small" onClick={() => openPreview(asset)}>
                           预览

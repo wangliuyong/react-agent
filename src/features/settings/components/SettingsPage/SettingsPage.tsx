@@ -1,9 +1,11 @@
+import type { CSSProperties } from 'react'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
 import { ChannelStatusPanel } from '../ChannelStatusPanel'
 import { ModelApiPanel } from '../ModelApiPanel'
 import { ModelConnectionsPanel } from '../ModelConnectionsPanel'
 import { ToolsPanel } from '../ToolsPanel'
 import { AssetsPanel } from '../AssetsPanel'
+import cardStyles from '../../styles/settingsCard.module.css'
 import styles from './SettingsPage.module.css'
 
 const { Title, Paragraph, Text } = Typography
@@ -96,22 +98,24 @@ export function SettingsPage(): React.ReactElement {
         ) : null}
 
         {tab === 'app' ? (
-          <div className={styles.prefGrid} key="app">
-            <Card variant="borderless" className={styles.prefCard}>
-              <div className={styles.prefCardHead}>
-                <span className={styles.prefCardIcon}>
-                  <PoweroffOutlined />
-                </span>
-                <Tag className={styles.prefTag}>启动</Tag>
+          <div className={cardStyles.grid} key="app">
+            <Card variant="borderless" className={cardStyles.card} style={{ '--card-index': 0 } as CSSProperties}>
+              <div className={cardStyles.cardHead}>
+                <div className={cardStyles.cardIdentity}>
+                  <span className={cardStyles.cardIcon}>
+                    <PoweroffOutlined />
+                  </span>
+                  <div className={cardStyles.cardTitleBlock}>
+                    <span className={cardStyles.cardTitle}>开机自启</span>
+                    <Tag className={cardStyles.primaryTag}>启动</Tag>
+                  </div>
+                </div>
               </div>
-              <div className={styles.prefCardBody}>
-                <span className={styles.prefCardTitle}>开机自启</span>
-                <p className={styles.prefCardDesc}>
-                  登录 macOS / Windows 后自动启动灵犀，便于后台定时任务与渠道保持在线
-                </p>
-              </div>
-              <div className={styles.prefCardFooter}>
-                <span className={styles.prefCardMeta}>本机偏好 · 即时生效</span>
+              <p className={cardStyles.cardDescription}>
+                登录 macOS / Windows 后自动启动灵犀，便于后台定时任务与渠道保持在线
+              </p>
+              <div className={cardStyles.cardFooter}>
+                <span className={cardStyles.footerHint}>本机偏好 · 即时生效</span>
                 <Switch
                   checked={settings.launchAtLogin}
                   disabled={!loaded}
@@ -127,22 +131,24 @@ export function SettingsPage(): React.ReactElement {
               </div>
             </Card>
 
-            <Card variant="borderless" className={styles.prefCard}>
-              <div className={styles.prefCardHead}>
-                <span className={styles.prefCardIcon}>
-                  <RocketOutlined />
-                </span>
-                <Tag className={styles.prefTagMuted}>应用</Tag>
+            <Card variant="borderless" className={cardStyles.card} style={{ '--card-index': 1 } as CSSProperties}>
+              <div className={cardStyles.cardHead}>
+                <div className={cardStyles.cardIdentity}>
+                  <span className={cardStyles.cardIcon}>
+                    <RocketOutlined />
+                  </span>
+                  <div className={cardStyles.cardTitleBlock}>
+                    <span className={cardStyles.cardTitle}>运行环境</span>
+                    <Tag className={cardStyles.mutedTag}>应用</Tag>
+                  </div>
+                </div>
               </div>
-              <div className={styles.prefCardBody}>
-                <span className={styles.prefCardTitle}>运行环境</span>
-                <p className={styles.prefCardDesc}>
-                  配置与密钥仅写入本机 Electron userData，不参与遥测或云端同步
-                </p>
-              </div>
-              <div className={styles.prefCardFooter}>
-                <span className={styles.prefCardMeta}>本地优先</span>
-                <Tag className={styles.localTag}>已隔离</Tag>
+              <p className={cardStyles.cardDescription}>
+                配置与密钥仅写入本机 Electron userData，不参与遥测或云端同步
+              </p>
+              <div className={cardStyles.cardFooter}>
+                <span className={cardStyles.footerHint}>本地优先</span>
+                <Tag className={cardStyles.successTag}>已隔离</Tag>
               </div>
             </Card>
           </div>

@@ -19,6 +19,7 @@ import {
   queryRolePromptPlaceholder,
   ROLE_TASK_META
 } from './connectionPanelShared'
+import cardStyles from '../../styles/settingsCard.module.css'
 import styles from './ModelConnectionsPanel.module.css'
 
 const { Text, Title } = Typography
@@ -143,7 +144,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
         </Space>
       </div>
 
-      <div className={styles.grid}>
+      <div className={cardStyles.grid}>
         {connections.map((conn, index) => {
           const isDefault = defaultConnectionId === conn.id
           const providerLabel = providerLabelById.get(conn.provider) ?? conn.provider
@@ -152,23 +153,23 @@ export function ModelConnectionsPanel(): React.ReactElement {
             <Card
               key={conn.id}
               variant="borderless"
-              className={`${styles.card} ${isDefault ? styles.cardDefault : ''}`}
+              className={`${cardStyles.card} ${isDefault ? cardStyles.cardActive : ''}`}
               style={{ '--card-index': index } as CSSProperties}
             >
-              <div className={styles.cardHead}>
-                <div className={styles.cardTitleBlock}>
-                  <Text className={styles.cardTitle} ellipsis={{ tooltip: conn.label }}>
+              <div className={cardStyles.cardHead}>
+                <div className={cardStyles.cardTitleBlock}>
+                  <Text className={cardStyles.cardTitle} ellipsis={{ tooltip: conn.label }}>
                     {conn.label}
                   </Text>
-                  {/* {isDefault ? <Tag className={styles.defaultTag}>默认</Tag> : null} */}
+                  {/* {isDefault ? <Tag className={cardStyles.primaryTag}>默认</Tag> : null} */}
                 </div>
-                <div className={styles.cardActions}>
+                <div className={cardStyles.cardActions}>
                   {!isDefault ? (
                     <Tooltip title="设为默认">
                       <Button
                         type="text"
                         size="small"
-                        className={styles.actionBtn}
+                        className={cardStyles.actionBtn}
                         icon={<StarOutlined />}
                         aria-label={`将 ${conn.label} 设为默认`}
                         onClick={() => setDefaultConnectionId(conn.id)}
@@ -179,7 +180,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
                     <Button
                       type="text"
                       size="small"
-                      className={styles.actionBtn}
+                      className={cardStyles.actionBtn}
                       icon={<EditOutlined />}
                       aria-label={`编辑 ${conn.label}`}
                       onClick={() => setEditingConnection(conn)}
@@ -190,7 +191,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
                       type="text"
                       danger
                       size="small"
-                      className={styles.actionBtn}
+                      className={cardStyles.actionBtn}
                       icon={<DeleteOutlined />}
                       disabled={connections.length <= 1}
                       aria-label={`删除 ${conn.label}`}
@@ -208,24 +209,24 @@ export function ModelConnectionsPanel(): React.ReactElement {
                 </div>
               </div>
 
-              <div className={styles.cardBody}>
-                <div className={styles.metaRow}>
-                  <Text type="secondary" className={styles.metaLabel}>
+              <div className={cardStyles.cardBody}>
+                <div className={cardStyles.metaRow}>
+                  <Text type="secondary" className={cardStyles.metaLabel}>
                     供应商
                   </Text>
                   <Text
-                    className={styles.metaValue}
+                    className={cardStyles.metaValue}
                     ellipsis={{ tooltip: providerLabel }}
                   >
                     {providerLabel}
                   </Text>
                 </div>
-                <div className={styles.metaRow}>
-                  <Text type="secondary" className={styles.metaLabel}>
+                <div className={cardStyles.metaRow}>
+                  <Text type="secondary" className={cardStyles.metaLabel}>
                     模型
                   </Text>
                   <Text
-                    className={styles.metaValue}
+                    className={cardStyles.metaValue}
                     ellipsis={{ tooltip: conn.model || '—' }}
                   >
                     {conn.model || '—'}

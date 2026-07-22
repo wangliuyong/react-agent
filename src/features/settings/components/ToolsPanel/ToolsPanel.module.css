@@ -1,4 +1,4 @@
-/* 设置页「工具」Tab — 卡片网格对齐渠道状态 / 技能市场 */
+/* 设置页「工具」Tab — 面板布局与详情弹窗 */
 
 .panel {
   display: flex;
@@ -72,20 +72,12 @@
   font-size: 12px;
 }
 
-/* 仅工具列表 / 角色注入区域滚动，标题与搜索栏固定 */
 .listScroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
   padding-bottom: 8px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  width: 100%;
 }
 
 .listScroll :global(.ant-spin-nested-loading),
@@ -107,175 +99,10 @@
   min-height: 200px;
 }
 
-.toolCard {
-  overflow: hidden;
-  border: 1px solid var(--db-border-light) !important;
-  border-radius: var(--db-radius-lg) !important;
-  background: var(--db-bg-content) !important;
-  animation: cardIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--card-index, 0) * 32ms);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.toolCard:hover {
-  border-color: var(--db-primary-border-active) !important;
-  box-shadow: 0 4px 18px var(--db-primary-shadow);
-}
-
-.toolCard :global(.ant-card-body) {
-  display: flex;
-  min-height: 168px;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px !important;
-}
-
-.cardHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.toolIdentity {
-  display: flex;
-  min-width: 0;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.toolIcon {
-  display: inline-flex;
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: var(--db-primary-muted);
-  color: var(--db-primary);
-  font-size: 15px;
-}
-
-.toolText {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.toolName {
-  overflow: hidden;
-  color: var(--db-text) !important;
-  font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.toolId {
-  overflow: hidden;
-  color: var(--db-text-tertiary);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.toolDescription {
-  display: -webkit-box;
-  flex: 1;
-  margin: 0;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  color: var(--db-text-secondary);
-  font-size: 12px;
-  line-height: 1.55;
-}
-
-.cardFooter {
-  display: flex;
-  min-height: 28px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--db-border-light);
-}
-
-.localHint {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tag_success,
-.tag_warning,
-.tag_danger,
-.tag_muted {
-  flex-shrink: 0;
-  margin-inline-end: 0 !important;
-  border: 0 !important;
-  border-radius: var(--db-radius-pill) !important;
-  font-size: 11px !important;
-}
-
-.tag_success {
-  background: rgba(34, 197, 94, 0.12) !important;
-  color: #16a34a !important;
-}
-
-.tag_warning {
-  background: rgba(245, 158, 11, 0.14) !important;
-  color: #d97706 !important;
-}
-
-.tag_danger {
-  background: rgba(239, 68, 68, 0.12) !important;
-  color: #dc2626 !important;
-}
-
-.tag_muted {
-  background: var(--db-bg-hover) !important;
-  color: var(--db-text-tertiary) !important;
-}
-
 .injectionList {
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-
-.injectionCard {
-  border: 1px solid var(--db-border-light) !important;
-  border-radius: var(--db-radius-lg) !important;
-  background: var(--db-bg-content) !important;
-  animation: cardIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--card-index, 0) * 28ms);
-}
-
-.injectionCard :global(.ant-card-body) {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px !important;
-}
-
-.injectionHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.injectionRole {
-  display: block;
-  margin-bottom: 2px;
-  font-size: 14px;
 }
 
 .chipWrap {
@@ -373,9 +200,5 @@
 @media (max-width: 760px) {
   .panelHeader {
     flex-direction: column;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
   }
 }
