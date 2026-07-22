@@ -193,16 +193,6 @@
   font-size: 14px;
 }
 
-@keyframes tagPulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.65;
-  }
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -245,64 +235,64 @@
 }
 
 .toolBlock :global(.ant-collapse-content-box) {
-  /* background: var(--db-bg); */
   font-size: 12px;
   padding: 12px 14px !important;
 }
 
-.taskInline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 4px;
-  padding: 14px 16px;
-  border-radius: var(--db-radius-lg);
-  background: var(--db-bg-content);
-  border: 1px solid var(--db-border-light);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+/* 「已调用 N 个工具」分组：弱边框工具条，默认折叠 */
+.toolCallGroup {
+  margin-top: 4px;
 }
 
-/* 任务标签 — 完成/进行中使用主题色 */
-.taskTag {
+.toolCallGroupLabel {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: var(--db-radius-pill);
+  gap: 8px;
+}
+
+.toolCallGroupIcon {
+  font-size: 13px;
+  color: var(--db-text-tertiary, var(--db-text-secondary));
+}
+
+.toolCallGroupBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toolCallGroupEmpty {
   font-size: 12px;
-  font-weight: 500;
-  line-height: 1.4;
-  border: 1px solid transparent;
-}
-
-.taskTagDone {
-  background: var(--db-primary-soft);
-  color: var(--db-primary);
-  border-color: var(--db-primary-border-strong);
-}
-
-.taskTagRunning {
-  background: var(--db-primary-muted);
-  color: var(--db-primary);
-  border-color: var(--db-primary-border-active);
-  animation: tagPulse 1.5s ease-in-out infinite;
-}
-
-.taskTagFailed {
-  background: rgba(245, 63, 63, 0.08);
-  color: var(--db-danger);
-  border-color: rgba(245, 63, 63, 0.2);
-}
-
-.taskTagPending {
-  background: var(--db-hover);
   color: var(--db-text-secondary);
-  border-color: var(--db-border-light);
 }
 
-/* 并行组子步骤：视觉缩进 */
-.taskTagChild {
-  margin-left: 10px;
-  opacity: 0.95;
+.toolCallItem {
+  width: 100%;
+  background: var(--db-bg) !important;
+  border: 1px solid var(--db-border-light) !important;
+  border-radius: var(--db-radius-md) !important;
+  overflow: hidden;
+}
+
+.toolCallItem :global(.ant-collapse-header) {
+  font-size: 12px !important;
+  font-weight: 550 !important;
+  color: var(--db-text-secondary) !important;
+  padding: 8px 12px !important;
+}
+
+.toolCallItem :global(.ant-collapse-content) {
+  border-top: 1px solid var(--db-border-light) !important;
+}
+
+.toolCallItem :global(.ant-collapse-content-box) {
+  padding: 10px 12px !important;
+}
+
+.toolMarkdown {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--db-text-secondary);
 }
 
 .doneAlert {
@@ -313,12 +303,6 @@
 
 .userMarkdown {
   font-size: 14px;
-}
-
-.toolMarkdown {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--db-text-secondary);
 }
 
 .cursor {

@@ -71,3 +71,27 @@ export function queryAgentStatusLabel(input: AgentStatusInput): string | null {
       return null
   }
 }
+
+interface AgentBusyLabelInput extends AgentStatusInput {
+  /**
+   * 时间线末步是否已落工具结果。
+   * thinking 阶段为 true 时展示「正在整理工具结果」而非「正在思考」。
+   */
+  afterToolGroup?: boolean
+}
+
+/**
+ * 聊天区 pending / 忙碌态文案。
+ * 在工具结果已回、模型消化下一轮时优先「整理工具结果」。
+ */
+export function queryAgentBusyLabel(input: AgentBusyLabelInput): string | null {
+  const phase = queryAgentPhase(input)
+  if (phase === 'idle') return null
+  if (phase === 'thinking' && input.afterToolGroup) {
+    const modelSuffix = input.activeModelLabel?.trim()
+      ? ` · ${input.activeModelLabel.trim()}`
+      : ''
+    return `正在整理工具结果${modelSuffix}`
+  }
+  return queryAgentStatusLabel(input)
+}

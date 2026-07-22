@@ -1,10 +1,19 @@
 import type { ChatMessage, TaskItem } from '@shared/types'
 import { Fragment } from 'react'
 import { useElementStickToBottom } from '@/components/VirtualList'
-import { queryAgentPhase, queryAgentStatusLabel } from '../../utils/agent-status'
+import {
+  queryAgentBusyLabel,
+  queryAgentPhase
+} from '../../utils/agent-status'
+import {
+  queryAgentTimeline,
+  queryIsSyntheticToolCallContent,
+  queryTimelineEndsWithToolGroup
+} from '../../utils/queryAgentTimeline'
 import { ChatMarkdown } from '../ChatMarkdown'
-import { MessageRichContent, queryMediaCountLabel } from '../MessageRichContent'
+import { MessageRichContent } from '../MessageRichContent'
 import { TypingIndicator } from '../TypingIndicator'
+import { ToolCallGroup } from './ToolCallGroup'
 import styles from './MessageList.module.css'
 
 const { Text } = Typography
@@ -23,7 +32,7 @@ interface MessageListProps {
   awaitUserReason?: string | null
 }
 
-/** 展示组件：消息列表 + 工具结果折叠 + Markdown 预览 + 图片/音视频预览 */
+/** 展示组件：执行时间线（叙述 + 已调用 N 个工具）+ 流式/思考态 */
 export function MessageList({
   messages,
   streamingText,
@@ -38,18 +47,13 @@ export function MessageList({
   const listRef = useRef<HTMLDivElement>(null)
   const visible = messages.filter((m) => m.role !== 'system')
 
-  const phase = queryAgentPhase({
+  const statusInput = {
     running,
     streamingText: thinkingInProgress ? '' : streamingText,
     activeToolName: thinkingInProgress ? null : activeToolName,
     awaitUserReason
-  })
-  const statusLabel = queryAgentStatusLabel({
-    running,
-    streamingText: thinkingInProgress ? '' : streamingText,
-    activeToolName: thinkingInProgress ? null : activeToolName,
-    awaitUserReason
-  })
+  }
+  const phase = queryAgentPhase(statusInput)
 
   /**
    * 后端每轮会先 push 一条空的 assistant 占位消息，再由 streaming / pending 区承接实时状态。
@@ -60,7 +64,8 @@ export function MessageList({
     running &&
       phase !== 'idle' &&
       lastAssistant?.role === 'assistant' &&
-      !lastAssistant.content.trim()
+      !lastAssistant.content.trim() &&
+      !(lastAssistant.toolCalls?.length)
       ? lastAssistant.id
       : null
 
@@ -68,12 +73,27 @@ export function MessageList({
     ? visible.filter((m) => m.id !== trailingPlaceholderId)
     : visible
 
+  const timeline = queryAgentTimeline(displayMessages)
+  const afterToolGroup = queryTimelineEndsWithToolGroup(timeline)
+  const statusLabel = queryAgentBusyLabel({
+    ...statusInput,
+    afterToolGroup
+  })
+
+  /**
+   * pending 展示条件：
+   * - 原逻辑：空 assistant 占位存在时，避免与占位行双 loading
+   * - 扩展：工具结果已回且进入 thinking →「正在整理工具结果」（截图态，不依赖占位）
+   * - 扩展：工具执行中即使无占位也展示忙碌条
+   */
   const showPending =
-    Boolean(trailingPlaceholderId) &&
     running &&
     !streamingText &&
     !thinkingInProgress &&
-    phase !== 'idle'
+    phase !== 'idle' &&
+    (Boolean(trailingPlaceholderId) ||
+      (phase === 'thinking' && afterToolGroup) ||
+      (phase === 'tool' && Boolean(activeToolName)))
 
   const showThinking = thinkingText.trim().length > 0 || thinkingInProgress
   const displayStreamingText = thinkingInProgress ? '' : streamingText
@@ -85,31 +105,9 @@ export function MessageList({
 
   return (
     <div ref={listRef} className={styles.list} onScroll={onScroll}>
-      {tasks.length > 0 && (
-        <div className={styles.taskInline}>
-          {tasks.map((t) => (
-            <span
-              key={t.id}
-              className={[
-                styles.taskTag,
-                t.parentId && styles.taskTagChild,
-                t.status === 'done' && styles.taskTagDone,
-                t.status === 'running' && styles.taskTagRunning,
-                t.status === 'failed' && styles.taskTagFailed,
-                t.status === 'pending' && styles.taskTagPending
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              {t.status === 'done' ? '✓ ' : t.status === 'running' ? '… ' : ''}
-              {t.parentId ? `↳ ${t.title}` : t.title}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {displayMessages.map((m) => {
-        if (m.role === 'user') {
+      {timeline.map((item) => {
+        if (item.kind === 'user') {
+          const m = item.message
           return (
             <div key={m.id} className={`${styles.row} ${styles.rowUser}`}>
               <span className={styles.label}>你</span>
@@ -124,39 +122,30 @@ export function MessageList({
             </div>
           )
         }
-        if (m.role === 'tool') {
-          const mediaLabel = queryMediaCountLabel(m.content)
-          // K 线图需默认展开，否则实时预览被折叠隐藏
-          const hasStockChart = m.content.includes('@@stock_chart@@')
+
+        if (item.kind === 'orphanTool') {
           return (
-            <div key={m.id} className={styles.row}>
-              <Collapse
-                size="small"
-                className={styles.toolBlock}
-                defaultActiveKey={hasStockChart ? ['1'] : undefined}
-                items={[
-                  {
-                    key: '1',
-                    label: `工具结果 · ${m.toolName ?? 'tool'}${mediaLabel}`,
-                    children: (
-                      <MessageRichContent
-                        content={m.content}
-                        markdownClassName={styles.toolMarkdown}
-                        showDoneAlert={false}
-                      />
-                    )
-                  }
-                ]}
-              />
+            <div key={item.message.id} className={styles.row}>
+              <ToolCallGroup tools={[item.message]} declaredCount={1} />
             </div>
           )
         }
-        // assistant：思考过程展示在回答之前（先思考，再决定执行/输出）
+
+        // step：思考 → 叙述 → 工具组
+        const { assistant: m, tools } = item
+        const declaredCount = m.toolCalls?.length ?? 0
+        const showToolGroup = declaredCount > 0 || tools.length > 0
+        const narrative =
+          m.content.trim() && !queryIsSyntheticToolCallContent(m.content)
+            ? m.content
+            : ''
+        const showNarrative = Boolean(narrative)
+
         return (
           <Fragment key={m.id}>
             {m.thinkingContent?.trim() ? (
               <div className={`${styles.row} ${styles.rowThinking}`}>
-                <span className={styles.label}>思考</span>
+                <span className={styles.label}>灵犀</span>
                 <div className={styles.thinkingBox}>
                   <ChatMarkdown
                     source={m.thinkingContent}
@@ -165,12 +154,19 @@ export function MessageList({
                 </div>
               </div>
             ) : null}
-            <div className={`${styles.row} ${styles.rowAssistant}`}>
-              <span className={styles.label}>灵犀</span>
-              <div className={styles.assistantCard}>
-                <AssistantBody content={m.content} />
+            {showNarrative || showToolGroup ? (
+              <div className={`${styles.row} ${styles.rowAssistant}`}>
+                <span className={styles.label}>灵犀</span>
+                {showNarrative ? (
+                  <div className={styles.assistantCard}>
+                    <AssistantBody content={narrative} />
+                  </div>
+                ) : null}
+                {showToolGroup ? (
+                  <ToolCallGroup tools={tools} declaredCount={declaredCount || tools.length} />
+                ) : null}
               </div>
-            </div>
+            ) : null}
           </Fragment>
         )
       })}
@@ -178,7 +174,7 @@ export function MessageList({
       {/* 当前轮次进行中的思考：位于历史消息之后、正式回答/工具之前 */}
       {showThinking ? (
         <div className={`${styles.row} ${styles.rowThinking}`}>
-          <span className={styles.label}>思考</span>
+          <span className={styles.label}>灵犀</span>
           <div className={styles.thinkingBox}>
             <ChatMarkdown
               source={thinkingText}
