@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { ChatMessage, MessageRole, Session, SessionType, WorkflowRunStatus } from '@shared/types'
+import { JsonPreview } from '@/components/JsonPreview'
 import { querySessionType } from '@/features/chat'
 import type { NodeExecutionContext, SessionContextSummary } from '../../types'
 import {
@@ -105,7 +106,9 @@ function CodeBlock({
   value,
   label = '内容',
   emptyHint = '{}',
-  hint
+  hint,
+  /** 为 true 时尝试以可折叠 JSON 树预览；解析失败则回退纯文本 */
+  jsonPreview = false
 }: {
   value: string
   /** 卡片上方标题，对应消息里的角色名位置 */
@@ -113,6 +116,7 @@ function CodeBlock({
   emptyHint?: string
   /** 可选说明，悬停在 label 上展示 */
   hint?: string
+  jsonPreview?: boolean
 }): React.ReactElement {
   const text = value?.trim() ? value : emptyHint
 
@@ -141,7 +145,13 @@ function CodeBlock({
         </div>
       </header>
       <div className={styles.messageCard}>
-        <pre className={`${styles.messageBody} ${styles.codeBody}`}>{text}</pre>
+        {jsonPreview ? (
+          <div className={`${styles.messageBody} ${styles.codeBody} ${styles.jsonPreviewBody}`}>
+            <JsonPreview value={text} />
+          </div>
+        ) : (
+          <pre className={`${styles.messageBody} ${styles.codeBody}`}>{text}</pre>
+        )}
       </div>
     </article>
   )
@@ -279,7 +289,7 @@ function OverviewPane({
       <section className={`${styles.panel} ${styles.overviewContext}`}>
         <h3 className={styles.overviewSectionTitle}>Workflow Context</h3>
         <p className={styles.overviewSectionHint}>节点执行可读的全局上下文快照</p>
-        <CodeBlock label="全局 Context" value={summary.workflowContextJson || '{}'} />
+        <CodeBlock label="全局 Context" value={summary.workflowContextJson || '{}'} jsonPreview />
       </section>
     </div>
   )
@@ -321,16 +331,16 @@ function NodesPane({
     label: string
     count?: number
   }> = [
-    {
-      value: 'messages',
-      label: '消息',
-      count: active?.relatedMessages.length ?? 0
-    },
-    { value: 'input', label: '入参' },
-    { value: 'output', label: '出参' },
-    { value: 'context', label: 'Context' },
-    ...(active?.notifyDebug ? [{ value: 'notify' as const, label: '通知' }] : [])
-  ]
+      {
+        value: 'messages',
+        label: '消息',
+        count: active?.relatedMessages.length ?? 0
+      },
+      { value: 'input', label: '入参' },
+      { value: 'output', label: '出参' },
+      { value: 'context', label: 'Context' },
+      ...(active?.notifyDebug ? [{ value: 'notify' as const, label: '通知' }] : [])
+    ]
 
   return (
     <div className={styles.nodesLayout}>
@@ -426,13 +436,13 @@ function NodesPane({
             <div className={styles.nodeDetailBody}>
               {detailPane === 'input' ? (
                 <div className={styles.messageList}>
-                  <CodeBlock label="入参" value={active.nodeInputJson || '{}'} />
+                  <CodeBlock label="入参" value={active.nodeInputJson || '{}'} jsonPreview />
                 </div>
               ) : null}
 
               {detailPane === 'output' ? (
                 <div className={styles.messageList}>
-                  <CodeBlock label="出参" value={active.nodeOutputJson || '{}'} />
+                  <CodeBlock label="出参" value={active.nodeOutputJson || '{}'} jsonPreview />
                 </div>
               ) : null}
 
@@ -442,6 +452,7 @@ function NodesPane({
                     label="Context"
                     hint="节点执行时可用的 workflow context 快照"
                     value={active.contextJson || '{}'}
+                    jsonPreview
                   />
                 </div>
               ) : null}
@@ -457,21 +468,24 @@ function NodesPane({
                         ? '本次命中短时去重，未实际发起 HTTP 请求'
                         : undefined
                     }
+                    jsonPreview
                   />
                   {active.notifyDebug.requestPath ? (
                     <CodeBlock label="请求路径" value={active.notifyDebug.requestPath} />
                   ) : null}
                   {active.notifyDebug.requestHeaders &&
-                  Object.keys(active.notifyDebug.requestHeaders).length > 0 ? (
+                    Object.keys(active.notifyDebug.requestHeaders).length > 0 ? (
                     <CodeBlock
                       label="请求头"
                       value={formatContextJson(active.notifyDebug.requestHeaders)}
+                      jsonPreview
                     />
                   ) : null}
                   {active.notifyDebug.requestBody ? (
                     <CodeBlock
                       label="请求体"
                       value={formatContextJson(active.notifyDebug.requestBody)}
+                      jsonPreview
                     />
                   ) : null}
                 </div>
