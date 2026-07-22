@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import {
+  DEFAULT_CONNECTION_IDS,
+  queryBuildDefaultConnections
+} from '../shared/types'
 import { normalizeSettings } from '../electron/main/store/settings'
 
 describe('模型设置归一化', () => {
@@ -49,5 +53,25 @@ describe('模型设置归一化', () => {
         model: 'qwen-plus'
       }).launchAtLogin
     ).toBe(true)
+  })
+
+  it('顶层当前选用供应商可与默认连接 provider 不同', () => {
+    const settings = normalizeSettings({
+      provider: 'dashscope',
+      apiKey: 'sk-dashscope',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model: 'qwen-plus',
+      defaultConnectionId: DEFAULT_CONNECTION_IDS.default,
+      connections: queryBuildDefaultConnections({
+        apiKey: 'sk-deepseek',
+        provider: 'deepseek',
+        baseUrl: 'https://api.deepseek.com'
+      })
+    })
+
+    expect(settings.provider).toBe('dashscope')
+    expect(settings.apiKey).toBe('sk-dashscope')
+    expect(settings.defaultConnectionId).toBe(DEFAULT_CONNECTION_IDS.default)
+    expect(settings.connections[0]?.provider).toBe('deepseek')
   })
 })

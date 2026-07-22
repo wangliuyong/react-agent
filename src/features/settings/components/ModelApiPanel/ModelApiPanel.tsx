@@ -48,6 +48,8 @@ export function ModelApiPanel(): React.ReactElement {
   const [editingProvider, setEditingProvider] = useState<ModelProvider | null>(null)
   /** 添加供应商后跳过下一次全量同步，避免冲掉未保存草稿 */
   const skipSyncRef = useRef(false)
+  /** 用户已切换「当前选用」但未保存时，避免 settings 更新把选用状态冲回 */
+  const activeProviderDirtyRef = useRef(false)
 
   const providerOptions = useMemo(
     () => queryAllProviderOptions(customProviders),
@@ -61,7 +63,9 @@ export function ModelApiPanel(): React.ReactElement {
       setCustomProviders(settings.customProviders ?? [])
       return
     }
-    setActiveProvider(settings.provider)
+    setActiveProvider((prev) =>
+      activeProviderDirtyRef.current ? prev : settings.provider
+    )
     setProviderDrafts(queryInitialProviderDrafts(settings))
     setMaxTurns(settings.maxTurns)
     setFullAccess(settings.fullAccess)
@@ -88,6 +92,7 @@ export function ModelApiPanel(): React.ReactElement {
           customProviders
         })
       )
+      activeProviderDirtyRef.current = false
       message.success('设置已保存')
     } catch (err) {
       message.error(err instanceof Error ? err.message : '保存失败')
@@ -164,10 +169,10 @@ export function ModelApiPanel(): React.ReactElement {
   const editingProviderMeta = providerOptions.find((item) => item.value === editingProvider)
   const editingDraft: ProviderFormDraft = editingProvider
     ? (providerDrafts[editingProvider] ?? {
-        apiKey: '',
-        baseUrl: editingProviderMeta?.defaultBaseUrl ?? '',
-        model: editingProviderMeta?.defaultModel ?? ''
-      })
+      apiKey: '',
+      baseUrl: editingProviderMeta?.defaultBaseUrl ?? '',
+      model: editingProviderMeta?.defaultModel ?? ''
+    })
     : { apiKey: '', baseUrl: '', model: '' }
 
   if (!loaded) {

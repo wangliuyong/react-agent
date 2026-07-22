@@ -5,6 +5,7 @@ import {
   queryMergeDefaultRoleModelMap,
   queryMergeDefaultRolePromptOverrides,
   queryNormalizeCustomProviders,
+  queryProviderOption,
   querySeedDefaultConnections,
   querySyncConnectionsProviderCredentials,
   type AppSettings,
@@ -136,6 +137,20 @@ export function normalizeSettings(
   const primary =
     connections.find((c) => c.id === defaultConnectionId) ?? connections[0] ?? DEFAULT_CONNECTION
 
+  // 顶层「模型与 API」字段与默认连接可独立；未显式传 provider 时从默认连接/迁移结果推断
+  const topProvider =
+    'provider' in raw && raw.provider != null
+      ? queryNormalizeProvider(
+          raw.provider,
+          String(merged.baseUrl ?? ''),
+          customProviders
+        )
+      : primary.provider
+  const topProviderMeta = queryProviderOption(topProvider, customProviders)
+  const topApiKey = String(merged.apiKey ?? '')
+  const topBaseUrl = String(merged.baseUrl || topProviderMeta.defaultBaseUrl)
+  const topModel = String(merged.model || topProviderMeta.defaultModel)
+
   const rawRoleMap: RoleModelMap =
     raw.roleModelMap && typeof raw.roleModelMap === 'object'
       ? { ...(raw.roleModelMap as RoleModelMap) }
@@ -154,10 +169,10 @@ export function normalizeSettings(
 
   const draftForSync: AppSettings = {
     ...merged,
-    provider: primary.provider,
-    apiKey: primary.apiKey,
-    baseUrl: primary.baseUrl,
-    model: primary.model,
+    provider: topProvider,
+    apiKey: topApiKey,
+    baseUrl: topBaseUrl,
+    model: topModel,
     connections,
     defaultConnectionId: primary.id,
     roleModelMap,
@@ -167,10 +182,10 @@ export function normalizeSettings(
   const syncedConnections = querySyncConnectionsProviderCredentials(connections, draftForSync)
 
   return {
-    provider: primary.provider,
-    apiKey: primary.apiKey,
-    baseUrl: primary.baseUrl,
-    model: primary.model,
+    provider: topProvider,
+    apiKey: topApiKey,
+    baseUrl: topBaseUrl,
+    model: topModel,
     connections: syncedConnections,
     defaultConnectionId: primary.id,
     roleModelMap,
@@ -213,7 +228,7 @@ export function postSettings(partial: Partial<AppSettings>): AppSettings {
   const current = readSettingsFile()
   const nextPartial: Partial<AppSettings> & Record<string, unknown> = { ...current, ...partial }
 
-  // 保存多模型连接时，按供应商统一 API Key，并回写默认连接到顶层字段
+  // 保存多模型连接时，按供应商统一 API Key；顶层「当前选用」字段由模型与 API 面板维护
   if (partial.connections) {
     const synced = querySyncConnectionsProviderCredentials(partial.connections, {
       ...current,
@@ -227,11 +242,11 @@ export function postSettings(partial: Partial<AppSettings>): AppSettings {
       DEFAULT_CONNECTION_ID
     const primary = synced.find((c) => c.id === defaultId) ?? synced[0]
     if (primary) {
-      nextPartial.provider = primary.provider
-      nextPartial.apiKey = primary.apiKey
-      nextPartial.baseUrl = primary.baseUrl
-      nextPartial.model = primary.model
-      nextPartial.defaultConnectionId = primary.id
+      // 仅保证 defaultConnectionId 有效；顶层 provider/apiKey/baseUrl/model 由「模型与 API」面板维护，
+      // 避免保存连接时把「当前选用」冲回默认连接的供应商
+      if (partial.defaultConnectionId == null) {
+        nextPartial.defaultConnectionId = primary.id
+      }
     }
   }
 

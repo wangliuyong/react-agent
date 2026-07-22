@@ -3,10 +3,13 @@ import {
   queryProviderSwitchFormValues,
   querySettingsFormValues,
   querySettingsMainFormPatch,
-  queryShouldSyncSettingsForm
+  queryShouldSyncSettingsForm,
+  queryModelApiSavePatch,
+  queryInitialProviderDrafts
 } from '../src/features/settings/components/SettingsPage/settingsFormSync'
 import type { AppSettings } from '../shared/types'
-import { DEFAULT_CONNECTION, DEFAULT_CONNECTION_ID } from '../shared/types'
+import { DEFAULT_CONNECTION, DEFAULT_CONNECTION_ID, queryBuildDefaultConnections } from '../shared/types'
+import { normalizeSettings } from '../electron/main/store/settings'
 
 const SAVED_SETTINGS: AppSettings = {
   provider: 'deepseek',
@@ -119,5 +122,43 @@ describe('切换模型供应商时的表单值', () => {
       baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       model: 'qwen-max'
     })
+  })
+})
+
+describe('模型与 API 保存补丁', () => {
+  it('切换当前选用供应商时写入顶层 provider，并同步各连接凭证', () => {
+    const settings: AppSettings = {
+      ...SAVED_SETTINGS,
+      connections: queryBuildDefaultConnections({
+        apiKey: 'sk-deepseek',
+        provider: 'deepseek',
+        baseUrl: 'https://api.deepseek.com'
+      })
+    }
+    const drafts = queryInitialProviderDrafts(settings)
+    drafts.dashscope = {
+      apiKey: 'sk-dashscope',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model: 'qwen-plus'
+    }
+
+    const patch = queryModelApiSavePatch({
+      activeProvider: 'dashscope',
+      drafts,
+      settings,
+      maxTurns: 40,
+      fullAccess: false,
+      thinkingEnabled: false,
+      customProviders: []
+    })
+
+    expect(patch.provider).toBe('dashscope')
+    expect(patch.apiKey).toBe('sk-dashscope')
+    expect(
+      normalizeSettings({
+        ...settings,
+        ...patch
+      }).provider
+    ).toBe('dashscope')
   })
 })
