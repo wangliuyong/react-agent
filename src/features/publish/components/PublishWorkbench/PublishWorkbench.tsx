@@ -148,13 +148,13 @@ function PlanEditModal({
           rules={
             kind === 'workflow'
               ? [
-                  {
-                    validator: (_, value: string[]) =>
-                      Array.isArray(value) && value.length > 0
-                        ? Promise.resolve()
-                        : Promise.reject(new Error('请至少选择一个子流程'))
-                  }
-                ]
+                {
+                  validator: (_, value: string[]) =>
+                    Array.isArray(value) && value.length > 0
+                      ? Promise.resolve()
+                      : Promise.reject(new Error('请至少选择一个子流程'))
+                }
+              ]
               : undefined
           }
           extra="可多选；运行时按选择顺序串行执行，子流程之间会暂停确认"
@@ -171,8 +171,8 @@ function PlanEditModal({
           />
         </Form.Item>
         {kind !== 'workflow' ? (
-          <Form.Item extra="保存后由子任务自动镜像为可执行流程">
-            <Text type="secondary">普通任务通过子任务配置渠道与内容说明</Text>
+          <Form.Item >
+            <Text type="secondary">保存后由子任务自动镜像为可执行流程，普通任务通过子任务配置渠道与内容说明</Text>
           </Form.Item>
         ) : null}
         <Form.Item
