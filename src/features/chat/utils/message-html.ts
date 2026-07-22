@@ -107,6 +107,15 @@ export function extractMessageHtml(content: string): MessageHtmlRef[] {
   return refs
 }
 
+/** 去掉剥离路径后残留的空 Markdown 代码块 */
+export function stripEmptyCodeFences(text: string): string {
+  return text
+    .replace(/```[^\n]*\n[\t ]*```/g, '')
+    .replace(/```[\t ]*```/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 /** 去掉路径剥离后残留的空「文件位置 / 路径」标题行 */
 export function stripOrphanedPathLabels(text: string): string {
   return text

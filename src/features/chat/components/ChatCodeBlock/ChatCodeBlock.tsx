@@ -4,13 +4,14 @@ import {
   type ReactElement,
   type ReactNode
 } from 'react'
+import { queryHighlightCode } from '../../utils/code-highlight'
 import styles from './ChatCodeBlock.module.css'
 
-/** 超过该行数时显示折叠控件 */
-const COLLAPSE_LINE_THRESHOLD = 8
+/** 超过该行数时允许折叠 */
+const COLLAPSE_LINE_THRESHOLD = 6
 /** 默认折叠的行数门槛 */
-const DEFAULT_COLLAPSED_LINE_THRESHOLD = 14
-/** 展开后代码区最大高度，超出内部滚动 */
+const DEFAULT_COLLAPSED_LINE_THRESHOLD = 12
+/** 内联预览最大高度 */
 const MAX_EXPANDED_HEIGHT = 420
 
 interface ChatCodeBlockProps {
@@ -71,66 +72,136 @@ function postCopyCode(text: string): void {
   )
 }
 
+interface CodeBodyProps {
+  code: string
+  language: string
+  className?: string
+  style?: React.CSSProperties
+}
+
+/** 高亮代码正文 */
+function CodeBody({ code, language, className, style }: CodeBodyProps): ReactElement {
+  const highlighted = useMemo(
+    () => queryHighlightCode(code, language),
+    [code, language]
+  )
+
+  return (
+    <pre className={className} style={style}>
+      <code
+        className={language ? `language-${language}` : undefined}
+        // 高亮结果已转义，仅注入 span 标签
+        dangerouslySetInnerHTML={{ __html: highlighted }}
+      />
+    </pre>
+  )
+}
+
 /**
- * 聊天 Markdown 代码块：带语言标签、复制与折叠，长代码默认收起。
+ * 聊天 Markdown 代码块：参考豆包式浅色预览，顶栏折叠 + 复制 + 全屏。
  */
 export function ChatCodeBlock({
   children,
   streaming = false
-}: ChatCodeBlockProps): ReactElement {
+}: ChatCodeBlockProps): ReactElement | null {
   const { language, code } = useMemo(() => queryParsePreChildren(children), [children])
+
+  // 无实质内容时不渲染空代码预览框
+  if (!code.trim()) {
+    return null
+  }
+
   const lineCount = queryCountLines(code)
   const collapsible = lineCount > COLLAPSE_LINE_THRESHOLD
   const defaultCollapsed = collapsible && lineCount > DEFAULT_COLLAPSED_LINE_THRESHOLD
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
+  const [fullscreenOpen, setFullscreenOpen] = useState(false)
 
   const isCollapsed = streaming ? false : collapsible && collapsed
+  const langLabel = (language || 'code').toLowerCase()
 
-  const toggleLabel = isCollapsed ? `展开 ${lineCount} 行` : '收起'
+  const handleToggleCollapse = (): void => {
+    if (!collapsible || streaming) return
+    setCollapsed((prev) => !prev)
+  }
 
   return (
-    <div className={styles.root}>
-      <div className={styles.header}>
-        <div className={styles.meta}>
-          <CodeOutlined className={styles.langIcon} aria-hidden />
-          <span className={styles.lang}>{language || 'code'}</span>
-          {lineCount > 1 ? <span className={styles.lineCount}>{lineCount} 行</span> : null}
+    <>
+      <div className={styles.root} data-collapsed={isCollapsed || undefined}>
+        <div className={styles.header}>
+          <button
+            type="button"
+            className={styles.langToggle}
+            onClick={handleToggleCollapse}
+            disabled={!collapsible || streaming}
+            aria-expanded={!isCollapsed}
+          >
+            {collapsible && !streaming ? (
+              <UpOutlined
+                className={styles.chevron}
+                data-collapsed={isCollapsed || undefined}
+                aria-hidden
+              />
+            ) : null}
+            <span className={styles.lang}>{langLabel}</span>
+          </button>
+
+          <div className={styles.actions}>
+            <Tooltip title="复制代码">
+              <button
+                type="button"
+                className={styles.iconBtn}
+                aria-label="复制代码"
+                onClick={() => postCopyCode(code)}
+              >
+                <CopyOutlined />
+              </button>
+            </Tooltip>
+            <Tooltip title="全屏查看">
+              <button
+                type="button"
+                className={styles.iconBtn}
+                aria-label="全屏查看"
+                onClick={() => setFullscreenOpen(true)}
+              >
+                <FullscreenOutlined />
+              </button>
+            </Tooltip>
+          </div>
         </div>
-        <div className={styles.actions}>
-          <Tooltip title="复制代码">
-            <Button
-              type="text"
-              size="small"
-              className={styles.actionBtn}
-              icon={<CopyOutlined />}
-              aria-label="复制代码"
-              onClick={() => postCopyCode(code)}
-            />
-          </Tooltip>
-          {collapsible && !streaming ? (
-            <Button
-              type="text"
-              size="small"
-              className={styles.actionBtn}
-              icon={isCollapsed ? <DownOutlined /> : <UpOutlined />}
-              aria-expanded={!isCollapsed}
-              onClick={() => setCollapsed((prev) => !prev)}
-            >
-              {toggleLabel}
-            </Button>
-          ) : null}
-        </div>
+
+        {!isCollapsed ? (
+          <CodeBody
+            code={code}
+            language={language}
+            className={styles.body}
+            style={{ maxHeight: MAX_EXPANDED_HEIGHT }}
+          />
+        ) : null}
       </div>
-      {isCollapsed ? (
-        <div className={styles.collapsedHint}>代码已折叠，点击「展开」查看完整内容</div>
-      ) : (
-        <pre
-          className={styles.body}
-          style={{ maxHeight: MAX_EXPANDED_HEIGHT }}
-        >
-          <code className={language ? `language-${language}` : undefined}>{code}</code>
-        </pre>
-      )}
-    </div>
+
+      <Modal
+        title={langLabel}
+        open={fullscreenOpen}
+        onCancel={() => setFullscreenOpen(false)}
+        footer={null}
+        width="min(920px, 92vw)"
+        className={styles.fullscreenModal}
+        destroyOnClose
+      >
+        <div className={styles.modalToolbar}>
+          <span className={styles.modalMeta}>{lineCount} 行</span>
+          <Button
+            type="text"
+            size="small"
+            icon={<CopyOutlined />}
+            onClick={() => postCopyCode(code)}
+          >
+            复制
+          </Button>
+        </div>
+        <CodeBody code={code} language={language} className={styles.modalBody} />
+      </Modal>
+    </>
   )
 }

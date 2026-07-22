@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   extractMessageHtml,
+  stripEmptyCodeFences,
   stripOrphanedPathLabels
 } from '../src/features/chat/utils/message-html'
 
@@ -32,6 +33,15 @@ describe('extractMessageHtml', () => {
 
   it('无 HTML 路径时返回空数组', () => {
     expect(extractMessageHtml('没有本地文件')).toEqual([])
+  })
+})
+
+describe('stripEmptyCodeFences', () => {
+  it('去掉路径剥离后残留的空代码块', () => {
+    expect(stripEmptyCodeFences('说明如下。\n\n```html\n\n```\n\n结束')).toBe(
+      '说明如下。\n\n结束'
+    )
+    expect(stripEmptyCodeFences('```\n```')).toBe('')
   })
 })
 
