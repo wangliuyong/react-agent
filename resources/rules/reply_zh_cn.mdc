@@ -1,9 +1,9 @@
 ---
 name: "简体中文回复"
-description: "所有回复必须使用简体中文"
+description: "所有输出（含思考推理与正式回复）必须使用简体中文"
 alwaysApply: true
 createdAt: 1784687418835
 updatedAt: 1784687418835
 ---
 
-所有回复必须使用简体中文
+所有输出必须使用简体中文，包括思考推理过程（reasoning/thinking）以及对用户的正式回复；禁止用英文进行推理或作答。

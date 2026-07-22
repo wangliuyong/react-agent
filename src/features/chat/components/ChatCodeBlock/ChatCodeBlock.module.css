@@ -1,0 +1,87 @@
+.root {
+  margin: 0.85em 0;
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-md);
+  overflow: hidden;
+  background: var(--db-code-bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-subtle, var(--db-hover));
+}
+
+.meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+.langIcon {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--db-text-tertiary, var(--db-text-secondary));
+}
+
+.lang {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-weight: 600;
+  color: var(--db-text);
+  text-transform: lowercase;
+}
+
+.lineCount {
+  color: var(--db-text-tertiary, var(--db-text-secondary));
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.actionBtn {
+  font-size: 12px !important;
+  color: var(--db-text-secondary) !important;
+}
+
+.actionBtn:hover {
+  color: var(--db-primary) !important;
+  background: var(--db-primary-muted) !important;
+}
+
+.body {
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  color: var(--db-code-text);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  background: transparent;
+}
+
+.body :global(code) {
+  display: block;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  white-space: pre;
+}
+
+.collapsedHint {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--db-text-tertiary, var(--db-text-secondary));
+  background: var(--db-code-bg);
+}

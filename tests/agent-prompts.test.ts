@@ -36,6 +36,8 @@ describe('角色提示词 Token 预算', () => {
     expect(promptMocks.queryEnabledSkillPrompt).toHaveBeenCalledWith(4_000)
     expect(prompt).toContain('可用技能目录')
     expect(prompt).toContain('use_skill')
+    expect(prompt).toContain('思考推理过程')
+    expect(prompt).toContain('适用于全部模型输出')
   })
 
   it('用户角色设定追加到内置说明之后', () => {
