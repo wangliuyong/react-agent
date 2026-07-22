@@ -110,7 +110,7 @@ export function extractMessageHtml(content: string): MessageHtmlRef[] {
 /** 去掉剥离路径后残留的空 Markdown 代码块 */
 export function stripEmptyCodeFences(text: string): string {
   return text
-    .replace(/```[^\n]*\n[\t ]*```/g, '')
+    .replace(/```[^\n]*\n(?:[\t \n\r]*)```/g, '')
     .replace(/```[\t ]*```/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
