@@ -47,6 +47,8 @@ export function RulesPage(): React.ReactElement {
 
   const [editOpen, setEditOpen] = useState(false)
   const [editMode, setEditMode] = useState<'create' | 'update'>('create')
+  /** destroyOnHidden 下须在 Form 挂载前备好 initialValues，不能依赖提前 setFieldsValue */
+  const [editDraft, setEditDraft] = useState<AgentRuleUpsertInput | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm<AgentRuleUpsertInput>()
 
@@ -63,16 +65,21 @@ export function RulesPage(): React.ReactElement {
     return list.filter((r) => matchRuleQuery(r, search))
   }, [rules, filter, search])
 
+  const closeEdit = (): void => {
+    setEditOpen(false)
+    setEditDraft(null)
+  }
+
   const openCreate = (): void => {
     const draft = createEmptyRule()
     setEditMode('create')
-    form.setFieldsValue(draft)
+    setEditDraft(draft)
     setEditOpen(true)
   }
 
   const openEdit = (rule: AgentRule): void => {
     setEditMode('update')
-    form.setFieldsValue(ruleToInput(rule))
+    setEditDraft(ruleToInput(rule))
     setEditOpen(true)
   }
 
@@ -84,8 +91,13 @@ export function RulesPage(): React.ReactElement {
   const handleSave = async (): Promise<void> => {
     try {
       const values = await form.validateFields()
+      // 编辑态 id 不可改：优先表单值，其次打开时的 draft（防止字段未挂载时丢失）
+      const rawId =
+        editMode === 'update'
+          ? (values.id || editDraft?.id || '')
+          : values.id || values.name || ''
       const normalizedId =
-        editMode === 'create' ? slugifyRuleId(values.id || values.name) : values.id.trim()
+        editMode === 'create' ? slugifyRuleId(String(rawId)) : String(rawId).trim()
       if (!isValidRuleId(normalizedId)) {
         message.error('规则 id 仅允许小写字母、数字、连字符和下划线')
         return Promise.reject(new Error('validation'))
@@ -99,7 +111,7 @@ export function RulesPage(): React.ReactElement {
         enabled: Boolean(values.enabled)
       })
       message.success(editMode === 'create' ? '规则已创建' : '规则已更新')
-      setEditOpen(false)
+      closeEdit()
       if (detailRule?.id === saved.id) setDetailRule(saved)
     } catch (err) {
       if (err instanceof Error && err.message && err.message !== 'validation') {
@@ -312,26 +324,33 @@ export function RulesPage(): React.ReactElement {
       <Modal
         title={editMode === 'create' ? '新建规则' : '编辑规则'}
         open={editOpen}
-        onCancel={() => setEditOpen(false)}
+        onCancel={closeEdit}
         onOk={() => void handleSave()}
         confirmLoading={saving}
         destroyOnHidden
         width={640}
       >
-        <Form form={form} layout="vertical" preserve={false}>
-          {editMode === 'create' ? (
-            <Form.Item
-              name="id"
-              label="规则 ID"
-              tooltip="留空则根据名称自动生成；仅小写字母、数字、连字符与下划线"
-            >
-              <Input placeholder="例如 reply_zh_cn" />
-            </Form.Item>
-          ) : (
-            <Form.Item label="规则 ID">
-              <Input value={form.getFieldValue('id')} disabled />
-            </Form.Item>
-          )}
+        <Form
+          key={editDraft ? `${editMode}-${editDraft.id || 'new'}` : 'closed'}
+          form={form}
+          layout="vertical"
+          preserve={false}
+          initialValues={editDraft ?? undefined}
+        >
+          <Form.Item
+            name="id"
+            label="规则 ID"
+            tooltip={
+              editMode === 'create'
+                ? '留空则根据名称自动生成；仅小写字母、数字、连字符与下划线'
+                : undefined
+            }
+          >
+            <Input
+              disabled={editMode === 'update'}
+              placeholder={editMode === 'create' ? '例如 reply_zh_cn' : undefined}
+            />
+          </Form.Item>
           <Form.Item
             name="name"
             label="名称"
@@ -352,7 +371,7 @@ export function RulesPage(): React.ReactElement {
             tooltip="Markdown，启用后会拼进 Agent 系统提示"
           >
             <Input.TextArea
-              rows={10}
+              rows={7}
               placeholder="用自然语言写清约束，例如：所有回复必须使用简体中文。"
             />
           </Form.Item>

@@ -321,6 +321,11 @@ export function registerIpcHandlers(): void {
     return charts[0] ?? null
   })
 
+  ipcMain.handle(IpcChannels.queryAgentToolsCatalog, async () => {
+    const { queryAgentToolsCatalog } = await import('./agent/tools/catalog')
+    return queryAgentToolsCatalog()
+  })
+
   ipcMain.handle(IpcChannels.queryAgentRules, () => queryAgentRules())
   ipcMain.handle(IpcChannels.postAgentRule, (_e, input: AgentRuleUpsertInput) =>
     postAgentRule(input)

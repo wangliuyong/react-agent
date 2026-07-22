@@ -12,9 +12,9 @@ import type { AgentRule, AgentRuleUpsertInput } from '../../../shared/types'
 import { buildRuleMarkdown, parseRuleMarkdown } from './rule-markdown'
 import { queryRulesDir } from './resources'
 
-/** 校验规则 id：小写、数字、连字符、下划线，1～64 字符 */
+/** 校验规则 id：小写、数字、连字符、下划线，1～64 字符；先判类型，避免 RegExp 把 undefined 当成 "undefined" */
 export function validateRuleId(id: string): void {
-  if (!/^[a-z0-9_-]{1,64}$/.test(id)) {
+  if (typeof id !== 'string' || !/^[a-z0-9_-]{1,64}$/.test(id)) {
     throw new Error('规则 id 仅允许小写字母、数字、连字符和下划线，长度 1～64')
   }
 }

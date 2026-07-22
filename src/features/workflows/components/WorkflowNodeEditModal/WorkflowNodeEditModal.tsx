@@ -37,18 +37,47 @@ import {
   isLeafNode
 } from '../../types'
 
-/** 常用工具名快捷选项（亦可手输） */
-const TOOL_NAME_OPTIONS = [
-  { value: 'fetch_hot_topics', label: 'fetch_hot_topics' },
+/** 已注册工具下拉选项（与 electron/main/agent/tools 对齐） */
+const TOOL_NAME_OPTIONS: { value: string; label: string }[] = [
+  { value: 'use_skill', label: 'use_skill（加载技能）' },
+  { value: 'switch_model', label: 'switch_model（切换模型）' },
+  { value: 'list_attachments', label: 'list_attachments（查看附件）' },
+  { value: 'read_file', label: 'read_file（读取文件）' },
+  { value: 'write_file', label: 'write_file（写入文件）' },
+  { value: 'update_task_list', label: 'update_task_list（更新任务）' },
+  { value: 'generate_image', label: 'generate_image（生成图片）' },
+  { value: 'fetch_web_images', label: 'fetch_web_images（抓取网页配图）' },
+  { value: 'fetch_hot_topics', label: 'fetch_hot_topics（获取热点）' },
   { value: 'query_ashare_kline', label: 'query_ashare_kline（A股K线）' },
   { value: 'query_ashare_realtime_analysis', label: 'query_ashare_realtime_analysis（实时K线+分析）' },
-  { value: 'fetch_web_images', label: 'fetch_web_images' },
-  { value: 'xhs_publish_note', label: 'xhs_publish_note' },
-  { value: 'douyin_publish_note', label: 'douyin_publish_note' },
-  { value: 'browser_navigate', label: 'browser_navigate' },
-  { value: 'list_attachments', label: 'list_attachments' },
+  { value: 'query_weather', label: 'query_weather（查询天气）' },
+  { value: 'query_web_data', label: 'query_web_data（获取网页数据）' },
+  { value: 'generate_script', label: 'generate_script（生成剧本）' },
+  { value: 'generate_storyboard', label: 'generate_storyboard（生成分镜）' },
+  { value: 'generate_scene_assets', label: 'generate_scene_assets（生成场景素材）' },
+  { value: 'compose_video', label: 'compose_video（合成视频）' },
+  { value: 'browser_navigate', label: 'browser_navigate（打开网页）' },
+  { value: 'browser_snapshot', label: 'browser_snapshot（查看页面结构）' },
+  { value: 'browser_click', label: 'browser_click（点击页面）' },
+  { value: 'browser_type', label: 'browser_type（输入文本）' },
+  { value: 'browser_upload', label: 'browser_upload（上传文件）' },
+  { value: 'browser_wait', label: 'browser_wait（等待页面）' },
+  { value: 'xhs_publish_note', label: 'xhs_publish_note（发布小红书）' },
+  { value: 'douyin_publish_note', label: 'douyin_publish_note（发布抖音）' },
   { value: 'notify_message', label: 'notify_message（渠道通知）' }
 ]
+
+/** 将已选但未在选项中的工具名合并进下拉，避免历史数据丢失 */
+function queryToolSelectOptions(selected?: string | string[]): { value: string; label: string }[] {
+  const values = Array.isArray(selected) ? selected : selected ? [selected] : []
+  const known = new Set(TOOL_NAME_OPTIONS.map((o) => o.value))
+  const extras = values
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .filter((v) => !known.has(v))
+    .map((v) => ({ value: v, label: v }))
+  return extras.length ? [...TOOL_NAME_OPTIONS, ...extras] : TOOL_NAME_OPTIONS
+}
 
 interface WorkflowNodeEditModalProps {
   open: boolean
@@ -74,7 +103,8 @@ interface FormValues {
   type: WorkflowNode['type']
   title: string
   prompt?: string
-  toolWhitelist?: string
+  /** Agent / 条件选路：可选工具名列表 */
+  toolWhitelist?: string[]
   toolName?: string
   argsJson?: string
   reason?: string
@@ -124,7 +154,7 @@ function nodeToFormValues(node: WorkflowNode): FormValues {
     return {
       ...base,
       prompt: node.prompt,
-      toolWhitelist: node.toolWhitelist?.join(', ') ?? ''
+      toolWhitelist: node.toolWhitelist ? [...node.toolWhitelist] : []
     }
   }
   if (node.type === 'tool') {
@@ -193,7 +223,7 @@ function nodeToFormValues(node: WorkflowNode): FormValues {
       useAdvancedExpression: Boolean(node.when?.expression?.trim()),
       expression: node.when?.expression ?? '',
       prompt: node.prompt ?? '',
-      toolWhitelist: node.toolWhitelist?.join(', ') ?? '',
+      toolWhitelist: node.toolWhitelist ? [...node.toolWhitelist] : [],
       defaultKey: node.defaultKey,
       cases: node.cases.map((c) => ({ key: c.key, label: c.label }))
     }
@@ -244,8 +274,7 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
     if (!caseRows.length) {
       throw new Error('请至少配置一个分支')
     }
-    const whitelist = (values.toolWhitelist ?? '')
-      .split(/[,，\s]+/)
+    const whitelist = (values.toolWhitelist ?? [])
       .map((s) => s.trim())
       .filter(Boolean)
     const when =
@@ -294,8 +323,7 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
   }
 
   if (values.type === 'agent') {
-    const whitelist = (values.toolWhitelist ?? '')
-      .split(/[,，\s]+/)
+    const whitelist = (values.toolWhitelist ?? [])
       .map((s) => s.trim())
       .filter(Boolean)
     const node: WorkflowAgentNode = withIo({
@@ -452,7 +480,17 @@ export function WorkflowNodeEditModal({
   const op = Form.useWatch('op', form)
   const notifyChannelId = Form.useWatch('channelId', form)
   const notifyMsgType = Form.useWatch('msgType', form) as FeishuNotifyMsgType | undefined
+  const toolWhitelist = Form.useWatch('toolWhitelist', form)
+  const toolName = Form.useWatch('toolName', form)
   const isEditingCondition = node?.type === 'condition'
+
+  const toolSelectOptions = useMemo(
+    () =>
+      queryToolSelectOptions(
+        [...(toolWhitelist ?? []), ...(toolName ? [toolName] : [])].filter(Boolean)
+      ),
+    [toolWhitelist, toolName]
+  )
 
   useEffect(() => {
     if (!open) return
@@ -681,7 +719,14 @@ export function WorkflowNodeEditModal({
                   label="工具白名单"
                   tooltip="选路一般无需工具；留空则禁止工具调用"
                 >
-                  <Input placeholder="通常留空" />
+                  <Select
+                    mode="tags"
+                    showSearch
+                    allowClear
+                    placeholder="选择工具；通常留空"
+                    options={toolSelectOptions}
+                    optionFilterProp="label"
+                  />
                 </Form.Item>
               </>
             )}
@@ -739,9 +784,16 @@ export function WorkflowNodeEditModal({
             <Form.Item
               name="toolWhitelist"
               label="工具白名单"
-              tooltip="逗号分隔；留空表示可用全部工具"
+              tooltip="留空表示可用全部工具"
             >
-              <Input placeholder="例如 fetch_web_images, xhs_publish_note" />
+              <Select
+                mode="tags"
+                showSearch
+                allowClear
+                placeholder="选择工具；留空表示可用全部"
+                options={toolSelectOptions}
+                optionFilterProp="label"
+              />
             </Form.Item>
           </>
         )}
@@ -751,10 +803,15 @@ export function WorkflowNodeEditModal({
             <Form.Item
               name="toolName"
               label="工具名"
-              rules={[{ required: true, message: '请填写工具名' }]}
-              extra={`常用：${TOOL_NAME_OPTIONS.map((o) => o.value).join('、')}`}
+              rules={[{ required: true, message: '请选择工具名' }]}
             >
-              <Input placeholder="xhs_publish_note" />
+              <Select
+                showSearch
+                allowClear
+                placeholder="选择工具"
+                options={toolSelectOptions}
+                optionFilterProp="label"
+              />
             </Form.Item>
             <Form.Item
               name="argsJson"

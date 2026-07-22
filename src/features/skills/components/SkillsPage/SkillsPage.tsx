@@ -14,8 +14,8 @@ import styles from './SkillsPage.module.css'
 
 const { Title, Text } = Typography
 
-/** 主 Tab：活跃 / 已归档 / 市场模板 / 我的技能 */
-type SkillTab = 'active' | 'archived' | 'market' | 'mine'
+/** 主 Tab：全部 / 活跃 / 已归档 / 市场模板 / 我的技能 */
+type SkillTab = 'all' | 'active' | 'archived' | 'market' | 'mine'
 
 /** 二级筛选：全部 / 平台内置 / 自定义 */
 type SkillScope = 'all' | 'platform' | 'custom'
@@ -94,7 +94,8 @@ export function SkillsPage(): React.ReactElement {
   const importFromUrl = useSkillsStore((s) => s.importFromUrl)
   const importFromJson = useSkillsStore((s) => s.importFromJson)
 
-  const [tab, setTab] = useState<SkillTab>('active')
+  /** 默认「全部」，与规则/流程页一致，进入技能市场即可看到所有技能 */
+  const [tab, setTab] = useState<SkillTab>('all')
   const [scope, setScope] = useState<SkillScope>('all')
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SkillSort>('name_asc')
@@ -135,9 +136,10 @@ export function SkillsPage(): React.ReactElement {
     void loadTemplates()
   }, [tab, loadTemplates])
 
-  /** 当前 Tab 下的技能数量（用于标题 Badge） */
+  /** 当前 Tab 下的技能数量（用于工具条计数） */
   const tabCount = useMemo(() => {
     if (tab === 'market') return templates.length
+    if (tab === 'all') return skills.length
     if (tab === 'active') return skills.filter((s) => s.enabled).length
     if (tab === 'archived') return skills.filter((s) => !s.enabled).length
     return skills.filter((s) => !s.isBuiltin).length
@@ -149,6 +151,7 @@ export function SkillsPage(): React.ReactElement {
     if (tab === 'active') list = list.filter((s) => s.enabled)
     else if (tab === 'archived') list = list.filter((s) => !s.enabled)
     else if (tab === 'mine') list = list.filter((s) => !s.isBuiltin)
+    // tab === 'all'：不过滤启用状态，展示全部技能
 
     if (scope === 'platform') list = list.filter((s) => s.isBuiltin)
     else if (scope === 'custom') list = list.filter((s) => !s.isBuiltin)
@@ -484,6 +487,7 @@ export function SkillsPage(): React.ReactElement {
           value={tab}
           onChange={(v) => setTab(v as SkillTab)}
           options={[
+            { label: '全部', value: 'all' },
             { label: '活跃技能', value: 'active' },
             { label: '已归档', value: 'archived' },
             { label: '市场', value: 'market' },

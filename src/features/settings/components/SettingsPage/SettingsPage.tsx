@@ -2,18 +2,20 @@ import { useSettingsStore } from '../../hooks/useSettingsStore'
 import { ChannelStatusPanel } from '../ChannelStatusPanel'
 import { ModelApiPanel } from '../ModelApiPanel'
 import { ModelConnectionsPanel } from '../ModelConnectionsPanel'
+import { ToolsPanel } from '../ToolsPanel'
 import styles from './SettingsPage.module.css'
 
 const { Title, Paragraph, Text } = Typography
 
 /** 设置分类 Tab — 对齐技能市场 Segmented 信息架构 */
-type SettingsTab = 'model' | 'connections' | 'app' | 'channels'
+type SettingsTab = 'model' | 'connections' | 'app' | 'channels' | 'tools'
 
 const SETTINGS_TAB_OPTIONS: { label: string; value: SettingsTab }[] = [
   { label: '模型与 API', value: 'model' },
   { label: '多模型连接', value: 'connections' },
   { label: '应用与启动', value: 'app' },
-  { label: '渠道状态', value: 'channels' }
+  { label: '渠道状态', value: 'channels' },
+  { label: '工具', value: 'tools' }
 ]
 
 export function SettingsPage(): React.ReactElement {
@@ -32,7 +34,9 @@ export function SettingsPage(): React.ReactElement {
         ? `${connectionCount || 1} 条连接`
         : tab === 'app'
           ? '本机启动偏好'
-          : '发布与通知渠道'
+          : tab === 'tools'
+            ? 'Agent 工具注册表'
+            : '发布与通知渠道'
 
   return (
     <div className={styles.page}>
@@ -138,6 +142,8 @@ export function SettingsPage(): React.ReactElement {
         ) : null}
 
         {tab === 'channels' ? <ChannelStatusPanel key="channels" /> : null}
+
+        {tab === 'tools' ? <ToolsPanel key="tools" /> : null}
       </div>
     </div>
   )

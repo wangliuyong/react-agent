@@ -70,6 +70,8 @@ export const IpcChannels = {
   queryLocalMediaUrl: 'query:local-media-url',
   /** A 股 K 线实时刷新（聊天预览轮询） */
   queryAshareKlineRefresh: 'query:ashare-kline-refresh',
+  /** Agent 工具注册表 + 角色注入（设置页只读） */
+  queryAgentToolsCatalog: 'query:agent-tools-catalog',
   // Agent 用户规则（持久指令，注入 SYSTEM_PROMPT）
   queryAgentRules: 'query:agent-rules',
   postAgentRule: 'post:agent-rule',
@@ -1327,6 +1329,43 @@ export interface ProjectSkillDetail extends ProjectSkill {
 /** 技能启用状态：skillId → { enabled } */
 export type SkillStates = Record<string, { enabled: boolean }>
 
+/** Agent 工具权限级别（与主进程 ToolPermission 对齐） */
+export type AgentToolPermission = 'safe' | 'sensitive' | 'dangerous'
+
+/** 工具源码在仓库中的位置（相对路径 + 行号） */
+export interface AgentToolSourceLocation {
+  relativePath: string
+  startLine: number
+  endLine: number
+}
+
+/** 设置页工具列表单项（元数据 + 可选源码预览） */
+export interface AgentToolCatalogItem {
+  name: string
+  description: string
+  permission: AgentToolPermission
+  /** JSON Schema 风格参数定义 */
+  parameters: Record<string, unknown>
+  source: AgentToolSourceLocation | null
+  /** 抽取的 export const 定义块；读取失败时为 null */
+  sourceCode: string | null
+}
+
+/** 某角色当前注入的工具集合 */
+export interface AgentRoleToolInjection {
+  role: AgentRoleName
+  /** all = 全量注册表；whitelist = 显式名单；none = 无工具（如 supervisor） */
+  mode: 'all' | 'whitelist' | 'none'
+  toolNames: string[]
+}
+
+/** 设置页「工具」Tab 聚合数据 */
+export interface AgentToolCatalog {
+  tools: AgentToolCatalogItem[]
+  roleInjections: AgentRoleToolInjection[]
+  registeredCount: number
+}
+
 /**
  * Agent 用户规则：Always Apply 的持久指令。
  * 与技能分工——规则偏用户偏好/长期约束，技能偏可安装流程知识。
@@ -1712,6 +1751,8 @@ export interface ElectronApi {
   queryLocalImageDataUrl: (filePath: string) => Promise<string | null>
   queryLocalMediaUrl: (filePath: string) => Promise<string | null>
   queryAshareKlineRefresh: (req: import('./stock-chart').AshareKlineRefreshRequest) => Promise<import('./stock-chart').StockChartPayload | null>
+  /** 设置页：工具注册表 + 源码预览 + 角色注入 */
+  queryAgentToolsCatalog: () => Promise<AgentToolCatalog>
   queryAgentRules: () => Promise<AgentRule[]>
   postAgentRule: (input: AgentRuleUpsertInput) => Promise<AgentRule>
   postDeleteAgentRule: (id: string) => Promise<void>

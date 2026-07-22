@@ -248,7 +248,11 @@ export function ChannelStatusPanel(): React.ReactElement {
 
       <Spin spinning={channelsLoading || checking}>
         {channels.length === 0 && !channelsLoading ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无渠道配置" />
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="暂无渠道配置"
+            className={styles.empty}
+          />
         ) : (
           <div className={styles.sections}>
             <div>

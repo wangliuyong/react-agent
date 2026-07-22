@@ -88,3 +88,37 @@ export function queryToolsByWhitelist(whitelist?: string[]): AgentTool[] {
   if (!whitelist || whitelist.length === 0) return all
   return all.filter((t) => whitelist.includes(t.name))
 }
+
+/**
+ * 各角色当前注入的工具名（设置页「工具」Tab 只读展示）。
+ * general 的 whitelist 为 null 表示注入全部已注册工具；supervisor 始终为空。
+ */
+export function queryRoleToolInjections(): Array<{
+  role: AgentRoleName
+  /** all = 全量注册表；whitelist = 显式名单；none = 无工具 */
+  mode: 'all' | 'whitelist' | 'none'
+  toolNames: string[]
+}> {
+  const allNames = getAllTools().map((t) => t.name)
+  const roles: AgentRoleName[] = [
+    'supervisor',
+    'general',
+    'researcher',
+    'writer',
+    'publisher',
+    'scriptwriter',
+    'videographer',
+    'editor'
+  ]
+
+  return roles.map((role) => {
+    if (role === 'supervisor') {
+      return { role, mode: 'none' as const, toolNames: [] }
+    }
+    const list = ROLE_WHITELIST[role]
+    if (!list) {
+      return { role, mode: 'all' as const, toolNames: allNames }
+    }
+    return { role, mode: 'whitelist' as const, toolNames: [...list] }
+  })
+}

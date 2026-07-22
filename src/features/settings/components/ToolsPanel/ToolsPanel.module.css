@@ -1,4 +1,4 @@
-/* 渠道状态 — 嵌入设置 Tab，卡片网格对齐技能市场 */
+/* 设置页「工具」Tab — 卡片网格对齐渠道状态 / 技能市场 */
 
 .panel {
   display: flex;
@@ -53,36 +53,28 @@
   border-radius: var(--db-radius-md) !important;
 }
 
-.sections {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.sectionTitle {
+.toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
-  color: var(--db-text);
-  font-size: 14px;
-  font-weight: 650;
+  flex-wrap: wrap;
 }
 
-.sectionTitle :global(.ant-typography) {
+.searchInput {
+  width: min(320px, 100%);
+}
+
+.resultCount {
   font-size: 12px;
-  font-weight: 400;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
   width: 100%;
 }
 
-/* Spin 占满剩余高度，空状态垂直居中 */
 .panel :global(.ant-spin-nested-loading),
 .panel :global(.ant-spin-container) {
   flex: 1;
@@ -99,9 +91,10 @@
   align-items: center;
   justify-content: center;
   width: 100%;
+  min-height: 200px;
 }
 
-.channelCard {
+.toolCard {
   overflow: hidden;
   border: 1px solid var(--db-border-light) !important;
   border-radius: var(--db-radius-lg) !important;
@@ -113,14 +106,14 @@
     box-shadow 0.15s ease;
 }
 
-.channelCard:hover {
+.toolCard:hover {
   border-color: var(--db-primary-border-active) !important;
   box-shadow: 0 4px 18px var(--db-primary-shadow);
 }
 
-.channelCard :global(.ant-card-body) {
+.toolCard :global(.ant-card-body) {
   display: flex;
-  min-height: 152px;
+  min-height: 168px;
   flex-direction: column;
   gap: 12px;
   padding: 16px !important;
@@ -133,14 +126,14 @@
   gap: 10px;
 }
 
-.channelIdentity {
+.toolIdentity {
   display: flex;
   min-width: 0;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
 }
 
-.channelIcon {
+.toolIcon {
   display: inline-flex;
   width: 34px;
   height: 34px;
@@ -153,13 +146,14 @@
   font-size: 15px;
 }
 
-.channelText {
+.toolText {
   display: flex;
   min-width: 0;
   flex-direction: column;
+  gap: 2px;
 }
 
-.channelName {
+.toolName {
   overflow: hidden;
   color: var(--db-text) !important;
   font-size: 14px;
@@ -167,11 +161,15 @@
   white-space: nowrap;
 }
 
-.channelKind {
-  font-size: 12px;
+.toolId {
+  overflow: hidden;
+  color: var(--db-text-tertiary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.channelDescription {
+.toolDescription {
   display: -webkit-box;
   flex: 1;
   margin: 0;
@@ -194,7 +192,12 @@
 }
 
 .localHint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tag_success,
@@ -226,6 +229,120 @@
 .tag_muted {
   background: var(--db-bg-hover) !important;
   color: var(--db-text-tertiary) !important;
+}
+
+.injectionList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.injectionCard {
+  border: 1px solid var(--db-border-light) !important;
+  border-radius: var(--db-radius-lg) !important;
+  background: var(--db-bg-content) !important;
+  animation: cardIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--card-index, 0) * 28ms);
+}
+
+.injectionCard :global(.ant-card-body) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px !important;
+}
+
+.injectionHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.injectionRole {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+
+.chipWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.toolChip {
+  cursor: pointer;
+  margin-inline-end: 0 !important;
+  border-radius: var(--db-radius-pill) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px !important;
+}
+
+.detailModal :global(.ant-modal-body) {
+  max-height: min(72vh, 720px);
+  overflow: auto;
+}
+
+.detailBody {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.detailMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.detailId {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--db-bg-hover);
+  color: var(--db-text);
+  font-size: 12px;
+}
+
+.sourcePath {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.detailDesc {
+  margin: 0 !important;
+  color: var(--db-text-secondary) !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+
+.detailSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionLabel {
+  margin: 0;
+  color: var(--db-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.codeBlock {
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-md);
+  background: var(--db-bg-hover);
+  color: var(--db-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre;
+  max-height: 360px;
 }
 
 @keyframes cardIn {

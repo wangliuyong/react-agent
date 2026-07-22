@@ -118,8 +118,21 @@
   position: relative;
   z-index: 1;
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 24px 28px 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Spin 占满主体，便于空状态垂直居中 */
+.body :global(.ant-spin-nested-loading),
+.body :global(.ant-spin-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 .grid {
@@ -130,7 +143,12 @@
 }
 
 .empty {
-  margin-top: 48px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .card {

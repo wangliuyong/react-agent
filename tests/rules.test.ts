@@ -60,6 +60,22 @@ describe('rules store', () => {
     expect(existsSync(join(testState.rulesDir, 'new-rule.mdc'))).toBe(false)
   })
 
+  it('拒绝 undefined/非法 id，避免误写成 undefined.mdc', async () => {
+    const { postAgentRule, validateRuleId } = await import('../electron/main/store/rules')
+
+    expect(() => validateRuleId(undefined as unknown as string)).toThrow(/规则 id/)
+    expect(() =>
+      postAgentRule({
+        id: undefined as unknown as string,
+        name: '坏规则',
+        description: '',
+        content: '正文',
+        enabled: true
+      })
+    ).toThrow(/规则 id/)
+    expect(existsSync(join(testState.rulesDir, 'undefined.mdc'))).toBe(false)
+  })
+
   it('仅将启用规则注入 Agent 提示', async () => {
     writeFileSync(
       join(testState.rulesDir, 'enabled.mdc'),

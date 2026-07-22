@@ -23,9 +23,9 @@ export function slugifyRuleId(name: string): string {
   return slug || `rule_${Date.now()}`
 }
 
-/** 校验规则 id 格式（与主进程 validateRuleId 一致） */
+/** 校验规则 id 格式（与主进程 validateRuleId 一致；拒绝非字符串，避免 RegExp 把 undefined 当成 "undefined"） */
 export function isValidRuleId(id: string): boolean {
-  return /^[a-z0-9_-]{1,64}$/.test(id)
+  return typeof id === 'string' && /^[a-z0-9_-]{1,64}$/.test(id)
 }
 
 /** 规则实体 → 编辑 DTO */
