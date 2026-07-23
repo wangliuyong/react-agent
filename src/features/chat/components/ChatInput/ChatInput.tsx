@@ -105,7 +105,7 @@ export function ChatInput({
   })
 
   /** 参考样式：以 120k 为展示上限 */
-  const tokenDisplayMax = 120_000
+  const tokenDisplayMax = 200_000
   const tokenDisplayUsed = Math.round(tokenUsed / 1000)
   const tokenDisplayMaxK = Math.round(tokenDisplayMax / 1000)
 
@@ -349,7 +349,7 @@ export function ChatInput({
               <div className={styles.token} data-running={running}>
                 {running ? <LoadingOutlined className={styles.tokenSpin} spin /> : null}
                 <Text type="secondary" className={styles.tokenText}>
-                  {running ? '处理中' : `${tokenDisplayUsed}/${tokenDisplayMaxK}k`}
+                  {running ? '处理中' : `${tokenDisplayUsed}k/${tokenDisplayMaxK}k`}
                 </Text>
               </div>
               {running && !awaitingUser ? (
