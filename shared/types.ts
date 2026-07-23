@@ -1009,6 +1009,19 @@ export function querySyncConnectionsProviderCredentials(
   })
 }
 
+/** 用户确认挂起时的可选方案（await_user / present_plan_choices） */
+export interface UserChoiceOption {
+  id: string
+  label: string
+  description?: string
+}
+
+/** 用户点击「继续」或「发送并继续」时提交的载荷 */
+export interface AgentContinuePayload {
+  userInput?: string
+  choiceId?: string
+}
+
 /** 聊天消息角色 */
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool'
 
@@ -1039,6 +1052,15 @@ export interface ChatMessage {
    * 为什么：推理内容与最终回答分离，便于用户理解 Agent 决策路径。
    */
   thinkingContent?: string
+  /**
+   * 等待用户确认时的元数据（切换会话后恢复确认条与方案按钮）。
+   * 由 graph-bridge 在 emitAwaitUser 时写入 assistant 占位消息。
+   */
+  awaitMeta?: {
+    reason: string
+    choices?: UserChoiceOption[]
+    interruptId?: string
+  }
   createdAt: number
 }
 
@@ -1213,7 +1235,13 @@ export type AgentEvent =
   | { type: 'tool_start'; sessionId: string; toolName: string; args: unknown }
   | { type: 'tool_result'; sessionId: string; toolName: string; result: string }
   | { type: 'task_update'; sessionId: string; tasks: TaskItem[] }
-  | { type: 'await_user'; sessionId: string; reason: string }
+  | {
+      type: 'await_user'
+      sessionId: string
+      reason: string
+      choices?: UserChoiceOption[]
+      interruptId?: string
+    }
   | { type: 'browser_open'; sessionId: string; url: string }
   | { type: 'done'; sessionId: string; reason: string }
   | { type: 'error'; sessionId: string; message: string }
@@ -1446,6 +1474,8 @@ export interface WorkflowAwaitNode {
   inputKeys?: WorkflowContextKey[]
   /** 用户输入写入 context 的键名，默认 userInput */
   outputKeys?: WorkflowContextKey[]
+  /** 可选结构化方案；有值时 UI 展示按钮组 */
+  choices?: UserChoiceOption[]
 }
 
 /** Toast 级别，对应 Ant Design message */
@@ -1736,7 +1766,10 @@ export interface ElectronApi {
   postImportBuiltinScheduledTasks: () => Promise<ScheduledTask[]>
   postAgentChat: (req: AgentChatRequest) => Promise<void>
   postAgentAbort: (sessionId: string) => Promise<void>
-  postAgentContinue: (sessionId: string, userInput?: string) => Promise<void>
+  postAgentContinue: (
+    sessionId: string,
+    payload?: AgentContinuePayload | string
+  ) => Promise<void>
   queryBrowserStatus: () => Promise<BrowserStatus>
   postBrowserStart: () => Promise<BrowserStatus>
   postBrowserClose: () => Promise<BrowserStatus>

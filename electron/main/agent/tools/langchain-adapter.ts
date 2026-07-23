@@ -3,6 +3,7 @@ import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { JsonSchema7Type } from '@langchain/core/utils/json_schema'
 import type { AgentTool, ToolContext, ToolPermission } from './types'
 import { compactToolResult } from '../token-budget'
+import { queryIsUserCancelIntent } from '../choice-resolver'
 
 /**
  * 发布类工具自带登录/发布确认（工具内 emitAwaitUser），
@@ -47,7 +48,13 @@ export function adaptAgentTools(
           gateDangerous &&
           shouldGatePermission(agentTool.permission, ctx.fullAccess, agentTool.name)
         ) {
-          await ctx.emitAwaitUser(`即将执行敏感工具「${agentTool.name}」，确认后继续`)
+          const confirm = await ctx.emitAwaitUser(`即将执行敏感工具「${agentTool.name}」`, [
+            { id: 'confirm', label: '确认执行' },
+            { id: 'cancel', label: '取消' }
+          ])
+          if (queryIsUserCancelIntent(confirm)) {
+            return '用户取消执行'
+          }
         }
 
         try {

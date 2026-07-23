@@ -319,8 +319,8 @@ async function runSubagentJob(params: Required<
     fullAccess: true,
     attachmentPaths,
     signal: parentSignal,
-    emitAwaitUser: async (reason) => {
-      await waitForGraphUserContinue(parentSessionId, reason)
+    emitAwaitUser: async (reason, choices) => {
+      return waitForGraphUserContinue(parentSessionId, { reason, choices })
     },
     updateTasks: (updater) => {
       const current = querySession(parentSessionId)

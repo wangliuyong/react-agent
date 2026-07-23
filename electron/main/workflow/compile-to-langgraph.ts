@@ -86,13 +86,15 @@ export async function executeWorkflowWithLangGraph(
                 updatedAt: Date.now()
               })
             }
-            const userInput = await waitForGraphUserContinue(session.id, reason)
+            const continueResult = await waitForGraphUserContinue(session.id, reason, {
+              skipPlaceholder: true
+            })
             if (signal.aborted) {
               finalizeWorkflowRun(runId, session.id, 'aborted')
               return
             }
             needResume = true
-            input = new Command({ resume: queryGraphResumePayload(session.id, userInput) })
+            input = new Command({ resume: queryGraphResumePayload(session.id, continueResult) })
             break
           }
         }
@@ -111,12 +113,14 @@ export async function executeWorkflowWithLangGraph(
               updatedAt: Date.now()
             })
           }
-          const userInput = await waitForGraphUserContinue(session.id, reason)
+          const continueResult = await waitForGraphUserContinue(session.id, reason, {
+            skipPlaceholder: true
+          })
           if (signal.aborted) {
             finalizeWorkflowRun(runId, session.id, 'aborted')
             return
           }
-          input = new Command({ resume: queryGraphResumePayload(session.id, userInput) })
+          input = new Command({ resume: queryGraphResumePayload(session.id, continueResult) })
           continue
         }
         throw e
@@ -125,12 +129,14 @@ export async function executeWorkflowWithLangGraph(
       const snap = await graph.getState(config)
       if (hasInterrupt(snap)) {
         const reason = extractReasonFromState(snap) || '等待用户确认'
-        const userInput = await waitForGraphUserContinue(session.id, reason)
+        const continueResult = await waitForGraphUserContinue(session.id, reason, {
+          skipPlaceholder: true
+        })
         if (signal.aborted) {
           finalizeWorkflowRun(runId, session.id, 'aborted')
           return
         }
-        input = new Command({ resume: queryGraphResumePayload(session.id, userInput) })
+        input = new Command({ resume: queryGraphResumePayload(session.id, continueResult) })
         continue
       }
 

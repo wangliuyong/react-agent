@@ -168,6 +168,22 @@ export const remotionRenderTool: AgentTool = {
     const fileName = safeName.toLowerCase().endsWith('.mp4') ? safeName : `${safeName}.mp4`
     const outputPath = join(projectDir, 'out', fileName)
 
+    // 渲染前强制暂停：高成本不可逆操作，即使用户开启 fullAccess 也需确认
+    const confirm = await ctx.emitAwaitUser(
+      `即将渲染 Composition「${compositionId}」为 mp4，耗时可能较长。请确认是否继续。`,
+      [
+        { id: 'render', label: '确认渲染', description: '开始导出 mp4' },
+        { id: 'preview', label: '先预览 Studio', description: '暂不渲染，建议先 remotion_studio' },
+        { id: 'cancel', label: '取消', description: '放弃本次渲染' }
+      ]
+    )
+    if (confirm.choiceId === 'cancel') {
+      return '用户取消渲染。'
+    }
+    if (confirm.choiceId === 'preview') {
+      return '用户选择先预览；请调用 remotion_studio 后再渲染。'
+    }
+
     const result = await postRenderRemotionVideo({
       projectDir,
       compositionId,

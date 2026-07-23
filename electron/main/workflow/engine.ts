@@ -26,6 +26,7 @@ import {
   waitForGraphUserContinue,
   emitSessionStarted
 } from '../agent/graph-bridge'
+import { formatUserContinueMessage } from '../agent/choice-resolver'
 import { getToolByName } from '../agent/tools'
 import type { ToolContext } from '../agent/tools/types'
 import { getMainWindow } from '../window'
@@ -278,13 +279,13 @@ async function executeToolNode(
     // 工作流 tool 节点与 agent 步一致：跳过敏感确认；未登录仍暂停
     fullAccess: true,
     attachmentPaths: [],
-    emitAwaitUser: async (reason) => {
+    emitAwaitUser: async (reason, choices) => {
       if (onAwaitUser) await onAwaitUser()
-      const userInput = await waitForGraphUserContinue(sessionId, reason)
-      const trimmed = userInput?.trim()
-      if (trimmed) {
-        appendWorkflowMessage(session, { role: 'user', content: trimmed })
-      }
+      return waitForGraphUserContinue(
+        sessionId,
+        { reason, choices },
+        { skipPlaceholder: true }
+      )
     },
     updateTasks: () => {
       /* 引擎权威维护 tasks */
@@ -664,24 +665,40 @@ async function executeLeafNode(
   if (node.type === 'await_user') {
     const beforeContext = run.context
     run = patchRun(run, { status: 'awaiting_user' })
+    const reason = node.reason || node.title
     appendWorkflowMessage(session, {
       role: 'assistant',
-      content: `等待确认：${node.reason || node.title}`
+      content: `等待确认：${reason}`,
+      awaitMeta: {
+        reason,
+        choices: node.choices
+      }
     })
-    const reason = node.reason || node.title
     /**
      * 与工具确认一致：直接 promise 等待并推送 await_user 事件。
      * 勿用 LangGraph interrupt()——外层 stream 常漏检，会出现「已写等待确认文案但无继续按钮」。
      */
-    const userInput = await waitForGraphUserContinue(sessionId, reason)
+    const continueResult = await waitForGraphUserContinue(
+      sessionId,
+      { reason, choices: node.choices },
+      { skipPlaceholder: true }
+    )
     if (signal.aborted) throw new Error('__aborted__')
     let nextContext = run.context
-    const trimmed = userInput?.trim()
-    const outputKeys = node.outputKeys?.length ? node.outputKeys : ['userInput']
+    const outputKeys = node.outputKeys?.length
+      ? node.outputKeys
+      : node.choices?.length
+        ? ['userInput', 'userChoiceId']
+        : ['userInput']
     const output: Record<string, unknown> = {}
-    if (trimmed) {
-      appendWorkflowMessage(session, { role: 'user', content: trimmed })
-      nextContext = patchAgentOutputToContext(run.context, trimmed, outputKeys)
+    const messageText = formatUserContinueMessage(continueResult)
+    if (messageText) {
+      // 用户消息已由 postGraphContinue → appendUserContinueMessage 落盘
+      nextContext = patchAgentOutputToContext(run.context, messageText, outputKeys)
+      if (continueResult.choiceId && outputKeys.includes('userChoiceId')) {
+        nextContext = { ...nextContext, userChoiceId: continueResult.choiceId }
+        output.userChoiceId = continueResult.choiceId
+      }
       for (const key of outputKeys) {
         if (key in nextContext) output[key] = nextContext[key]
       }

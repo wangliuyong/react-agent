@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatMessage } from '@shared/types'
-import { queryAwaitUserReasonFromMessages } from '../src/features/chat/utils/queryAwaitUserReasonFromMessages'
+import {
+  queryAwaitUserChoicesFromMessages,
+  queryAwaitUserReasonFromMessages
+} from '../src/features/chat/utils/queryAwaitUserReasonFromMessages'
 
 function msg(
   role: ChatMessage['role'],
@@ -45,5 +48,28 @@ describe('queryAwaitUserReasonFromMessages', () => {
     expect(queryAwaitUserReasonFromMessages([msg('assistant', '等待确认：')])).toBe(
       '请确认后继续'
     )
+  })
+
+  it('从 awaitMeta 解析原因与方案', () => {
+    const messages: ChatMessage[] = [
+      {
+        id: '1',
+        role: 'assistant',
+        content: '等待确认：请选择渲染方案',
+        awaitMeta: {
+          reason: '请选择渲染方案',
+          choices: [
+            { id: 'render', label: '确认渲染' },
+            { id: 'cancel', label: '取消' }
+          ]
+        },
+        createdAt: Date.now()
+      }
+    ]
+    expect(queryAwaitUserReasonFromMessages(messages)).toBe('请选择渲染方案')
+    expect(queryAwaitUserChoicesFromMessages(messages)?.map((c) => c.id)).toEqual([
+      'render',
+      'cancel'
+    ])
   })
 })

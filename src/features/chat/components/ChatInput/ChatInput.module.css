@@ -19,7 +19,7 @@
 /* 等待用户操作提示条（Agent 二次确认） */
 .awaitBar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   background: var(--db-warning-bg);
@@ -31,6 +31,20 @@
     0 8px 28px color-mix(in srgb, var(--db-warning) 18%, transparent),
     0 4px 12px rgba(0, 0, 0, 0.06);
   animation: slideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.awaitMain {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.choiceGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .awaitText {

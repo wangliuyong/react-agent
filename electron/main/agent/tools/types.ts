@@ -1,4 +1,5 @@
-import type { ModelCapability, TaskItem } from '../../../../shared/types'
+import type { ModelCapability, TaskItem, UserChoiceOption } from '../../../../shared/types'
+import type { UserContinueResult } from '../choice-resolver'
 
 /** 工具权限级别：敏感操作需用户确认或完全访问模式 */
 export type ToolPermission = 'safe' | 'sensitive' | 'dangerous'
@@ -8,8 +9,14 @@ export interface ToolContext {
   fullAccess: boolean
   /** 附件路径（用户本轮上传） */
   attachmentPaths: string[]
-  /** 向 UI 推送 await_user 等事件 */
-  emitAwaitUser: (reason: string) => Promise<void>
+  /**
+   * 暂停执行并等待用户确认；可选结构化方案列表。
+   * @returns 用户选择结果（含 choiceId / choiceLabel / userInput）
+   */
+  emitAwaitUser: (
+    reason: string,
+    choices?: UserChoiceOption[]
+  ) => Promise<UserContinueResult>
   /** 更新任务清单（含 workflow skipped） */
   updateTasks: (updater: (tasks: TaskItem[]) => TaskItem[]) => void
   signal?: AbortSignal

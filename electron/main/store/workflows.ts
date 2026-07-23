@@ -177,7 +177,8 @@ function normalizeLeaf(
       type: 'await_user',
       reason: String(awaitNode.reason || '').trim() || '请确认后继续',
       inputKeys: normalizeKeyList(awaitNode.inputKeys),
-      outputKeys: normalizeKeyList(awaitNode.outputKeys)
+      outputKeys: normalizeKeyList(awaitNode.outputKeys),
+      choices: Array.isArray(awaitNode.choices) ? awaitNode.choices : undefined
     }
   }
 

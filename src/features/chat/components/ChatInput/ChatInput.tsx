@@ -3,7 +3,8 @@ import {
   queryModelCategory,
   queryModelLabel,
   queryModelOptionDisplayLabel,
-  type ModelOption
+  type ModelOption,
+  type UserChoiceOption
 } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
 import { useProviderModels } from '@/features/settings/hooks/useProviderModels'
@@ -27,10 +28,12 @@ interface ChatInputProps {
   /** 当前任务选用的模型连接名 */
   activeModelLabel?: string | null
   awaitUserReason?: string | null
+  /** 挂起确认时的可选方案 */
+  awaitUserChoices?: UserChoiceOption[] | null
   tokenUsed?: number
   onSend: (text: string, paths: string[]) => void
   onAbort: () => void
-  onContinue: (userInput?: string) => void
+  onContinue: (userInput?: string, choiceId?: string) => void
 }
 
 /**
@@ -69,6 +72,7 @@ export function ChatInput({
   activeToolName = null,
   activeModelLabel = null,
   awaitUserReason,
+  awaitUserChoices = null,
   tokenUsed = 0,
   onSend,
   onAbort,
@@ -153,11 +157,16 @@ export function ChatInput({
   const awaitingUser = Boolean(awaitUserReason)
 
   /** 确认挂起：带上输入框内容继续（空则仅继续） */
-  const handleContinue = (): void => {
+  const handleContinue = (choiceId?: string): void => {
     const value = text.trim()
-    onContinue(value || undefined)
+    onContinue(value || undefined, choiceId)
     setText('')
     setPaths([])
+  }
+
+  /** 点击方案按钮：直接带 choiceId 继续 */
+  const handleChoiceClick = (choiceId: string): void => {
+    handleContinue(choiceId)
   }
 
   const handleSend = (): void => {
@@ -182,8 +191,21 @@ export function ChatInput({
       <div className={styles.inner}>
         {awaitUserReason ? (
           <div className={styles.awaitBar}>
-            <Text className={styles.awaitText}>{awaitUserReason}</Text>
-            <Button type="primary" icon={<PlayCircleOutlined />} onClick={handleContinue}>
+            <div className={styles.awaitMain}>
+              <Text className={styles.awaitText}>{awaitUserReason}</Text>
+              {awaitUserChoices?.length ? (
+                <div className={styles.choiceGroup}>
+                  {awaitUserChoices.map((choice) => (
+                    <Tooltip key={choice.id} title={choice.description}>
+                      <Button size="small" onClick={() => handleChoiceClick(choice.id)}>
+                        {choice.label}
+                      </Button>
+                    </Tooltip>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => handleContinue()}>
               继续
             </Button>
           </div>
@@ -213,7 +235,9 @@ export function ChatInput({
             className={styles.textarea}
             placeholder={
               awaitingUser
-                ? '可输入补充说明，Enter 或点「继续」一并提交给 Agent'
+                ? awaitUserChoices?.length
+                  ? '可点击上方方案，或输入如「选方案B」后发送'
+                  : '可输入补充说明，Enter 或点「继续」一并提交给 Agent'
                 : running
                   ? 'Agent 正在处理，请稍候…'
                   : disabled

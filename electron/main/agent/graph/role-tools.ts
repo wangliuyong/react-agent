@@ -24,6 +24,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'use_skill',
     'switch_model',
     'update_task_list',
+    'present_plan_choices',
     'read_file',
     'write_file',
     'generate_image',
@@ -49,6 +50,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
   scriptwriter: [
     'use_skill',
     'switch_model',
+    'present_plan_choices',
     'list_attachments',
     'read_file',
     'write_file',
@@ -61,6 +63,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
   videographer: [
     'use_skill',
     'switch_model',
+    'present_plan_choices',
     'read_file',
     'write_file',
     'generate_scene_assets',

@@ -17,7 +17,16 @@ import {
   isInterrupted
 } from '@langchain/langgraph'
 import { pauseRunningTasks, queryHasRunningTasks } from '../../../shared/pause-running-tasks'
-import type { AgentEvent, AgentRoleName, ChatMessage, ModelCapability, Session, TaskItem } from '../../../shared/types'
+import type {
+  AgentContinuePayload,
+  AgentEvent,
+  AgentRoleName,
+  ChatMessage,
+  ModelCapability,
+  Session,
+  TaskItem,
+  UserChoiceOption
+} from '../../../shared/types'
 import { querySettings } from '../store/settings'
 import { querySession, postSession } from '../store/sessions'
 import { getMainWindow } from '../window'
@@ -33,16 +42,63 @@ import { buildRoleSystemPrompt } from './graph/prompts'
 import { queryRecursionLimit } from './graph/react-subgraph'
 import { sanitizeMessagesForModel, trimMessagesToCharBudget } from './token-budget'
 import { queryResolveModelConnection } from './model-router'
+import {
+  formatUserContinueMessage,
+  normalizeContinuePayload,
+  resolveUserContinue,
+  type UserContinueResult
+} from './choice-resolver'
+
+export type { UserContinueResult } from './choice-resolver'
+
+/** 等待用户确认时的请求体 */
+export interface AwaitUserRequest {
+  reason: string
+  choices?: UserChoiceOption[]
+}
+
+interface PendingAwaitState {
+  reason: string
+  choices?: UserChoiceOption[]
+  interruptId: string
+}
+
+const abortMap = new Map<string, AbortController>()
+/** 挂起期间缓存方案列表，供 postGraphContinue 解析 choiceId */
+const pendingAwaitBySession = new Map<string, PendingAwaitState>()
+const continueWaiters = new Map<
+  string,
+  { resolve: (result: UserContinueResult) => void; reject: (e: Error) => void }
+>()
 
 function uuidv4(): string {
   return crypto.randomUUID()
 }
 
-const abortMap = new Map<string, AbortController>()
-const continueWaiters = new Map<
-  string,
-  { resolve: (input?: string) => void; reject: (e: Error) => void }
->()
+function normalizeAwaitRequest(request: string | AwaitUserRequest): AwaitUserRequest {
+  return typeof request === 'string' ? { reason: request } : request
+}
+
+/** 写入带 awaitMeta 的 assistant 占位消息，供切换会话后恢复确认 UI */
+function appendAwaitUserPlaceholder(
+  sessionId: string,
+  params: { reason: string; choices?: UserChoiceOption[]; interruptId: string }
+): void {
+  const session = querySession(sessionId)
+  if (!session) return
+  const content = `等待确认：${params.reason}`
+  const placeholder = appendMessage(session, {
+    role: 'assistant',
+    content,
+    awaitMeta: {
+      reason: params.reason,
+      choices: params.choices,
+      interruptId: params.interruptId
+    }
+  })
+  persistSession(session)
+  emitAgentEvent({ type: 'message', sessionId, message: placeholder })
+}
 
 export function emitAgentEvent(event: AgentEvent): void {
   const win = getMainWindow()
@@ -87,6 +143,7 @@ export function pauseRunningSessionTasks(sessionId: string): void {
 export function postGraphAbort(sessionId: string): void {
   abortMap.get(sessionId)?.abort()
   abortMap.delete(sessionId)
+  pendingAwaitBySession.delete(sessionId)
   const waiter = continueWaiters.get(sessionId)
   if (waiter) {
     waiter.reject(new Error('用户已中止'))
@@ -96,40 +153,54 @@ export function postGraphAbort(sessionId: string): void {
   pauseRunningSessionTasks(sessionId)
 }
 
-export function postGraphContinue(sessionId: string, userInput?: string): void {
+export function postGraphContinue(
+  sessionId: string,
+  payload?: AgentContinuePayload | string
+): void {
   const waiter = continueWaiters.get(sessionId)
-  if (waiter) {
-    const trimmed = userInput?.trim()
-    waiter.resolve(trimmed || undefined)
-    continueWaiters.delete(sessionId)
-  }
+  if (!waiter) return
+
+  const normalized = normalizeContinuePayload(payload)
+  const pending = pendingAwaitBySession.get(sessionId)
+  const result = resolveUserContinue(normalized, pending?.choices)
+
+  pendingAwaitBySession.delete(sessionId)
+  // 统一在此落盘用户选择与补充说明，供后续 ReAct 轮次读取
+  appendUserContinueMessage(sessionId, result)
+  waiter.resolve(result)
+  continueWaiters.delete(sessionId)
 }
 
 /**
- * 用户点「继续」或「发送并继续」时，若有补充说明则写入会话消息。
- * @returns 去除首尾空白后的用户说明；无输入时 undefined
+ * 用户点「继续」或「发送并继续」时，将选择与补充说明写入会话消息。
+ * @returns 落盘后的完整消息文本；无有效内容时 undefined
  */
 export function appendUserContinueMessage(
   sessionId: string,
-  userInput?: string
+  result: UserContinueResult | string | undefined
 ): string | undefined {
-  const trimmed = userInput?.trim()
-  if (!trimmed) return undefined
+  const normalized: UserContinueResult =
+    typeof result === 'string' ? { userInput: result } : (result ?? {})
+  const content = formatUserContinueMessage(normalized)
+  if (!content) return undefined
+
   const session = querySession(sessionId)
-  if (!session) return trimmed
-  const userMsg = appendMessage(session, { role: 'user', content: trimmed })
+  if (!session) return content
+  const userMsg = appendMessage(session, { role: 'user', content })
   persistSession(session)
   emitAgentEvent({ type: 'message', sessionId, message: userMsg })
-  return trimmed
+  return content
 }
 
-/** LangGraph Command resume 载荷：有用户说明时用字符串，否则 true */
+/** LangGraph Command resume 载荷：有用户说明时用字符串，否则 true（消息已在 postGraphContinue 落盘） */
 export function queryGraphResumePayload(
   sessionId: string,
-  userInput?: string
+  result: UserContinueResult | string | undefined
 ): string | boolean {
-  const trimmed = appendUserContinueMessage(sessionId, userInput)
-  return trimmed ?? true
+  const normalized: UserContinueResult =
+    typeof result === 'string' ? { userInput: result } : (result ?? {})
+  const content = formatUserContinueMessage(normalized)
+  return content ?? true
 }
 
 export function bindGraphSessionAbort(sessionId: string): AbortController {
@@ -149,21 +220,42 @@ export function getGraphAbortSignal(sessionId: string): AbortSignal | undefined 
 
 export async function waitForGraphUserContinue(
   sessionId: string,
-  reason: string
-): Promise<string | undefined> {
-  emitAgentEvent({ type: 'await_user', sessionId, reason })
-  return new Promise<string | undefined>((resolve, reject) => {
+  request: string | AwaitUserRequest,
+  options?: { skipPlaceholder?: boolean }
+): Promise<UserContinueResult> {
+  const normalized = normalizeAwaitRequest(request)
+  const interruptId = uuidv4()
+
+  pendingAwaitBySession.set(sessionId, {
+    reason: normalized.reason,
+    choices: normalized.choices,
+    interruptId
+  })
+
+  if (!options?.skipPlaceholder) {
+    appendAwaitUserPlaceholder(sessionId, { ...normalized, interruptId })
+  }
+
+  emitAgentEvent({
+    type: 'await_user',
+    sessionId,
+    reason: normalized.reason,
+    choices: normalized.choices,
+    interruptId
+  })
+
+  return new Promise<UserContinueResult>((resolve, reject) => {
     continueWaiters.set(sessionId, { resolve, reject })
   })
 }
 
-/** 等待用户确认后构造 LangGraph resume Command（含可选用户说明） */
+/** 等待用户确认后构造 LangGraph resume Command（含可选用户说明与方案选择） */
 async function waitForGraphUserResumeCommand(
   sessionId: string,
   reason: string
 ): Promise<Command> {
-  const userInput = await waitForGraphUserContinue(sessionId, reason)
-  return new Command({ resume: queryGraphResumePayload(sessionId, userInput) })
+  const result = await waitForGraphUserContinue(sessionId, reason, { skipPlaceholder: true })
+  return new Command({ resume: queryGraphResumePayload(sessionId, result) })
 }
 
 function buildToolContext(
@@ -196,8 +288,8 @@ function buildToolContext(
     fullAccess,
     attachmentPaths,
     signal,
-    emitAwaitUser: async (reason) => {
-      await waitForGraphUserContinue(sessionId, reason)
+    emitAwaitUser: async (reason, choices?) => {
+      return waitForGraphUserContinue(sessionId, { reason, choices })
     },
     updateTasks: (updater) => {
       const current = querySession(sessionId)

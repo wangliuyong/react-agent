@@ -1,4 +1,10 @@
-import type { AppSettings, ModelOption, Session, SessionType } from '@shared/types'
+import type {
+  AgentContinuePayload,
+  AppSettings,
+  ModelOption,
+  Session,
+  SessionType
+} from '@shared/types'
 import { createEmptySession } from './types'
 
 /** 读：会话列表 */
@@ -38,9 +44,9 @@ export async function postAgentAbort(sessionId: string): Promise<void> {
 
 export async function postAgentContinue(
   sessionId: string,
-  userInput?: string
+  payload?: AgentContinuePayload | string
 ): Promise<void> {
-  return window.api.postAgentContinue(sessionId, userInput)
+  return window.api.postAgentContinue(sessionId, payload)
 }
 
 export async function postSelectImages(): Promise<string[]> {

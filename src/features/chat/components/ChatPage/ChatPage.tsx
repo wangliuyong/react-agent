@@ -20,6 +20,7 @@ export function ChatPage(): React.ReactElement {
   const session = useSessionStore((s) => s.getActiveSession())
   const running = useSessionStore((s) => s.running)
   const awaitUserReason = useSessionStore((s) => s.awaitUserReason)
+  const awaitUserChoices = useSessionStore((s) => s.awaitUserChoices)
   const streamingText = useSessionStore((s) => s.streamingText)
   const thinkingText = useSessionStore((s) => s.thinkingText)
   const thinkingInProgress = useSessionStore((s) => s.thinkingInProgress)
@@ -175,10 +176,11 @@ export function ChatPage(): React.ReactElement {
         activeToolName={activeToolName}
         activeModelLabel={activeModelLabel}
         awaitUserReason={awaitUserReason}
+        awaitUserChoices={awaitUserChoices}
         tokenUsed={session?.tokenUsed ?? 0}
         onSend={(text, paths) => void sendMessage(text, paths)}
         onAbort={() => void abort()}
-        onContinue={() => void continueRun()}
+        onContinue={(userInput, choiceId) => void continueRun({ userInput, choiceId })}
       />
     </div>
   )

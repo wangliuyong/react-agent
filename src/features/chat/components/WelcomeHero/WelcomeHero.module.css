@@ -39,11 +39,41 @@
 }
 
 .grid {
-    width: 100%;
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   text-align: left;
+}
+
+/* 「换一批」：居中轻量文本按钮，悬停时图标旋转 */
+.refreshRow {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.refreshBtn {
+  color: var(--db-text-secondary) !important;
+  font-size: 13px !important;
+  height: auto !important;
+  padding: 4px 10px !important;
+  gap: 6px;
+  transition: color 0.15s ease;
+}
+
+.refreshBtn:hover {
+  color: var(--db-primary) !important;
+  background: transparent !important;
+}
+
+.refreshBtn:hover .refreshIcon {
+  transform: rotate(180deg);
+}
+
+.refreshIcon {
+  font-size: 13px;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* 快捷卡片 — 对齐技能市场卡片：细边框、悬停主题阴影 */
