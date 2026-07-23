@@ -8,7 +8,6 @@ import { app, shell } from 'electron'
 import { createRequire } from 'module'
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
-import { queryRemotionBrowserReady } from './remotion-browser'
 import { queryBundledResourcesRoot } from '../store/resources'
 import { getVideosDir } from '../store/paths'
 
@@ -108,6 +107,45 @@ export interface RemotionRenderInput {
   compositionId: string
   outputPath: string
   signal?: AbortSignal
+  /** 渲染各阶段进度回调（节流后推送 UI） */
+  onProgress?: (progress: RemotionRenderProgress) => void
+}
+
+/** Remotion 渲染阶段进度 */
+export interface RemotionRenderProgress {
+  phase: 'browser' | 'bundle' | 'render'
+  /** 0–100 总体进度 */
+  percent: number
+  message?: string
+}
+
+/**
+ * 节流进度推送，避免 IPC 事件过于密集。
+ * 总体进度权重：浏览器 0–10%、打包 10–30%、渲染 30–100%。
+ */
+function createRemotionProgressReporter(
+  onProgress?: (progress: RemotionRenderProgress) => void
+): (input: RemotionRenderProgress) => void {
+  let lastPercent = -1
+  let lastPhase = ''
+
+  return (input) => {
+    if (!onProgress) return
+    if (input.phase === lastPhase && input.percent === lastPercent) return
+    lastPhase = input.phase
+    lastPercent = input.percent
+    onProgress(input)
+  }
+}
+
+/** 将 Remotion bundler 的 0–100 整数进度映射到总体 10–30% */
+function queryBundleOverallPercent(bundlePercent: number): number {
+  return 10 + Math.round(Math.max(0, Math.min(100, bundlePercent)) * 0.2)
+}
+
+/** 将 Remotion renderMedia 的 0–1 进度映射到总体 30–100% */
+function queryRenderOverallPercent(renderRatio: number): number {
+  return 30 + Math.round(Math.max(0, Math.min(1, renderRatio)) * 70)
 }
 
 export interface RemotionRenderResult {
@@ -328,10 +366,32 @@ export async function postRenderRemotionVideo(
 
   mkdirSync(dirname(input.outputPath), { recursive: true })
 
-  try {
-    console.log('[remotion] 准备浏览器（首次可能下载，请稍候）…')
-    await queryRemotionBrowserReady()
+  const report = createRemotionProgressReporter(input.onProgress)
 
+  try {
+    report({ phase: 'browser', percent: 0, message: '准备浏览器（首次可能下载）…' })
+    console.log('[remotion] 准备浏览器（首次可能下载，请稍候）…')
+
+    const { ensureBrowser } = await import('@remotion/renderer')
+    await ensureBrowser({
+      logLevel: 'info',
+      onBrowserDownload: () => ({
+        version: null,
+        onProgress: ({ percent }) => {
+          if (input.signal?.aborted) {
+            throw new Error('渲染已取消')
+          }
+          const pct = Math.round(percent * 100)
+          report({
+            phase: 'browser',
+            percent: Math.round(pct * 0.1),
+            message: `下载浏览器 ${pct}%`
+          })
+        }
+      })
+    })
+
+    report({ phase: 'bundle', percent: 10, message: '打包 Composition…' })
     console.log('[remotion] 打包 Composition…')
     const { bundle } = await import('@remotion/bundler')
     const { renderMedia, selectComposition } = await import('@remotion/renderer')
@@ -342,12 +402,19 @@ export async function postRenderRemotionVideo(
         if (input.signal?.aborted) {
           throw new Error('渲染已取消')
         }
+        const overall = queryBundleOverallPercent(progress)
+        report({
+          phase: 'bundle',
+          percent: overall,
+          message: `打包 Composition ${progress}%`
+        })
         if (progress % 25 === 0) {
           console.log(`[remotion] 打包进度 ${progress}%`)
         }
       }
     })
 
+    report({ phase: 'render', percent: 30, message: '开始渲染视频…' })
     console.log('[remotion] 选择 Composition 并渲染…')
     const composition = await selectComposition({
       serveUrl: bundleLocation,
@@ -365,11 +432,19 @@ export async function postRenderRemotionVideo(
           throw new Error('渲染已取消')
         }
         const pct = Math.round(progress * 100)
+        const overall = queryRenderOverallPercent(progress)
+        report({
+          phase: 'render',
+          percent: overall,
+          message: `渲染视频 ${pct}%`
+        })
         if (pct % 10 === 0) {
           console.log(`[remotion] 渲染进度 ${pct}%`)
         }
       }
     })
+
+    report({ phase: 'render', percent: 100, message: '渲染完成' })
 
     return {
       ok: true,

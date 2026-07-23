@@ -188,7 +188,14 @@ export const remotionRenderTool: AgentTool = {
       projectDir,
       compositionId,
       outputPath,
-      signal: ctx.signal
+      signal: ctx.signal,
+      onProgress: (progress) => {
+        ctx.emitToolProgress?.(remotionRenderTool.name, {
+          percent: progress.percent,
+          phase: progress.phase,
+          message: progress.message
+        })
+      }
     })
 
     if (!result.ok || !result.path) {

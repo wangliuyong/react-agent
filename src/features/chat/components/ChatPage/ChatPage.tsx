@@ -25,6 +25,7 @@ export function ChatPage(): React.ReactElement {
   const thinkingText = useSessionStore((s) => s.thinkingText)
   const thinkingInProgress = useSessionStore((s) => s.thinkingInProgress)
   const activeToolName = useSessionStore((s) => s.activeToolName)
+  const activeToolProgress = useSessionStore((s) => s.activeToolProgress)
   const activeModelLabel = useSessionStore((s) => s.activeModelLabel)
   const sendMessage = useSessionStore((s) => s.sendMessage)
   const abort = useSessionStore((s) => s.abort)
@@ -63,13 +64,14 @@ export function ChatPage(): React.ReactElement {
   const bodyRef = useRef<HTMLDivElement>(null)
   const { onScroll } = useElementStickToBottom(bodyRef, {
     enabled: !isEmpty,
-    deps: [messages.length, streamingText, thinkingText, running, activeToolName, tasks]
+    deps: [messages.length, streamingText, thinkingText, running, activeToolName, activeToolProgress, tasks]
   })
 
   const headerStatus = queryAgentStatusLabel({
     running,
     streamingText,
     activeToolName,
+    activeToolProgress,
     awaitUserReason,
     activeModelLabel
   })
@@ -163,6 +165,7 @@ export function ChatPage(): React.ReactElement {
             tasks={session?.tasks ?? []}
             running={running}
             activeToolName={activeToolName}
+            activeToolProgress={activeToolProgress}
             awaitUserReason={awaitUserReason}
           />
         )}
@@ -174,6 +177,7 @@ export function ChatPage(): React.ReactElement {
         running={running}
         streamingText={streamingText}
         activeToolName={activeToolName}
+        activeToolProgress={activeToolProgress}
         activeModelLabel={activeModelLabel}
         awaitUserReason={awaitUserReason}
         awaitUserChoices={awaitUserChoices}

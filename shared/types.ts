@@ -1225,6 +1225,16 @@ export type AgentRoleName =
   | 'videographer'
   | 'editor'
 
+/** 长耗时工具进度快照（Remotion 渲染等） */
+export interface ToolProgressPayload {
+  /** 0–100 总体进度 */
+  percent: number
+  /** 当前阶段标识，如 browser | bundle | render */
+  phase: string
+  /** 阶段说明，如「打包 Composition」「渲染 45%」 */
+  message?: string
+}
+
 export type AgentEvent =
   | { type: 'text_delta'; sessionId: string; delta: string }
   /** 模型推理 / Agent 步骤思考过程增量 */
@@ -1265,6 +1275,13 @@ export type AgentEvent =
   }
   /** LLM 调用结束后的 token 累计更新（执行中实时刷新 UI） */
   | { type: 'token_update'; sessionId: string; tokenUsed: number; delta: number }
+  /** 长耗时工具执行中的进度（如 Remotion 渲染） */
+  | {
+      type: 'tool_progress'
+      sessionId: string
+      toolName: string
+      progress: ToolProgressPayload
+    }
 
 export interface BrowserStatus {
   running: boolean

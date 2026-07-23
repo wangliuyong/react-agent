@@ -7,6 +7,7 @@ import type {
   Session,
   SessionType,
   TaskItem,
+  ToolProgressPayload,
   UserChoiceOption
 } from '@shared/types'
 import { queryLatestWorkflowRunBySession } from '@/features/business/api'
@@ -60,6 +61,7 @@ function patchThinkingDelta(
       thinkingText: state.thinkingText + delta,
       thinkingInProgress: true,
       activeToolName: null,
+      activeToolProgress: null,
       running: true
     }
   }
@@ -189,6 +191,8 @@ interface SessionState {
   pendingToolName: string | null
   /** 当前正在执行的工具名（tool_start ~ tool_result 之间） */
   activeToolName: string | null
+  /** 长耗时工具进度（如 Remotion 渲染） */
+  activeToolProgress: ToolProgressPayload | null
   /** 当前任务选用的模型连接展示名（model_switch 事件更新） */
   activeModelLabel: string | null
   hydrate: () => Promise<void>
@@ -410,6 +414,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   pendingStreamingText: '',
   pendingToolName: null,
   activeToolName: null,
+  activeToolProgress: null,
   activeModelLabel: null,
 
   getActiveSession: () => {
@@ -475,6 +480,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         running
       ),
       activeToolName: null,
+      activeToolProgress: null,
       activeModelLabel: null,
       canResume: queryCanResumeFromSession(session, running)
     })
@@ -580,6 +586,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       pendingStreamingText: '',
       pendingToolName: null,
       activeToolName: null,
+      activeToolProgress: null,
       activeModelLabel: null
     }))
     await postAgentChat(resolvedSessionId, content, attachmentPaths)
@@ -600,6 +607,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         awaitUserChoices: null,
         pendingAwaitReasons: withoutPendingAwaitReason(state.pendingAwaitReasons, id),
         pendingAwaitChoices: withoutPendingAwaitChoices(state.pendingAwaitChoices, id),
+        activeToolName: null,
+        activeToolProgress: null,
         // 不必等 done：有未完成任务时立刻可继续（刷新场景依赖主进程落盘）
         canResume: queryHasIncompleteTasks(pausedTasks)
       }
@@ -687,7 +696,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       thinkingInProgress: false,
       pendingStreamingText: '',
       pendingToolName: null,
-      activeToolName: null
+      activeToolName: null,
+      activeToolProgress: null
     }))
   },
 
@@ -799,6 +809,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             ? {
                 activeToolName: s.thinkingInProgress ? null : event.toolName,
                 pendingToolName: s.thinkingInProgress ? event.toolName : null,
+                activeToolProgress: null,
                 streamingText: '',
                 thinkingText: s.running ? s.thinkingText : '',
                 running: true
@@ -808,9 +819,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         return
       }
 
+      if (event.type === 'tool_progress') {
+        if (event.sessionId !== activeId) return
+        set({
+          activeToolName: event.toolName,
+          activeToolProgress: event.progress
+        })
+        return
+      }
+
       if (event.type === 'tool_result') {
         if (event.sessionId === activeId) {
-          set({ activeToolName: null })
+          set({ activeToolName: null, activeToolProgress: null })
         }
         return
       }
@@ -946,6 +966,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   pendingStreamingText: '',
                   pendingToolName: null,
                   activeToolName: null,
+                  activeToolProgress: null,
                   activeModelLabel: null
                 }
               : {})
@@ -1021,6 +1042,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   streamingText: '',
                   thinkingText: '',
                   activeToolName: null,
+                  activeToolProgress: null,
                   activeModelLabel: null
                 }
               : {})

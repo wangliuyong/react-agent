@@ -301,7 +301,10 @@ function buildToolContext(
     queryActiveCapability: capabilityBox
       ? () => capabilityBox.current || undefined
       : undefined,
-    postActiveCapability: capabilityBox ? postActiveCapability : undefined
+    postActiveCapability: capabilityBox ? postActiveCapability : undefined,
+    emitToolProgress: (toolName, progress) => {
+      emitAgentEvent({ type: 'tool_progress', sessionId, toolName, progress })
+    }
   }
 }
 

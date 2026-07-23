@@ -28,6 +28,18 @@ describe('queryAgentStatusLabel', () => {
       })
     ).toBe('正在切换模型 · 创作编剧…')
   })
+
+  it('Remotion 渲染附带进度说明', () => {
+    expect(
+      queryAgentStatusLabel({
+        running: true,
+        streamingText: '',
+        activeToolName: 'remotion_render',
+        awaitUserReason: null,
+        activeToolProgress: { percent: 45, phase: 'render', message: '渲染视频 45%' }
+      })
+    ).toBe('正在渲染 Remotion 视频（渲染视频 45%）')
+  })
 })
 
 describe('queryAgentBusyLabel', () => {

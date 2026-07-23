@@ -6,6 +6,8 @@ interface AgentStatusInput {
   streamingText: string
   activeToolName: string | null
   awaitUserReason: string | null
+  /** 长耗时工具进度（用于状态文案细化） */
+  activeToolProgress?: { message?: string; percent?: number } | null
   /** 当前任务选用的模型连接展示名 */
   activeModelLabel?: string | null
 }
@@ -68,8 +70,14 @@ export function queryAgentStatusLabel(input: AgentStatusInput): string | null {
       return `正在思考${modelSuffix}…`
     case 'streaming':
       return `正在生成回复${modelSuffix}…`
-    case 'tool':
-      return `正在${queryToolLabel(input.activeToolName!)}${modelSuffix}…`
+    case 'tool': {
+      const progressHint = input.activeToolProgress?.message?.trim()
+      const base = `正在${queryToolLabel(input.activeToolName!)}`
+      if (progressHint) {
+        return `${base}（${progressHint}）${modelSuffix}`
+      }
+      return `${base}${modelSuffix}…`
+    }
     default:
       return null
   }

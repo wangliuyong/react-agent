@@ -329,6 +329,9 @@ async function runSubagentJob(params: Required<
       current.updatedAt = Date.now()
       postSession(current)
       emitAgentEvent({ type: 'task_update', sessionId: parentSessionId, tasks: current.tasks })
+    },
+    emitToolProgress: (toolName, progress) => {
+      emitAgentEvent({ type: 'tool_progress', sessionId: parentSessionId, toolName, progress })
     }
   }
 

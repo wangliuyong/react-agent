@@ -39,8 +39,9 @@ describe('Remotion 内置工具', () => {
     expect(remotionServiceSource).toContain('@remotion/bundler')
     expect(remotionServiceSource).toContain('@remotion/renderer')
     expect(remotionServiceSource).toContain("'remotion', 'starter'")
-    expect(remotionServiceSource).toContain('postStartRemotionStudio')
-    expect(remotionServiceSource).toContain('--no-open')
+    expect(remotionToolsSource).toContain('emitToolProgress')
+    expect(remotionServiceSource).toContain('onProgress')
+    expect(remotionServiceSource).toContain('createRemotionProgressReporter')
   })
 
   it('general 提示词与视频角色包含 Remotion 指引', () => {

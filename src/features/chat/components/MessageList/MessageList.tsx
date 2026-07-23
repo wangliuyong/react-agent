@@ -1,4 +1,4 @@
-import type { ChatMessage, TaskItem } from '@shared/types'
+import type { ChatMessage, TaskItem, ToolProgressPayload } from '@shared/types'
 import { Fragment } from 'react'
 import {
   queryAgentBusyLabel,
@@ -13,6 +13,8 @@ import { ChatMarkdown } from '../ChatMarkdown'
 import { MessageRichContent } from '../MessageRichContent'
 import { TypingIndicator } from '../TypingIndicator'
 import { ToolCallGroup } from './ToolCallGroup'
+import { ToolProgressBar } from '../ToolProgressBar/ToolProgressBar'
+import { queryShouldShowToolProgress, queryToolProgressTitle } from '../../utils/queryToolProgressDisplay'
 import styles from './MessageList.module.css'
 
 const { Text } = Typography
@@ -27,6 +29,8 @@ interface MessageListProps {
   tasks: TaskItem[]
   running?: boolean
   activeToolName?: string | null
+  /** 长耗时工具进度（如 Remotion 渲染） */
+  activeToolProgress?: ToolProgressPayload | null
   /** 等待用户确认时隐藏思考态，避免与确认条冲突 */
   awaitUserReason?: string | null
 }
@@ -40,6 +44,7 @@ export function MessageList({
   tasks,
   running = false,
   activeToolName = null,
+  activeToolProgress = null,
   awaitUserReason = null
 }: MessageListProps): React.ReactElement {
   const visible = messages.filter((m) => m.role !== 'system')
@@ -94,6 +99,7 @@ export function MessageList({
 
   const showThinking = thinkingText.trim().length > 0 || thinkingInProgress
   const displayStreamingText = thinkingInProgress ? '' : streamingText
+  const showToolProgress = queryShouldShowToolProgress(activeToolName, activeToolProgress)
 
   return (
     <div className={styles.list}>
@@ -191,10 +197,17 @@ export function MessageList({
           <span className={styles.label}>灵犀</span>
           <div className={styles.pendingWrap}>
             {phase === 'tool' && activeToolName ? (
-              <div className={styles.toolRunning}>
-                <ToolOutlined className={styles.toolIcon} spin />
-                <span>{statusLabel}</span>
-              </div>
+              showToolProgress && activeToolProgress ? (
+                <ToolProgressBar
+                  label={queryToolProgressTitle(activeToolName)}
+                  progress={activeToolProgress}
+                />
+              ) : (
+                <div className={styles.toolRunning}>
+                  <ToolOutlined className={styles.toolIcon} spin />
+                  <span>{statusLabel}</span>
+                </div>
+              )
             ) : (
               <TypingIndicator label={statusLabel ?? '正在思考…'} />
             )}

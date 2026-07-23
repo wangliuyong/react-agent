@@ -1,4 +1,4 @@
-import type { ModelCapability, TaskItem, UserChoiceOption } from '../../../../shared/types'
+import type { ModelCapability, TaskItem, ToolProgressPayload, UserChoiceOption } from '../../../../shared/types'
 import type { UserContinueResult } from '../choice-resolver'
 
 /** 工具权限级别：敏感操作需用户确认或完全访问模式 */
@@ -27,6 +27,8 @@ export interface ToolContext {
    * 为什么：ReAct 中途换模后 UI 与下一轮 LLM 选型需一致。
    */
   postActiveCapability?: (capability: ModelCapability) => void
+  /** 推送长耗时工具进度到 UI（如 Remotion 渲染） */
+  emitToolProgress?: (toolName: string, progress: ToolProgressPayload) => void
 }
 
 export interface AgentTool {

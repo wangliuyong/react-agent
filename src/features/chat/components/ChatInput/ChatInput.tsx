@@ -4,12 +4,15 @@ import {
   queryModelLabel,
   queryModelOptionDisplayLabel,
   type ModelOption,
+  type ToolProgressPayload,
   type UserChoiceOption
 } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
 import { useProviderModels } from '@/features/settings/hooks/useProviderModels'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
+import { queryShouldShowToolProgress, queryToolProgressTitle } from '../../utils/queryToolProgressDisplay'
 import { TypingIndicator } from '../TypingIndicator'
+import { ToolProgressBar } from '../ToolProgressBar/ToolProgressBar'
 import { postSelectImages } from '../../api'
 import styles from './ChatInput.module.css'
 
@@ -25,6 +28,8 @@ interface ChatInputProps {
   running?: boolean
   streamingText?: string
   activeToolName?: string | null
+  /** 长耗时工具进度（如 Remotion 渲染） */
+  activeToolProgress?: ToolProgressPayload | null
   /** 当前任务选用的模型连接名 */
   activeModelLabel?: string | null
   awaitUserReason?: string | null
@@ -70,6 +75,7 @@ export function ChatInput({
   running,
   streamingText = '',
   activeToolName = null,
+  activeToolProgress = null,
   activeModelLabel = null,
   awaitUserReason,
   awaitUserChoices = null,
@@ -103,16 +109,19 @@ export function ChatInput({
   const tokenDisplayUsed = Math.round(tokenUsed / 1000)
   const tokenDisplayMaxK = Math.round(tokenDisplayMax / 1000)
 
+  const showToolProgress = queryShouldShowToolProgress(activeToolName, activeToolProgress)
+
   const statusLabel = useMemo(
     () =>
       queryAgentStatusLabel({
         running: Boolean(running),
         streamingText,
         activeToolName,
+        activeToolProgress,
         awaitUserReason: awaitUserReason ?? null,
         activeModelLabel
       }),
-    [running, streamingText, activeToolName, awaitUserReason, activeModelLabel]
+    [running, streamingText, activeToolName, activeToolProgress, awaitUserReason, activeModelLabel]
   )
 
   /** 切换模型并给出 Toast 反馈 */
@@ -211,10 +220,20 @@ export function ChatInput({
           </div>
         ) : null}
 
-        {running && statusLabel && !awaitUserReason ? (
-          <div className={styles.statusBar}>
-            <TypingIndicator label={statusLabel} compact />
-          </div>
+        {running && !awaitUserReason ? (
+          showToolProgress && activeToolProgress && activeToolName ? (
+            <div className={styles.statusBar}>
+              <ToolProgressBar
+                compact
+                label={queryToolProgressTitle(activeToolName)}
+                progress={activeToolProgress}
+              />
+            </div>
+          ) : statusLabel ? (
+            <div className={styles.statusBar}>
+              <TypingIndicator label={statusLabel} compact />
+            </div>
+          ) : null
         ) : null}
 
         {paths.length > 0 ? (
