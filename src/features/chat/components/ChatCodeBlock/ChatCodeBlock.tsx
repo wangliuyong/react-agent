@@ -106,16 +106,16 @@ export function ChatCodeBlock({
 }: ChatCodeBlockProps): ReactElement | null {
   const { language, code } = useMemo(() => queryParsePreChildren(children), [children])
 
-  // 无实质内容时不渲染空代码预览框
-  if (!code.trim()) {
-    return null
-  }
-
   const lineCount = queryCountLines(code)
   const collapsible = lineCount > COLLAPSE_LINE_THRESHOLD
   const defaultCollapsed = collapsible && lineCount > DEFAULT_COLLAPSED_LINE_THRESHOLD
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
   const [fullscreenOpen, setFullscreenOpen] = useState(false)
+
+  // 无实质内容时不渲染空代码预览框（须在全部 Hooks 之后，避免流式输出时 Hooks 顺序变化）
+  if (!code.trim()) {
+    return null
+  }
 
   const isCollapsed = streaming ? false : collapsible && collapsed
   const langLabel = (language || 'code').toLowerCase()
