@@ -23,6 +23,7 @@ import { notifyMessageTool } from './notify-tools'
 import { useSkillTool } from './skill-tools'
 import { switchModelTool } from './model-tools'
 import { generateImageTool } from './image-tools'
+import { remotionInitProjectTool, remotionRenderTool, remotionStudioTool } from './remotion-tools'
 import type { AgentTool } from './types'
 
 /** 注册全部工具；新增能力只在此追加，不改 Loop */
@@ -45,6 +46,9 @@ export function getAllTools(): AgentTool[] {
     generateStoryboardTool,
     generateSceneAssetsTool,
     composeVideoTool,
+    remotionInitProjectTool,
+    remotionStudioTool,
+    remotionRenderTool,
     browserNavigateTool,
     browserSnapshotTool,
     browserClickTool,

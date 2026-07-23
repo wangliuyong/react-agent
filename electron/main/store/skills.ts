@@ -34,9 +34,53 @@ function getSkillTemplatesDir(): string {
   return join(queryBundledResourcesRoot(), 'skills')
 }
 
-/** 是否为项目内置技能 id */
+/** 是否为项目内置技能 id（平台技能，含 Remotion 套件） */
 function isBuiltinSkillId(id: string): boolean {
-  return id.startsWith('react-agent-')
+  return id.startsWith('react-agent-') || id.startsWith('remotion-')
+}
+
+/** 启动时默认启用的 Remotion 相关技能（仅在未写入状态时设为启用，不覆盖用户手动关闭） */
+export const DEFAULT_ENABLED_REMOTION_SKILL_IDS = [
+  'react-agent-remotion',
+  'remotion-best-practices',
+  'remotion-create',
+  'remotion-markup',
+  'remotion-render',
+  'remotion-captions'
+] as const
+
+/**
+ * 确保 Remotion 技能已安装到可写目录，并对「尚未记录状态」的技能默认启用。
+ * 用户若曾手动禁用（enabled: false），不会被本函数改回。
+ */
+export function postEnsureRemotionSkillsEnabled(): void {
+  const templatesDir = getSkillTemplatesDir()
+  const skillsDir = getSkillsDir()
+  mkdirSync(skillsDir, { recursive: true })
+
+  for (const id of DEFAULT_ENABLED_REMOTION_SKILL_IDS) {
+    const destDir = join(skillsDir, id)
+    const srcDir = join(templatesDir, id)
+    // 可写目录缺失时从内置模板复制（打包升级 / 首次启动）
+    if (!existsSync(join(destDir, 'SKILL.md')) && existsSync(join(srcDir, 'SKILL.md'))) {
+      try {
+        cpSync(srcDir, destDir, { recursive: true })
+      } catch (err) {
+        console.warn(`[skills] 安装 Remotion 技能失败：${id}`, err)
+      }
+    }
+  }
+
+  const states = readSkillStates()
+  let changed = false
+  for (const id of DEFAULT_ENABLED_REMOTION_SKILL_IDS) {
+    if (!existsSync(join(skillsDir, id, 'SKILL.md'))) continue
+    if (states[id] === undefined) {
+      states[id] = { enabled: true }
+      changed = true
+    }
+  }
+  if (changed) writeSkillStates(states)
 }
 
 /** 校验技能目录名：小写、数字、连字符，1～64 字符 */

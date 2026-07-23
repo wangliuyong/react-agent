@@ -117,6 +117,42 @@ describe('skills store', () => {
     expect(queryEnabledSkillContent('disabled-guide')).toBeNull()
   })
 
+  it('启动时安装缺失的 Remotion 技能并默认启用（不覆盖手动禁用）', async () => {
+    const remotionIds = [
+      'react-agent-remotion',
+      'remotion-best-practices',
+      'remotion-create',
+      'remotion-markup',
+      'remotion-render',
+      'remotion-captions'
+    ]
+    for (const id of remotionIds) {
+      mkdirSync(join(testState.bundledRoot, 'skills', id), { recursive: true })
+      writeFileSync(
+        join(testState.bundledRoot, 'skills', id, 'SKILL.md'),
+        `---\nname: ${id}\ndescription: remotion skill\n---\n\n# ${id}\n`,
+        'utf-8'
+      )
+    }
+
+    const {
+      postEnsureRemotionSkillsEnabled,
+      postSkillStates,
+      queryProjectSkills
+    } = await import('../electron/main/store/skills')
+
+    postEnsureRemotionSkillsEnabled()
+    const afterInstall = queryProjectSkills()
+    for (const id of remotionIds) {
+      expect(afterInstall.find((s) => s.id === id)?.enabled).toBe(true)
+      expect(afterInstall.find((s) => s.id === id)?.isBuiltin).toBe(true)
+    }
+
+    postSkillStates({ 'remotion-create': { enabled: false } })
+    postEnsureRemotionSkillsEnabled()
+    expect(queryProjectSkills().find((s) => s.id === 'remotion-create')?.enabled).toBe(false)
+  })
+
   it('技能目录达到预算时不会截断单条技能信息', async () => {
     const { postProjectSkill, queryEnabledSkillPrompt } = await import(
       '../electron/main/store/skills'

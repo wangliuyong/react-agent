@@ -42,12 +42,25 @@ export function postThinkingReasoningComplete(sessionId: string): void {
   gate.waiters = []
 }
 
-/** 等待当前会话推理阶段结束；无推理时立即返回 */
-export function queryWaitThinkingSettled(sessionId: string): Promise<void> {
+/** 等待当前会话推理阶段结束；无推理时立即返回；超时后强制放行避免工具结果永久阻塞 */
+export function queryWaitThinkingSettled(sessionId: string, timeoutMs = 120_000): Promise<void> {
   const gate = queryGate(sessionId)
   if (!gate.reasoning) return Promise.resolve()
   return new Promise((resolve) => {
-    gate.waiters.push(resolve)
+    let settled = false
+    const done = (): void => {
+      if (settled) return
+      settled = true
+      resolve()
+    }
+    gate.waiters.push(done)
+    setTimeout(() => {
+      if (!gate.reasoning) return
+      gate.reasoning = false
+      for (const waiter of gate.waiters) waiter()
+      gate.waiters = []
+      done()
+    }, timeoutMs)
   })
 }
 

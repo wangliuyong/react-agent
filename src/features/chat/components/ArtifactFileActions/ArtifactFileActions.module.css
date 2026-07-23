@@ -10,3 +10,26 @@
   height: auto;
   font-size: 12px;
 }
+
+.wrapIconOnly {
+  gap: 2px;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--db-radius-sm);
+  color: var(--db-text-secondary);
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.iconBtn:hover {
+  color: var(--db-primary) !important;
+  background: color-mix(in srgb, var(--db-primary) 10%, transparent) !important;
+}

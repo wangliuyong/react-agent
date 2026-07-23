@@ -7,6 +7,8 @@ interface ArtifactFileActionsProps {
   filePath: string
   /** 为 true 时显示「在浏览器中打开」（用于 HTML） */
   showBrowserOpen?: boolean
+  /** 为 true 时仅展示图标，文字通过 Tooltip 提示 */
+  iconOnly?: boolean
   className?: string
 }
 
@@ -14,6 +16,7 @@ interface ArtifactFileActionsProps {
 export function ArtifactFileActions({
   filePath,
   showBrowserOpen = false,
+  iconOnly = false,
   className
 }: ArtifactFileActionsProps): React.ReactElement {
   const [busy, setBusy] = useState<'reveal' | 'browser' | null>(null)
@@ -46,30 +49,48 @@ export function ArtifactFileActions({
     }
   }
 
+  const revealButton = (
+    <Button
+      size="small"
+      type={iconOnly ? 'text' : 'link'}
+      className={iconOnly ? styles.iconBtn : styles.btn}
+      icon={<FolderOpenOutlined />}
+      loading={busy === 'reveal'}
+      onClick={() => void handleReveal()}
+      aria-label="打开文件位置"
+    >
+      {iconOnly ? null : '打开文件位置'}
+    </Button>
+  )
+
+  const browserButton = (
+    <Button
+      size="small"
+      type={iconOnly ? 'text' : 'link'}
+      className={iconOnly ? styles.iconBtn : styles.btn}
+      icon={<GlobalOutlined />}
+      loading={busy === 'browser'}
+      onClick={() => void handleOpenInBrowser()}
+      aria-label="在浏览器中打开"
+    >
+      {iconOnly ? null : '在浏览器中打开'}
+    </Button>
+  )
+
   return (
-    <div className={[styles.wrap, className].filter(Boolean).join(' ')}>
+    <div
+      className={[styles.wrap, iconOnly ? styles.wrapIconOnly : '', className]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {showBrowserOpen ? (
-        <Button
-          size="small"
-          type="link"
-          className={styles.btn}
-          icon={<GlobalOutlined />}
-          loading={busy === 'browser'}
-          onClick={() => void handleOpenInBrowser()}
-        >
-          在浏览器中打开
-        </Button>
+        iconOnly ? (
+          <Tooltip title="在浏览器中打开">{browserButton}</Tooltip>
+        ) : (
+          browserButton
+        )
       ) : null}
-      <Button
-        size="small"
-        type="link"
-        className={styles.btn}
-        icon={<FolderOpenOutlined />}
-        loading={busy === 'reveal'}
-        onClick={() => void handleReveal()}
-      >
-        打开文件位置
-      </Button>
+      {iconOnly ? <Tooltip title="打开文件位置">{revealButton}</Tooltip> : revealButton}
     </div>
   )
 }

@@ -360,10 +360,36 @@ export function AssetsPanel(): React.ReactElement {
           </Text>
         </div>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={() => void hydrate()} loading={loading}>
-            刷新
-          </Button>
-          <Button
+          {filtered.length > 0 ? (
+            <div className={styles.batchBar}>
+              <Checkbox
+                checked={allFilteredSelected}
+                indeterminate={someFilteredSelected}
+                onChange={() => handleToggleSelectAllFiltered()}
+              >
+                全选当前筛选
+              </Checkbox>
+              {selectedCount > 0 ? (
+                <Space wrap size={8}>
+                  <Text type="secondary" className={styles.batchHint}>
+                    已选 {selectedCount} 项 · {queryFormatAssetSize(selectedTotalSize)}
+                  </Text>
+                  <Button type="link" size="small" onClick={clearSelection}>
+                    取消选择
+                  </Button>
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    loading={batchDeleting}
+                    onClick={handleBatchDelete}
+                  >
+                    删除选中
+                  </Button>
+                </Space>
+              ) : null}
+            </div>
+          ) : null}
+          {/* <Button
             danger
             icon={<DeleteOutlined />}
             onClick={handleClearAll}
@@ -371,6 +397,9 @@ export function AssetsPanel(): React.ReactElement {
             disabled={!assets.length}
           >
             一键清空
+          </Button> */}
+          <Button icon={<ReloadOutlined />} onClick={() => void hydrate()} loading={loading}>
+            刷新
           </Button>
         </Space>
       </div>
@@ -378,13 +407,7 @@ export function AssetsPanel(): React.ReactElement {
       {error ? <Alert type="error" showIcon message={error} className={styles.errorAlert} /> : null}
 
       <div className={styles.toolbar}>
-        <Input.Search
-          allowClear
-          placeholder="搜索文件名或路径…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={styles.searchInput}
-        />
+
         <Segmented
           value={kindFilter}
           onChange={(v) => setKindFilter(v as KindFilter)}
@@ -401,46 +424,31 @@ export function AssetsPanel(): React.ReactElement {
             : `筛选 ${filtered.length} / ${assets.length}`}
           {selectedCount > 0 ? ` · 已选 ${selectedCount}` : ''}
         </span>
+        <Input
+          allowClear
+          placeholder="搜索文件名或路径…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className={styles.searchInput}
+        />
       </div>
 
-      {filtered.length > 0 ? (
-        <div className={styles.batchBar}>
-          <Checkbox
-            checked={allFilteredSelected}
-            indeterminate={someFilteredSelected}
-            onChange={() => handleToggleSelectAllFiltered()}
-          >
-            全选当前筛选
-          </Checkbox>
-          {selectedCount > 0 ? (
-            <Space wrap size={8}>
-              <Text type="secondary" className={styles.batchHint}>
-                已选 {selectedCount} 项 · {queryFormatAssetSize(selectedTotalSize)}
-              </Text>
-              <Button type="link" size="small" onClick={clearSelection}>
-                取消选择
-              </Button>
-              <Button
-                danger
-                size="small"
-                icon={<DeleteOutlined />}
-                loading={batchDeleting}
-                onClick={handleBatchDelete}
-              >
-                删除选中
-              </Button>
-            </Space>
-          ) : null}
-        </div>
-      ) : null}
+
 
       <div className={styles.listScroll}>
-        <Spin spinning={loading}>
-          {filtered.length === 0 && !loading ? (
+        {/* 仅首屏无数据时全区域 Spin；刷新时由顶部按钮展示 loading，避免遮挡筛选栏 */}
+        <Spin spinning={loading && assets.length === 0}>
+          {filtered.length === 0 ? (
             <Empty
               className={styles.empty}
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={assets.length === 0 ? '暂无 Agent 产出文件' : '没有匹配的资产'}
+              description={
+                loading
+                  ? '加载中…'
+                  : assets.length === 0
+                    ? '暂无 Agent 产出文件'
+                    : '没有匹配的资产'
+              }
             />
           ) : (
             <div className={cardStyles.grid}>
@@ -492,13 +500,21 @@ export function AssetsPanel(): React.ReactElement {
                     </div>
 
                     <div className={cardStyles.cardFooter} onClick={(e) => e.stopPropagation()}>
-                      <Space size={0} wrap className={styles.footerActions}>
-                        <Button type="link" size="small" onClick={() => openPreview(asset)}>
-                          预览
-                        </Button>
+                      <div className={styles.footerActions}>
+                        <Tooltip title="预览">
+                          <Button
+                            type="text"
+                            size="small"
+                            className={styles.iconAction}
+                            icon={<EyeOutlined />}
+                            onClick={() => openPreview(asset)}
+                            aria-label="预览"
+                          />
+                        </Tooltip>
                         <ArtifactFileActions
                           filePath={asset.path}
                           showBrowserOpen={asset.kind === 'html'}
+                          iconOnly
                           className={styles.fileActions}
                         />
                         <Popconfirm
@@ -509,17 +525,19 @@ export function AssetsPanel(): React.ReactElement {
                           cancelText="取消"
                           onConfirm={() => void handleDelete(asset)}
                         >
-                          <Button
-                            type="link"
-                            size="small"
-                            danger
-                            loading={deletingPath === asset.path}
-                            icon={<DeleteOutlined />}
-                          >
-                            删除
-                          </Button>
+                          <Tooltip title="删除">
+                            <Button
+                              type="text"
+                              size="small"
+                              danger
+                              className={`${styles.iconAction} ${styles.iconActionDanger}`}
+                              loading={deletingPath === asset.path}
+                              icon={<DeleteOutlined />}
+                              aria-label="删除"
+                            />
+                          </Tooltip>
                         </Popconfirm>
-                      </Space>
+                      </div>
                     </div>
                   </Card>
                 )

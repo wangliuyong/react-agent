@@ -22,7 +22,7 @@ import { querySettings } from '../store/settings'
 import { querySession, postSession } from '../store/sessions'
 import { getMainWindow } from '../window'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
-import { queryWaitThinkingSettled, postResetThinkingGate } from './thinking-gate'
+import { queryWaitThinkingSettled, postResetThinkingGate, postThinkingReasoningComplete } from './thinking-gate'
 import type { ToolContext } from './tools/types'
 import {
   buildChatGraph,
@@ -305,6 +305,8 @@ async function syncNewMessagesToSession(
       await queryWaitThinkingSettled(sessionId)
 
       if (ai.tool_calls?.length) {
+        // 工具即将执行：强制结束推理阶段，避免 tool_result 被 thinking gate 永久阻塞
+        postThinkingReasoningComplete(sessionId)
         for (const tc of ai.tool_calls) {
           emitAgentEvent({
             type: 'tool_start',

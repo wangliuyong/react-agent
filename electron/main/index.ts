@@ -11,6 +11,9 @@ import { getBrowserService } from './browser/service'
 import { releaseBrowserProfileLock } from './browser/profile-lock'
 import { startScheduleService } from './schedule/scheduler'
 import { initializeResources } from './store/resources'
+import { postEnsureRemotionSkillsEnabled } from './store/skills'
+import { postEnsureRemotionBrowser } from './media/remotion-browser'
+import { postStopRemotionStudios } from './media/remotion-service'
 import { querySettings } from './store/settings'
 import { postLaunchAtLogin } from './store/launch-at-login'
 import {
@@ -93,6 +96,10 @@ app.whenReady().then(() => {
   applyAppIcon()
   getDataRoot()
   initializeResources()
+  postEnsureRemotionSkillsEnabled()
+  void postEnsureRemotionBrowser().catch(() => {
+    /* 首次失败不阻断启动，渲染时会重试 */
+  })
   initPublishChannelRegistry()
   initPublishAdapters()
   initMediaProviders()
@@ -118,6 +125,7 @@ app.on('window-all-closed', () => {
 
 // 退出时关闭 Playwright，避免 SingletonLock 残留导致下次「正在现有的浏览器会话中打开」
 app.on('before-quit', () => {
+  postStopRemotionStudios()
   void getBrowserService().close()
   releaseBrowserProfileLock()
 })

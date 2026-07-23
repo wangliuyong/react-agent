@@ -27,6 +27,8 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'read_file',
     'write_file',
     'generate_image',
+    'remotion_init_project',
+    'remotion_studio',
     'list_attachments'
   ],
   publisher: [
@@ -52,13 +54,19 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'write_file',
     'generate_script',
     'generate_storyboard',
+    'remotion_init_project',
+    'remotion_studio',
     'update_task_list'
   ],
   videographer: [
     'use_skill',
     'switch_model',
     'read_file',
+    'write_file',
     'generate_scene_assets',
+    'remotion_init_project',
+    'remotion_studio',
+    'remotion_render',
     'update_task_list',
     'list_attachments'
   ],
@@ -66,8 +74,11 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'use_skill',
     'switch_model',
     'compose_video',
+    'remotion_studio',
+    'remotion_render',
     'notify_message',
     'read_file',
+    'write_file',
     'update_task_list',
     'list_attachments'
   ]
