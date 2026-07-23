@@ -13,11 +13,45 @@ import { getVideosDir } from '../store/paths'
 
 const requireFromMain = createRequire(__filename)
 
+/** Remotion 渲染阶段进度 */
+export interface RemotionRenderProgress {
+  phase: 'browser' | 'bundle' | 'render'
+  /** 0–100 总体进度 */
+  percent: number
+  message?: string
+}
+
+export interface RemotionRenderResult {
+  ok: boolean
+  message: string
+  path?: string
+  /** 是否复用了同会话已在进行的渲染 */
+  reused?: boolean
+}
+
+/** 会话内进行中的渲染任务 */
+interface RemotionRenderJob {
+  sessionId: string
+  compositionId: string
+  outputPath: string
+  promise: Promise<RemotionRenderResult>
+  progressListeners: Set<(progress: RemotionRenderProgress) => void>
+  lastProgress?: RemotionRenderProgress
+}
+
 /** 会话 → 正在运行的 Studio 进程 */
 const studioBySession = new Map<
   string,
   { process: ChildProcess; url: string; projectDir: string }
 >()
+
+/** 会话 → 进行中的渲染任务（同一对话同时只允许一个） */
+const renderBySession = new Map<string, RemotionRenderJob>()
+
+/** 判断子进程是否仍存活（killed 仅表示主动 kill，需结合 exitCode） */
+function queryIsChildAlive(child: ChildProcess): boolean {
+  return Boolean(child.pid) && !child.killed && child.exitCode == null
+}
 
 /** 会话级 Remotion 工程目录 */
 export function queryRemotionProjectDir(sessionId: string): string {
@@ -103,20 +137,14 @@ function postPatchRootComposition(
 }
 
 export interface RemotionRenderInput {
+  /** 会话 id：用于同会话渲染去重/复用 */
+  sessionId: string
   projectDir: string
   compositionId: string
   outputPath: string
   signal?: AbortSignal
   /** 渲染各阶段进度回调（节流后推送 UI） */
   onProgress?: (progress: RemotionRenderProgress) => void
-}
-
-/** Remotion 渲染阶段进度 */
-export interface RemotionRenderProgress {
-  phase: 'browser' | 'bundle' | 'render'
-  /** 0–100 总体进度 */
-  percent: number
-  message?: string
 }
 
 /**
@@ -146,12 +174,6 @@ function queryBundleOverallPercent(bundlePercent: number): number {
 /** 将 Remotion renderMedia 的 0–1 进度映射到总体 30–100% */
 function queryRenderOverallPercent(renderRatio: number): number {
   return 30 + Math.round(Math.max(0, Math.min(1, renderRatio)) * 70)
-}
-
-export interface RemotionRenderResult {
-  ok: boolean
-  message: string
-  path?: string
 }
 
 export interface RemotionStudioInput {
@@ -209,16 +231,27 @@ export async function postStartRemotionStudio(
   }
 
   const existing = studioBySession.get(input.sessionId)
-  if (existing && !existing.process.killed) {
-    if (input.openBrowser !== false) {
-      await shell.openExternal(existing.url)
+  // 进程仍存活则复用；工程目录变更时关掉旧实例再启新的
+  if (existing && queryIsChildAlive(existing.process)) {
+    if (existing.projectDir === input.projectDir) {
+      if (input.openBrowser !== false) {
+        await shell.openExternal(existing.url)
+      }
+      return {
+        ok: true,
+        reused: true,
+        url: existing.url,
+        message: `Remotion Studio 已在运行：${existing.url}`
+      }
     }
-    return {
-      ok: true,
-      reused: true,
-      url: existing.url,
-      message: `Remotion Studio 已在运行：${existing.url}`
+    try {
+      existing.process.kill()
+    } catch {
+      // ignore
     }
+    studioBySession.delete(input.sessionId)
+  } else if (existing) {
+    studioBySession.delete(input.sessionId)
   }
 
   let cliPath: string
@@ -351,11 +384,33 @@ export function postStopRemotionStudios(sessionId?: string): void {
 
 /**
  * 打包 Remotion 工程并渲染为 mp4。
+ * 同一会话同时只允许一个渲染：若已有进行中的任务则复用其 Promise，并挂接进度回调。
  * 首次渲染会下载 Chromium，可能耗时较长。
  */
 export async function postRenderRemotionVideo(
   input: RemotionRenderInput
 ): Promise<RemotionRenderResult> {
+  const existing = renderBySession.get(input.sessionId)
+  if (existing) {
+    if (input.onProgress) {
+      existing.progressListeners.add(input.onProgress)
+      if (existing.lastProgress) {
+        input.onProgress(existing.lastProgress)
+      }
+    }
+    const result = await existing.promise
+    if (input.onProgress) {
+      existing.progressListeners.delete(input.onProgress)
+    }
+    return {
+      ...result,
+      reused: true,
+      message: result.ok
+        ? `复用同会话进行中的渲染：${result.path ?? existing.outputPath}`
+        : result.message
+    }
+  }
+
   const entryPoint = join(input.projectDir, 'src', 'index.ts')
   if (!existsSync(entryPoint)) {
     return {
@@ -366,98 +421,132 @@ export async function postRenderRemotionVideo(
 
   mkdirSync(dirname(input.outputPath), { recursive: true })
 
-  const report = createRemotionProgressReporter(input.onProgress)
+  const progressListeners = new Set<(progress: RemotionRenderProgress) => void>()
+  if (input.onProgress) {
+    progressListeners.add(input.onProgress)
+  }
 
-  try {
-    report({ phase: 'browser', percent: 0, message: '准备浏览器（首次可能下载）…' })
-    console.log('[remotion] 准备浏览器（首次可能下载，请稍候）…')
+  const job: RemotionRenderJob = {
+    sessionId: input.sessionId,
+    compositionId: input.compositionId,
+    outputPath: input.outputPath,
+    progressListeners,
+    promise: Promise.resolve({ ok: false, message: '渲染未启动' })
+  }
 
-    const { ensureBrowser } = await import('@remotion/renderer')
-    await ensureBrowser({
-      logLevel: 'info',
-      onBrowserDownload: () => ({
-        version: null,
-        onProgress: ({ percent }) => {
+  const broadcastProgress = (progress: RemotionRenderProgress): void => {
+    job.lastProgress = progress
+    for (const listener of job.progressListeners) {
+      try {
+        listener(progress)
+      } catch {
+        // 单个监听失败不影响渲染
+      }
+    }
+  }
+
+  const report = createRemotionProgressReporter(broadcastProgress)
+
+  job.promise = (async (): Promise<RemotionRenderResult> => {
+    try {
+      report({ phase: 'browser', percent: 0, message: '准备浏览器（首次可能下载）…' })
+      console.log('[remotion] 准备浏览器（首次可能下载，请稍候）…')
+
+      const { ensureBrowser } = await import('@remotion/renderer')
+      await ensureBrowser({
+        logLevel: 'info',
+        onBrowserDownload: () => ({
+          version: null,
+          onProgress: ({ percent }) => {
+            if (input.signal?.aborted) {
+              throw new Error('渲染已取消')
+            }
+            const pct = Math.round(percent * 100)
+            report({
+              phase: 'browser',
+              percent: Math.round(pct * 0.1),
+              message: `下载浏览器 ${pct}%`
+            })
+          }
+        })
+      })
+
+      report({ phase: 'bundle', percent: 10, message: '打包 Composition…' })
+      console.log('[remotion] 打包 Composition…')
+      const { bundle } = await import('@remotion/bundler')
+      const { renderMedia, selectComposition } = await import('@remotion/renderer')
+
+      const bundleLocation = await bundle({
+        entryPoint,
+        onProgress: ({ progress }) => {
           if (input.signal?.aborted) {
             throw new Error('渲染已取消')
           }
-          const pct = Math.round(percent * 100)
+          const overall = queryBundleOverallPercent(progress)
           report({
-            phase: 'browser',
-            percent: Math.round(pct * 0.1),
-            message: `下载浏览器 ${pct}%`
+            phase: 'bundle',
+            percent: overall,
+            message: `打包 Composition ${progress}%`
           })
+          if (progress % 25 === 0) {
+            console.log(`[remotion] 打包进度 ${progress}%`)
+          }
         }
       })
-    })
 
-    report({ phase: 'bundle', percent: 10, message: '打包 Composition…' })
-    console.log('[remotion] 打包 Composition…')
-    const { bundle } = await import('@remotion/bundler')
-    const { renderMedia, selectComposition } = await import('@remotion/renderer')
+      report({ phase: 'render', percent: 30, message: '开始渲染视频…' })
+      console.log('[remotion] 选择 Composition 并渲染…')
+      const composition = await selectComposition({
+        serveUrl: bundleLocation,
+        id: input.compositionId,
+        inputProps: {}
+      })
 
-    const bundleLocation = await bundle({
-      entryPoint,
-      onProgress: ({ progress }) => {
-        if (input.signal?.aborted) {
-          throw new Error('渲染已取消')
+      await renderMedia({
+        composition,
+        serveUrl: bundleLocation,
+        codec: 'h264',
+        outputLocation: input.outputPath,
+        onProgress: ({ progress }) => {
+          if (input.signal?.aborted) {
+            throw new Error('渲染已取消')
+          }
+          const pct = Math.round(progress * 100)
+          const overall = queryRenderOverallPercent(progress)
+          report({
+            phase: 'render',
+            percent: overall,
+            message: `渲染视频 ${pct}%`
+          })
+          if (pct % 10 === 0) {
+            console.log(`[remotion] 渲染进度 ${pct}%`)
+          }
         }
-        const overall = queryBundleOverallPercent(progress)
-        report({
-          phase: 'bundle',
-          percent: overall,
-          message: `打包 Composition ${progress}%`
-        })
-        if (progress % 25 === 0) {
-          console.log(`[remotion] 打包进度 ${progress}%`)
-        }
+      })
+
+      report({ phase: 'render', percent: 100, message: '渲染完成' })
+
+      return {
+        ok: true,
+        message: `Remotion 渲染成功：${input.outputPath}`,
+        path: input.outputPath
       }
-    })
-
-    report({ phase: 'render', percent: 30, message: '开始渲染视频…' })
-    console.log('[remotion] 选择 Composition 并渲染…')
-    const composition = await selectComposition({
-      serveUrl: bundleLocation,
-      id: input.compositionId,
-      inputProps: {}
-    })
-
-    await renderMedia({
-      composition,
-      serveUrl: bundleLocation,
-      codec: 'h264',
-      outputLocation: input.outputPath,
-      onProgress: ({ progress }) => {
-        if (input.signal?.aborted) {
-          throw new Error('渲染已取消')
-        }
-        const pct = Math.round(progress * 100)
-        const overall = queryRenderOverallPercent(progress)
-        report({
-          phase: 'render',
-          percent: overall,
-          message: `渲染视频 ${pct}%`
-        })
-        if (pct % 10 === 0) {
-          console.log(`[remotion] 渲染进度 ${pct}%`)
-        }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      return {
+        ok: false,
+        message:
+          `Remotion 渲染失败：${msg}。` +
+          '请检查 Composition 代码是否有语法错误，compositionId 是否与 Root.tsx 中 id 一致。'
       }
-    })
-
-    report({ phase: 'render', percent: 100, message: '渲染完成' })
-
-    return {
-      ok: true,
-      message: `Remotion 渲染成功：${input.outputPath}`,
-      path: input.outputPath
+    } finally {
+      // 仅清理本任务，避免误删后续新启动的同会话任务
+      if (renderBySession.get(input.sessionId) === job) {
+        renderBySession.delete(input.sessionId)
+      }
     }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return {
-      ok: false,
-      message:
-        `Remotion 渲染失败：${msg}。` +
-        '请检查 Composition 代码是否有语法错误，compositionId 是否与 Root.tsx 中 id 一致。'
-    }
-  }
+  })()
+
+  renderBySession.set(input.sessionId, job)
+  return job.promise
 }

@@ -42,6 +42,9 @@ describe('Remotion 内置工具', () => {
     expect(remotionToolsSource).toContain('emitToolProgress')
     expect(remotionServiceSource).toContain('onProgress')
     expect(remotionServiceSource).toContain('createRemotionProgressReporter')
+    expect(remotionServiceSource).toContain('renderBySession')
+    expect(remotionServiceSource).toContain('queryIsChildAlive')
+    expect(remotionToolsSource).toContain('sessionId: ctx.sessionId')
   })
 
   it('general 提示词与视频角色包含 Remotion 指引', () => {

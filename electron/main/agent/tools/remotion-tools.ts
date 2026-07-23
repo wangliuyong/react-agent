@@ -137,6 +137,7 @@ export const remotionRenderTool: AgentTool = {
     '将当前会话 Remotion 工程渲染为 mp4。' +
     '必须先 remotion_init_project 并写好 Composition 代码。' +
     'compositionId 必须与 src/Root.tsx 中注册的 id 一致。' +
+    '同一会话同时只允许一个渲染：若已有进行中的渲染会复用该任务，不会并行启动第二个。' +
     '成功时返回本地 mp4 绝对路径，回复中务必保留该路径供聊天内联预览。' +
     '禁止在未调用本工具成功前声称视频已生成。',
   permission: 'sensitive',
@@ -185,6 +186,7 @@ export const remotionRenderTool: AgentTool = {
     }
 
     const result = await postRenderRemotionVideo({
+      sessionId: ctx.sessionId,
       projectDir,
       compositionId,
       outputPath,
@@ -214,8 +216,10 @@ export const remotionRenderTool: AgentTool = {
       )
     )
 
+    const reuseHint = result.reused ? '（复用同会话已在进行的渲染）\n' : ''
     return queryEncodeWorkflowCtxResult(
       `Remotion 视频渲染成功。\n` +
+        reuseHint +
         `视频路径：${result.path}\n` +
         `compositionId：${compositionId}\n` +
         `工程目录：${projectDir}\n` +
@@ -224,7 +228,8 @@ export const remotionRenderTool: AgentTool = {
         remotionRenderOk: '1',
         videoPath: result.path,
         remotionCompositionId: compositionId,
-        remotionProjectDir: projectDir
+        remotionProjectDir: projectDir,
+        remotionRenderReused: result.reused ? '1' : '0'
       }
     )
   }
