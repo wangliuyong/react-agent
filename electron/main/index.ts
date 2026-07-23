@@ -94,21 +94,25 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   applyAppIcon()
+  // 窗口与 IPC 优先：尽快展示启动屏，减少白屏等待
   getDataRoot()
-  initializeResources()
-  postEnsureRemotionSkillsEnabled()
-  void postEnsureRemotionBrowser().catch(() => {
-    /* 首次失败不阻断启动，渲染时会重试 */
-  })
-  initPublishChannelRegistry()
-  initPublishAdapters()
-  initMediaProviders()
   postRegisterMediaProtocolHandler()
   registerIpcHandlers()
-  startScheduleService()
-  // 启动时按本机配置同步系统登录项
-  postLaunchAtLogin(querySettings().launchAtLogin)
   createWindow()
+
+  // 非关键初始化延后到下一事件循环，不阻塞首屏
+  void Promise.resolve().then(() => {
+    initializeResources()
+    postEnsureRemotionSkillsEnabled()
+    void postEnsureRemotionBrowser().catch(() => {
+      /* 首次失败不阻断启动，渲染时会重试 */
+    })
+    initPublishChannelRegistry()
+    initPublishAdapters()
+    initMediaProviders()
+    startScheduleService()
+    postLaunchAtLogin(querySettings().launchAtLogin)
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

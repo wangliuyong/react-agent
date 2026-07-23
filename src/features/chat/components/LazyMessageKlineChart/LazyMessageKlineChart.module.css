@@ -1,0 +1,18 @@
+.skeleton {
+  width: 100%;
+  min-height: 280px;
+  margin: 8px 0;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--db-hover) 25%, var(--db-border-light) 50%, var(--db-hover) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

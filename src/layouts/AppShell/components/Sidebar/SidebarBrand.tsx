@@ -1,4 +1,4 @@
-import lingxiAvatar from '@/assets/lingxi-avatar.png'
+import lingxiAvatar from '@/assets/lingxi-avatar-sm.webp'
 import styles from './Sidebar.module.css'
 
 interface SidebarBrandProps {

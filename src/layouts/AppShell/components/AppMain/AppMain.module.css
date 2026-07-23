@@ -40,3 +40,34 @@
   font-size: 14px;
   color: var(--db-text-secondary);
 }
+
+/* 懒加载页面占位 */
+.pageLoading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 240px;
+}
+
+.pageLoadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--db-border);
+  border-top-color: var(--db-primary);
+  border-radius: 50%;
+  animation: pageSpin 0.75s linear infinite;
+}
+
+.pageLoadingText {
+  font-size: 14px;
+  color: var(--db-text-secondary);
+}
+
+@keyframes pageSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

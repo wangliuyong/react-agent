@@ -1,0 +1,20 @@
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--db-primary);
+  animation: blink 1s step-end infinite;
+}
+
+.placeholder {
+  display: inline-block;
+  min-height: 1.2em;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}

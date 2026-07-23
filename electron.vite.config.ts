@@ -29,9 +29,42 @@ export default defineConfig({
   renderer: {
     root: resolve('src'),
     build: {
+      // 单 chunk 超过 600 kB 时提示，便于持续优化
+      chunkSizeWarningLimit: 600,
+      // 首屏不预加载重型懒加载包（echarts / xyflow / markdown）
+      modulePreload: {
+        resolveDependencies(_filename, deps) {
+          return deps.filter(
+            (dep) =>
+              !dep.includes('vendor-echarts') &&
+              !dep.includes('vendor-xyflow') &&
+              !dep.includes('vendor-markdown')
+          )
+        }
+      },
       rollupOptions: {
         input: {
           index: resolve('src/index.html')
+        },
+        output: {
+          /**
+           * 仅拆分首屏不必加载的重型依赖；页面级拆分交给 React.lazy。
+           * 避免 antd/react/dayjs 互引导致 circular chunk 警告。
+           */
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined
+            if (id.includes('echarts')) return 'vendor-echarts'
+            if (id.includes('@xyflow')) return 'vendor-xyflow'
+            if (
+              id.includes('react-markdown') ||
+              id.includes('remark-gfm') ||
+              id.includes('micromark') ||
+              id.includes('mdast')
+            ) {
+              return 'vendor-markdown'
+            }
+            return undefined
+          }
         }
       }
     },

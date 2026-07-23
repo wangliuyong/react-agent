@@ -16,6 +16,7 @@ import {
   refreshActiveTextToSpeechProvider,
   refreshActiveVideoProviders
 } from '../../media/provider'
+import { postWritePlaceholderImage } from '../../media/placeholder-image'
 import { getVideosDir } from '../../store/paths'
 import type { AgentTool } from './types'
 
@@ -263,7 +264,6 @@ export const generateSceneAssetsTool: AgentTool = {
         imageOk += 1
         notes.push(`${shot.id} 关键帧：${img.path}`)
       } else {
-        const { postWritePlaceholderImage } = await import('../../media/placeholder-image')
         const stubImg = await postWritePlaceholderImage({
           outputPath: imageOut,
           label: shot.id

@@ -1,5 +1,5 @@
 import type { ChatMessage } from '@shared/types'
-import { ChatMarkdown } from '../ChatMarkdown'
+import { LazyChatMarkdown } from '../LazyChatMarkdown'
 import { MessageImageGallery } from '../MessageImageGallery'
 import { MessageAudioPlayer } from '../MessageAudioPlayer'
 import { MessageVideoPlayer } from '../MessageVideoPlayer'
@@ -16,7 +16,7 @@ import {
   queryDisplayContentWithCharts,
   queryStockLiveRefresh
 } from '../../utils/message-charts'
-import { MessageKlineChart } from '../MessageKlineChart/MessageKlineChart'
+import { LazyMessageKlineChart } from '../LazyMessageKlineChart'
 import styles from './MessageRichContent.module.css'
 
 interface MessageRichContentProps {
@@ -54,11 +54,11 @@ export function MessageRichContent({
   return (
     <>
       {displayText ? (
-        <ChatMarkdown source={displayText} streaming={streaming} className={markdownClassName} />
+        <LazyChatMarkdown source={displayText} streaming={streaming} className={markdownClassName} />
       ) : streaming ? (
         <span className={styles.cursor} />
       ) : null}
-      <MessageKlineChart charts={stockCharts} liveRefresh={stockLiveRefresh} />
+      <LazyMessageKlineChart charts={stockCharts} liveRefresh={stockLiveRefresh} />
       <MessageImageGallery images={images} />
       <MessageAudioPlayer items={audio} />
       <MessageVideoPlayer items={video} />

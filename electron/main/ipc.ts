@@ -106,6 +106,7 @@ import {
 } from '../../shared/publish-channels'
 import type { WorkflowDefinition } from '../../shared/types'
 import { postNotifyMessage } from './notify/send'
+import { queryAshareRealtimeAnalysisCharts } from './agent/tools/stock-tools'
 
 /** 注册全部 IPC；读 query* / 写 post* */
 export function registerIpcHandlers(): void {
@@ -233,7 +234,6 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.postNotifyChannelTest, async (_e, channelId: string) => {
     const id = String(channelId)
     // 确保渠道注册表已从磁盘加载
-    const { queryPublishChannels } = await import('./store/channels')
     queryPublishChannels()
     const meta = queryPublishChannelMeta(id)
     const msgType = queryFeishuMsgType({
@@ -320,7 +320,6 @@ export function registerIpcHandlers(): void {
   })
   /** 聊天内手动刷新：与工具 query_ashare_realtime_analysis 同源拉数（含多周期 + 分析） */
   ipcMain.handle(IpcChannels.queryAshareKlineRefresh, async (_e, req) => {
-    const { queryAshareRealtimeAnalysisCharts } = await import('./agent/tools/stock-tools')
     const symbol = String(req?.symbol ?? '').trim()
     if (!symbol) return null
 

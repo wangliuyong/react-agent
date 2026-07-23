@@ -12,6 +12,14 @@ import App from './App'
 import './styles/global.css'
 import { antdThemeConfig } from './styles/theme-tokens'
 
+/** 淡出并移除 HTML 内联启动屏（在 React 首帧渲染后执行） */
+function dismissAppSplash(): void {
+  const splash = document.getElementById('app-splash')
+  if (!splash) return
+  splash.classList.add('is-hidden')
+  window.setTimeout(() => splash.remove(), 280)
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ConfigProvider locale={zhCN} theme={antdThemeConfig}>
@@ -21,3 +29,8 @@ createRoot(document.getElementById('root')!).render(
     </ConfigProvider>
   </StrictMode>
 )
+
+// 下一帧再隐藏启动屏，确保根布局已绘制
+requestAnimationFrame(() => {
+  requestAnimationFrame(dismissAppSplash)
+})

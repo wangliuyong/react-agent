@@ -9,7 +9,7 @@ import {
   queryIsSyntheticToolCallContent,
   queryTimelineEndsWithToolGroup
 } from '../../utils/queryAgentTimeline'
-import { ChatMarkdown } from '../ChatMarkdown'
+import { LazyChatMarkdown } from '../LazyChatMarkdown'
 import { MessageRichContent } from '../MessageRichContent'
 import { TypingIndicator } from '../TypingIndicator'
 import { ToolCallGroup } from './ToolCallGroup'
@@ -145,7 +145,7 @@ export function MessageList({
               <div className={`${styles.row} ${styles.rowThinking}`}>
                 <span className={styles.label}>灵犀</span>
                 <div className={styles.thinkingBox}>
-                  <ChatMarkdown
+                  <LazyChatMarkdown
                     source={m.thinkingContent}
                     className={styles.thinkingMarkdown}
                   />
@@ -174,7 +174,7 @@ export function MessageList({
         <div className={`${styles.row} ${styles.rowThinking}`}>
           <span className={styles.label}>灵犀</span>
           <div className={styles.thinkingBox}>
-            <ChatMarkdown
+            <LazyChatMarkdown
               source={thinkingText}
               streaming={running}
               className={styles.thinkingMarkdown}
