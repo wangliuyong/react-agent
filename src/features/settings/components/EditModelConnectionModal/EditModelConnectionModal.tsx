@@ -149,7 +149,7 @@ export function EditModelConnectionModal({
       onOk={() => void handleOk()}
       okText="保存"
       cancelText="取消"
-      destroyOnClose
+      destroyOnHidden
       className={styles.modal}
       width={520}
     >

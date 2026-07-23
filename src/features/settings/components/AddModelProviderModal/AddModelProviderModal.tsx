@@ -68,7 +68,7 @@ export function AddModelProviderModal({
       onOk={() => void handleOk()}
       okText="添加"
       cancelText="取消"
-      destroyOnClose
+      destroyOnHidden
       className={styles.modal}
       width={480}
     >

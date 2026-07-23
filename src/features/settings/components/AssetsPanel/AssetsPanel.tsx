@@ -553,7 +553,7 @@ export function AssetsPanel(): React.ReactElement {
         onClose={() => setPreviewOpen(false)}
         width={Math.min(720, window.innerWidth - 48)}
         className={styles.previewDrawer}
-        destroyOnClose
+        destroyOnHidden
         extra={
           previewAsset ? (
             <Space>

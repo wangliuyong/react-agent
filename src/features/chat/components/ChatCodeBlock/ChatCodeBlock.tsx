@@ -187,7 +187,7 @@ export function ChatCodeBlock({
         footer={null}
         width="min(920px, 92vw)"
         className={styles.fullscreenModal}
-        destroyOnClose
+        destroyOnHidden
       >
         <div className={styles.modalToolbar}>
           <span className={styles.modalMeta}>{lineCount} 行</span>

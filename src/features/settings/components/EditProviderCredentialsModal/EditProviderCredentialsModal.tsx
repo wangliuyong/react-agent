@@ -108,7 +108,7 @@ export function EditProviderCredentialsModal({
       onOk={() => void handleOk()}
       okText="确定"
       cancelText="取消"
-      destroyOnClose
+      destroyOnHidden
       className={styles.modal}
       width={520}
     >

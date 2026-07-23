@@ -562,7 +562,7 @@ export function SessionContextDrawer({
       width="min(1080px, 86vw)"
       open={open}
       onClose={onClose}
-      destroyOnClose
+      destroyOnHidden
       className={styles.drawer}
       styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column' } }}
     >
