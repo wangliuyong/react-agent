@@ -20,8 +20,34 @@ const CLICK_MOVE_TOLERANCE = 6
 /** 垂直定位锚点选择器（ChatPage .page） */
 const ANCHOR_SELECTOR = '[data-task-checklist-anchor]'
 
-/** localStorage 键：记住垂直位置（视口坐标） */
+/** localStorage 键：记住垂直位置（视口坐标）与面板展开/收起 */
 const POSITION_STORAGE_KEY = 'react-agent:task-checklist-position'
+
+interface TaskChecklistUiStorage {
+  y?: number
+  space?: unknown
+  /** false 为右侧圆球收起态 */
+  contentExpanded?: boolean
+}
+
+/** 读取任务清单 UI 缓存（位置、展开态等） */
+function readTaskChecklistUiStorage(): TaskChecklistUiStorage {
+  try {
+    const raw = localStorage.getItem(POSITION_STORAGE_KEY)
+    if (!raw) return {}
+    return JSON.parse(raw) as TaskChecklistUiStorage
+  } catch {
+    return {}
+  }
+}
+
+/** 合并写入任务清单 UI 缓存，避免覆盖未更新的字段 */
+function postTaskChecklistUiStorage(patch: TaskChecklistUiStorage): void {
+  localStorage.setItem(
+    POSITION_STORAGE_KEY,
+    JSON.stringify({ ...readTaskChecklistUiStorage(), ...patch })
+  )
+}
 
 interface TaskChecklistProps {
   tasks: TaskItem[]
@@ -44,24 +70,21 @@ interface TaskChecklistProps {
 
 /** 从 localStorage 读取垂直位置；兼容旧版相对 page 的 offset */
 function loadSavedY(anchorTop: number): number {
-  try {
-    const raw = localStorage.getItem(POSITION_STORAGE_KEY)
-    if (!raw) return anchorTop + DEFAULT_TOP
-    const parsed = JSON.parse(raw) as { y?: unknown; space?: unknown }
-    if (typeof parsed.y !== 'number') return anchorTop + DEFAULT_TOP
-    if (parsed.space === 'viewport') return parsed.y
-    return anchorTop + parsed.y
-  } catch {
-    return anchorTop + DEFAULT_TOP
-  }
+  const parsed = readTaskChecklistUiStorage()
+  if (typeof parsed.y !== 'number') return anchorTop + DEFAULT_TOP
+  if (parsed.space === 'viewport') return parsed.y
+  return anchorTop + parsed.y
+}
+
+/** 读取面板是否展开；默认展开完整面板 */
+function loadSavedContentExpanded(): boolean {
+  const stored = readTaskChecklistUiStorage().contentExpanded
+  return typeof stored === 'boolean' ? stored : true
 }
 
 /** 持久化垂直位置到 localStorage */
 function postSavedY(y: number): void {
-  localStorage.setItem(
-    POSITION_STORAGE_KEY,
-    JSON.stringify({ y, space: 'viewport' })
-  )
+  postTaskChecklistUiStorage({ y, space: 'viewport' })
 }
 
 /** 查找 ChatPage 锚定容器 */
@@ -154,8 +177,8 @@ export function TaskChecklist({
   /** 垂直位置（视口坐标，fixed top） */
   const [positionY, setPositionY] = useState<number>(DEFAULT_TOP)
   const [dragging, setDragging] = useState(false)
-  /** 任务列表展开；false 时渲染右侧吸附圆球 */
-  const [contentExpanded, setContentExpanded] = useState(true)
+  /** 任务列表展开；false 时渲染右侧吸附圆球（刷新后从 localStorage 恢复） */
+  const [contentExpanded, setContentExpanded] = useState(loadSavedContentExpanded)
   /** 面板 ↔ 圆球切换时的过渡动画 */
   const [morphPhase, setMorphPhase] = useState<'idle' | 'to-orb' | 'to-panel'>('idle')
   /** 指针按下时相对控件顶部的垂直偏移 */
@@ -219,6 +242,11 @@ export function TaskChecklist({
   useEffect(() => {
     positionYRef.current = positionY
   }, [positionY])
+
+  /** 展开/收起变化时写入缓存 */
+  useEffect(() => {
+    postTaskChecklistUiStorage({ contentExpanded })
+  }, [contentExpanded])
 
   /** 窗口尺寸变化时校正位置 */
   useEffect(() => {
