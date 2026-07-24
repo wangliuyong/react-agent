@@ -64,7 +64,7 @@ export function ToolCallGroup({
                       items={[
                         {
                           key: '1',
-                          label: `${queryToolLabel(name)}${mediaLabel}`,
+                          label: `${queryToolLabel(name)}${mediaLabel} (${name})`,
                           children: (
                             <MessageRichContent
                               content={t.content}
