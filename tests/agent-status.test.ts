@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   queryAgentBusyLabel,
-  queryAgentStatusLabel
+  queryAgentStatusLabel,
+  querySkillNameFromToolContent,
+  queryToolCallLabel
 } from '../src/features/chat/utils/agent-status'
 
 describe('queryAgentStatusLabel', () => {
@@ -29,6 +31,31 @@ describe('queryAgentStatusLabel', () => {
     ).toBe('正在切换模型 · 创作编剧…')
   })
 
+  it('加载技能时展示技能名', () => {
+    expect(
+      queryAgentStatusLabel({
+        running: true,
+        streamingText: '',
+        activeToolName: 'use_skill',
+        activeToolArgs: { skillId: 'writing-guide' },
+        skillNameById: new Map([['writing-guide', '写作指南']]),
+        awaitUserReason: null
+      })
+    ).toBe('正在加载技能：写作指南…')
+  })
+
+  it('无技能目录时回退为 skillId', () => {
+    expect(
+      queryAgentStatusLabel({
+        running: true,
+        streamingText: '',
+        activeToolName: 'use_skill',
+        activeToolArgs: { skillId: 'writing-guide' },
+        awaitUserReason: null
+      })
+    ).toBe('正在加载技能：writing-guide…')
+  })
+
   it('Remotion 渲染附带进度说明', () => {
     expect(
       queryAgentStatusLabel({
@@ -39,6 +66,33 @@ describe('queryAgentStatusLabel', () => {
         activeToolProgress: { percent: 45, phase: 'render', message: '渲染视频 45%' }
       })
     ).toBe('正在渲染 Remotion 视频（渲染视频 45%）')
+  })
+})
+
+describe('queryToolCallLabel', () => {
+  it('use_skill 优先用目录名，其次从工具正文解析', () => {
+    expect(
+      queryToolCallLabel('use_skill', { skillId: 'writing-guide' }, {
+        skillNameById: new Map([['writing-guide', '写作指南']])
+      })
+    ).toBe('加载技能：写作指南')
+
+    expect(
+      queryToolCallLabel('use_skill', { skillId: 'writing-guide' }, {
+        toolContent: '# 技能：写作指南\n\n正文'
+      })
+    ).toBe('加载技能：写作指南')
+  })
+
+  it('其它工具保持原标签', () => {
+    expect(queryToolCallLabel('browser_navigate')).toBe('打开网页')
+  })
+})
+
+describe('querySkillNameFromToolContent', () => {
+  it('解析技能标题行', () => {
+    expect(querySkillNameFromToolContent('# 技能：写作指南\n\nx')).toBe('写作指南')
+    expect(querySkillNameFromToolContent('无标题')).toBeNull()
   })
 })
 

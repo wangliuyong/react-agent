@@ -27,8 +27,11 @@ export function ChatPage(): React.ReactElement {
   const thinkingText = useSessionStore((s) => s.thinkingText)
   const thinkingInProgress = useSessionStore((s) => s.thinkingInProgress)
   const activeToolName = useSessionStore((s) => s.activeToolName)
+  const activeToolArgs = useSessionStore((s) => s.activeToolArgs)
   const activeToolProgress = useSessionStore((s) => s.activeToolProgress)
   const activeModelLabel = useSessionStore((s) => s.activeModelLabel)
+  const skills = useSkillsStore((s) => s.skills)
+  const hydrateSkills = useSkillsStore((s) => s.hydrate)
   const sendMessage = useSessionStore((s) => s.sendMessage)
   const abort = useSessionStore((s) => s.abort)
   const continueRun = useSessionStore((s) => s.continueRun)
@@ -41,6 +44,19 @@ export function ChatPage(): React.ReactElement {
 
   const setView = useAppStore((s) => s.setView)
   const newChatShortcut = queryNewChatShortcutLabel()
+
+  /** 技能目录：用于「加载技能：名称」展示；未进技能页时也需有一份摘要 */
+  useEffect(() => {
+    if (skills.length === 0) void hydrateSkills()
+  }, [skills.length, hydrateSkills])
+
+  const skillNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const skill of skills) {
+      map.set(skill.id, skill.name)
+    }
+    return map
+  }, [skills])
 
   useEffect(() => {
     // 为什么：启动时 Store 先使用默认空 API Key，必须等待磁盘配置加载后再判断，
@@ -73,6 +89,8 @@ export function ChatPage(): React.ReactElement {
     running,
     streamingText,
     activeToolName,
+    activeToolArgs,
+    skillNameById,
     activeToolProgress,
     awaitUserReason,
     activeModelLabel
@@ -168,8 +186,10 @@ export function ChatPage(): React.ReactElement {
               tasks={session?.tasks ?? []}
               running={running}
               activeToolName={activeToolName}
+              activeToolArgs={activeToolArgs}
               activeToolProgress={activeToolProgress}
               awaitUserReason={awaitUserReason}
+              skillNameById={skillNameById}
             />
           )}
         </div>
@@ -181,8 +201,10 @@ export function ChatPage(): React.ReactElement {
         running={running}
         streamingText={streamingText}
         activeToolName={activeToolName}
+        activeToolArgs={activeToolArgs}
         activeToolProgress={activeToolProgress}
         activeModelLabel={activeModelLabel}
+        skillNameById={skillNameById}
         awaitUserReason={awaitUserReason}
         awaitUserChoices={awaitUserChoices}
         tokenUsed={session?.tokenUsed ?? 0}
