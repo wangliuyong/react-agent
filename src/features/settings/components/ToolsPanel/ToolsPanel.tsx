@@ -206,9 +206,9 @@ export function ToolsPanel(): React.ReactElement {
                               ? `注入 ${roles.map((r) => ROLE_LABELS[r]).join('、')}`
                               : '未注入任何角色'}
                           </Text>
-                          <Button type="link" size="small" icon={<CodeOutlined />}>
+                          {/* <Button type="link" size="small" icon={<CodeOutlined />}>
                             详情
-                          </Button>
+                          </Button> */}
                         </div>
                       </Card>
                     )

@@ -181,15 +181,18 @@ export function ChannelStatusPanel(): React.ReactElement {
               : '凭据仅保存在本机'}
           </Text>
           {canOpenLogin ? (
-            <Button
-              type="link"
-              size="small"
-              icon={<LoginOutlined />}
-              loading={openingId === channel.id}
-              onClick={() => void handleOpenLogin(channel)}
-            >
-              打开登录页
-            </Button>
+            <Tooltip title="打开登录页">
+              <Button
+                type="link"
+                size="small"
+                icon={<LoginOutlined />}
+                loading={openingId === channel.id}
+                onClick={() => void handleOpenLogin(channel)}
+              >
+                {/* 打开登录页 */}
+              </Button>
+            </Tooltip>
+
           ) : null}
         </div>
       </Card>
