@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import type { AppView } from '@/stores/app-store'
+import { shellStyles } from '@/components/page-shell'
 import { queryNavItem } from '../../config/nav-items'
 import { PlaceholderView } from './PlaceholderView'
 import styles from './AppMain.module.css'
@@ -46,9 +47,9 @@ interface AppMainProps {
 /** 页面切换时的轻量占位，避免白屏 */
 function PageFallback(): React.ReactElement {
   return (
-    <div className={styles.pageLoading} role="status" aria-live="polite">
-      <div className={styles.pageLoadingSpinner} aria-hidden />
-      <span className={styles.pageLoadingText}>加载中…</span>
+    <div className={shellStyles.pageLoading} role="status" aria-live="polite">
+      <div className={shellStyles.pageLoadingSpinner} aria-hidden />
+      <span className={shellStyles.pageLoadingText}>加载中…</span>
     </div>
   )
 }

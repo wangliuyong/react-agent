@@ -1,3 +1,5 @@
+@import './semantic-tokens.css';
+
 /* ── 豆包风格设计令牌 ── */
 :root {
   /* 背景层级 */
@@ -50,6 +52,8 @@
 
   /* 辅助背景 */
   --db-bg-subtle: #fafbfc;
+  /* 与 --db-hover 同义，兼容 settingsCard 等历史引用 */
+  --db-bg-hover: #f2f3f5;
 
   /* 圆角 */
   --db-radius-sm: 8px;
@@ -247,4 +251,21 @@ a {
 .ant-drawer-close:hover {
   color: var(--db-text);
   background: var(--db-hover);
+}
+
+/* Table / Empty / Tabs 与壳层间距对齐 */
+.ant-table-wrapper .ant-table {
+  border-radius: var(--db-radius-md);
+}
+
+.ant-empty {
+  margin-block: 32px;
+}
+
+.ant-tabs-nav {
+  margin-bottom: 16px !important;
+}
+
+.ant-tabs-tab {
+  padding: 10px 4px !important;
 }

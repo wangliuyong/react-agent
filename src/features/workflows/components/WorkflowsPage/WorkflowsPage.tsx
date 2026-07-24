@@ -12,8 +12,13 @@ import { WorkflowCanvasDrawer } from '../WorkflowCanvasDrawer'
 import { useSessionStore } from '@/features/chat'
 import { useAppStore } from '@/stores/app-store'
 import styles from './WorkflowsPage.module.css'
-
-const { Title, Text } = Typography
+import {
+  FeaturePageShell,
+  FeaturePageHeader,
+  FeaturePageToolbar,
+  FeatureScrollBody,
+  shellStyles
+} from '@/components/page-shell'
 
 type WorkflowKindFilter = 'all' | 'generic' | 'publish'
 type WorkflowSort = 'updated_desc' | 'name_asc' | 'name_desc'
@@ -288,41 +293,31 @@ export function WorkflowsPage(): React.ReactElement {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={`${styles.header} app-drag`}>
-        <div className={styles.headerMain}>
-          <div className={styles.headerIcon}>
-            <AppstoreOutlined />
-          </div>
-          <div>
-            <div className={styles.titleRow}>
-              <Title level={3} className={styles.title}>
-                流程
-              </Title>
-              <span className={styles.countBadge}>{workflows.length}</span>
-            </div>
-            <Text type="secondary" className={styles.desc}>
-              卡片浏览流程，点击查看详情；在画布中拖拽连线编排并运行
-            </Text>
-          </div>
-        </div>
-        <Space wrap className="app-no-drag">
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={async () => {
-              await hydrate()
-              message.success('已刷新')
-            }}
-          >
-            刷新
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => void handleCreate()}>
-            新建流程
-          </Button>
-        </Space>
-      </header>
+    <FeaturePageShell>
+      <FeaturePageHeader
+        icon={<AppstoreOutlined />}
+        title="流程"
+        badge={workflows.length}
+        description="卡片浏览流程，点击查看详情；在画布中拖拽连线编排并运行"
+        extra={
+          <Space wrap>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={async () => {
+                await hydrate()
+                message.success('已刷新')
+              }}
+            >
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => void handleCreate()}>
+              新建流程
+            </Button>
+          </Space>
+        }
+      />
 
-      <div className={styles.toolbar}>
+      <FeaturePageToolbar>
         <Segmented
           value={kind}
           onChange={(v) => setKind(v as WorkflowKindFilter)}
@@ -332,8 +327,8 @@ export function WorkflowsPage(): React.ReactElement {
             { label: '发布', value: 'publish' }
           ]}
         />
-        <div className={styles.toolbarRight}>
-          <span className={styles.resultCount}>{filtered.length} 项</span>
+        <div className={shellStyles.toolbarRight}>
+          <span className={shellStyles.resultCount}>{filtered.length} 项</span>
           <Input
             allowClear
             prefix={<SearchOutlined />}
@@ -353,9 +348,9 @@ export function WorkflowsPage(): React.ReactElement {
             ]}
           />
         </div>
-      </div>
+      </FeaturePageToolbar>
 
-      <div className={styles.body}>
+      <FeatureScrollBody>
         <Spin spinning={loading && workflows.length === 0}>
           {filtered.length === 0 ? (
             <Empty
@@ -377,7 +372,7 @@ export function WorkflowsPage(): React.ReactElement {
             </div>
           )}
         </Spin>
-      </div>
+      </FeatureScrollBody>
 
       <WorkflowDetailModal
         open={detailOpen}
@@ -404,6 +399,6 @@ export function WorkflowsPage(): React.ReactElement {
         onSave={() => void handleSave()}
         onRun={() => void handleRun(undefined, { stayOnCanvas: true })}
       />
-    </div>
+    </FeaturePageShell>
   )
 }

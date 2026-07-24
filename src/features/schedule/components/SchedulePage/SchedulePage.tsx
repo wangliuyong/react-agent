@@ -22,8 +22,13 @@ import { useAppStore } from '@/stores/app-store'
 import { isBuiltinSeedId } from '@shared/builtin-seeds'
 import { DB_THEME } from '@/styles/theme-tokens'
 import styles from './SchedulePage.module.css'
-
-const { Title, Text } = Typography
+import {
+  FeaturePageShell,
+  FeaturePageHeader,
+  FeaturePageToolbar,
+  FeatureScrollBody,
+  shellStyles
+} from '@/components/page-shell'
 
 interface TaskFormValues {
   title: string
@@ -691,54 +696,43 @@ export function SchedulePage(): React.ReactElement {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={`${styles.header} app-drag`}>
-        <div className={styles.headerMain}>
-          <div className={styles.headerIcon}>
-            <ClockCircleOutlined />
-          </div>
-          <div>
-            <div className={styles.titleRow}>
-              <Title level={3} className={styles.headerTitle}>
-                定时任务
-              </Title>
-              <span className={styles.countBadge}>{tasks.length}</span>
-            </div>
-            <Text type="secondary" className={styles.desc}>
-              到点执行发布计划、工作流或自定义指令；运行中 {stats.running} · 执行中{' '}
-              {stats.executing}
-            </Text>
-          </div>
-        </div>
-        <Space wrap className="app-no-drag">
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => void handleRefresh()}
-            loading={refreshing}
-          >
-            刷新
-          </Button>
-          <Button
-            onClick={async () => {
-              await addBuiltinTasks()
-              message.success('已导入内置定时任务')
-            }}
-          >
-            导入示例
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setTaskModal({ mode: 'create', task: createEmptyScheduledTask() })
-            }}
-          >
-            添加任务
-          </Button>
-        </Space>
-      </header>
+    <FeaturePageShell>
+      <FeaturePageHeader
+        icon={<ClockCircleOutlined />}
+        title="定时任务"
+        badge={tasks.length}
+        description={`到点执行发布计划、工作流或自定义指令；运行中 ${stats.running} · 执行中 ${stats.executing}`}
+        extra={
+          <Space wrap>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => void handleRefresh()}
+              loading={refreshing}
+            >
+              刷新
+            </Button>
+            <Button
+              onClick={async () => {
+                await addBuiltinTasks()
+                message.success('已导入内置定时任务')
+              }}
+            >
+              导入示例
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setTaskModal({ mode: 'create', task: createEmptyScheduledTask() })
+              }}
+            >
+              添加任务
+            </Button>
+          </Space>
+        }
+      />
 
-      <div className={styles.toolbar}>
+      <FeaturePageToolbar>
         <Segmented
           value={filter}
           onChange={(v) => setFilter(v as ScheduleFilter)}
@@ -750,8 +744,8 @@ export function SchedulePage(): React.ReactElement {
             { label: '已完成', value: 'completed' }
           ]}
         />
-        <div className={styles.toolbarRight}>
-          <span className={styles.resultCount}>{filtered.length} 项</span>
+        <div className={shellStyles.toolbarRight}>
+          <span className={shellStyles.resultCount}>{filtered.length} 项</span>
           <Input
             allowClear
             prefix={<SearchOutlined />}
@@ -761,9 +755,9 @@ export function SchedulePage(): React.ReactElement {
             className={styles.searchInput}
           />
         </div>
-      </div>
+      </FeaturePageToolbar>
 
-      <div className={styles.body}>
+      <FeatureScrollBody>
         {filtered.length === 0 ? (
           <Empty
             description={tasks.length === 0 ? '暂无定时任务' : '暂无匹配的任务'}
@@ -815,7 +809,7 @@ export function SchedulePage(): React.ReactElement {
             ))}
           </div>
         )}
-      </div>
+      </FeatureScrollBody>
 
       <TaskEditModal
         open={Boolean(taskModal)}
@@ -832,6 +826,6 @@ export function SchedulePage(): React.ReactElement {
           message.success(isCreate ? '已创建定时任务' : '已保存')
         }}
       />
-    </div>
+    </FeaturePageShell>
   )
 }

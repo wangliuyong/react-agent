@@ -1,0 +1,39 @@
+/**
+ * 语义化设计令牌 — 与 theme-tokens.ts / global.css 品牌色对齐。
+ * 供卡片标签、流程节点、资产类型等场景复用，避免散落硬编码 hex。
+ */
+:root {
+  /* 与 --db-hover 同义，兼容历史类名 */
+  --db-bg-hover: var(--db-hover);
+
+  /* 标签语义色 */
+  --db-tag-success-bg: color-mix(in srgb, var(--db-success) 12%, transparent);
+  --db-tag-success-text: #008f5d;
+  --db-tag-warning-bg: rgba(245, 158, 11, 0.14);
+  --db-tag-warning-text: #d97706;
+  --db-tag-danger-bg: rgba(239, 68, 68, 0.12);
+  --db-tag-danger-text: #dc2626;
+
+  /* 资产类型色（设置-资产面板） */
+  --db-asset-image-bg: color-mix(in srgb, #e85d4c 18%, transparent);
+  --db-asset-image-text: #c94a3a;
+  --db-asset-audio-bg: color-mix(in srgb, #7c5cbf 18%, transparent);
+  --db-asset-audio-text: #6a4da8;
+  --db-asset-video-bg: color-mix(in srgb, #3b82c4 18%, transparent);
+  --db-asset-video-text: #2d6a9f;
+  --db-asset-doc-bg: color-mix(in srgb, #c9a227 18%, transparent);
+  --db-asset-doc-text: #9a7b1a;
+
+  /* Workflow 节点类型左边框色 */
+  --db-wf-node-teal: #14b8a6;
+  --db-wf-node-indigo: #6366f1;
+  --db-wf-node-amber: #f59e0b;
+  --db-wf-node-sky: #0ea5e9;
+  --db-wf-node-purple: #a855f7;
+  --db-wf-node-success: #22c55e;
+  --db-wf-node-danger: #ef4444;
+
+  /* 业务历史：强调链接/统计，对齐品牌蓝而非 Ant 默认紫 */
+  --db-accent-info: var(--db-primary);
+  --db-accent-info-muted: var(--db-primary-muted);
+}

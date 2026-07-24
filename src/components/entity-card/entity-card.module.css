@@ -164,18 +164,18 @@
 }
 
 .successTag {
-  background: color-mix(in srgb, #00b578 12%, transparent) !important;
-  color: #008f5d !important;
+  background: var(--db-tag-success-bg) !important;
+  color: var(--db-tag-success-text) !important;
 }
 
 .warningTag {
-  background: rgba(245, 158, 11, 0.14) !important;
-  color: #d97706 !important;
+  background: var(--db-tag-warning-bg) !important;
+  color: var(--db-tag-warning-text) !important;
 }
 
 .dangerTag {
-  background: rgba(239, 68, 68, 0.12) !important;
-  color: #dc2626 !important;
+  background: var(--db-tag-danger-bg) !important;
+  color: var(--db-tag-danger-text) !important;
 }
 
 .neutralTag {
@@ -306,6 +306,16 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+
+  .card:hover {
+    transform: none;
   }
 }
 

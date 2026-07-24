@@ -7,7 +7,7 @@ import type {
 } from '@shared/types'
 import { queryToolLabel } from '@/features/chat/utils/agent-status'
 import { queryAgentToolsCatalog } from '../../api'
-import cardStyles from '../../styles/settingsCard.module.css'
+import cardStyles from '@/components/entity-card'
 import styles from './ToolsPanel.module.css'
 
 const { Text, Title, Paragraph } = Typography

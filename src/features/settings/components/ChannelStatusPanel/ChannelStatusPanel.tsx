@@ -11,7 +11,7 @@ import {
   queryChannelLoginStatuses,
   useChannelsStore
 } from '@/features/channels'
-import cardStyles from '../../styles/settingsCard.module.css'
+import cardStyles from '@/components/entity-card'
 import styles from './ChannelStatusPanel.module.css'
 
 const { Text, Title } = Typography

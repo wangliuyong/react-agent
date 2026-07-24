@@ -15,7 +15,7 @@ import {
   type ProviderFormDraft,
   type ProviderFormDraftMap
 } from '../SettingsPage/settingsFormSync'
-import cardStyles from '../../styles/settingsCard.module.css'
+import cardStyles from '@/components/entity-card'
 import styles from './ModelApiPanel.module.css'
 
 const { Text, Title } = Typography

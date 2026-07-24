@@ -18,7 +18,7 @@ import {
   queryAgentAssetTextPreview,
   queryAgentAssets
 } from '../../api'
-import cardStyles from '../../styles/settingsCard.module.css'
+import cardStyles from '@/components/entity-card'
 import styles from './AssetsPanel.module.css'
 
 const { Text, Title, Paragraph } = Typography

@@ -19,7 +19,7 @@ import {
   queryRolePromptPlaceholder,
   ROLE_TASK_META
 } from './connectionPanelShared'
-import cardStyles from '../../styles/settingsCard.module.css'
+import cardStyles from '@/components/entity-card'
 import styles from './ModelConnectionsPanel.module.css'
 
 const { Text, Title } = Typography

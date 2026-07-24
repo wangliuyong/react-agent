@@ -238,7 +238,7 @@
 
 .tone_workflow {
   background: rgba(114, 46, 209, 0.1);
-  color: #722ed1;
+  color: var(--db-accent-info);
 }
 
 /* 类型标签 */
@@ -269,7 +269,7 @@
 
 .typeTag_workflow {
   background: rgba(114, 46, 209, 0.1) !important;
-  color: #722ed1 !important;
+  color: var(--db-accent-info) !important;
 }
 
 @keyframes cardIn {

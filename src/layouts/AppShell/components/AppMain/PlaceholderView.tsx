@@ -1,4 +1,4 @@
-import styles from './AppMain.module.css'
+import { shellStyles } from '@/components/page-shell'
 
 const { Text } = Typography
 
@@ -10,9 +10,9 @@ interface PlaceholderViewProps {
 /** 尚未上线的功能占位页 */
 export function PlaceholderView({ icon, label }: PlaceholderViewProps): React.ReactElement {
   return (
-    <div className={styles.placeholder}>
-      <div className={styles.placeholderIcon}>{icon}</div>
-      <Text className={styles.placeholderText}>「{label}」功能即将上线</Text>
+    <div className={shellStyles.emptyState}>
+      <div className={shellStyles.emptyStateIcon}>{icon}</div>
+      <Text className={shellStyles.emptyStateText}>「{label}」功能即将上线</Text>
     </div>
   )
 }

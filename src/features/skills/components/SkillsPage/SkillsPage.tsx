@@ -10,9 +10,14 @@ import { useSkillsStore } from '../../hooks/useSkillsStore'
 import { SkillMarkdown } from '../SkillMarkdown'
 import { isValidSkillId, skillDetailToInput, slugifySkillId } from '../../types'
 import { DB_THEME } from '@/styles/theme-tokens'
+import {
+  FeaturePageShell,
+  FeaturePageHeader,
+  FeaturePageToolbar,
+  FeatureScrollBody,
+  shellStyles
+} from '@/components/page-shell'
 import styles from './SkillsPage.module.css'
-
-const { Title, Text } = Typography
 
 /** 主 Tab：全部 / 活跃 / 已归档 / 市场模板 / 我的技能 */
 type SkillTab = 'all' | 'active' | 'archived' | 'market' | 'mine'
@@ -437,52 +442,40 @@ export function SkillsPage(): React.ReactElement {
     : '正在分析并预览技能…'
 
   return (
-    <div className={styles.page}>
-      {/* 顶栏：标题 + 全局操作 */}
-      <header className={`${styles.header} app-drag`}>
-        <div className={styles.headerMain}>
-          <div className={styles.headerIcon}>
-            <ThunderboltOutlined />
-          </div>
-          <div>
-            <div className={styles.titleRow}>
-              <Title level={3} className={styles.title}>
-                技能
-              </Title>
-              <span className={styles.countBadge}>{skills.length}</span>
-            </div>
-            <Text type="secondary" className={styles.desc}>
-              将领域知识注入 Agent 系统提示
-            </Text>
-          </div>
-        </div>
-        <Space wrap className="app-no-drag">
-          <Button icon={<ImportOutlined />} onClick={openImportModal}>
-            导入
-          </Button>
-          <Button icon={<ExportOutlined />} loading={exporting} onClick={() => void handleExport()}>
-            导出
-          </Button>
-          <Button icon={<DollarOutlined />} onClick={() => void openTemplateModal()}>
-            智能整理
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            创建
-          </Button>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={async () => {
-              await refresh()
-              message.success('已刷新')
-            }}
-          >
-            刷新
-          </Button>
-        </Space>
-      </header>
+    <FeaturePageShell>
+      <FeaturePageHeader
+        icon={<ThunderboltOutlined />}
+        title="技能"
+        badge={skills.length}
+        description="将领域知识注入 Agent 系统提示"
+        extra={
+          <Space wrap>
+            <Button icon={<ImportOutlined />} onClick={openImportModal}>
+              导入
+            </Button>
+            <Button icon={<ExportOutlined />} loading={exporting} onClick={() => void handleExport()}>
+              导出
+            </Button>
+            <Button icon={<DollarOutlined />} onClick={() => void openTemplateModal()}>
+              智能整理
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              创建
+            </Button>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={async () => {
+                await refresh()
+                message.success('已刷新')
+              }}
+            >
+              刷新
+            </Button>
+          </Space>
+        }
+      />
 
-      {/* 筛选栏：Tab + 范围 + 搜索 + 排序 */}
-      <div className={styles.toolbar}>
+      <FeaturePageToolbar>
         <Segmented
           value={tab}
           onChange={(v) => setTab(v as SkillTab)}
@@ -503,8 +496,8 @@ export function SkillsPage(): React.ReactElement {
             { label: '我的', value: 'custom' }
           ]}
         />
-        <div className={styles.toolbarRight}>
-          <span className={styles.resultCount}>{tabCount} 项</span>
+        <div className={shellStyles.toolbarRight}>
+          <span className={shellStyles.resultCount}>{tabCount} 项</span>
           <Input
             allowClear
             prefix={<SearchOutlined />}
@@ -524,10 +517,9 @@ export function SkillsPage(): React.ReactElement {
             ]}
           />
         </div>
-      </div>
+      </FeaturePageToolbar>
 
-      {/* 卡片网格 */}
-      <div className={styles.body}>
+      <FeatureScrollBody>
         <Spin spinning={loading && (tab === 'market' ? templates.length === 0 : skills.length === 0)}>
           {tab === 'market' ? (
             filteredTemplates.length === 0 ? (
@@ -612,7 +604,7 @@ export function SkillsPage(): React.ReactElement {
             </div>
           )}
         </Spin>
-      </div>
+      </FeatureScrollBody>
 
       {/* 技能详情抽屉 */}
       <Modal
@@ -949,6 +941,6 @@ export function SkillsPage(): React.ReactElement {
           </div>
         </Spin>
       </Modal>
-    </div>
+    </FeaturePageShell>
   )
 }

@@ -1,0 +1,258 @@
+/* 功能页统一壳层 — 顶栏 / 工具栏 / 滚动主体 */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--db-bg);
+  position: relative;
+  overflow: hidden;
+}
+
+.page[data-atmosphere='true']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 45% at 0% 0%, var(--db-primary-muted), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, var(--db-primary-subtle), transparent 55%);
+  opacity: 0.9;
+}
+
+.header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 28px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+  flex-wrap: wrap;
+}
+
+.headerCompact {
+  padding: 18px 28px;
+}
+
+.headerMain {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.headerIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--db-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.headerIconCompact {
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title {
+  margin: 0 !important;
+  font-size: 18px !important;
+  font-weight: 650 !important;
+  color: var(--db-text) !important;
+}
+
+.headerBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--db-radius-pill);
+  background: var(--db-primary);
+  color: var(--db-on-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.headerBadgeMuted {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.desc {
+  display: block;
+  margin-top: 4px;
+  margin-bottom: 0 !important;
+  font-size: 13px;
+  color: var(--db-text-secondary);
+}
+
+.desc code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--db-hover);
+  font-size: 12px;
+}
+
+.headerExtra {
+  flex-shrink: 0;
+}
+
+.toolbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.resultCount {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+  white-space: nowrap;
+}
+
+.body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 28px 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.bodyFlush {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.bodyLocked {
+  overflow: hidden;
+}
+
+.body :global(.ant-spin-nested-loading),
+.body :global(.ant-spin-container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* 顶栏图标按钮（聊天 / 业务） */
+.headerIconBtn {
+  width: 36px !important;
+  height: 36px !important;
+  color: var(--db-text-secondary) !important;
+  border-radius: var(--db-radius-md) !important;
+}
+
+.headerIconBtn:hover {
+  color: var(--db-text) !important;
+  background: var(--db-hover) !important;
+}
+
+.headerIconBtn[data-active='true'] {
+  color: var(--db-primary) !important;
+  background: var(--db-primary-muted) !important;
+}
+
+/* 占位页 / 懒加载 */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  background: var(--db-bg);
+}
+
+.emptyStateIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--db-radius-lg);
+  background: var(--db-primary-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--db-primary);
+}
+
+.emptyStateText {
+  font-size: 14px;
+  color: var(--db-text-secondary);
+}
+
+.pageLoading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 240px;
+  background: var(--db-bg);
+}
+
+.pageLoadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--db-border);
+  border-top-color: var(--db-primary);
+  border-radius: 50%;
+  animation: pageSpin 0.75s linear infinite;
+}
+
+.pageLoadingText {
+  font-size: 14px;
+  color: var(--db-text-secondary);
+}
+
+@keyframes pageSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page[data-atmosphere='true']::before {
+    opacity: 0.6;
+  }
+
+  .pageLoadingSpinner {
+    animation: none;
+    border-top-color: var(--db-primary);
+  }
+}

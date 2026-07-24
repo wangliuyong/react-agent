@@ -5,10 +5,17 @@ import { ModelApiPanel } from '../ModelApiPanel'
 import { ModelConnectionsPanel } from '../ModelConnectionsPanel'
 import { ToolsPanel } from '../ToolsPanel'
 import { AssetsPanel } from '../AssetsPanel'
-import cardStyles from '../../styles/settingsCard.module.css'
+import cardStyles from '@/components/entity-card'
+import {
+  FeaturePageShell,
+  FeaturePageHeader,
+  FeaturePageToolbar,
+  FeatureScrollBody,
+  shellStyles
+} from '@/components/page-shell'
 import styles from './SettingsPage.module.css'
 
-const { Title, Paragraph, Text } = Typography
+const { Text } = Typography
 
 /** 设置分类 Tab — 对齐技能市场 Segmented 信息架构 */
 type SettingsTab = 'model' | 'connections' | 'app' | 'channels' | 'tools' | 'assets'
@@ -45,45 +52,33 @@ export function SettingsPage(): React.ReactElement {
               : '发布与通知渠道'
 
   return (
-    <div className={styles.page}>
-      <header className={`${styles.header} app-drag`}>
-        <div className={styles.headerMain}>
-          <div className={styles.headerIcon}>
-            <SettingOutlined />
+    <FeaturePageShell>
+      <FeaturePageHeader
+        icon={<SettingOutlined />}
+        title="设置"
+        badge="偏好中心"
+        badgeVariant="muted"
+        description="配置模型服务、运行参数，并管理本机渠道登录状态"
+        extra={
+          <div className={styles.localBadge}>
+            <CheckCircleOutlined />
+            <span>敏感信息仅存本机</span>
           </div>
-          <div>
-            <div className={styles.titleRow}>
-              <Title level={3} className={styles.title}>
-                设置
-              </Title>
-              <span className={styles.versionBadge}>偏好中心</span>
-            </div>
-            <Paragraph className={styles.desc}>
-              配置模型服务、运行参数，并管理本机渠道登录状态
-            </Paragraph>
-          </div>
-        </div>
-        <div className={styles.localBadge}>
-          <CheckCircleOutlined />
-          <span>敏感信息仅存本机</span>
-        </div>
-      </header>
+        }
+      />
 
-      <div className={styles.toolbar}>
+      <FeaturePageToolbar>
         <Segmented
           value={tab}
           onChange={(v) => setTab(v as SettingsTab)}
           options={SETTINGS_TAB_OPTIONS}
         />
-        <div className={styles.toolbarRight}>
-          <span className={styles.resultCount}>{tabHint}</span>
+        <div className={shellStyles.toolbarRight}>
+          <span className={shellStyles.resultCount}>{tabHint}</span>
         </div>
-      </div>
+      </FeaturePageToolbar>
 
-      {/* 工具 Tab 由面板内部列表滚动，外层 body 锁定避免整页滚动 */}
-      <div
-        className={`${styles.body} ${tab === 'tools' || tab === 'assets' ? styles.bodyLocked : ''}`}
-      >
+      <FeatureScrollBody locked={tab === 'tools' || tab === 'assets'}>
         {tab === 'model' ? <ModelApiPanel key="model" /> : null}
 
         {tab === 'connections' ? (
@@ -159,7 +154,7 @@ export function SettingsPage(): React.ReactElement {
         {tab === 'tools' ? <ToolsPanel key="tools" /> : null}
 
         {tab === 'assets' ? <AssetsPanel key="assets" /> : null}
-      </div>
-    </div>
+      </FeatureScrollBody>
+    </FeaturePageShell>
   )
 }

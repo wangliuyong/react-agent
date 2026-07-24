@@ -11,6 +11,7 @@ import { WelcomeHero } from '../WelcomeHero'
 import { MessageList } from '../MessageList'
 import { ChatInput } from '../ChatInput'
 import { TaskChecklist } from '../TaskChecklist'
+import { shellStyles } from '@/components/page-shell'
 import styles from './ChatPage.module.css'
 
 const { Title } = Typography
@@ -119,7 +120,7 @@ export function ChatPage(): React.ReactElement {
           <Tooltip title={`新会话 ${newChatShortcut}`}>
             <Button
               type="text"
-              className={styles.headerIconBtn}
+              className={shellStyles.headerIconBtn}
               icon={<PlusOutlined />}
               onClick={() => void createSession()}
             />
@@ -127,7 +128,7 @@ export function ChatPage(): React.ReactElement {
           <Tooltip title={browserRunning ? '关闭智能体浏览器' : '打开智能体浏览器'}>
             <Button
               type="text"
-              className={styles.headerIconBtn}
+              className={shellStyles.headerIconBtn}
               icon={<GlobalOutlined />}
               loading={loading}
               data-active={browserRunning}

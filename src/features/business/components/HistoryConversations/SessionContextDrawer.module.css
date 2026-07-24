@@ -56,7 +56,7 @@
 
 .toneWorkflow {
   background: rgba(114, 46, 209, 0.1) !important;
-  color: #722ed1 !important;
+  color: var(--db-accent-info) !important;
 }
 
 /* Spin 仅作用于本抽屉，避免泄漏到渠道页等其它 Spin 包裹的表单 */

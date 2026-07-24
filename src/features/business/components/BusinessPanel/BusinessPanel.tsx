@@ -1,4 +1,5 @@
 import { useAppStore } from '@/stores/app-store'
+import { FeaturePageHeader } from '@/components/page-shell'
 import { useBusinessStore } from '../../hooks/useBusinessStore'
 import type { ChatMode } from '../../types'
 import {
@@ -7,12 +8,6 @@ import {
 } from '../HistoryConversations/HistoryConversations'
 import styles from './BusinessPanel.module.css'
 
-const { Title, Text } = Typography
-
-/**
- * 业务系统独立页面：顶栏模式切换 + 按 AppShell 左侧菜单渲染内容。
- * 与 ChatPage 平级，由 AppMain view=business 路由；刷新后 view 从 localStorage 恢复。
- */
 export function BusinessPanel(): React.ReactElement {
   const setView = useAppStore((s) => s.setView)
   const activeMenu = useBusinessStore((s) => s.activeMenu)
@@ -23,22 +18,14 @@ export function BusinessPanel(): React.ReactElement {
       <header className={`${styles.header} app-drag`}>
         <div className={styles.headerLeft}>
           {activeMenu === 'history' && historyHeader ? (
-            <div className={styles.subPageHeader}>
-              <div className={styles.subPageHeaderIcon}>
-                <HistoryOutlined />
-              </div>
-              <div>
-                <div className={styles.subPageTitleRow}>
-                  <Title level={3} className={styles.subPageTitle}>
-                    历史对话
-                  </Title>
-                  <span className={styles.subPageCountBadge}>{historyHeader.count}</span>
-                </div>
-                <Text type="secondary" className={styles.subPageDesc}>
-                  管理全部会话记录，查看工作流 context 与各节点执行上下文
-                </Text>
-              </div>
-            </div>
+            <FeaturePageHeader
+              variant="embedded"
+              draggable={false}
+              icon={<HistoryOutlined />}
+              title="历史对话"
+              badge={historyHeader.count}
+              description="管理全部会话记录，查看工作流 context 与各节点执行上下文"
+            />
           ) : null}
         </div>
 

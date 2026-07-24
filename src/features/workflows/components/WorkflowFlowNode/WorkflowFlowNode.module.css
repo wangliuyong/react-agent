@@ -36,7 +36,7 @@
 }
 
 .tool {
-  border-left: 1.5px solid #14b8a6;
+  border-left: 1.5px solid var(--db-wf-node-teal);
 }
 
 .await_user {
@@ -44,19 +44,19 @@
 }
 
 .notify {
-  border-left: 1.5px solid #6366f1;
+  border-left: 1.5px solid var(--db-wf-node-indigo);
 }
 
 .toast {
-  border-left: 1.5px solid #f59e0b;
+  border-left: 1.5px solid var(--db-wf-node-amber);
 }
 
 .input {
-  border-left: 1.5px solid #0ea5e9;
+  border-left: 1.5px solid var(--db-wf-node-sky);
 }
 
 .output {
-  border-left: 1.5px solid #a855f7;
+  border-left: 1.5px solid var(--db-wf-node-purple);
 }
 
 .body {
@@ -112,24 +112,24 @@
 
 /* 成功终态 */
 .status_done {
-  border-color: #22c55e;
-  background: color-mix(in srgb, #22c55e 8%, var(--db-bg-content));
+  border-color: var(--db-wf-node-success);
+  background: color-mix(in srgb, var(--db-wf-node-success) 8%, var(--db-bg-content));
 }
 
 .status_done .statusMark {
-  background: #22c55e;
-  color: #fff;
+  background: var(--db-wf-node-success);
+  color: var(--db-on-primary);
 }
 
 /* 失败终态 */
 .status_failed {
-  border-color: #ef4444;
-  background: color-mix(in srgb, #ef4444 8%, var(--db-bg-content));
+  border-color: var(--db-wf-node-danger);
+  background: color-mix(in srgb, var(--db-wf-node-danger) 8%, var(--db-bg-content));
 }
 
 .status_failed .statusMark {
-  background: #ef4444;
-  color: #fff;
+  background: var(--db-wf-node-danger);
+  color: var(--db-on-primary);
 }
 
 /* 跳过 */

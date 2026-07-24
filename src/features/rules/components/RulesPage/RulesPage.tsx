@@ -9,8 +9,13 @@ import {
   slugifyRuleId
 } from '../../types'
 import styles from './RulesPage.module.css'
-
-const { Title, Text } = Typography
+import {
+  FeaturePageShell,
+  FeaturePageHeader,
+  FeaturePageToolbar,
+  FeatureScrollBody,
+  shellStyles
+} from '@/components/page-shell'
 
 type RuleFilter = 'all' | 'enabled' | 'disabled'
 
@@ -156,41 +161,31 @@ export function RulesPage(): React.ReactElement {
   }, [rules, detailRule?.id])
 
   return (
-    <div className={styles.page}>
-      <header className={`${styles.header} app-drag`}>
-        <div className={styles.headerMain}>
-          <div className={styles.headerIcon}>
-            <UnorderedListOutlined />
-          </div>
-          <div>
-            <div className={styles.titleRow}>
-              <Title level={3} className={styles.title}>
-                规则
-              </Title>
-              <span className={styles.countBadge}>{rules.length}</span>
-            </div>
-            <Text type="secondary" className={styles.desc}>
-              Always Apply 持久指令；已启用 {enabledCount} 条，对话时优先于技能注入系统提示
-            </Text>
-          </div>
-        </div>
-        <Space wrap className="app-no-drag">
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={async () => {
-              await hydrate()
-              message.success('已刷新')
-            }}
-          >
-            刷新
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            新建规则
-          </Button>
-        </Space>
-      </header>
+    <FeaturePageShell>
+      <FeaturePageHeader
+        icon={<UnorderedListOutlined />}
+        title="规则"
+        badge={rules.length}
+        description={`Always Apply 持久指令；已启用 ${enabledCount} 条，对话时优先于技能注入系统提示`}
+        extra={
+          <Space wrap>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={async () => {
+                await hydrate()
+                message.success('已刷新')
+              }}
+            >
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              新建规则
+            </Button>
+          </Space>
+        }
+      />
 
-      <div className={styles.toolbar}>
+      <FeaturePageToolbar>
         <Segmented
           value={filter}
           onChange={(v) => setFilter(v as RuleFilter)}
@@ -200,8 +195,8 @@ export function RulesPage(): React.ReactElement {
             { label: '未启用', value: 'disabled' }
           ]}
         />
-        <div className={styles.toolbarRight}>
-          <span className={styles.resultCount}>{filtered.length} 项</span>
+        <div className={shellStyles.toolbarRight}>
+          <span className={shellStyles.resultCount}>{filtered.length} 项</span>
           <Input
             allowClear
             prefix={<SearchOutlined />}
@@ -211,9 +206,9 @@ export function RulesPage(): React.ReactElement {
             className={styles.searchInput}
           />
         </div>
-      </div>
+      </FeaturePageToolbar>
 
-      <div className={styles.body}>
+      <FeatureScrollBody>
         <Spin spinning={loading && rules.length === 0}>
           {filtered.length === 0 ? (
             <Empty
@@ -258,7 +253,7 @@ export function RulesPage(): React.ReactElement {
             </div>
           )}
         </Spin>
-      </div>
+      </FeatureScrollBody>
 
       <Modal
         title={detailRule?.name ?? '规则详情'}
@@ -377,6 +372,6 @@ export function RulesPage(): React.ReactElement {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </FeaturePageShell>
   )
 }

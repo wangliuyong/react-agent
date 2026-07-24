@@ -68,7 +68,7 @@
 
 .rowAssistant {
   .assistantCard{
-    background-color: #fff;
+    background-color: var(--db-bg-content);
     padding: 12px 14px ;
     border-radius:  16px;
   }

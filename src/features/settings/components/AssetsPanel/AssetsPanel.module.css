@@ -145,23 +145,23 @@
 }
 
 .assetIcon[data-kind='video'] {
-  background: color-mix(in srgb, #e85d4c 18%, transparent);
-  color: #c94a3a;
+  background: var(--db-asset-image-bg);
+  color: var(--db-asset-image-text);
 }
 
 .assetIcon[data-kind='audio'] {
-  background: color-mix(in srgb, #7c5cbf 18%, transparent);
-  color: #6a4da8;
+  background: var(--db-asset-audio-bg);
+  color: var(--db-asset-audio-text);
 }
 
 .assetIcon[data-kind='html'] {
-  background: color-mix(in srgb, #3b82c4 18%, transparent);
-  color: #2d6a9f;
+  background: var(--db-asset-video-bg);
+  color: var(--db-asset-video-text);
 }
 
 .assetIcon[data-kind='document'] {
-  background: color-mix(in srgb, #c9a227 18%, transparent);
-  color: #9a7b1a;
+  background: var(--db-asset-doc-bg);
+  color: var(--db-asset-doc-text);
 }
 
 .assetPath {
@@ -261,7 +261,7 @@
   width: 100%;
   max-height: 400px;
   border-radius: var(--db-radius-md);
-  background: #000;
+  background: var(--db-code-bg);
 }
 
 .previewAudio {
@@ -273,7 +273,7 @@
   min-height: 360px;
   border: 1px solid var(--db-border-light);
   border-radius: var(--db-radius-md);
-  background: #fff;
+  background: var(--db-bg-content);
 }
 
 .previewText {

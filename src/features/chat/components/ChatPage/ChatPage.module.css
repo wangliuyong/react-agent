@@ -49,26 +49,6 @@
   justify-self: end;
 }
 
-.headerIconBtn {
-  width: 36px !important;
-  height: 36px !important;
-  color: var(--db-text-secondary) !important;
-  border-radius: var(--db-radius-md) !important;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease !important;
-}
-
-.headerIconBtn:hover {
-  color: var(--db-text) !important;
-  background: var(--db-hover) !important;
-}
-
-.headerIconBtn[data-active='true'] {
-  color: var(--db-primary) !important;
-  background: var(--db-primary-muted) !important;
-}
-
 .title {
   margin: 0 !important;
   font-weight: 650 !important;

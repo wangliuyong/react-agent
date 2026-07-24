@@ -19,8 +19,15 @@ import { postRunWorkflow } from '@/features/workflows'
 import { DB_THEME } from '@/styles/theme-tokens'
 import { isBuiltinSeedId } from '@shared/builtin-seeds'
 import styles from './PublishWorkbench.module.css'
+import {
+  FeaturePageShell,
+  FeaturePageHeader,
+  FeaturePageToolbar,
+  FeatureScrollBody,
+  shellStyles
+} from '@/components/page-shell'
 
-const { Title, Text, Paragraph } = Typography
+const { Text, Paragraph } = Typography
 
 type PlanKindFilter = 'all' | PublishPlanKind
 
@@ -327,46 +334,36 @@ export function PublishWorkbench(): React.ReactElement {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={`${styles.header} app-drag`}>
-        <div className={styles.headerMain}>
-          <div className={styles.headerIcon}>
-            <CloudUploadOutlined />
-          </div>
-          <div>
-            <div className={styles.titleRow}>
-              <Title level={3} className={styles.headerTitle}>
-                发布
-              </Title>
-              <span className={styles.countBadge}>{plans.length}</span>
-            </div>
-            <Text type="secondary" className={styles.desc}>
-              普通任务用子任务编排；流程任务可挂多个子流程并按序执行
-            </Text>
-          </div>
-        </div>
-        <Space wrap className="app-no-drag">
-          <Button
-            onClick={async () => {
-              await addBuiltinPlans()
-              message.success('已导入内置发布任务')
-            }}
-          >
-            导入示例
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setPlanModal({ mode: 'create', plan: createEmptyPlan('normal') })
-            }}
-          >
-            新建任务
-          </Button>
-        </Space>
-      </header>
+    <FeaturePageShell>
+      <FeaturePageHeader
+        icon={<CloudUploadOutlined />}
+        title="发布"
+        badge={plans.length}
+        description="普通任务用子任务编排；流程任务可挂多个子流程并按序执行"
+        extra={
+          <Space wrap>
+            <Button
+              onClick={async () => {
+                await addBuiltinPlans()
+                message.success('已导入内置发布任务')
+              }}
+            >
+              导入示例
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setPlanModal({ mode: 'create', plan: createEmptyPlan('normal') })
+              }}
+            >
+              新建任务
+            </Button>
+          </Space>
+        }
+      />
 
-      <div className={styles.toolbar}>
+      <FeaturePageToolbar>
         <Segmented
           value={kindFilter}
           onChange={(v) => setKindFilter(v as PlanKindFilter)}
@@ -376,8 +373,8 @@ export function PublishWorkbench(): React.ReactElement {
             { label: '流程任务', value: 'workflow' }
           ]}
         />
-        <div className={styles.toolbarRight}>
-          <span className={styles.resultCount}>{filtered.length} 项</span>
+        <div className={shellStyles.toolbarRight}>
+          <span className={shellStyles.resultCount}>{filtered.length} 项</span>
           <Input
             allowClear
             prefix={<SearchOutlined />}
@@ -387,9 +384,9 @@ export function PublishWorkbench(): React.ReactElement {
             className={styles.searchInput}
           />
         </div>
-      </div>
+      </FeaturePageToolbar>
 
-      <div className={styles.body}>
+      <FeatureScrollBody>
         {filtered.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -463,7 +460,7 @@ export function PublishWorkbench(): React.ReactElement {
             })}
           </div>
         )}
-      </div>
+      </FeatureScrollBody>
 
       <Modal
         title={detailPlan?.title ?? '任务详情'}
@@ -787,6 +784,6 @@ export function PublishWorkbench(): React.ReactElement {
           </Form>
         ) : null}
       </Modal>
-    </div>
+    </FeaturePageShell>
   )
 }
