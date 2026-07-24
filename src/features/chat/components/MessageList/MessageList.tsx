@@ -1,4 +1,5 @@
 import type { ChatMessage, TaskItem, ToolProgressPayload } from '@shared/types'
+import { queryIsUiHiddenChatMessage } from '@shared/query-ui-hidden-message'
 import { Fragment } from 'react'
 import {
   queryAgentBusyLabel,
@@ -47,7 +48,8 @@ export function MessageList({
   activeToolProgress = null,
   awaitUserReason = null
 }: MessageListProps): React.ReactElement {
-  const visible = messages.filter((m) => m.role !== 'system')
+  // 过滤 system、以及工作流步骤等过程注入消息（不对用户侧展示）
+  const visible = messages.filter((m) => !queryIsUiHiddenChatMessage(m))
 
   const statusInput = {
     running,

@@ -1061,6 +1061,11 @@ export interface ChatMessage {
     choices?: UserChoiceOption[]
     interruptId?: string
   }
+  /**
+   * 对用户侧聊天隐藏（仍落盘，供业务上下文 / 调试使用）。
+   * 工作流 Agent 步骤注入的内部 prompt 等过程信息不应对终端用户展示。
+   */
+  hidden?: boolean
   createdAt: number
 }
 

@@ -148,9 +148,9 @@
 }
 
 .thinkingMarkdown {
-  font-size: 12px;
+  font-size: 13px!important;
   line-height: 1.65;
-  color: var(--db-text-secondary);
+  color: var(--db-text-secondary)!important;
 }
 
 .pendingWrap {
@@ -271,9 +271,9 @@
 }
 
 .toolMarkdown {
-  font-size: 12px;
+  font-size: 13px!important;
   line-height: 1.6;
-  color: var(--db-text-secondary);
+  color: var(--db-text-secondary)!important;
 }
 
 .doneAlert {

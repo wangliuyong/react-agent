@@ -768,8 +768,13 @@ export async function runLangGraphStep(params: {
   prompt: string
   toolWhitelist?: string[]
   attachmentPaths?: string[]
+  /**
+   * 为 true 时，步骤 prompt 仍写入会话（供上下文匹配），但对用户侧聊天隐藏。
+   * 工作流 Agent / 条件选路注入的内部指令不应作为用户气泡展示。
+   */
+  hideFromUi?: boolean
 }): Promise<LangGraphStepResult> {
-  const { sessionId, prompt, toolWhitelist, attachmentPaths = [] } = params
+  const { sessionId, prompt, toolWhitelist, attachmentPaths = [], hideFromUi = false } = params
   const settings = querySettings()
   let session = querySession(sessionId)
   if (!session) throw new Error(`会话不存在: ${sessionId}`)
@@ -786,7 +791,9 @@ export async function runLangGraphStep(params: {
       attachmentPaths.length > 0
         ? `${prompt}\n\n[附件]\n${attachmentPaths.join('\n')}`
         : prompt,
-    attachmentPaths: attachmentPaths.length > 0 ? attachmentPaths : undefined
+    attachmentPaths: attachmentPaths.length > 0 ? attachmentPaths : undefined,
+    // 过程注入 prompt：落盘但不在用户侧气泡展示
+    ...(hideFromUi ? { hidden: true } : {})
   })
   persistSession(session)
   emitAgentEvent({ type: 'message', sessionId, message: userMsg })

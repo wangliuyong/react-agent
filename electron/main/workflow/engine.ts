@@ -740,10 +740,12 @@ async function executeLeafNode(
   const sessionBefore = querySession(sessionId)
   const msgCountBefore = sessionBefore?.messages.length ?? 0
 
+  // hideFromUi：步骤 prompt 仅驱动 Agent，不对用户侧展示内部指令
   const stepResult = await runLangGraphStep({
     sessionId,
     prompt: stepPrompt,
-    toolWhitelist: node.toolWhitelist
+    toolWhitelist: node.toolWhitelist,
+    hideFromUi: true
   })
 
   if (stepResult === 'aborted') throw new Error('__aborted__')
@@ -808,6 +810,7 @@ async function queryAgentBranchKey(
       ? node.toolWhitelist
       : ['__workflow_condition_no_tool__']
 
+  // hideFromUi：条件选路 prompt 为内部过程，不对用户侧展示
   const stepResult = await runLangGraphStep({
     sessionId,
     prompt: [
@@ -817,7 +820,8 @@ async function queryAgentBranchKey(
       '你必须只输出一行 JSON：{"key":"<上述某一个 key>"}，不要输出其它说明，不要调用工具。',
       `当前 context JSON：${JSON.stringify(context)}`
     ].join('\n\n'),
-    toolWhitelist: whitelist
+    toolWhitelist: whitelist,
+    hideFromUi: true
   })
 
   if (stepResult === 'aborted') throw new Error('__aborted__')
