@@ -48,6 +48,11 @@ import {
   resolveUserContinue,
   type UserContinueResult
 } from './choice-resolver'
+import { queryIsAgentUserCancelledError } from './agent-user-cancelled'
+import {
+  postCancelRemotionRenderSession,
+  postStopRemotionStudios
+} from '../media/remotion-service'
 
 export type { UserContinueResult } from './choice-resolver'
 
@@ -178,6 +183,9 @@ export function postGraphAbort(sessionId: string): void {
     waiter.reject(new Error('用户已中止'))
     continueWaiters.delete(sessionId)
   }
+  // 取消进行中的 Remotion 渲染，并关闭同会话 Studio，避免后台继续占用资源
+  postCancelRemotionRenderSession(sessionId)
+  postStopRemotionStudios(sessionId)
   // 立即杀死并落盘暂停任务，不等 Agent 异步收尾
   pauseRunningSessionTasks(sessionId)
 }
@@ -334,6 +342,10 @@ function buildToolContext(
     postActiveCapability: capabilityBox ? postActiveCapability : undefined,
     emitToolProgress: (toolName, progress) => {
       emitAgentEvent({ type: 'tool_progress', sessionId, toolName, progress })
+    },
+    // 工具内用户点「取消」：立即中止本会话 Agent，避免模型再次发起同类确认
+    postAbortAgent: () => {
+      postGraphAbort(sessionId)
     }
   }
 }
@@ -744,7 +756,7 @@ export async function runLangGraphChat(params: {
       return
     }
   } catch (e) {
-    if (controller.signal.aborted) {
+    if (controller.signal.aborted || queryIsAgentUserCancelledError(e)) {
       emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
       return
     }
@@ -917,7 +929,7 @@ export async function runLangGraphStep(params: {
       return 'completed'
     }
   } catch (e) {
-    if (controller.signal.aborted) return 'aborted'
+    if (controller.signal.aborted || queryIsAgentUserCancelledError(e)) return 'aborted'
     const message = e instanceof Error ? e.message : String(e)
     if (/recursion/i.test(message)) return 'max_turns'
     emitAgentEvent({ type: 'error', sessionId, message })

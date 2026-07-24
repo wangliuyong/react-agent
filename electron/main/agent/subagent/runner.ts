@@ -259,8 +259,13 @@ async function runSubagentJob(params: Required<
     params
 
   const bridge = await queryGraphBridge()
-  const { emitAgentEvent, getGraphAbortSignal, waitForGraphUserContinue, queryGraphResumePayload } =
-    bridge
+  const {
+    emitAgentEvent,
+    getGraphAbortSignal,
+    waitForGraphUserContinue,
+    queryGraphResumePayload,
+    postGraphAbort
+  } = bridge
 
   const def = querySubagentDefinition(agentType)
   if (!def) {
@@ -332,6 +337,9 @@ async function runSubagentJob(params: Required<
     },
     emitToolProgress: (toolName, progress) => {
       emitAgentEvent({ type: 'tool_progress', sessionId: parentSessionId, toolName, progress })
+    },
+    postAbortAgent: () => {
+      postGraphAbort(parentSessionId)
     }
   }
 
@@ -468,7 +476,11 @@ async function runSubagentJob(params: Required<
       return summary
     }
   } catch (e) {
-    if (parentSignal?.aborted || (e instanceof Error && e.message === '用户已中止')) {
+    if (
+      parentSignal?.aborted ||
+      (e instanceof Error && e.message === '用户已中止') ||
+      (e instanceof Error && e.name === 'AgentUserCancelledError')
+    ) {
       finish('aborted', '用户已中止')
       throw new Error('用户已中止')
     }

@@ -7,10 +7,14 @@ import { join } from 'path'
 import { queryEncodeWorkflowCtxResult } from './hot-topics'
 import {
   postInitRemotionProject,
+  postCancelRemotionRenderSession,
   postRenderRemotionVideo,
   postStartRemotionStudio,
+  postStopRemotionStudios,
   queryRemotionProjectDir
 } from '../../media/remotion-service'
+import { AgentUserCancelledError } from '../agent-user-cancelled'
+import { queryIsUserCancelIntent } from '../choice-resolver'
 import type { AgentTool } from './types'
 
 /** 在会话目录初始化 Remotion 工程（复制内置 starter 模板） */
@@ -178,8 +182,12 @@ export const remotionRenderTool: AgentTool = {
         { id: 'cancel', label: '取消', description: '放弃本次渲染' }
       ]
     )
-    if (confirm.choiceId === 'cancel') {
-      return '用户取消渲染。'
+    if (queryIsUserCancelIntent(confirm)) {
+      // 先停渲染与 Studio，再中止 Agent，避免后台进程残留
+      postCancelRemotionRenderSession(ctx.sessionId)
+      postStopRemotionStudios(ctx.sessionId)
+      ctx.postAbortAgent?.()
+      throw new AgentUserCancelledError('用户取消 Remotion 渲染')
     }
     if (confirm.choiceId === 'preview') {
       return '用户选择先预览；请调用 remotion_studio 后再渲染。'

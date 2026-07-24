@@ -21,12 +21,14 @@ import {
 import { queryOrMigratePublishWorkflow } from './migrate-publish'
 import {
   bindGraphSessionAbort,
+  postGraphAbort,
   releaseGraphSessionAbort,
   runLangGraphStep,
   waitForGraphUserContinue,
   emitSessionStarted
 } from '../agent/graph-bridge'
 import { formatUserContinueMessage } from '../agent/choice-resolver'
+import { queryIsAgentUserCancelledError } from '../agent/agent-user-cancelled'
 import { getToolByName } from '../agent/tools'
 import type { ToolContext } from '../agent/tools/types'
 import { getMainWindow } from '../window'
@@ -295,6 +297,10 @@ async function executeToolNode(
     },
     updateTasks: () => {
       /* 引擎权威维护 tasks */
+    },
+    // Remotion 等工具确认取消时中止整次 Run
+    postAbortAgent: () => {
+      postGraphAbort(sessionId)
     }
   }
 
@@ -302,6 +308,9 @@ async function executeToolNode(
   try {
     rawResult = await tool.execute(args, toolCtx)
   } catch (err) {
+    if (queryIsAgentUserCancelledError(err)) {
+      throw new Error('__aborted__')
+    }
     rawResult = `工具执行失败: ${err instanceof Error ? err.message : String(err)}`
     emitToolResult(sessionId, node.toolName, rawResult)
     // 失败也写入聊天，便于排查

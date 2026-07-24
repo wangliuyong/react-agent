@@ -3,6 +3,7 @@ import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { JsonSchema7Type } from '@langchain/core/utils/json_schema'
 import type { AgentTool, ToolContext, ToolPermission } from './types'
 import { compactToolResult } from '../token-budget'
+import { queryIsAgentUserCancelledError } from '../agent-user-cancelled'
 import { queryIsUserCancelIntent } from '../choice-resolver'
 
 /**
@@ -64,6 +65,8 @@ export function adaptAgentTools(
         } catch (err) {
           // GraphInterrupt 必须向上抛（若未来节点级 interrupt 传入）；勿吞掉
           if (isGraphInterrupt(err)) throw err
+          // 用户取消敏感操作：终止整轮 Agent，勿把取消当作 tool 结果交给模型
+          if (queryIsAgentUserCancelledError(err)) throw err
           return `工具执行失败: ${err instanceof Error ? err.message : String(err)}`
         }
       },

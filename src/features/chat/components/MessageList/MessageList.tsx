@@ -32,10 +32,14 @@ interface MessageListProps {
   tasks: TaskItem[]
   running?: boolean
   activeToolName?: string | null
+  /** 当前执行中的工具参数（如 use_skill 的 skillId） */
+  activeToolArgs?: Record<string, unknown> | null
   /** 长耗时工具进度（如 Remotion 渲染） */
   activeToolProgress?: ToolProgressPayload | null
   /** 等待用户确认时隐藏思考态，避免与确认条冲突 */
   awaitUserReason?: string | null
+  /** 技能 id → 展示名，用于「加载技能：xxx」 */
+  skillNameById?: ReadonlyMap<string, string>
 }
 
 /** 展示组件：执行时间线（叙述 + 已调用 N 个工具）+ 流式/思考态 */
@@ -47,8 +51,10 @@ export function MessageList({
   tasks,
   running = false,
   activeToolName = null,
+  activeToolArgs = null,
   activeToolProgress = null,
-  awaitUserReason = null
+  awaitUserReason = null,
+  skillNameById
 }: MessageListProps): React.ReactElement {
   // 过滤 system、以及工作流步骤等过程注入消息（不对用户侧展示）
   const visible = messages.filter((m) => !queryIsUiHiddenChatMessage(m))
@@ -57,6 +63,8 @@ export function MessageList({
     running,
     streamingText: thinkingInProgress ? '' : streamingText,
     activeToolName: thinkingInProgress ? null : activeToolName,
+    activeToolArgs: thinkingInProgress ? null : activeToolArgs,
+    skillNameById,
     awaitUserReason
   }
   const phase = queryAgentPhase(statusInput)
@@ -140,7 +148,11 @@ export function MessageList({
                   </div>
                 </div>
               ) : null}
-              <ToolCallGroup tools={[item.message]} declaredCount={1} />
+              <ToolCallGroup
+                tools={[item.message]}
+                declaredCount={1}
+                skillNameById={skillNameById}
+              />
             </div>
           )
         }
@@ -182,7 +194,12 @@ export function MessageList({
                   </div>
                 ) : null}
                 {showToolGroup ? (
-                  <ToolCallGroup tools={tools} declaredCount={declaredCount || tools.length} />
+                  <ToolCallGroup
+                    tools={tools}
+                    declaredCount={declaredCount || tools.length}
+                    toolCalls={m.toolCalls}
+                    skillNameById={skillNameById}
+                  />
                 ) : null}
               </div>
             ) : null}

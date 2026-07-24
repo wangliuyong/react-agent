@@ -1,5 +1,5 @@
-import type { ChatMessage } from '@shared/types'
-import { queryToolLabel } from '../../utils/agent-status'
+import type { ChatMessage, ChatMessageToolCall } from '@shared/types'
+import { queryToolArgsRecord, queryToolCallLabel } from '../../utils/agent-status'
 import { ASHARE_REALTIME_ANALYSIS_TOOL } from '../../utils/message-charts'
 import { MessageRichContent, queryMediaCountLabel } from '../MessageRichContent'
 import styles from './MessageList.module.css'
@@ -12,6 +12,10 @@ export interface ToolCallGroupProps {
    * 优先用于标题「已调用 N 个工具」；缺省时退回 tools.length。
    */
   declaredCount?: number
+  /** 本轮 assistant 声明的 tool_calls（用于解析 use_skill 的 skillId） */
+  toolCalls?: ChatMessageToolCall[]
+  /** 技能 id → 展示名 */
+  skillNameById?: ReadonlyMap<string, string>
 }
 
 /**
@@ -20,7 +24,9 @@ export interface ToolCallGroupProps {
  */
 export function ToolCallGroup({
   tools,
-  declaredCount
+  declaredCount,
+  toolCalls,
+  skillNameById
 }: ToolCallGroupProps): React.ReactElement | null {
   const count = declaredCount && declaredCount > 0 ? declaredCount : tools.length
   if (count <= 0) return null
@@ -28,6 +34,10 @@ export function ToolCallGroup({
   const hasInlineStockChart = tools.some(
     (t) =>
       t.content.includes('@@stock_chart@@') && t.toolName !== ASHARE_REALTIME_ANALYSIS_TOOL
+  )
+
+  const argsByCallId = new Map(
+    (toolCalls ?? []).map((tc) => [tc.id, queryToolArgsRecord(tc.args)] as const)
   )
 
   return (
@@ -52,6 +62,11 @@ export function ToolCallGroup({
                 tools.map((t) => {
                   const mediaLabel = queryMediaCountLabel(t.content)
                   const name = t.toolName ?? 'tool'
+                  const args = t.toolCallId ? argsByCallId.get(t.toolCallId) : null
+                  const label = queryToolCallLabel(name, args ?? null, {
+                    skillNameById,
+                    toolContent: t.content
+                  })
                   const showChartsInTool =
                     t.content.includes('@@stock_chart@@') &&
                     t.toolName !== ASHARE_REALTIME_ANALYSIS_TOOL
@@ -64,7 +79,7 @@ export function ToolCallGroup({
                       items={[
                         {
                           key: '1',
-                          label: `${queryToolLabel(name)}${mediaLabel} (${name})`,
+                          label: `${label}${mediaLabel}`,
                           children: (
                             <MessageRichContent
                               content={t.content}

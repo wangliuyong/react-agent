@@ -29,6 +29,11 @@ export interface ToolContext {
   postActiveCapability?: (capability: ModelCapability) => void
   /** 推送长耗时工具进度到 UI（如 Remotion 渲染） */
   emitToolProgress?: (toolName: string, progress: ToolProgressPayload) => void
+  /**
+   * 用户在工具确认弹窗选择取消时调用，立即中止当前会话 Agent 执行。
+   * 由 graph-bridge 注入；工作流直连 tool 节点可选注入。
+   */
+  postAbortAgent?: () => void
 }
 
 export interface AgentTool {

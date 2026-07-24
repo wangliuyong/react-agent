@@ -56,4 +56,15 @@ describe('Remotion 内置工具', () => {
     expect(roleToolsSource).toContain('remotion_studio')
     expect(roleToolsSource).toContain('remotion_render')
   })
+
+  it('用户取消渲染时中止 Agent 且清理渲染任务与 Studio', () => {
+    expect(remotionToolsSource).toContain('queryIsUserCancelIntent')
+    expect(remotionToolsSource).toContain('postCancelRemotionRenderSession')
+    expect(remotionToolsSource).toContain('postStopRemotionStudios')
+    expect(remotionToolsSource).toContain('postAbortAgent')
+    expect(remotionToolsSource).toContain('AgentUserCancelledError')
+    expect(remotionServiceSource).toContain('postCancelRemotionRenderSession')
+    expect(remotionServiceSource).toContain('postStopRemotionStudios')
+    expect(remotionServiceSource).toContain('abortController')
+  })
 })

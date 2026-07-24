@@ -28,10 +28,14 @@ interface ChatInputProps {
   running?: boolean
   streamingText?: string
   activeToolName?: string | null
+  /** 当前执行中的工具参数（如 use_skill 的 skillId） */
+  activeToolArgs?: Record<string, unknown> | null
   /** 长耗时工具进度（如 Remotion 渲染） */
   activeToolProgress?: ToolProgressPayload | null
   /** 当前任务选用的模型连接名 */
   activeModelLabel?: string | null
+  /** 技能 id → 展示名 */
+  skillNameById?: ReadonlyMap<string, string>
   awaitUserReason?: string | null
   /** 挂起确认时的可选方案 */
   awaitUserChoices?: UserChoiceOption[] | null
@@ -75,8 +79,10 @@ export function ChatInput({
   running,
   streamingText = '',
   activeToolName = null,
+  activeToolArgs = null,
   activeToolProgress = null,
   activeModelLabel = null,
+  skillNameById,
   awaitUserReason,
   awaitUserChoices = null,
   tokenUsed = 0,
@@ -117,11 +123,22 @@ export function ChatInput({
         running: Boolean(running),
         streamingText,
         activeToolName,
+        activeToolArgs,
+        skillNameById,
         activeToolProgress,
         awaitUserReason: awaitUserReason ?? null,
         activeModelLabel
       }),
-    [running, streamingText, activeToolName, activeToolProgress, awaitUserReason, activeModelLabel]
+    [
+      running,
+      streamingText,
+      activeToolName,
+      activeToolArgs,
+      skillNameById,
+      activeToolProgress,
+      awaitUserReason,
+      activeModelLabel
+    ]
   )
 
   /** 切换模型并给出 Toast 反馈 */

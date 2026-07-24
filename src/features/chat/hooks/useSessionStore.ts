@@ -28,6 +28,7 @@ import {
 import { querySessionType } from '../utils/querySessionType'
 import { queryShouldResumeViaWorkflow } from '../utils/queryShouldResumeViaWorkflow'
 import { postChatExecutionCommand } from '../utils/postChatExecutionCommand'
+import { queryToolArgsRecord } from '../utils/agent-status'
 import { useAppStore } from '@/stores/app-store'
 import { appMessage } from '@/lib/app-message'
 
@@ -61,6 +62,7 @@ function patchThinkingDelta(
       thinkingText: state.thinkingText + delta,
       thinkingInProgress: true,
       activeToolName: null,
+      activeToolArgs: null,
       activeToolProgress: null,
       running: true
     }
@@ -111,6 +113,7 @@ function patchTextDelta(
       : state.pendingStreamingText,
     thinkingText: state.running ? state.thinkingText : '',
     activeToolName: null,
+    activeToolArgs: null,
     running: true
   }
 }
@@ -189,8 +192,12 @@ interface SessionState {
   pendingStreamingText: string
   /** 思考未完成时暂存的工具名 */
   pendingToolName: string | null
+  /** 思考未完成时暂存的工具参数 */
+  pendingToolArgs: Record<string, unknown> | null
   /** 当前正在执行的工具名（tool_start ~ tool_result 之间） */
   activeToolName: string | null
+  /** 当前正在执行的工具参数（如 use_skill 的 skillId） */
+  activeToolArgs: Record<string, unknown> | null
   /** 长耗时工具进度（如 Remotion 渲染） */
   activeToolProgress: ToolProgressPayload | null
   /** 当前任务选用的模型连接展示名（model_switch 事件更新） */
@@ -413,7 +420,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   thinkingInProgress: false,
   pendingStreamingText: '',
   pendingToolName: null,
+  pendingToolArgs: null,
   activeToolName: null,
+  activeToolArgs: null,
   activeToolProgress: null,
   activeModelLabel: null,
 
@@ -480,6 +489,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         running
       ),
       activeToolName: null,
+      activeToolArgs: null,
       activeToolProgress: null,
       activeModelLabel: null,
       canResume: queryCanResumeFromSession(session, running)
@@ -585,7 +595,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       thinkingInProgress: false,
       pendingStreamingText: '',
       pendingToolName: null,
+      pendingToolArgs: null,
       activeToolName: null,
+      activeToolArgs: null,
       activeToolProgress: null,
       activeModelLabel: null
     }))
@@ -608,6 +620,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         pendingAwaitReasons: withoutPendingAwaitReason(state.pendingAwaitReasons, id),
         pendingAwaitChoices: withoutPendingAwaitChoices(state.pendingAwaitChoices, id),
         activeToolName: null,
+        activeToolArgs: null,
         activeToolProgress: null,
         // 不必等 done：有未完成任务时立刻可继续（刷新场景依赖主进程落盘）
         canResume: queryHasIncompleteTasks(pausedTasks)
@@ -696,7 +709,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       thinkingInProgress: false,
       pendingStreamingText: '',
       pendingToolName: null,
+      pendingToolArgs: null,
       activeToolName: null,
+      activeToolArgs: null,
       activeToolProgress: null
     }))
   },
@@ -771,7 +786,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   streamingText: '',
                   thinkingText: '',
                   thinkingInProgress: false,
-                  activeToolName: null
+                  activeToolName: null,
+                  activeToolArgs: null
                 }
               : {})
           }
@@ -796,19 +812,24 @@ export const useSessionStore = create<SessionState>((set, get) => ({
               : s.streamingText,
             pendingStreamingText: '',
             activeToolName: s.pendingToolName,
-            pendingToolName: null
+            activeToolArgs: s.pendingToolArgs,
+            pendingToolName: null,
+            pendingToolArgs: null
           }
         })
         return
       }
 
       if (event.type === 'tool_start') {
+        const toolArgs = queryToolArgsRecord(event.args)
         set((s) => ({
           runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
           ...(event.sessionId === activeId
             ? {
                 activeToolName: s.thinkingInProgress ? null : event.toolName,
+                activeToolArgs: s.thinkingInProgress ? null : toolArgs,
                 pendingToolName: s.thinkingInProgress ? event.toolName : null,
+                pendingToolArgs: s.thinkingInProgress ? toolArgs : null,
                 activeToolProgress: null,
                 streamingText: '',
                 thinkingText: s.running ? s.thinkingText : '',
@@ -830,7 +851,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
       if (event.type === 'tool_result') {
         if (event.sessionId === activeId) {
-          set({ activeToolName: null, activeToolProgress: null })
+          set({ activeToolName: null, activeToolArgs: null, activeToolProgress: null })
         }
         return
       }
@@ -965,7 +986,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   thinkingInProgress: false,
                   pendingStreamingText: '',
                   pendingToolName: null,
+                  pendingToolArgs: null,
                   activeToolName: null,
+                  activeToolArgs: null,
                   activeToolProgress: null,
                   activeModelLabel: null
                 }
@@ -1042,6 +1065,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   streamingText: '',
                   thinkingText: '',
                   activeToolName: null,
+                  activeToolArgs: null,
                   activeToolProgress: null,
                   activeModelLabel: null
                 }

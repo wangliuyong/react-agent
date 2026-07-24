@@ -37,6 +37,8 @@ interface RemotionRenderJob {
   promise: Promise<RemotionRenderResult>
   progressListeners: Set<(progress: RemotionRenderProgress) => void>
   lastProgress?: RemotionRenderProgress
+  /** 用于用户取消或会话中止时中断 bundle/render */
+  abortController: AbortController
 }
 
 /** 会话 → 正在运行的 Studio 进程 */
@@ -365,7 +367,7 @@ export async function postStartRemotionStudio(
   })
 }
 
-/** 关闭指定会话或全部 Remotion Studio 进程（应用退出时调用） */
+/** 关闭指定会话或全部 Remotion Studio 进程（取消确认 / Agent 中止 / 应用退出时调用） */
 export function postStopRemotionStudios(sessionId?: string): void {
   const entries = sessionId
     ? ([[sessionId, studioBySession.get(sessionId)]] as const).filter(
@@ -380,6 +382,22 @@ export function postStopRemotionStudios(sessionId?: string): void {
       // ignore
     }
     studioBySession.delete(id)
+  }
+}
+
+/**
+ * 取消指定会话进行中的 Remotion 渲染任务（含排队中的 job）。
+ * 渲染确认弹窗点「取消」或 Agent 中止时调用。
+ */
+export function postCancelRemotionRenderSession(sessionId: string): void {
+  const job = renderBySession.get(sessionId)
+  if (!job) return
+  try {
+    job.abortController.abort()
+  } finally {
+    if (renderBySession.get(sessionId) === job) {
+      renderBySession.delete(sessionId)
+    }
   }
 }
 
@@ -427,11 +445,20 @@ export async function postRenderRemotionVideo(
     progressListeners.add(input.onProgress)
   }
 
+  const jobAbort = new AbortController()
+  if (input.signal?.aborted) {
+    jobAbort.abort()
+  } else if (input.signal) {
+    input.signal.addEventListener('abort', () => jobAbort.abort(), { once: true })
+  }
+  const renderSignal = jobAbort.signal
+
   const job: RemotionRenderJob = {
     sessionId: input.sessionId,
     compositionId: input.compositionId,
     outputPath: input.outputPath,
     progressListeners,
+    abortController: jobAbort,
     promise: Promise.resolve({ ok: false, message: '渲染未启动' })
   }
 
@@ -459,7 +486,7 @@ export async function postRenderRemotionVideo(
         onBrowserDownload: () => ({
           version: null,
           onProgress: ({ percent }) => {
-            if (input.signal?.aborted) {
+            if (renderSignal.aborted) {
               throw new Error('渲染已取消')
             }
             const pct = Math.round(percent * 100)
@@ -480,7 +507,7 @@ export async function postRenderRemotionVideo(
       const bundleLocation = await bundle({
         entryPoint,
         onProgress: ({ progress }) => {
-          if (input.signal?.aborted) {
+          if (renderSignal.aborted) {
             throw new Error('渲染已取消')
           }
           const overall = queryBundleOverallPercent(progress)
@@ -509,7 +536,7 @@ export async function postRenderRemotionVideo(
         codec: 'h264',
         outputLocation: input.outputPath,
         onProgress: ({ progress }) => {
-          if (input.signal?.aborted) {
+          if (renderSignal.aborted) {
             throw new Error('渲染已取消')
           }
           const pct = Math.round(progress * 100)
