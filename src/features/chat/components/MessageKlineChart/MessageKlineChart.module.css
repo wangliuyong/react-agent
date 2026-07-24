@@ -20,6 +20,10 @@
   margin: 0;
 }
 
+.listItem{
+  padding-left: 0!important;
+}
+
 .liveActions {
   display: flex;
   align-items: center;

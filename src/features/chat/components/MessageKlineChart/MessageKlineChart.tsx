@@ -187,10 +187,10 @@ export function MessageKlineChart({
           range,
           ...(range === 'custom'
             ? {
-                startDate:
-                  chart.startDate != null ? String(chart.startDate) : undefined,
-                endDate: chart.endDate != null ? String(chart.endDate) : undefined
-              }
+              startDate:
+                chart.startDate != null ? String(chart.startDate) : undefined,
+              endDate: chart.endDate != null ? String(chart.endDate) : undefined
+            }
             : {})
         }
         // IPC 内部调用 queryAshareRealtimeAnalysisCharts（与工具同逻辑）
@@ -272,8 +272,8 @@ export function MessageKlineChart({
             if (!items.length) return ''
             const axisValue = String(
               (items[0] as { axisValueLabel?: string; axisValue?: string }).axisValueLabel ??
-                (items[0] as { axisValue?: string }).axisValue ??
-                ''
+              (items[0] as { axisValue?: string }).axisValue ??
+              ''
             )
             const lines: string[] = [axisValue]
             for (const raw of items) {
@@ -569,7 +569,7 @@ export function MessageKlineChart({
               size="small"
               dataSource={analysis.tradeSignals.slice(-4)}
               renderItem={(item) => (
-                <List.Item>
+                <List.Item className={styles.listItem}>
                   <Tag color={item.type === 'buy' ? 'red' : 'green'}>
                     {item.type === 'buy' ? '买入' : '卖出'}
                   </Tag>
