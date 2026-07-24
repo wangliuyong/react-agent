@@ -1,5 +1,6 @@
 import type { ChatMessage } from '@shared/types'
 import { queryToolLabel } from '../../utils/agent-status'
+import { ASHARE_REALTIME_ANALYSIS_TOOL } from '../../utils/message-charts'
 import { MessageRichContent, queryMediaCountLabel } from '../MessageRichContent'
 import styles from './MessageList.module.css'
 
@@ -15,7 +16,7 @@ export interface ToolCallGroupProps {
 
 /**
  * 截图风格：默认折叠的「已调用 N 个工具」。
- * 组内含 K 线时默认展开整组，避免图表被藏住。
+ * 仅基础 K 线工具在组内展示图表；实时分析工具的 K 线由 MessageList 外置到正式内容区。
  */
 export function ToolCallGroup({
   tools,
@@ -24,13 +25,16 @@ export function ToolCallGroup({
   const count = declaredCount && declaredCount > 0 ? declaredCount : tools.length
   if (count <= 0) return null
 
-  const hasStockChart = tools.some((t) => t.content.includes('@@stock_chart@@'))
+  const hasInlineStockChart = tools.some(
+    (t) =>
+      t.content.includes('@@stock_chart@@') && t.toolName !== ASHARE_REALTIME_ANALYSIS_TOOL
+  )
 
   return (
     <Collapse
       size="small"
       className={`${styles.toolBlock} ${styles.toolCallGroup}`}
-      defaultActiveKey={hasStockChart ? ['group'] : undefined}
+      defaultActiveKey={hasInlineStockChart ? ['group'] : undefined}
       items={[
         {
           key: 'group',
@@ -48,13 +52,15 @@ export function ToolCallGroup({
                 tools.map((t) => {
                   const mediaLabel = queryMediaCountLabel(t.content)
                   const name = t.toolName ?? 'tool'
-                  const openByDefault = t.content.includes('@@stock_chart@@')
+                  const showChartsInTool =
+                    t.content.includes('@@stock_chart@@') &&
+                    t.toolName !== ASHARE_REALTIME_ANALYSIS_TOOL
                   return (
                     <Collapse
                       key={t.id}
                       size="small"
                       className={styles.toolCallItem}
-                      defaultActiveKey={openByDefault ? ['1'] : undefined}
+                      defaultActiveKey={showChartsInTool ? ['1'] : undefined}
                       items={[
                         {
                           key: '1',
@@ -64,6 +70,7 @@ export function ToolCallGroup({
                               content={t.content}
                               markdownClassName={styles.toolMarkdown}
                               showDoneAlert={false}
+                              showStockCharts={t.toolName !== ASHARE_REALTIME_ANALYSIS_TOOL}
                             />
                           )
                         }

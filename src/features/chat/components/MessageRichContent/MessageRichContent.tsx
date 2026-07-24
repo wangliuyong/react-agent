@@ -25,6 +25,8 @@ interface MessageRichContentProps {
   streaming?: boolean
   markdownClassName?: string
   showDoneAlert?: boolean
+  /** 为 false 时不渲染 K 线（由消息列表在正式内容区外置展示） */
+  showStockCharts?: boolean
 }
 
 /**
@@ -35,13 +37,14 @@ export function MessageRichContent({
   attachmentPaths,
   streaming = false,
   markdownClassName,
-  showDoneAlert = true
+  showDoneAlert = true,
+  showStockCharts = true
 }: MessageRichContentProps): React.ReactElement {
   const images = extractMessageImages(content, attachmentPaths)
   const { audio, video } = extractMessageMedia(content)
   const htmlItems = extractMessageHtml(content)
-  const stockCharts = extractStockCharts(content)
-  const stockLiveRefresh = queryStockLiveRefresh(content)
+  const stockCharts = showStockCharts ? extractStockCharts(content) : []
+  const stockLiveRefresh = showStockCharts ? queryStockLiveRefresh(content) : false
   const displayText = queryDisplayContentWithCharts(content, images)
 
   const previewPaths = [

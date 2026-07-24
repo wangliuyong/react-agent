@@ -21,7 +21,7 @@ export function ThinkingBlock({
 }: ThinkingBlockProps): React.ReactElement {
   const hasBody = content.trim().length > 0
   const headerLabel =
-    inProgress && !hasBody ? '正在思考…' : inProgress ? '思考中' : '思考过程'
+    inProgress && !hasBody ? '正在思考…' : inProgress ? '思考中' : '已完成思考'
 
   return (
     <Collapse

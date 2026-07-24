@@ -1,3 +1,4 @@
+import type { ChatMessage } from '@shared/types'
 import {
   queryDecodeWorkflowCtxMessage,
   stripMediaPathsFromDisplayText,
@@ -19,6 +20,30 @@ export type { StockChartPayload }
 export function extractStockCharts(content: string): StockChartPayload[] {
   const decoded = queryDecodeWorkflowCtxMessage(content)
   return queryExtractStockCharts(decoded)
+}
+
+/** A 股实时分析工具名：其 K 线图在消息列表中提升到正式内容区展示 */
+export const ASHARE_REALTIME_ANALYSIS_TOOL = 'query_ashare_realtime_analysis'
+
+/**
+ * 从本轮工具结果中汇总应外置展示的 K 线（默认仅 query_ashare_realtime_analysis）。
+ * 同一 symbol 后出现的结果覆盖先前的，与工具返回顺序一致。
+ */
+export function queryHoistedStockChartsFromTools(
+  tools: Pick<ChatMessage, 'content' | 'toolName'>[]
+): { charts: StockChartPayload[]; liveRefresh: boolean } {
+  const bySymbol = new Map<string, StockChartPayload>()
+  let liveRefresh = false
+
+  for (const tool of tools) {
+    if (tool.toolName !== ASHARE_REALTIME_ANALYSIS_TOOL) continue
+    if (queryStockLiveRefresh(tool.content)) liveRefresh = true
+    for (const chart of extractStockCharts(tool.content)) {
+      bySymbol.set(chart.symbol, chart)
+    }
+  }
+
+  return { charts: [...bySymbol.values()], liveRefresh }
 }
 
 /** 是否开启聊天内实时刷新 */

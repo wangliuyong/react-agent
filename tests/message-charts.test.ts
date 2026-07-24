@@ -9,7 +9,9 @@ import {
 import {
   extractStockCharts,
   queryDisplayContentWithCharts,
-  queryStockLiveRefresh
+  queryHoistedStockChartsFromTools,
+  queryStockLiveRefresh,
+  ASHARE_REALTIME_ANALYSIS_TOOL
 } from '../src/features/chat/utils/message-charts'
 
 const sampleChart: StockChartPayload = {
@@ -52,5 +54,20 @@ describe('message-charts', () => {
     const block = queryBuildStockChartBlock([sampleChart])
     const text = `K 线已就绪\n${block}`
     expect(queryDisplayContentWithCharts(text)).toBe('K 线已就绪')
+  })
+
+  it('仅外置 query_ashare_realtime_analysis 的 K 线', () => {
+    const block = queryBuildStockChartBlock([sampleChart])
+    const realtime = {
+      content: `分析完成\n${block}`,
+      toolName: ASHARE_REALTIME_ANALYSIS_TOOL
+    }
+    const klineOnly = {
+      content: `K 线\n${block}`,
+      toolName: 'query_ashare_kline'
+    }
+    const hoisted = queryHoistedStockChartsFromTools([realtime, klineOnly])
+    expect(hoisted.charts).toHaveLength(1)
+    expect(hoisted.charts[0].symbol).toBe('600519')
   })
 })

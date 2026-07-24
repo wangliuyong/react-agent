@@ -10,6 +10,8 @@ import {
   queryIsSyntheticToolCallContent,
   queryTimelineEndsWithToolGroup
 } from '../../utils/queryAgentTimeline'
+import { queryHoistedStockChartsFromTools } from '../../utils/message-charts'
+import { LazyMessageKlineChart } from '../LazyMessageKlineChart'
 import { MessageRichContent } from '../MessageRichContent'
 import { TypingIndicator } from '../TypingIndicator'
 import { ToolCallGroup } from './ToolCallGroup'
@@ -124,8 +126,20 @@ export function MessageList({
         }
 
         if (item.kind === 'orphanTool') {
+          const hoistedStock = queryHoistedStockChartsFromTools([item.message])
           return (
             <div key={item.message.id} className={styles.row}>
+              {hoistedStock.charts.length ? (
+                <div className={`${styles.rowAssistant}`}>
+                  <span className={styles.label}>灵犀</span>
+                  <div className={styles.assistantCard}>
+                    <LazyMessageKlineChart
+                      charts={hoistedStock.charts}
+                      liveRefresh={hoistedStock.liveRefresh}
+                    />
+                  </div>
+                </div>
+              ) : null}
               <ToolCallGroup tools={[item.message]} declaredCount={1} />
             </div>
           )
@@ -140,6 +154,8 @@ export function MessageList({
             ? m.content
             : ''
         const showNarrative = Boolean(narrative)
+        const hoistedStock = queryHoistedStockChartsFromTools(tools)
+        const showHoistedStock = hoistedStock.charts.length > 0
 
         return (
           <Fragment key={m.id}>
@@ -149,12 +165,20 @@ export function MessageList({
                 <ThinkingBlock content={m.thinkingContent} />
               </div>
             ) : null}
-            {showNarrative || showToolGroup ? (
+            {showNarrative || showToolGroup || showHoistedStock ? (
               <div className={`${styles.row} ${styles.rowAssistant}`}>
                 <span className={styles.label}>灵犀</span>
                 {showNarrative ? (
                   <div className={styles.assistantCard}>
                     <AssistantBody content={narrative} />
+                  </div>
+                ) : null}
+                {showHoistedStock ? (
+                  <div className={styles.assistantCard}>
+                    <LazyMessageKlineChart
+                      charts={hoistedStock.charts}
+                      liveRefresh={hoistedStock.liveRefresh}
+                    />
                   </div>
                 ) : null}
                 {showToolGroup ? (
