@@ -478,59 +478,8 @@ function TaskCard({
       <div className={styles.taskCardHeader}>
         <div className={styles.taskCardTitleRow}>
           <span className={styles.taskCardTitle}>{task.title || '未命名任务'}</span>
-          {isBuiltinSeedId(task.id) ? (
-            <Tag color={DB_THEME.primary} className={styles.builtinTag}>
-              内置
-            </Tag>
-          ) : null}
-          <span className={styles.statusBadge} data-status={displayStatus}>
-            {resolveStatusLabel(displayStatus)}
-          </span>
-        </div>
-      </div>
 
-      <div className={styles.taskDescription}>
-        <Tooltip title={bodyText}>
-          <p className={styles.taskDescriptionPrompt}>{bodyText}</p>
-        </Tooltip>
-
-      </div>
-
-      <div className={styles.infoGrid}>
-        <div className={styles.infoCell}>
-          <span className={styles.infoLabel}>触发方式</span>
-          <span className={styles.infoValue}>{trigger.main}</span>
-          <span className={styles.infoSub}>{trigger.sub}</span>
         </div>
-        <div className={styles.infoCell}>
-          <span className={styles.infoLabel}>下次执行</span>
-          <span className={styles.infoValue}>
-            {task.enabled && task.nextRunAt ? formatNextRunAbsolute(task.nextRunAt) : '未安排'}
-          </span>
-          {task.enabled && task.nextRunAt ? (
-            <span className={styles.infoSub}>{formatNextRunAt(task.nextRunAt)}</span>
-          ) : null}
-        </div>
-        <div className={styles.infoCell}>
-          <span className={styles.infoLabel}>执行动作</span>
-          <span className={styles.infoValue}>{actionMain}</span>
-          <span className={styles.infoSub} title={actionSub}>
-            {actionSub}
-          </span>
-        </div>
-        <div className={styles.infoCell}>
-          <span className={styles.infoLabel}>执行次数</span>
-          <span className={styles.infoValue}>{formatScheduledTaskRunCount(task)}</span>
-          {task.lastRunAt ? (
-            <span className={styles.infoSub}>
-              上次 {new Date(task.lastRunAt).toLocaleString('zh-CN')}
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <div className={styles.taskCardFooter}>
-        <span className={styles.footerHint}>{modelLabel}</span>
         <div className={styles.footerActions}>
           <Tooltip title={task.enabled ? '暂停' : '启用'}>
             <button
@@ -575,6 +524,61 @@ function TaskCard({
             </Tooltip>
           </Popconfirm>
         </div>
+      </div>
+      <div className={styles.taskDescription}>
+        <Tooltip title={bodyText}>
+          <p className={styles.taskDescriptionPrompt}>{bodyText}</p>
+        </Tooltip>
+
+      </div>
+
+      <div className={styles.infoGrid}>
+        <div className={styles.infoCell}>
+          <span className={styles.infoLabel}>触发方式</span>
+          <span className={styles.infoValue}>{trigger.main}</span>
+          <span className={styles.infoSub}>{trigger.sub}</span>
+        </div>
+        <div className={styles.infoCell}>
+          <span className={styles.infoLabel}>下次执行</span>
+          <span className={styles.infoValue}>
+            {task.enabled && task.nextRunAt ? formatNextRunAbsolute(task.nextRunAt) : '未安排'}
+          </span>
+          {task.enabled && task.nextRunAt ? (
+            <span className={styles.infoSub}>{formatNextRunAt(task.nextRunAt)}</span>
+          ) : null}
+        </div>
+        <div className={styles.infoCell}>
+          <span className={styles.infoLabel}>执行动作</span>
+          <span className={styles.infoValue}>{actionMain}</span>
+          <span className={styles.infoSub} title={actionSub}>
+            {actionSub}
+          </span>
+        </div>
+        <div className={styles.infoCell}>
+          <span className={styles.infoLabel}>执行次数</span>
+          <span className={styles.infoValue}>{formatScheduledTaskRunCount(task)}</span>
+          {task.lastRunAt ? (
+            <span className={styles.infoSub}>
+              上次 {new Date(task.lastRunAt).toLocaleString('zh-CN')}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className={styles.taskCardFooter}>
+
+        <div>
+          {isBuiltinSeedId(task.id) ? (
+            <Tag color={DB_THEME.primary} className={styles.builtinTag}>
+              内置
+            </Tag>
+          ) : null}
+          <span className={styles.statusBadge} data-status={displayStatus}>
+            {resolveStatusLabel(displayStatus)}
+          </span>
+        </div>
+        <span className={styles.footerHint}>{modelLabel}</span>
+
       </div>
     </article>
   )
