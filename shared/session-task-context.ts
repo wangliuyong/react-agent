@@ -1,4 +1,5 @@
 import type { ChatMessage, Session, TaskItem } from './types'
+import { queryRelatedMessagesForTask } from './session-related-messages'
 
 /** 任务执行上下文：关联消息 + 工作流 context 切片 */
 export interface TaskExecutionContext {
@@ -36,24 +37,6 @@ function queryContextSliceForTask(
   return slice
 }
 
-/**
- * 按任务标题 / 工具名 / 工作流步骤标记，匹配与该节点相关的消息。
- * 工作流引擎会在 Agent 步骤前写入「【工作流步骤】标题」类内容。
- */
-function queryRelatedMessagesForTask(session: Session, task: TaskItem): ChatMessage[] {
-  const title = task.title.trim()
-  if (!title) return []
-
-  return session.messages.filter((msg) => {
-    const content = msg.content ?? ''
-    if (content.includes(title)) return true
-    if (content.includes(`【工作流步骤】${title}`)) return true
-    if (msg.toolName && title.toLowerCase().includes(msg.toolName.toLowerCase())) return true
-    if (content.includes(`等待确认：${title}`)) return true
-    return false
-  })
-}
-
 /** 筛选成功执行的任务（仅 status === done，不含失败/跳过/待执行） */
 export function querySuccessfulTasks(tasks: TaskItem[]): TaskItem[] {
   return tasks.filter((task) => task.status === 'done')
@@ -70,7 +53,7 @@ export function querySuccessfulTaskExecutionContexts(
   const successfulTasks = querySuccessfulTasks(session.tasks ?? [])
   return successfulTasks.map((task) => ({
     task,
-    relatedMessages: queryRelatedMessagesForTask(session, task),
+    relatedMessages: queryRelatedMessagesForTask(session, task, workflowContext),
     contextSlice: queryContextSliceForTask(workflowContext, task)
   }))
 }

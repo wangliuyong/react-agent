@@ -1,4 +1,5 @@
 import type { ChatMessage, MessageRole, Session, TaskItem, WorkflowRun } from '@shared/types'
+import { queryRelatedMessagesByTask } from '@shared/session-related-messages'
 import { queryNodeExecution } from '@shared/workflow-node-execution'
 import type { NodeExecutionContext, NotifyContextDebug, SessionContextSummary } from '../types'
 
@@ -111,24 +112,6 @@ function queryContextSliceForTask(
   return slice
 }
 
-/**
- * 按任务标题 / 工具名 / 工作流步骤标记，匹配与该节点相关的消息。
- * 工作流引擎会在 Agent 步骤前写入「【工作流步骤】标题」类内容。
- */
-function queryRelatedMessagesForTask(session: Session, task: TaskItem): ChatMessage[] {
-  const title = task.title.trim()
-  if (!title) return []
-
-  return session.messages.filter((msg) => {
-    const content = msg.content ?? ''
-    if (content.includes(title)) return true
-    if (content.includes(`【工作流步骤】${title}`)) return true
-    if (msg.toolName && title.toLowerCase().includes(msg.toolName.toLowerCase())) return true
-    if (content.includes(`等待确认：${title}`)) return true
-    return false
-  })
-}
-
 /** 构建会话级上下文摘要 */
 export function querySessionContextSummary(
   session: Session,
@@ -153,6 +136,7 @@ export function queryNodeExecutionContexts(
 ): NodeExecutionContext[] {
   const tasks = session.tasks ?? []
   const context = workflowRun?.context
+  const relatedByTask = queryRelatedMessagesByTask(session, tasks, context)
 
   if (tasks.length === 0) {
     return [
@@ -184,7 +168,7 @@ export function queryNodeExecutionContexts(
       queryNotifyDebugFromContextSlice(contextSlice)
     return {
       task,
-      relatedMessages: queryRelatedMessagesForTask(session, task),
+      relatedMessages: relatedByTask.get(task.id) ?? [],
       contextSlice,
       contextJson: formatContextJson(contextSlice),
       nodeInput,

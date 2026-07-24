@@ -2,6 +2,8 @@
  * 工作流节点执行记录：写入 WorkflowRun.context，供历史对话排查入参/出参。
  */
 
+import type { ChatMessage } from './types'
+
 /** context 中存放各节点执行记录的键名（内部字段，不参与模板插值） */
 export const WORKFLOW_NODE_EXECUTIONS_KEY = '__nodeExecutions__' as const
 
@@ -10,6 +12,12 @@ export const WORKFLOW_INTERNAL_CONTEXT_KEYS = new Set<string>([
   WORKFLOW_NODE_EXECUTIONS_KEY,
   '__branchKeys'
 ])
+
+/** 节点执行期间会话 messages 的下标区间 [from, to) */
+export interface WorkflowNodeMessageRange {
+  from: number
+  to: number
+}
 
 /** 单个节点的执行快照 */
 export interface WorkflowNodeExecutionRecord {
@@ -23,6 +31,8 @@ export interface WorkflowNodeExecutionRecord {
   /** 节点出参（写入全局 context 的键值） */
   output: Record<string, unknown>
   executedAt: number
+  /** 本节点执行期间新增（或写入）的会话消息下标区间，供历史上下文按节点归类 */
+  messageRange?: WorkflowNodeMessageRange
 }
 
 /** 从 workflow context 读取全部节点执行记录 */
@@ -94,7 +104,8 @@ export function patchContextWithNodeExecution(
   afterContext: Record<string, unknown>,
   node: { id: string; type: string; title?: string },
   input: Record<string, unknown>,
-  outputOverride?: Record<string, unknown>
+  outputOverride?: Record<string, unknown>,
+  messageRange?: WorkflowNodeMessageRange
 ): Record<string, unknown> {
   const record: WorkflowNodeExecutionRecord = {
     nodeId: node.id,
@@ -103,9 +114,21 @@ export function patchContextWithNodeExecution(
     contextSnapshot: queryContextSnapshotForDisplay(beforeContext),
     input,
     output: outputOverride ?? queryContextOutputDiff(beforeContext, afterContext),
-    executedAt: Date.now()
+    executedAt: Date.now(),
+    ...(messageRange ? { messageRange } : {})
   }
   return patchNodeExecution(afterContext, record)
+}
+
+/** 按节点执行记录截取关联消息 */
+export function queryMessagesForNodeExecution(
+  messages: ChatMessage[],
+  record: WorkflowNodeExecutionRecord | undefined
+): ChatMessage[] {
+  if (!record?.messageRange) return []
+  const { from, to } = record.messageRange
+  if (from < 0 || to <= from || from >= messages.length) return []
+  return messages.slice(from, Math.min(to, messages.length))
 }
 
 /** 标记节点被跳过（条件分支未选中） */

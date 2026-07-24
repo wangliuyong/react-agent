@@ -54,6 +54,11 @@ import {
 /** 同一时刻每个会话只跑一个工作流 */
 const runningBySession = new Set<string>()
 
+/** 读取会话当前消息条数，用于节点执行 messageRange 落盘 */
+function querySessionMessageLength(sessionId: string): number {
+  return querySession(sessionId)?.messages.length ?? 0
+}
+
 /**
  * 调试输出：节点执行时的上下文与模板解析结果（主进程 console）。
  * @param label 日志阶段说明，如「开始执行」「工具参数已解析」
@@ -263,6 +268,7 @@ async function executeToolNode(
 ): Promise<Record<string, unknown>> {
   const beforeContext = context
   const sessionId = session.id
+  const messageFrom = querySessionMessageLength(sessionId)
   const tool = getToolByName(node.toolName)
   if (!tool) {
     throw new Error(`未知工具: ${node.toolName}`)
@@ -324,10 +330,17 @@ async function executeToolNode(
   } else if (!Object.keys(decoded.patch).length) {
     nextContext[node.toolName] = decoded.message
   }
-  return patchContextWithNodeExecution(beforeContext, nextContext, node, {
-    toolName: node.toolName,
-    args
-  })
+  return patchContextWithNodeExecution(
+    beforeContext,
+    nextContext,
+    node,
+    {
+      toolName: node.toolName,
+      args
+    },
+    undefined,
+    { from: messageFrom, to: querySessionMessageLength(sessionId) }
+  )
 }
 
 /**
@@ -340,6 +353,7 @@ async function executeNotifyNode(
   context: Record<string, unknown>
 ): Promise<{ context: Record<string, unknown>; summary: string }> {
   const beforeContext = context
+  const messageFrom = querySessionMessageLength(session.id)
   logWorkflowNodeInput('通知节点 · 上下文', node, context)
   const title = node.titleTemplate
     ? interpolatePromptSoft(node.titleTemplate, context)
@@ -448,7 +462,14 @@ async function executeNotifyNode(
   }
 
   return {
-    context: patchContextWithNodeExecution(beforeContext, nextContext, node, nodeInput, output),
+    context: patchContextWithNodeExecution(
+      beforeContext,
+      nextContext,
+      node,
+      nodeInput,
+      output,
+      { from: messageFrom, to: querySessionMessageLength(session.id) }
+    ),
     summary
   }
 }
@@ -462,6 +483,7 @@ async function executeToastNode(
   context: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
   const beforeContext = context
+  const messageFrom = querySessionMessageLength(session.id)
   logWorkflowNodeInput('Toast 节点 · 上下文', node, context)
   const content = interpolatePromptSoft(node.contentTemplate, context).trim()
   const display = content || '（空通知）'
@@ -489,7 +511,8 @@ async function executeToastNode(
     nextContext,
     node,
     { content: display, level: node.level },
-    output
+    output,
+    { from: messageFrom, to: querySessionMessageLength(session.id) }
   )
 }
 
@@ -512,6 +535,7 @@ async function executeInputNode(
 ): Promise<Record<string, unknown>> {
   const beforeContext = context
   const sessionId = session.id
+  const messageFrom = querySessionMessageLength(sessionId)
   const kinds = node.inputKinds.length ? node.inputKinds : (['text'] as const)
   const kindHint = kinds.map((k) => INPUT_KIND_LABELS[k] ?? k).join('、')
   const reason = node.prompt?.trim() || `请提供：${kindHint}`
@@ -551,7 +575,14 @@ async function executeInputNode(
   const output: Record<string, unknown> = {}
   if (kinds.includes('text') && text) output[textKey] = text
   if (needsFiles && attachmentPaths.length) output[fileKey] = attachmentPaths
-  return patchContextWithNodeExecution(beforeContext, nextContext, node, nodeInput, output)
+  return patchContextWithNodeExecution(
+    beforeContext,
+    nextContext,
+    node,
+    nodeInput,
+    output,
+    { from: messageFrom, to: querySessionMessageLength(sessionId) }
+  )
 }
 
 /** 按输出格式补全文件扩展名 */
@@ -579,6 +610,8 @@ async function executeOutputNode(
   context: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
   const beforeContext = context
+  const sessionId = session.id
+  const messageFrom = querySessionMessageLength(sessionId)
   logWorkflowNodeInput('输出节点 · 上下文', node, context)
   const outputDir = node.outputDir.trim()
   if (!outputDir) {
@@ -634,7 +667,14 @@ async function executeOutputNode(
     nextContext[key] = targetPath
     output[key] = targetPath
   }
-  return patchContextWithNodeExecution(beforeContext, nextContext, node, nodeInput, output)
+  return patchContextWithNodeExecution(
+    beforeContext,
+    nextContext,
+    node,
+    nodeInput,
+    output,
+    { from: messageFrom, to: querySessionMessageLength(sessionId) }
+  )
 }
 
 async function executeLeafNode(
@@ -664,6 +704,7 @@ async function executeLeafNode(
 
   if (node.type === 'await_user') {
     const beforeContext = run.context
+    const messageFrom = querySessionMessageLength(sessionId)
     run = patchRun(run, { status: 'awaiting_user' })
     const reason = node.reason || node.title
     appendWorkflowMessage(session, {
@@ -703,7 +744,14 @@ async function executeLeafNode(
         if (key in nextContext) output[key] = nextContext[key]
       }
     }
-    const patched = patchContextWithNodeExecution(beforeContext, nextContext, node, { reason }, output)
+    const patched = patchContextWithNodeExecution(
+      beforeContext,
+      nextContext,
+      node,
+      { reason },
+      output,
+      { from: messageFrom, to: querySessionMessageLength(sessionId) }
+    )
     return patchRun(run, { context: patched, status: 'running' })
   }
 
@@ -768,7 +816,11 @@ async function executeLeafNode(
     nextContext,
     node,
     { prompt: stepPrompt, toolWhitelist: node.toolWhitelist },
-    output
+    output,
+    {
+      from: msgCountBefore,
+      to: sessionAfter?.messages.length ?? msgCountBefore
+    }
   )
   return patchRun(run, { context: patched, status: 'running' })
 }
