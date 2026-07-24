@@ -47,7 +47,7 @@ const TOOL_NAME_OPTIONS: { value: string; label: string }[] = [
   { value: 'update_task_list', label: 'update_task_list（更新任务）' },
   { value: 'generate_image', label: 'generate_image（生成图片）' },
   { value: 'fetch_web_images', label: 'fetch_web_images（抓取网页配图）' },
-  { value: 'fetch_hot_topics', label: 'fetch_hot_topics（获取热点）' },
+  { value: 'fetch_hot_topics', label: 'fetch_hot_topics（获取热点：微博/百度/抖音/快手/小红书/腾讯）' },
   { value: 'query_ashare_kline', label: 'query_ashare_kline（A股K线）' },
   { value: 'query_ashare_realtime_analysis', label: 'query_ashare_realtime_analysis（实时K线+分析）' },
   { value: 'query_weather', label: 'query_weather（查询天气）' },

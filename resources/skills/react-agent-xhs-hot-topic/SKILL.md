@@ -3,7 +3,7 @@ name: react-agent-xhs-hot-topic
 description: >-
   热点话题搜索 → 内容创作 → 网页抓配图 → 小红书图文发布的端到端 Agent 工作流。
   在用户要求「找热点/热搜发小红书」「从新闻网页抓配图发布」「帮我发一条小红书内容关于…」
-  且需先调研热点时使用。
+  且需先调研热点时使用。热点优先 fetch_hot_topics（xhs/weibo/baidu/douyin/kuaishou/tencent）。
 ---
 
 # 热点话题 → 小红书发布
@@ -13,7 +13,7 @@ description: >-
 用户希望 Agent **先找热点/新闻**，再自动撰写并发布小红书图文，例如：
 
 - 「帮我找一条热点发小红书…」
-- 「从百度热搜/新闻里选题，标题不超过 20 字，用 fetch_web_images 抓配图」
+- 「从热搜/新闻里选题，标题不超过 20 字，用 fetch_web_images 抓配图」
 - 「内容贴近年轻人生活，本地图片可选」
 
 ## 标准任务清单（开始时用 update_task_list 创建）
@@ -29,14 +29,24 @@ description: >-
 
 ## 执行步骤
 
-### 1. 搜索热点（browser_*）
+### 1. 搜索热点（fetch_hot_topics + browser_*）
 
-优先来源（按用户指定或默认顺序尝试）：
+**优先**调用 `fetch_hot_topics`，按平台与任务选 `source`：
 
-1. 百度热搜：`https://www.baidu.com/s?wd=百度热搜` 或热搜榜页
-2. 微博热搜、今日头条热榜等（用户指定时优先）
+| source | 平台 | 说明 |
+|--------|------|------|
+| `xhs` | 小红书 | 发小红书时首选 |
+| `douyin` | 抖音 | 发抖音图文时首选 |
+| `weibo` | 微博 | 综合热搜 |
+| `baidu` | 百度 | 综合热搜 |
+| `kuaishou` | 快手 | 短视频热点 |
+| `tencent` | 腾讯新闻 | 资讯热点 |
 
-操作模式：
+```json
+{ "source": "xhs", "maxCount": 20 }
+```
+
+`hotTopicsOk=1` 时从 `hotTopics` 文本选题；失败则换 `source` 重试。全部失败再走浏览器：
 
 ```
 browser_navigate → browser_snapshot → 阅读榜单
@@ -112,6 +122,7 @@ browser_navigate → browser_snapshot → 阅读榜单
 
 | 情况 | 处理 |
 |------|------|
+| 热搜 API 失败 | 换 `fetch_hot_topics` 的 `source`（weibo/baidu/douyin/tencent/kuaishou/xhs）重试 |
 | 热搜页结构变化 | `browser_snapshot` 排查，换来源或换 selector 文案 |
 | 配图下载失败 | 换 `imageUrls` 直链或换来源页重试 `fetch_web_images` |
 | 创作台 DOM 改版 | `browser_snapshot` + `browser_*` 原子工具补操作 |

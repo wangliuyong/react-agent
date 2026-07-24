@@ -35,7 +35,7 @@
 |------|------|
 | supervisor | 无（或仅路由） |
 | general | 全量 |
-| researcher | fetch_hot_topics, fetch_web_images, list_attachments, read_file, update_task_list, browser_navigate, browser_snapshot |
+| researcher | fetch_hot_topics（weibo/baidu/douyin/kuaishou/xhs/tencent）, fetch_web_images, list_attachments, read_file, update_task_list, browser_navigate, browser_snapshot |
 | writer | update_task_list, read_file, write_file, list_attachments |
 | publisher | xhs_publish_note, douyin_publish_note, browser_*, update_task_list, list_attachments |
 

@@ -81,7 +81,7 @@ function buildEndToEndAgentNode(sub: PublishSubTask): WorkflowAgentNode {
       `任务标题：${sub.title}`,
       sub.topic ? `主题标签：${sub.topic}` : '',
       `内容要求：${sub.contentPrompt || '按主题自由发挥'}`,
-      '若需热点选题，先调用 fetch_hot_topics；再撰写标题与正文。',
+      '若需热点选题，先调用 fetch_hot_topics（source 按发布渠道：xhs/douyin；综合热搜可 weibo/baidu/tencent/kuaishou）；再撰写标题与正文。',
       '配图：必须调用 fetch_web_images（传入 pageUrl 或 imageUrls）拿到本地绝对路径后再发布；不要只给「建议来源」而不下载。',
       publishHint,
       ...channelBlocks,

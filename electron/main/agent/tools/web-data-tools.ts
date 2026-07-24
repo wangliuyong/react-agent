@@ -47,7 +47,7 @@ export const queryWebDataTool: AgentTool = {
   name: 'query_web_data',
   description:
     '从指定 URL 获取网页或公开 API 文本数据。优先直接 HTTP 请求；失败时用无头浏览器后台抓取（不弹窗）。' +
-    '写入 context.webDataOk / webData。热点请优先用 fetch_hot_topics，天气用 query_weather。',
+    '写入 context.webDataOk / webData。热点榜单请用 fetch_hot_topics（source：weibo/baidu/douyin/kuaishou/xhs/tencent），天气用 query_weather。',
   permission: 'safe',
   parameters: {
     type: 'object',

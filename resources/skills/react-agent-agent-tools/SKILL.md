@@ -76,6 +76,10 @@ export const myTool: AgentTool = {
 - 工作流：`compile-to-langgraph` 按顶层节点 advance；agent 步走 ReAct 子图
 - 事件经 `event:agent` 推送到渲染进程（含可选 `agent_role`）
 
+## 角色工具白名单
+
+修改 `graph/role-tools.ts` 时，调研员默认含 `fetch_hot_topics`（多平台 source 见工具 parameters.enum）。
+
 ## 验证
 
 ```bash

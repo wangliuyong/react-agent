@@ -65,7 +65,7 @@ export function createBuiltinPublishPlans(now = Date.now()): PublishPlan[] {
           topic: '人工智能',
           autoPublish: true,
           contentPrompt:
-            '内容主题：搜罗昨日 ai 最新热门新闻。配图：从相关新闻来源网页用 fetch_web_images 抓取封面图（本地上传可选）。未登录时会暂停等人扫码。'
+            '内容主题：搜罗昨日 ai 最新热门新闻。热点：优先 fetch_hot_topics（source 依次 weibo、douyin、tencent、baidu）。配图：从相关新闻来源网页用 fetch_web_images 抓取封面图（本地上传可选）。未登录时会暂停等人扫码。'
         },
         {
           id: 'builtin-sub-sports-xhs',
@@ -106,7 +106,7 @@ export function createBuiltinPublishPlans(now = Date.now()): PublishPlan[] {
     {
       id: BUILTIN_PUBLISH_PLAN_IDS.feishuRichtext,
       title: '飞书富文本推送',
-      description: '抓取微博/百度热搜，整理 Markdown 简报，完成后自动推送飞书 post 富文本',
+      description: '抓取多平台热搜（微博/百度/抖音/腾讯等），整理 Markdown 简报，完成后自动推送飞书 post 富文本',
       kind: 'workflow',
       workflowIds: [BUILTIN_WORKFLOW_IDS.feishuRichtextPush],
       notifyChannels: ['feishu'],
@@ -146,7 +146,7 @@ export function createBuiltinScheduledTasks(now = Date.now()): ScheduledTask[] {
       weekday: 1,
       actionType: 'custom_prompt',
       customPrompt:
-        '请调研上周人工智能与科技行业的热点事件，整理成 5 条要点摘要，每条包含标题、一句话说明和参考来源链接。输出 Markdown 格式，便于后续改写为发布内容。',
+        '请调研上周人工智能与科技行业的热点事件（可调用 fetch_hot_topics，source 依次尝试 weibo、baidu、douyin、tencent、kuaishou、xhs），整理成 5 条要点摘要，每条包含标题、一句话说明和参考来源链接。输出 Markdown 格式，便于后续改写为发布内容。',
       /** 任务成功后主进程自动将正文转为飞书富文本推送 */
       notifyChannels: ['feishu'],
       createdAt: now,
@@ -155,14 +155,14 @@ export function createBuiltinScheduledTasks(now = Date.now()): ScheduledTask[] {
     {
       id: BUILTIN_SCHEDULE_TASK_IDS.dailyHotPush,
       title: '昨日热点推送',
-      description: '每天 8:00 抓取微博/百度热搜，筛选科技相关热点并推送飞书',
+      description: '每天 8:00 抓取多平台热搜，筛选科技相关热点并推送飞书',
       enabled: false,
       repeat: 'daily',
       timeOfDay: '08:00',
       weekday: 1,
       actionType: 'custom_prompt',
       customPrompt:
-        '请获取昨日微博与百度热搜中与人工智能、科技、互联网相关的热点（优先调用 fetch_hot_topics，source 依次尝试 weibo、baidu）。' +
+        '请获取昨日热搜中与人工智能、科技、互联网相关的热点（优先调用 fetch_hot_topics，source 依次尝试 weibo、baidu、douyin、tencent、kuaishou、xhs）。' +
         '整理成 8 条要点简报，每条包含：标题、一句话说明、可参考的资讯来源或链接。' +
         '输出 Markdown 格式，文首加标题「昨日热点简报」，便于自动推送飞书。',
       /** 任务成功后主进程自动将正文转为飞书富文本推送 */

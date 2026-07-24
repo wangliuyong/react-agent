@@ -22,17 +22,16 @@
 **典型工具序列：**
 
 1. `update_task_list` — 创建上述清单
-2. `browser_navigate` — 打开百度热搜或新闻热榜
-3. `browser_snapshot` — 阅读榜单，选定话题（如「为什么我们不爱接电话了」）
-4. `browser_click` — 进入话题详情
-5. `browser_snapshot` — 阅读正文，提炼观点
-6. `update_task_list` — 第 1 项 `done`，第 2 项 `running`
-7. （模型撰写标题与正文，无需工具）
-8. `update_task_list` — 第 2 项 `done`，第 3 项 `running`
-9. `fetch_web_images({ "pageUrl": "https://...详情页", "maxCount": 3 })`
-10. `update_task_list` — 第 3 项 `done`，第 4 项 `running`
-11. `xhs_publish_note({ "title": "...", "content": "...", "imagePaths": [...], "autoPublish": true })`
-12. `update_task_list` — 第 4 项 `done`
+2. `fetch_hot_topics({ "source": "xhs", "maxCount": 20 })` — 拉热点；失败则试 `weibo`、`baidu`、`douyin`
+3. `browser_navigate` — 打开选定话题的新闻详情页
+4. `browser_snapshot` — 阅读正文，提炼观点
+5. `update_task_list` — 第 1 项 `done`，第 2 项 `running`
+6. （模型撰写标题与正文，无需工具）
+7. `update_task_list` — 第 2 项 `done`，第 3 项 `running`
+8. `fetch_web_images({ "pageUrl": "https://...详情页", "maxCount": 3 })`
+9. `update_task_list` — 第 3 项 `done`，第 4 项 `running`
+10. `xhs_publish_note({ "title": "...", "content": "...", "imagePaths": [...], "autoPublish": true })`
+11. `update_task_list` — 第 4 项 `done`
 
 **xhs_publish_note 执行期间**，右侧任务清单会显示子步骤：
 

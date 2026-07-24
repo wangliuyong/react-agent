@@ -109,9 +109,9 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
   },
   {
     id: 'tpl_hot_topics_weibo_baidu',
-    title: '今日热点：微博优先，失败回退百度',
+    title: '今日热点：微博优先，多来源回退',
     description:
-      '先用 fetch_hot_topics 拉微博热搜；失败（hotTopicsOk≠1）则走百度热搜；最后整理摘要并确认。',
+      '先用 fetch_hot_topics 拉微博热搜；失败（hotTopicsOk≠1）则回退百度；整理摘要并确认。其他来源（douyin/kuaishou/tencent/xhs）可在画布中复制工具节点并改 source。',
     templateKind: 'generic',
     nodes: [
       { id: 'tpl_ht_start', type: 'start', title: '开始' },
@@ -139,7 +139,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
                 type: 'agent',
                 title: '整理微博热点摘要',
                 prompt:
-                  '以下是微博今日热点原始列表，请整理成简洁中文摘要：列出 Top 10（标题即可），并加一句总体观察。不要调用浏览器或发布工具。\n\n{{hotTopics}}',
+                  '以下是微博今日热点原始列表，请整理成简洁中文摘要：列出 Top 10（标题即可），并加一句总体观察。注明来源为微博。不要调用浏览器或发布工具。\n\n{{hotTopics}}',
                 toolWhitelist: ['update_task_list']
               }
             ]
@@ -323,7 +323,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
     id: 'tpl_feishu_richtext_push',
     title: '飞书富文本推送（模板）',
     description:
-      '微博热搜优先、失败回退百度；整理 Markdown 简报。流程结束后由系统转为 msg_type=post 推送飞书，无需人工确认。',
+      '微博热搜优先、失败回退百度；可扩展为抖音/腾讯等 source。整理 Markdown 简报后由系统转为 msg_type=post 推送飞书，无需人工确认。',
     templateKind: 'generic',
     nodes: [
       { id: 'tpl_fr_start', type: 'start', title: '开始' },
@@ -356,7 +356,8 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
                   '1. 文首二级标题「热点富文本简报」',
                   '2. 列出 Top 8 条科技/互联网相关热点（不足则列综合热点）',
                   '3. 每条：标题 + 一句话说明 + [查看](链接)（无链接可写热搜词条）',
-                  '4. 只输出 Markdown；禁止调用 notify_message（流程结束后系统自动 post 推送飞书）',
+                  '4. 文内注明来源平台（微博）',
+                  '5. 只输出 Markdown；禁止调用 notify_message（流程结束后系统自动 post 推送飞书）',
                   '',
                   '{{hotTopics}}'
                 ].join('\n'),
@@ -387,7 +388,8 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
                   '1. 文首二级标题「热点富文本简报」',
                   '2. 列出 Top 8 条科技/互联网相关热点（不足则列综合热点）',
                   '3. 每条：标题 + 一句话说明 + [查看](链接)（无链接可写热搜词条）',
-                  '4. 只输出 Markdown；禁止调用 notify_message（流程结束后系统自动 post 推送飞书）',
+                  '4. 文内注明来源平台（百度）',
+                  '5. 只输出 Markdown；禁止调用 notify_message（流程结束后系统自动 post 推送飞书）',
                   '',
                   '{{hotTopics}}'
                 ].join('\n'),

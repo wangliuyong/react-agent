@@ -42,19 +42,19 @@ export const QUICK_TASK_CARDS: QuickCard[] = [
     title: '发一条抖音图文',
     desc: '从来源网页抓取配图，生成标题正文并发布到抖音创作者中心',
     prompt:
-      '帮我发一条抖音图文，内容关于今日热点。请先找相关新闻来源页，用 fetch_web_images 抓取配图，再调用 douyin_publish_note 发布；标题不超过30字。我本地上传图片仅作可选补充。'
+      '帮我发一条抖音图文，内容关于今日热点。请先 fetch_hot_topics（source 优先 douyin）选题，再找相关新闻来源页，用 fetch_web_images 抓取配图，再调用 douyin_publish_note 发布；标题不超过30字。我本地上传图片仅作可选补充。'
   },
   {
     title: '发一条小红书',
     desc: '从来源网页抓取配图，生成标题正文并发布（本地上传可选）',
     prompt:
-      '帮我发一条小红书，内容关于今日热点。请先找相关新闻来源页，用 fetch_web_images 抓取配图，再发布；标题不超过20字。我本地上传图片为可选补充。'
+      '帮我发一条小红书，内容关于今日热点。请先 fetch_hot_topics（source 优先 xhs 或 weibo）选题，再找相关新闻来源页，用 fetch_web_images 抓取配图，再发布；标题不超过20字。我本地上传图片为可选补充。'
   },
   {
     title: 'AI 热点速览',
     desc: '拉取今日科技/AI 热点，整理成可读摘要',
     prompt:
-      '请用 fetch_hot_topics 获取今日 AI 与科技热点，整理成 5 条要点摘要（含来源），用简洁中文回复。'
+      '请用 fetch_hot_topics 获取今日 AI 与科技热点（source 依次尝试 weibo、baidu、douyin、tencent），整理成 5 条要点摘要（注明各条来源平台），用简洁中文回复。'
   },
   {
     title: 'A股实时分析',
@@ -102,13 +102,13 @@ export const QUICK_TASK_CARDS: QuickCard[] = [
     title: '热搜改小红书笔记',
     desc: '拉取今日热点→抓配图→生成标题正文并发布',
     prompt:
-      '请先用 fetch_hot_topics 获取今日热点，选一条适合小红书的话题；再找相关新闻页用 fetch_web_images 抓配图，最后调用 xhs_publish_note 发布，标题不超过20字。'
+      '请先用 fetch_hot_topics 获取今日热点（source 优先 xhs，失败再试 weibo/baidu/douyin），选一条适合小红书的话题；再找相关新闻页用 fetch_web_images 抓配图，最后调用 xhs_publish_note 发布，标题不超过20字。'
   },
   {
     title: '热搜改抖音图文',
     desc: '热点选题→网页配图→抖音创作者中心发布',
     prompt:
-      '请先用 fetch_hot_topics 拿今日热点，选一条适合抖音的话题；用 fetch_web_images 从新闻来源页下载配图，再调用 douyin_publish_note 发布，标题不超过30字。'
+      '请先用 fetch_hot_topics 拿今日热点（source 优先 douyin，失败再试 weibo/baidu/tencent），选一条适合抖音的话题；用 fetch_web_images 从新闻来源页下载配图，再调用 douyin_publish_note 发布，标题不超过30字。'
   },
   {
     title: '写剧本并出分镜',
@@ -197,19 +197,19 @@ export const QUICK_TASK_CARDS: QuickCard[] = [
     title: '热点摘要并推送',
     desc: '抓取热点→整理摘要→多渠道通知',
     prompt:
-      '请用 fetch_hot_topics 获取今日科技热点，整理 5 条中文摘要，再调用 notify_message 推送到我已配置的全部通知渠道。'
+      '请用 fetch_hot_topics 获取今日科技热点（source 依次 weibo、baidu、douyin、tencent），整理 5 条中文摘要，再调用 notify_message 推送到我已配置的全部通知渠道。'
   },
   {
     title: '热点生成社交配图',
     desc: '拉取热点选题，用文生图生成原创海报',
     prompt:
-      '请先用 fetch_hot_topics 选一条适合传播的热点，再调用 generate_image 生成一张竖版原创海报（非网图），风格简洁现代，并告诉我保存路径。'
+      '请先用 fetch_hot_topics（source 优先 weibo 或 douyin）选一条适合传播的热点，再调用 generate_image 生成一张竖版原创海报（非网图），风格简洁现代，并告诉我保存路径。'
   },
   {
     title: '小红书抖音同题双发',
     desc: '同一主题分别适配两平台并串行发布',
     prompt:
-      '主题：今日 AI 行业要闻速览。请先调研并撰写内容，分别生成适合小红书和抖音的标题正文；各平台用 fetch_web_images 抓配图后，先 xhs_publish_note 再 douyin_publish_note 发布。'
+      '主题：今日 AI 行业要闻速览。请先 fetch_hot_topics（weibo/douyin/tencent）调研并撰写内容，分别生成适合小红书和抖音的标题正文；各平台用 fetch_web_images 抓配图后，先 xhs_publish_note 再 douyin_publish_note 发布。'
   },
   {
     title: '拆解任务进度清单',

@@ -7,8 +7,8 @@
 ## 典型工具序列
 
 1. `update_task_list` — 创建 4 步任务清单
-2. `browser_navigate` — 打开百度热搜
-3. `browser_snapshot` — 阅读榜单选定话题
-4. `browser_click` — 进入话题详情
+2. `fetch_hot_topics({ "source": "xhs", "maxCount": 20 })` — 拉小红书热点；失败则试 `weibo` / `baidu` / `douyin`
+3. `browser_navigate` — 进入选定话题的新闻详情页（可选）
+4. `browser_snapshot` — 阅读正文提炼观点
 5. `fetch_web_images({ pageUrl, maxCount: 3 })`
 6. `xhs_publish_note({ title, content, imagePaths, autoPublish: true })`
