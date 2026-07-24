@@ -8,7 +8,7 @@
 
 1. `use_skill('react-agent-remotion')`
 2. `use_skill('remotion-markup')`
-3. `remotion_init_project({ width: 1080, height: 1920, fps: 30, durationInFrames: 150, compositionId: 'Intro' })`
+3. `remotion_init_project({ width: 1920, height: 1080, fps: 30, durationInFrames: 150, compositionId: 'Intro' })`（竖版片头可改为 `1080×1920`）
 4. `write_file` 覆盖 `src/Composition.tsx`（useCurrentFrame + interpolate 淡入）
 5. `remotion_studio()` — 浏览器打开预览
 6. `remotion_render({ compositionId: 'Intro', outputFileName: 'intro.mp4' })`

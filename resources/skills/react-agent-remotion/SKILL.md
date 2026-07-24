@@ -29,7 +29,7 @@ description: >-
    ```
    remotion_init_project
    ```
-   - 竖版短视频默认 1080×1920；横版 1920×1080
+   - 默认横版 16:9（1920×1080）；竖版短视频可传 1080×1920
    - 返回 `projectDir`、`compositionId`、`entryPoint`
 
 3. **编写 Composition**

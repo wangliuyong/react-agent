@@ -30,8 +30,8 @@ export const remotionInitProjectTool: AgentTool = {
         type: 'string',
         description: 'Composition id，默认 Main，需与 Root.tsx 中 <Composition id> 一致'
       },
-      width: { type: 'number', description: '画布宽度，默认 1080（竖版 9:16）' },
-      height: { type: 'number', description: '画布高度，默认 1920（竖版 9:16）' },
+      width: { type: 'number', description: '画布宽度，默认 1920（横版 16:9）' },
+      height: { type: 'number', description: '画布高度，默认 1080（横版 16:9）' },
       fps: { type: 'number', description: '帧率，默认 30' },
       durationInFrames: { type: 'number', description: '总帧数，默认 150（30fps 约 5 秒）' }
     },

@@ -84,8 +84,9 @@ export function postInitRemotionProject(
   const projectDir = queryRemotionProjectDir(sessionId)
   const marker = join(projectDir, '.remotion-initialized')
   const compositionId = String(config.compositionId ?? 'Main').trim() || 'Main'
-  const width = config.width ?? 1080
-  const height = config.height ?? 1920
+  // 默认横版 16:9（1920×1080）；竖版短视频可显式传入 1080×1920
+  const width = config.width ?? 1920
+  const height = config.height ?? 1080
   const fps = config.fps ?? 30
   const durationInFrames = config.durationInFrames ?? 150
   let created = false
@@ -100,7 +101,7 @@ export function postInitRemotionProject(
     created = true
   }
 
-  // 每次初始化可更新 Root.tsx 中的画幅/时长（便于 Agent 指定 9:16 等）
+  // 每次初始化可更新 Root.tsx 中的画幅/时长（竖版 9:16 等需显式传入 width/height）
   postPatchRootComposition(projectDir, {
     compositionId,
     width,
