@@ -79,6 +79,35 @@ function normalizeAwaitRequest(request: string | AwaitUserRequest): AwaitUserReq
   return typeof request === 'string' ? { reason: request } : request
 }
 
+/**
+ * 用户已继续后清除 awaitMeta，避免刷新会话时从落盘消息误恢复方案选择 UI。
+ */
+function markAwaitUserResolved(sessionId: string, interruptId?: string): void {
+  const session = querySession(sessionId)
+  if (!session) return
+
+  let fallbackIndex: number | null = null
+
+  for (let i = session.messages.length - 1; i >= 0; i--) {
+    const m = session.messages[i]
+    if (m.role !== 'assistant' || !m.awaitMeta) continue
+
+    if (interruptId && m.awaitMeta.interruptId === interruptId) {
+      delete m.awaitMeta
+      persistSession(session)
+      return
+    }
+
+    if (!m.awaitMeta.interruptId && fallbackIndex === null) {
+      fallbackIndex = i
+    }
+  }
+
+  if (fallbackIndex == null) return
+  delete session.messages[fallbackIndex]!.awaitMeta
+  persistSession(session)
+}
+
 /** 写入带 awaitMeta 的 assistant 占位消息，供切换会话后恢复确认 UI */
 function appendAwaitUserPlaceholder(
   sessionId: string,
@@ -164,6 +193,7 @@ export function postGraphContinue(
   const pending = pendingAwaitBySession.get(sessionId)
   const result = resolveUserContinue(normalized, pending?.choices)
 
+  markAwaitUserResolved(sessionId, pending?.interruptId)
   pendingAwaitBySession.delete(sessionId)
   // 统一在此落盘用户选择与补充说明，供后续 ReAct 轮次读取
   appendUserContinueMessage(sessionId, result)

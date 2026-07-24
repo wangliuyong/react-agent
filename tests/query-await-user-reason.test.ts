@@ -18,10 +18,18 @@ describe('queryAwaitUserReasonFromMessages', () => {
     expect(
       queryAwaitUserReasonFromMessages([
         msg('assistant', '流程开始'),
+        msg('assistant', '等待确认：请确认后继续')
+      ])
+    ).toBe('请确认后继续')
+  })
+
+  it('用户已在等待确认后回复则不再展示挂起原因', () => {
+    expect(
+      queryAwaitUserReasonFromMessages([
         msg('assistant', '等待确认：请确认后继续'),
         msg('user', '其他')
       ])
-    ).toBe('请确认后继续')
+    ).toBeNull()
   })
 
   it('优先取更靠后的等待确认文案', () => {
@@ -71,5 +79,42 @@ describe('queryAwaitUserReasonFromMessages', () => {
       'render',
       'cancel'
     ])
+  })
+
+  it('用户已选方案后不再从 awaitMeta 恢复挂起 UI', () => {
+    const messages: ChatMessage[] = [
+      {
+        id: '1',
+        role: 'assistant',
+        content: '等待确认：请选制作路线',
+        awaitMeta: {
+          reason: '请选制作路线',
+          choices: [
+            { id: 'plan_a', label: '方案 A' },
+            { id: 'plan_b', label: '方案 B' }
+          ]
+        },
+        createdAt: Date.now()
+      },
+      msg('user', '【已选：方案 B】'),
+      msg('assistant', '好的，开始获取数据')
+    ]
+    expect(queryAwaitUserReasonFromMessages(messages)).toBeNull()
+    expect(queryAwaitUserChoicesFromMessages(messages)).toBeNull()
+  })
+
+  it('多轮 await 时只保留最后一轮未回复的挂起', () => {
+    const messages: ChatMessage[] = [
+      msg('assistant', '等待确认：第一轮'),
+      msg('user', '继续'),
+      {
+        id: '2',
+        role: 'assistant',
+        content: '等待确认：第二轮',
+        awaitMeta: { reason: '第二轮', choices: [{ id: 'x', label: '选项 X' }] },
+        createdAt: Date.now()
+      }
+    ]
+    expect(queryAwaitUserReasonFromMessages(messages)).toBe('第二轮')
   })
 })
