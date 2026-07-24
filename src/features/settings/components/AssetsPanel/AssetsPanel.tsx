@@ -465,12 +465,7 @@ export function AssetsPanel(): React.ReactElement {
                   >
                     <div className={cardStyles.cardHead}>
                       <div className={styles.assetIdentity}>
-                        <Checkbox
-                          className={cardStyles.cardCheckbox}
-                          checked={isSelected}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => toggleAssetSelected(asset.path, e.target.checked)}
-                        />
+
                         <span className={`${cardStyles.cardIcon} ${styles.assetIcon}`} data-kind={asset.kind}>
                           {KIND_ICON[asset.kind]}
                         </span>
@@ -538,6 +533,12 @@ export function AssetsPanel(): React.ReactElement {
                           </Tooltip>
                         </Popconfirm>
                       </div>
+                      <Checkbox
+                        className={cardStyles.cardCheckbox}
+                        checked={isSelected}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => toggleAssetSelected(asset.path, e.target.checked)}
+                      />
                     </div>
                   </Card>
                 )
