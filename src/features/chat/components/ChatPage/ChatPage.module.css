@@ -5,28 +5,29 @@
   min-width: 0;
   position: relative;
   overflow: hidden;
-  background: var(--db-bg);
+  /* 聊天主区纯白底，与内容面一致，避免灰底割裂 */
+  background: var(--db-bg-content);
 }
 
-/* 与技能市场统一的背景氛围 */
+/* 白底上仅保留极淡品牌光，避免灰雾感 */
 .page::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 45% at 0% 0%, var(--db-primary-muted), transparent 50%),
-    radial-gradient(ellipse 50% 40% at 100% 100%, var(--db-primary-subtle), transparent 55%);
-  opacity: 0.9;
+    radial-gradient(ellipse 60% 40% at 0% 0%, var(--db-primary-faint), transparent 55%),
+    radial-gradient(ellipse 45% 35% at 100% 100%, var(--db-primary-subtle), transparent 60%);
+  opacity: 0.7;
 }
 
-/* 顶栏 — 对齐技能页字重与间距，保留三栏布局 */
+/* 顶栏 — 实底分隔，对齐技能页；B2B 产品面不做毛玻璃 */
 .header {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
-  padding: 16px 28px;
+  padding: 14px 28px;
   border-bottom: 1px solid var(--db-border-light);
   background: var(--db-bg-content);
   position: relative;
@@ -79,6 +80,7 @@
   animation: fadeStatus 0.25s ease;
 }
 
+/* 语义状态点：仅表示 Agent 运行中 */
 .statusDot {
   width: 6px;
   height: 6px;
@@ -109,7 +111,7 @@
   }
 }
 
-/* 模式切换 — 对齐技能页 Segmented：浅底 + 白卡选中 + 品牌色文字 */
+/* 模式切换 — 对齐技能页 Segmented */
 .modeSwitch {
   background: var(--db-bg-subtle) !important;
   border: 1px solid var(--db-border-light) !important;
@@ -146,7 +148,6 @@
   cursor: not-allowed;
 }
 
-/* 滑块拇指：白底轻阴影，替代原实心蓝块 */
 .modeSwitch :global(.ant-segmented-thumb) {
   background: var(--db-bg-content) !important;
   border-radius: calc(var(--db-radius-md) - 2px) !important;
@@ -171,18 +172,51 @@
   position: relative;
   z-index: 1;
   background: transparent;
-  /* 保留滚动能力，隐藏滚动条 */
   scrollbar-width: none;
   -ms-overflow-style: none;
+  /* 与 ChatInput.wrap 同宽：28px 内边距 + 最大 820px 内容列 */
+  padding: 0 28px;
+  box-sizing: border-box;
+}
+
+/* 与底部输入框 .inner 同宽 */
+.chatColumn {
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .body::-webkit-scrollbar {
   display: none;
 }
 
-/* 新会话空态：欢迎区垂直居中 */
 .body[data-empty='true'] {
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+.body[data-empty='true'] .chatColumn {
+  flex: 0;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .headerStatus {
+    animation: none;
+  }
+
+  .statusDot {
+    animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .body {
+    padding: 0 16px;
+  }
 }

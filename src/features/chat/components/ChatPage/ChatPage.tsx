@@ -151,25 +151,27 @@ export function ChatPage(): React.ReactElement {
       />
 
       <div ref={bodyRef} className={styles.body} data-empty={isEmpty} onScroll={onScroll}>
-        {isEmpty ? (
-          <WelcomeHero
-            onPick={(prompt) => {
-              void sendMessage(prompt)
-            }}
-          />
-        ) : (
-          <MessageList
-            messages={messages}
-            streamingText={streamingText}
-            thinkingText={thinkingText}
-            thinkingInProgress={thinkingInProgress}
-            tasks={session?.tasks ?? []}
-            running={running}
-            activeToolName={activeToolName}
-            activeToolProgress={activeToolProgress}
-            awaitUserReason={awaitUserReason}
-          />
-        )}
+        <div className={styles.chatColumn}>
+          {isEmpty ? (
+            <WelcomeHero
+              onPick={(prompt) => {
+                void sendMessage(prompt)
+              }}
+            />
+          ) : (
+            <MessageList
+              messages={messages}
+              streamingText={streamingText}
+              thinkingText={thinkingText}
+              thinkingInProgress={thinkingInProgress}
+              tasks={session?.tasks ?? []}
+              running={running}
+              activeToolName={activeToolName}
+              activeToolProgress={activeToolProgress}
+              awaitUserReason={awaitUserReason}
+            />
+          )}
+        </div>
       </div>
 
       <ChatInput

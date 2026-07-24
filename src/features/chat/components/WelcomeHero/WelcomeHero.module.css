@@ -1,15 +1,15 @@
 .wrap {
   width: 100%;
-  max-width: 820px;
   margin: 0 auto;
-  /* padding: 8px 28px 32px; */
-  animation: heroIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  padding: 0 0 32px;
+  box-sizing: border-box;
+  animation: heroIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes heroIn {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -28,11 +28,11 @@
 }
 
 .sub {
-  margin-bottom: 32px !important;
+  margin-bottom: 28px !important;
   font-size: 13px !important;
   line-height: 1.65 !important;
   color: var(--db-text-secondary) !important;
-  max-width: 560px;
+  max-width: 520px;
   margin-left: auto !important;
   margin-right: auto !important;
   text-align: center;
@@ -42,15 +42,14 @@
   width: 100%;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
   text-align: left;
 }
 
-/* 「换一批」：居中轻量文本按钮，悬停时图标旋转 */
 .refreshRow {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 18px;
 }
 
 .refreshBtn {
@@ -76,14 +75,13 @@
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* 快捷卡片 — 对齐技能市场卡片：细边框、悬停主题阴影 */
+/* 快捷任务：交互卡片才用边框容器 */
 .card {
   appearance: none;
   border: 1px solid var(--db-border-light);
   background: var(--db-bg-content);
   border-radius: var(--db-radius-lg);
   padding: 16px 18px;
-  /* min-height: 96px; */
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -91,17 +89,16 @@
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease,
-    background 0.15s ease,
     transform 0.15s ease;
   text-align: left;
-  animation: cardIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: cardIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: calc(var(--card-index, 0) * 0.04s);
 }
 
 @keyframes cardIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -111,8 +108,7 @@
 
 .card:hover {
   border-color: var(--db-primary-border-active);
-  background: var(--db-bg-content);
-  box-shadow: 0 4px 20px var(--db-primary-shadow);
+  box-shadow: 0 4px 16px var(--db-primary-shadow);
   transform: translateY(-1px);
 }
 
@@ -154,6 +150,21 @@
   }
 
   .wrap {
-    padding: 0 20px 24px;
+    padding: 0 0 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap,
+  .card {
+    animation: none;
+  }
+
+  .card:hover {
+    transform: none;
+  }
+
+  .refreshBtn:hover .refreshIcon {
+    transform: none;
   }
 }

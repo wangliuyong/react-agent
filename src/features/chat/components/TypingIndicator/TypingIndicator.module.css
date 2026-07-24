@@ -2,11 +2,10 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  border-radius: var(--db-radius-lg);
+  padding: 9px 12px;
+  border-radius: var(--db-radius-md);
   background: var(--db-bg-content);
   border: 1px solid var(--db-border-light);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
   animation: fadeIn 0.25s ease;
 }
 
@@ -20,7 +19,7 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(3px);
   }
   to {
     opacity: 1;
@@ -35,8 +34,8 @@
 }
 
 .dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--db-primary);
   animation: bounce 1.2s ease-in-out infinite;
@@ -44,16 +43,16 @@
 
 .dot:nth-child(1) {
   animation-delay: 0s;
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .dot:nth-child(2) {
-  animation-delay: 0.15s;
-  opacity: 0.75;
+  animation-delay: 0.12s;
+  opacity: 0.7;
 }
 
 .dot:nth-child(3) {
-  animation-delay: 0.3s;
+  animation-delay: 0.24s;
 }
 
 @keyframes bounce {
@@ -64,7 +63,7 @@
     opacity: 0.35;
   }
   30% {
-    transform: translateY(-5px);
+    transform: translateY(-4px);
     opacity: 1;
   }
 }
@@ -77,4 +76,15 @@
 
 .wrap[data-compact='true'] .label {
   font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap {
+    animation: none;
+  }
+
+  .dot {
+    animation: none;
+    opacity: 0.7;
+  }
 }

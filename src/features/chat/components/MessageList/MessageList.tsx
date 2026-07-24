@@ -9,10 +9,10 @@ import {
   queryIsSyntheticToolCallContent,
   queryTimelineEndsWithToolGroup
 } from '../../utils/queryAgentTimeline'
-import { LazyChatMarkdown } from '../LazyChatMarkdown'
 import { MessageRichContent } from '../MessageRichContent'
 import { TypingIndicator } from '../TypingIndicator'
 import { ToolCallGroup } from './ToolCallGroup'
+import { ThinkingBlock } from './ThinkingBlock'
 import { ToolProgressBar } from '../ToolProgressBar/ToolProgressBar'
 import { queryShouldShowToolProgress, queryToolProgressTitle } from '../../utils/queryToolProgressDisplay'
 import styles from './MessageList.module.css'
@@ -108,7 +108,7 @@ export function MessageList({
           const m = item.message
           return (
             <div key={m.id} className={`${styles.row} ${styles.rowUser}`}>
-              <span className={styles.label}>你</span>
+              {/* <span className={styles.label}>你</span> */}
               <div className={styles.userBubble}>
                 <MessageRichContent
                   content={m.content}
@@ -144,12 +144,7 @@ export function MessageList({
             {m.thinkingContent?.trim() ? (
               <div className={`${styles.row} ${styles.rowThinking}`}>
                 <span className={styles.label}>灵犀</span>
-                <div className={styles.thinkingBox}>
-                  <LazyChatMarkdown
-                    source={m.thinkingContent}
-                    className={styles.thinkingMarkdown}
-                  />
-                </div>
+                <ThinkingBlock content={m.thinkingContent} />
               </div>
             ) : null}
             {showNarrative || showToolGroup ? (
@@ -173,13 +168,11 @@ export function MessageList({
       {showThinking ? (
         <div className={`${styles.row} ${styles.rowThinking}`}>
           <span className={styles.label}>灵犀</span>
-          <div className={styles.thinkingBox}>
-            <LazyChatMarkdown
-              source={thinkingText}
-              streaming={running}
-              className={styles.thinkingMarkdown}
-            />
-          </div>
+          <ThinkingBlock
+            content={thinkingText}
+            streaming={running}
+            inProgress={thinkingInProgress}
+          />
         </div>
       ) : null}
 

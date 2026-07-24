@@ -1,25 +1,23 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  max-width: 820px;
-  margin: 0 auto;
+  gap: 22px;
   width: 100%;
-  padding-top: 28px;
-  padding-bottom: 16px;
+  padding: 28px 0 20px;
+  box-sizing: border-box;
 }
 
 .row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  animation: msgIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  gap: 6px;
+  animation: msgIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes msgIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -35,65 +33,42 @@
   align-items: flex-start;
 }
 
-/* 角色标签 — 轻量胶囊，对齐技能页次要信息层级 */
+/* 角色标签 — 纯文字层级，去掉装饰圆点 */
 .label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: var(--db-text-secondary);
+  color: var(--db-text-tertiary);
   padding: 0 2px;
 }
 
-.label::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--db-border);
-  flex-shrink: 0;
+.rowUser .label {
+  color: var(--db-primary);
 }
 
-.rowUser .label::before {
-  background: var(--db-primary);
-  box-shadow: 0 0 0 3px var(--db-primary-muted);
-}
-
-.rowAssistant .label::before {
-  background: var(--db-primary-grad-soft, var(--db-primary));
-  box-shadow: 0 0 0 3px var(--db-primary-muted);
-}
-
-.rowAssistant {
-  .assistantCard{
-    background-color: var(--db-bg-content);
-    padding: 12px 14px ;
-    border-radius:  16px;
-  }
-}
-
-/* 用户气泡 — 技能卡同系圆角 / 细边框 / 轻阴影 */
+/* 用户气泡 — 统一圆角，靠色块区分角色，无异形收口 */
 .userBubble {
-  max-width: 85%;
+  max-width: 82%;
   background: var(--db-primary-soft);
   border: 1px solid var(--db-primary-border-md);
-  border-radius: var(--db-radius-lg);
-  padding: 12px 16px;
-  box-shadow: 0 2px 10px var(--db-primary-shadow);
+  border-radius: var(--db-radius-sm);
+  padding: 6px 12px;
+  box-shadow: 0 1px 4px var(--db-primary-shadow);
 }
 
-/* 助手回复 — 无气泡阅读流，左侧微妙呼吸线仅在流式时出现 */
+/* 助手回复 — 无卡片阅读流，用留白承载层级 */
 .assistantCard {
   width: 100%;
   background: transparent;
   border: none;
   border-radius: 0;
-  padding: 2px 0 2px 2px;
+  padding: 2px 0;
   box-shadow: none;
 }
 
+/* 流式时仅左侧呼吸线，不抬升为卡片 */
 .assistantCardStreaming {
   position: relative;
   padding-left: 12px;
@@ -120,7 +95,7 @@
   position: absolute;
   left: 0;
   bottom: 0;
-  width: 48px;
+  width: 40px;
   height: 2px;
   border-radius: 2px;
   background: linear-gradient(90deg, var(--db-primary), transparent);
@@ -131,26 +106,45 @@
   0%,
   100% {
     opacity: 0.3;
-    width: 32px;
+    width: 28px;
   }
   50% {
     opacity: 1;
-    width: 64px;
+    width: 56px;
   }
 }
 
-/* 思考过程展示块：用于展示模型 reasoning / agent 决策过程（与最终回答区分） */
 .rowThinking {
   align-items: flex-start;
 }
 
-.thinkingBox {
+/* 思考过程折叠面板 */
+.thinkingCollapse {
   width: 100%;
-  background: var(--db-bg-content);
-  border: 1px solid var(--db-border-light);
-  border-radius: var(--db-radius-lg);
-  padding: 12px 14px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+  background: var(--db-bg-subtle) !important;
+  border: 1px solid var(--db-border-light) !important;
+  border-radius: var(--db-radius-md) !important;
+  overflow: hidden;
+}
+
+.thinkingCollapse :global(.ant-collapse-header) {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--db-text-secondary) !important;
+  padding: 10px 12px !important;
+  align-items: center !important;
+}
+
+.thinkingCollapse :global(.ant-collapse-content) {
+  border-top: 1px solid var(--db-border-light) !important;
+}
+
+.thinkingCollapse :global(.ant-collapse-content-box) {
+  padding: 8px 12px 12px !important;
+}
+
+.thinkingCollapseLabel {
+  letter-spacing: 0.01em;
 }
 
 .thinkingMarkdown {
@@ -167,14 +161,13 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
-  border-radius: var(--db-radius-lg);
+  padding: 9px 12px;
+  border-radius: var(--db-radius-md);
   background: var(--db-primary-muted);
-  border: 1px solid var(--db-primary-border-md);
+  border: 1px solid var(--db-primary-border);
   font-size: 13px;
   font-weight: 500;
   color: var(--db-primary);
-  box-shadow: 0 2px 12px var(--db-primary-shadow);
   animation: fadeIn 0.25s ease;
 }
 
@@ -185,7 +178,7 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(3px);
   }
   to {
     opacity: 1;
@@ -193,12 +186,12 @@
   }
 }
 
-/* 工具结果 — 对齐技能卡片：content 底、细边框、悬停微阴影 */
+/* 工具结果 — 交互容器才用卡片 */
 .toolBlock {
   width: 100%;
   background: var(--db-bg-content) !important;
   border: 1px solid var(--db-border-light) !important;
-  border-radius: var(--db-radius-lg) !important;
+  border-radius: var(--db-radius-md) !important;
   overflow: hidden;
   box-shadow: none;
   transition:
@@ -208,14 +201,14 @@
 
 .toolBlock:hover {
   border-color: var(--db-primary-border-active) !important;
-  box-shadow: 0 4px 20px var(--db-primary-shadow);
+  box-shadow: 0 2px 12px var(--db-primary-shadow);
 }
 
 .toolBlock :global(.ant-collapse-header) {
   font-size: 12px !important;
   font-weight: 650 !important;
   color: var(--db-text-secondary) !important;
-  padding: 12px 14px !important;
+  padding: 11px 13px !important;
   align-items: center !important;
 }
 
@@ -225,12 +218,11 @@
 
 .toolBlock :global(.ant-collapse-content-box) {
   font-size: 12px;
-  padding: 12px 14px !important;
+  padding: 11px 13px !important;
 }
 
-/* 「已调用 N 个工具」分组：弱边框工具条，默认折叠 */
 .toolCallGroup {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .toolCallGroupLabel {
@@ -259,7 +251,7 @@
   width: 100%;
   background: var(--db-bg) !important;
   border: 1px solid var(--db-border-light) !important;
-  border-radius: var(--db-radius-md) !important;
+  border-radius: var(--db-radius-sm) !important;
   overflow: hidden;
 }
 
@@ -286,7 +278,7 @@
 
 .doneAlert {
   margin-top: 12px !important;
-  border-radius: var(--db-radius-lg) !important;
+  border-radius: var(--db-radius-md) !important;
   border: 1px solid var(--db-primary-border-md) !important;
 }
 
@@ -307,5 +299,28 @@
 @keyframes blink {
   50% {
     opacity: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .list {
+    padding: 20px 0 16px;
+    gap: 18px;
+  }
+
+  .userBubble {
+    max-width: 92%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .toolRunning {
+    animation: none;
+  }
+
+  .assistantCardStreaming::after,
+  .cursor {
+    animation: none;
   }
 }

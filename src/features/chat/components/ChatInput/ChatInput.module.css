@@ -2,12 +2,14 @@
   position: sticky;
   bottom: 0;
   z-index: 10;
-  padding: 0 28px 24px;
+  padding: 0 28px 22px;
+  /* 与聊天页白底衔接，避免底部灰带 */
   background: linear-gradient(
     180deg,
     transparent 0%,
-    color-mix(in srgb, var(--db-bg) 72%, transparent) 22%,
-    var(--db-bg) 48%
+    color-mix(in srgb, var(--db-bg-content) 55%, transparent) 18%,
+    color-mix(in srgb, var(--db-bg-content) 92%, transparent) 40%,
+    var(--db-bg-content) 62%
   );
 }
 
@@ -96,7 +98,7 @@
   color: var(--db-primary) !important;
 }
 
-/* 输入框 — 技能卡同系圆角与聚焦环 */
+/* 输入框 — 实底 + 聚焦环，不做上浮位移 */
 .box {
   background: var(--db-bg-content);
   border: 1px solid var(--db-border-light);
@@ -104,7 +106,7 @@
   box-shadow:
     var(--db-shadow-input),
     0 2px 12px rgba(0, 0, 0, 0.03);
-  padding: 16px 18px 12px;
+  padding: 14px 18px 10px;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
@@ -115,7 +117,7 @@
   box-shadow:
     var(--db-shadow-input),
     0 0 0 3px var(--db-primary-muted),
-    0 4px 20px var(--db-primary-shadow);
+    0 4px 16px var(--db-primary-shadow);
 }
 
 .textarea {
@@ -305,5 +307,23 @@
   }
   50% {
     box-shadow: 0 0 0 6px rgba(245, 63, 63, 0);
+  }
+}
+
+@media (max-width: 900px) {
+  .wrap {
+    padding: 0 16px 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awaitBar,
+  .statusBar,
+  .stopBtn {
+    animation: none;
+  }
+
+  .sendBtn:not(:disabled):hover {
+    transform: none;
   }
 }
