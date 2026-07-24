@@ -32,6 +32,7 @@ import {
   FeatureScrollBody,
   shellStyles
 } from '@/components/page-shell'
+import cardStyles from '@/components/entity-card'
 
 const { Text } = Typography
 
@@ -64,12 +65,12 @@ function renderLoginTag(state: ChannelLoginState | undefined): React.ReactElemen
 /** 通知渠道配置状态徽标 */
 function renderNotifyConfigTag(channel: PublishChannelMeta): React.ReactElement {
   if (!channel.enabled || channel.id === 'wechat_notify' || channel.id === 'qq_notify') {
-    return <Tag className={styles.tagMuted}>即将上线</Tag>
+    return <Tag className={cardStyles.mutedTag}>即将上线</Tag>
   }
   if (isNotifyChannelConfigured(channel)) {
-    return <Tag className={styles.tagSuccess}>已配置</Tag>
+    return <Tag className={cardStyles.successTag}>已配置</Tag>
   }
-  return <Tag className={styles.tagWarn}>未配置</Tag>
+  return <Tag className={cardStyles.warningTag}>未配置</Tag>
 }
 
 /** 按渠道 id 映射图标与品牌色，让卡片一眼可辨 */
@@ -529,7 +530,7 @@ export function ChannelsPage(): React.ReactElement {
               ) : null}
             </Empty>
           ) : (
-            <div className={styles.grid}>
+            <div className={cardStyles.grid}>
               {filtered.map((channel, index) => {
                 const isNotify = normalizeChannelKind(channel.kind) === 'notify'
                 const status = statusMap[channel.id]
@@ -538,41 +539,67 @@ export function ChannelsPage(): React.ReactElement {
                   <Card
                     key={channel.id}
                     variant="borderless"
-                    hoverable
-                    className={`${styles.card} ${channel.enabled ? '' : styles.cardDisabled}`}
+                    className={`${cardStyles.card} ${channel.enabled ? '' : styles.cardDisabled}`}
                     style={{ '--card-index': index } as CSSProperties}
-                    onClick={() => openDetail(channel)}
                   >
-                    <div className={styles.cardHead}>
-                      <div className={styles.cardTitleRow}>
+                    <div className={cardStyles.cardHead}>
+                      <div className={cardStyles.cardIdentity}>
                         <span
-                          className={`${styles.cardAvatar} ${visual.toneClass}`}
+                          className={`${cardStyles.cardIcon} ${visual.toneClass}`}
                           aria-hidden
                         >
                           {visual.icon}
                         </span>
-                        <span className={styles.cardTitle}>{channel.label}</span>
-                        {isNotify ? (
-                          renderNotifyConfigTag(channel)
-                        ) : channel.enabled ? (
-                          <Tag className={styles.tagActive}>已接入</Tag>
-                        ) : (
-                          <Tag className={styles.tagMuted}>预留</Tag>
-                        )}
+                        <div className={cardStyles.cardTitleBlock}>
+                          <Text className={cardStyles.cardTitle} ellipsis={{ tooltip: channel.label }}>
+                            {channel.label}
+                          </Text>
+                          <div className={cardStyles.tagRow}>
+                            {isNotify ? (
+                              renderNotifyConfigTag(channel)
+                            ) : channel.enabled ? (
+                              <Tag className={cardStyles.primaryTag}>已接入</Tag>
+                            ) : (
+                              <Tag className={cardStyles.mutedTag}>预留</Tag>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <p className={styles.cardDesc}>
-                        {channel.description?.trim() || '暂无描述，点击查看配置。'}
-                      </p>
+                      <div className={cardStyles.cardActions}>
+                        <Tooltip title="查看详情">
+                          <Button
+                            type="text"
+                            size="small"
+                            className={cardStyles.actionBtn}
+                            icon={<EyeOutlined />}
+                            aria-label={`查看渠道 ${channel.label}`}
+                            onClick={() => openDetail(channel)}
+                          />
+                        </Tooltip>
+                        <Tooltip title="编辑渠道">
+                          <Button
+                            type="text"
+                            size="small"
+                            className={cardStyles.actionBtn}
+                            icon={<EditOutlined />}
+                            aria-label={`编辑渠道 ${channel.label}`}
+                            onClick={() => openEdit(channel)}
+                          />
+                        </Tooltip>
+                      </div>
                     </div>
-                    <div className={styles.cardFooter}>
-                      <span className={styles.cardAuthor}>
+                    <p className={cardStyles.cardDescription}>
+                      {channel.description?.trim() || '暂无描述，使用右上角图标查看或编辑。'}
+                    </p>
+                    <div className={cardStyles.cardFooter}>
+                      <Text type="secondary" className={cardStyles.footerHint}>
                         {channel.isBuiltin ? '@平台' : '@你'}
-                      </span>
-                      <span className={styles.cardUsage}>
+                      </Text>
+                      <Text type="secondary" className={cardStyles.metaLabel}>
                         {isNotify
                           ? notifyFooterLabel(channel)
                           : loginFooterLabel(status?.state)}
-                      </span>
+                      </Text>
                     </div>
                   </Card>
                 )

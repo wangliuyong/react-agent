@@ -16,6 +16,9 @@ import {
   FeatureScrollBody,
   shellStyles
 } from '@/components/page-shell'
+import cardStyles from '@/components/entity-card'
+
+const { Text } = Typography
 
 type RuleFilter = 'all' | 'enabled' | 'disabled'
 
@@ -31,8 +34,8 @@ function matchRuleQuery(rule: AgentRule, query: string): boolean {
 }
 
 function RuleStatusTag({ enabled }: { enabled: boolean }): React.ReactElement {
-  if (!enabled) return <Tag className={styles.tagDraft}>未启用</Tag>
-  return <Tag color="success">已启用</Tag>
+  if (!enabled) return <Tag className={cardStyles.warningTag}>未启用</Tag>
+  return <Tag className={cardStyles.successTag}>已启用</Tag>
 }
 
 /** 规则管理：对齐技能市场 — 卡片浏览 + 详情弹窗 + CRUD */
@@ -223,30 +226,56 @@ export function RulesPage(): React.ReactElement {
               ) : null}
             </Empty>
           ) : (
-            <div className={styles.grid}>
+            <div className={cardStyles.grid}>
               {filtered.map((rule, index) => (
                 <Card
                   key={rule.id}
                   variant="borderless"
-                  hoverable
-                  className={`${styles.card} ${rule.enabled ? '' : styles.cardDisabled}`}
+                  className={`${cardStyles.card} ${rule.enabled ? '' : styles.cardDisabled}`}
                   style={{ '--card-index': index } as CSSProperties}
-                  onClick={() => openDetail(rule)}
                 >
-                  <div className={styles.cardHead}>
-                    <div className={styles.cardTitleRow}>
-                      <span className={styles.cardTitle}>{rule.name}</span>
-                      <RuleStatusTag enabled={rule.enabled} />
+                  <div className={cardStyles.cardHead}>
+                    <div className={cardStyles.cardTitleBlock}>
+                      <Text className={cardStyles.cardTitle} ellipsis={{ tooltip: rule.name }}>
+                        {rule.name}
+                      </Text>
+                      <div className={cardStyles.tagRow}>
+                        <RuleStatusTag enabled={rule.enabled} />
+                      </div>
                     </div>
-                    <p className={styles.cardDesc}>
-                      {rule.description?.trim() || '暂无简介，点击查看正文与启用状态。'}
-                    </p>
+                    <div className={cardStyles.cardActions}>
+                      <Tooltip title="查看详情">
+                        <Button
+                          type="text"
+                          size="small"
+                          className={cardStyles.actionBtn}
+                          icon={<EyeOutlined />}
+                          aria-label={`查看规则 ${rule.name}`}
+                          onClick={() => openDetail(rule)}
+                        />
+                      </Tooltip>
+                      <Tooltip title="编辑规则">
+                        <Button
+                          type="text"
+                          size="small"
+                          className={cardStyles.actionBtn}
+                          icon={<EditOutlined />}
+                          aria-label={`编辑规则 ${rule.name}`}
+                          onClick={() => openEdit(rule)}
+                        />
+                      </Tooltip>
+                    </div>
                   </div>
-                  <div className={styles.cardFooter}>
-                    <span className={styles.cardAuthor}>@{rule.id}</span>
-                    <span className={styles.cardUsage}>
+                  <p className={cardStyles.cardDescription}>
+                    {rule.description?.trim() || '暂无简介，使用右上角图标查看或编辑。'}
+                  </p>
+                  <div className={cardStyles.cardFooter}>
+                    <Text type="secondary" className={cardStyles.footerHint}>
+                      @{rule.id}
+                    </Text>
+                    <Text type="secondary" className={cardStyles.metaLabel}>
                       {rule.enabled ? '注入 Agent' : '未注入'}
-                    </span>
+                    </Text>
                   </div>
                 </Card>
               ))}

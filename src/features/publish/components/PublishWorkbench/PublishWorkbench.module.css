@@ -1,14 +1,7 @@
-/* 发布工作台 — 对齐技能市场：计划卡片网格 + 详情弹窗 */
+/* 发布工作台 — 工具栏与详情；列表卡片统一使用 entity-card */
 
 .searchInput {
   width: 200px;
-}
-
-.grid {
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
 }
 
 .empty {
@@ -18,91 +11,6 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-}
-
-.card {
-  border: 1px solid var(--db-border-light) !important;
-  border-radius: var(--db-radius-lg) !important;
-  background: var(--db-bg-content) !important;
-  cursor: pointer;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
-  animation: cardIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--card-index, 0) * 36ms);
-}
-
-.card :global(.ant-card-body) {
-  padding: 16px !important;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 148px;
-}
-
-.card:hover {
-  border-color: var(--db-primary-border-active) !important;
-  box-shadow: 0 4px 20px var(--db-primary-shadow);
-  transform: translateY(-2px);
-}
-
-.cardHead {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.cardTitleRow {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  min-width: 0;
-}
-
-.cardTitle {
-  flex: 1;
-  min-width: 0;
-  font-size: 15px;
-  font-weight: 650;
-  color: var(--db-text);
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.cardDesc {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--db-text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.cardFooter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 4px;
-  border-top: 1px solid var(--db-border-light);
-}
-
-.cardAuthor {
-  font-size: 12px;
-  color: var(--db-text-secondary);
-}
-
-.cardUsage {
-  font-size: 12px;
-  color: var(--db-text-tertiary);
 }
 
 .detailModal :global(.ant-modal-body) {
@@ -239,15 +147,4 @@
   white-space: pre-wrap;
   color: var(--db-text-secondary) !important;
   font-size: 13px !important;
-}
-
-@keyframes cardIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }

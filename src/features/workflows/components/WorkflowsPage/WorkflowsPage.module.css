@@ -1,4 +1,4 @@
-/* 流程页 — 卡片网格 + 详情弹窗，布局/气质对齐技能市场 */
+/* 流程页 — 工具栏；列表卡片统一使用 entity-card */
 
 .searchInput {
   width: 200px;
@@ -6,13 +6,6 @@
 
 .sortSelect {
   width: 130px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-  width: 100%;
 }
 
 .empty {

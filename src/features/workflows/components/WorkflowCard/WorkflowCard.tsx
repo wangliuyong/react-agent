@@ -1,20 +1,25 @@
 import type { CSSProperties } from 'react'
 import type { WorkflowDefinition } from '@shared/types'
-import { DB_THEME } from '@/styles/theme-tokens'
 import { flattenWorkflowLeaves } from '../../utils/workflowCanvasGraph'
-import styles from './WorkflowCard.module.css'
+import cardStyles from '@/components/entity-card'
+
+const { Text } = Typography
 
 interface WorkflowCardProps {
   workflow: WorkflowDefinition
   index: number
-  onOpen: (id: string) => void
+  /** 打开详情弹窗（只读浏览 + 元信息） */
+  onView: (id: string) => void
+  /** 打开画布抽屉编排步骤 */
+  onEdit: (id: string) => void
 }
 
-/** 流程卡片：对齐技能市场浏览卡，点击进入详情弹窗 */
+/** 流程卡片：操作区图标进入详情/画布，整卡不可点 */
 export function WorkflowCard({
   workflow,
   index,
-  onOpen
+  onView,
+  onEdit
 }: WorkflowCardProps): React.ReactElement {
   const stepCount = flattenWorkflowLeaves(workflow.nodes).length
   const isPublish = workflow.templateKind === 'publish'
@@ -28,31 +33,55 @@ export function WorkflowCard({
   return (
     <Card
       variant="borderless"
-      hoverable
-      className={styles.card}
+      className={cardStyles.card}
       style={{ '--card-index': index } as CSSProperties}
-      onClick={() => onOpen(workflow.id)}
     >
-      <div className={styles.cardHead}>
-        <div className={styles.cardTitleRow}>
-          <span className={styles.cardTitle}>{workflow.title}</span>
-          {isPublish ? (
-            <Tag color={DB_THEME.primary} className={styles.kindTag}>
-              发布
-            </Tag>
-          ) : (
-            <Tag className={styles.kindTag}>通用</Tag>
-          )}
+      <div className={cardStyles.cardHead}>
+        <div className={cardStyles.cardTitleBlock}>
+          <Text className={cardStyles.cardTitle} ellipsis={{ tooltip: workflow.title }}>
+            {workflow.title}
+          </Text>
+          <div className={cardStyles.tagRow}>
+            {isPublish ? (
+              <Tag className={cardStyles.primaryTag}>发布</Tag>
+            ) : (
+              <Tag className={cardStyles.mutedTag}>通用</Tag>
+            )}
+          </div>
         </div>
-        <p className={styles.cardDesc}>
-          {workflow.description?.trim() || '暂无描述，点击查看详情并编排画布。'}
-        </p>
+        <div className={cardStyles.cardActions}>
+          <Tooltip title="查看详情">
+            <Button
+              type="text"
+              size="small"
+              className={cardStyles.actionBtn}
+              icon={<EyeOutlined />}
+              aria-label={`查看流程 ${workflow.title}`}
+              onClick={() => onView(workflow.id)}
+            />
+          </Tooltip>
+          <Tooltip title="编辑画布">
+            <Button
+              type="text"
+              size="small"
+              className={cardStyles.actionBtn}
+              icon={<EditOutlined />}
+              aria-label={`编辑流程 ${workflow.title}`}
+              onClick={() => onEdit(workflow.id)}
+            />
+          </Tooltip>
+        </div>
       </div>
-      <div className={styles.cardFooter}>
-        <span className={styles.cardAuthor}>{isPublish ? '@发布' : '@通用'}</span>
-        <span className={styles.cardUsage}>
+      <p className={cardStyles.cardDescription}>
+        {workflow.description?.trim() || '暂无描述，使用右上角图标查看详情或编辑画布。'}
+      </p>
+      <div className={cardStyles.cardFooter}>
+        <Text type="secondary" className={cardStyles.footerHint}>
+          {isPublish ? '@发布' : '@通用'}
+        </Text>
+        <Text type="secondary" className={cardStyles.metaLabel}>
           {stepCount} 步 · {updatedLabel}
-        </span>
+        </Text>
       </div>
     </Card>
   )

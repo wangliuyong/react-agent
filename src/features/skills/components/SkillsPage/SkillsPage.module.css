@@ -1,4 +1,4 @@
-/* 技能页 — 卡片网格 + Tab 筛选，与渠道页统一风格 */
+/* 技能页 — 工具栏与弹窗；列表卡片统一使用 entity-card */
 
 .searchInput {
   width: 200px;
@@ -6,13 +6,6 @@
 
 .sortSelect {
   width: 130px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-  width: 100%;
 }
 
 .empty {
@@ -29,98 +22,6 @@
   justify-content: center;
   align-items: center;
   padding: 48px 0;
-}
-
-/* ── 技能卡片 ── */
-.card {
-  border: 1px solid var(--db-border-light) !important;
-  border-radius: var(--db-radius-lg) !important;
-  background: var(--db-bg-content) !important;
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.card :global(.ant-card-body) {
-  padding: 16px !important;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 148px;
-}
-
-.card:hover {
-  border-color: var(--db-primary-border-active) !important;
-  box-shadow: 0 4px 20px var(--db-primary-shadow);
-}
-
-.cardHead {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.cardTitleRow {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  min-width: 0;
-}
-
-.cardTitle {
-  flex: 1;
-  min-width: 0;
-  font-size: 15px;
-  font-weight: 650;
-  color: var(--db-text);
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.cardDesc {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--db-text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.cardFooter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 4px;
-  border-top: 1px solid var(--db-border-light);
-}
-
-.cardAuthor {
-  font-size: 12px;
-  color: var(--db-text-secondary);
-}
-
-.cardUsage {
-  font-size: 12px;
-  color: var(--db-text-tertiary);
-}
-
-.tagDraft {
-  margin: 0 !important;
-  flex-shrink: 0;
-  border: none !important;
-  background: rgba(250, 173, 20, 0.12) !important;
-  color: var(--db-warning-text-alt) !important;
-  font-size: 11px !important;
-  border-radius: 6px !important;
 }
 
 /* ── 新建 / 编辑抽屉（气质对齐技能市场与流程画布抽屉） ── */

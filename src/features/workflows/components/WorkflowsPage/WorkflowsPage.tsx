@@ -19,6 +19,7 @@ import {
   FeatureScrollBody,
   shellStyles
 } from '@/components/page-shell'
+import cardStyles from '@/components/entity-card'
 
 type WorkflowKindFilter = 'all' | 'generic' | 'publish'
 type WorkflowSort = 'updated_desc' | 'name_asc' | 'name_desc'
@@ -147,12 +148,21 @@ export function WorkflowsPage(): React.ReactElement {
       : undefined
   })
 
-  /** 点击卡片：打开流程详情弹窗（对齐技能市场） */
+  /** 打开流程详情弹窗 */
   const openDetail = (id: string): void => {
     const wf = workflows.find((w) => w.id === id)
     if (!wf) return
     setDraft(cloneDraft(wf))
     setDetailOpen(true)
+  }
+
+  /** 从列表直接进入画布编辑（不经过详情弹窗） */
+  const openWorkflowCanvas = (id: string): void => {
+    const wf = workflows.find((w) => w.id === id)
+    if (!wf) return
+    setDraft(cloneDraft(wf))
+    setDetailOpen(false)
+    setCanvasDrawerOpen(true)
   }
 
   const closeDetail = (): void => {
@@ -365,9 +375,15 @@ export function WorkflowsPage(): React.ReactElement {
               ) : null}
             </Empty>
           ) : (
-            <div className={styles.grid}>
+            <div className={cardStyles.grid}>
               {filtered.map((wf, index) => (
-                <WorkflowCard key={wf.id} workflow={wf} index={index} onOpen={openDetail} />
+                <WorkflowCard
+                  key={wf.id}
+                  workflow={wf}
+                  index={index}
+                  onView={openDetail}
+                  onEdit={openWorkflowCanvas}
+                />
               ))}
             </div>
           )}

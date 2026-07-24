@@ -26,6 +26,7 @@ import {
   FeatureScrollBody,
   shellStyles
 } from '@/components/page-shell'
+import cardStyles from '@/components/entity-card'
 
 const { Text, Paragraph } = Typography
 
@@ -414,46 +415,72 @@ export function PublishWorkbench(): React.ReactElement {
             ) : null}
           </Empty>
         ) : (
-          <div className={styles.grid}>
+          <div className={cardStyles.grid}>
             {filtered.map((plan, index) => {
               const kind = plan.kind ?? 'normal'
               return (
                 <Card
                   key={plan.id}
                   variant="borderless"
-                  hoverable
-                  className={styles.card}
+                  className={cardStyles.card}
                   style={{ '--card-index': index } as CSSProperties}
-                  onClick={() => openDetail(plan.id)}
                 >
-                  <div className={styles.cardHead}>
-                    <div className={styles.cardTitleRow}>
-                      <span className={styles.cardTitle}>{plan.title}</span>
-                      {isBuiltinSeedId(plan.id) ? (
-                        <Tag color={DB_THEME.primary}>内置</Tag>
-                      ) : null}
-                      {kind === 'workflow' ? (
-                        <Tag color={DB_THEME.primary}>流程</Tag>
-                      ) : (
-                        <Tag>普通</Tag>
-                      )}
+                  <div className={cardStyles.cardHead}>
+                    <div className={cardStyles.cardTitleBlock}>
+                      <Text className={cardStyles.cardTitle} ellipsis={{ tooltip: plan.title }}>
+                        {plan.title}
+                      </Text>
+                      <div className={cardStyles.tagRow}>
+                        {isBuiltinSeedId(plan.id) ? (
+                          <Tag className={cardStyles.mutedTag}>内置</Tag>
+                        ) : null}
+                        {kind === 'workflow' ? (
+                          <Tag className={cardStyles.primaryTag}>流程</Tag>
+                        ) : (
+                          <Tag className={cardStyles.mutedTag}>普通</Tag>
+                        )}
+                      </div>
                     </div>
-                    <p className={styles.cardDesc}>
-                      {plan.description?.trim() ||
-                        (kind === 'workflow'
-                          ? '流程任务，点击查看关联流程并运行。'
-                          : '普通任务，点击管理子任务与渠道。')}
-                    </p>
+                    <div className={cardStyles.cardActions}>
+                      <Tooltip title="查看详情">
+                        <Button
+                          type="text"
+                          size="small"
+                          className={cardStyles.actionBtn}
+                          icon={<EyeOutlined />}
+                          aria-label={`查看任务 ${plan.title}`}
+                          onClick={() => openDetail(plan.id)}
+                        />
+                      </Tooltip>
+                      <Tooltip title="编辑任务">
+                        <Button
+                          type="text"
+                          size="small"
+                          className={cardStyles.actionBtn}
+                          icon={<EditOutlined />}
+                          aria-label={`编辑任务 ${plan.title}`}
+                          onClick={() =>
+                            setPlanModal({ mode: 'edit', plan: normalizePublishPlan(plan) })
+                          }
+                        />
+                      </Tooltip>
+                    </div>
                   </div>
-                  <div className={styles.cardFooter}>
-                    <span className={styles.cardAuthor}>
+                  <p className={cardStyles.cardDescription}>
+                    {plan.description?.trim() ||
+                      (kind === 'workflow'
+                        ? '流程任务，使用右上角图标查看关联流程或编辑。'
+                        : '普通任务，使用右上角图标管理子任务与渠道。')}
+                  </p>
+                  <div className={cardStyles.cardFooter}>
+                    <Text type="secondary" className={cardStyles.footerHint}>
                       @{queryPublishPlanKindLabel(kind)}
-                    </span>
-                    <span className={styles.cardUsage}>
+                    </Text>
+                    <Text type="secondary" className={cardStyles.metaLabel}>
                       {kind === 'workflow'
                         ? `${normalizePublishPlanWorkflowIds(plan).length} 个子流程`
                         : `${plan.subTasks.length} 子任务`}
-                    </span>
+                    </Text>
                   </div>
                 </Card>
               )

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type {
   ProjectSkill,
   SkillImportPreview,
@@ -17,7 +18,10 @@ import {
   FeatureScrollBody,
   shellStyles
 } from '@/components/page-shell'
+import cardStyles from '@/components/entity-card'
 import styles from './SkillsPage.module.css'
+
+const { Text } = Typography
 
 /** 主 Tab：全部 / 活跃 / 已归档 / 市场模板 / 我的技能 */
 type SkillTab = 'all' | 'active' | 'archived' | 'market' | 'mine'
@@ -72,12 +76,12 @@ function sortTemplates(list: SkillTemplate[], sort: SkillSort): SkillTemplate[] 
   return next.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
 }
 
-/** 技能卡片状态标签：未启用显示草稿，已启用显示状态 */
+/** 技能卡片状态标签：未启用显示草稿，已启用显示状态（样式对齐实体卡片） */
 function SkillStatusTag({ skill }: { skill: ProjectSkill }): React.ReactElement {
   if (!skill.enabled) {
-    return <Tag className={styles.tagDraft}>草稿</Tag>
+    return <Tag className={cardStyles.warningTag}>草稿</Tag>
   }
-  return <Tag color="success">已启用</Tag>
+  return <Tag className={cardStyles.successTag}>已启用</Tag>
 }
 
 /** 技能市场：卡片网格浏览、筛选、详情弹窗与新建/编辑抽屉 CRUD */
@@ -117,6 +121,8 @@ export function SkillsPage(): React.ReactElement {
   const [templateLoading, setTemplateLoading] = useState(false)
   const [installingId, setInstallingId] = useState<string | null>(null)
   const [installTargetIds, setInstallTargetIds] = useState<Record<string, string>>({})
+  /** 市场模板：仅通过「查看」图标打开预览，不点击整卡 */
+  const [marketTemplatePreview, setMarketTemplatePreview] = useState<SkillTemplate | null>(null)
 
   const [importOpen, setImportOpen] = useState(false)
   const [importUrl, setImportUrl] = useState('')
@@ -194,7 +200,26 @@ export function SkillsPage(): React.ReactElement {
     setEditOpen(true)
   }
 
-  /** 点击卡片：加载详情并打开抽屉 */
+  /** 从列表直接进入编辑抽屉（不经过详情弹窗） */
+  const openSkillEdit = async (skillId: string): Promise<void> => {
+    try {
+      await setActive(skillId)
+      const loaded = useSkillsStore.getState().detail
+      if (!loaded) {
+        message.error('未找到技能详情')
+        return
+      }
+      const draft = skillDetailToInput(loaded)
+      setEditMode('update')
+      setEditDraft(draft)
+      form.setFieldsValue(draft)
+      setEditOpen(true)
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '加载技能失败')
+    }
+  }
+
+  /** 打开技能详情弹窗 */
   const openSkillDetail = async (skillId: string): Promise<void> => {
     setDetailOpen(true)
     setDetailLoading(true)
@@ -268,6 +293,7 @@ export function SkillsPage(): React.ReactElement {
       await installTemplate(template.id, targetId)
       message.success(`已安装技能「${template.name}」`)
       setTemplateOpen(false)
+      setMarketTemplatePreview(null)
       setTab('mine')
     } catch (err) {
       message.error(err instanceof Error ? err.message : '安装失败')
@@ -529,22 +555,43 @@ export function SkillsPage(): React.ReactElement {
                 className={styles.empty}
               />
             ) : (
-              <div className={styles.grid}>
-                {filteredTemplates.map((template) => (
-                  <Card key={template.id} variant="borderless" className={styles.card}>
-                    <div className={styles.cardHead}>
-                      <div className={styles.cardTitleRow}>
-                        <Tooltip title={template.name}>
-                          <span className={styles.cardTitle} title={template.name}>{template.name}</span>
-                        </Tooltip>
-                        <Tag color={DB_THEME.primary}>模板</Tag>
+              <div className={cardStyles.grid}>
+                {filteredTemplates.map((template, index) => (
+                  <Card
+                    key={template.id}
+                    variant="borderless"
+                    className={cardStyles.card}
+                    style={{ '--card-index': index } as CSSProperties}
+                  >
+                    <div className={cardStyles.cardHead}>
+                      <div className={cardStyles.cardTitleBlock}>
+                        <Text className={cardStyles.cardTitle} ellipsis={{ tooltip: template.name }}>
+                          {template.name}
+                        </Text>
+                        <div className={cardStyles.tagRow}>
+                          <Tag className={cardStyles.primaryTag}>模板</Tag>
+                        </div>
                       </div>
-                      <p className={styles.cardDesc}>
-                        {template.description || '暂无描述'}
-                      </p>
+                      <div className={cardStyles.cardActions}>
+                        <Tooltip title="查看详情">
+                          <Button
+                            type="text"
+                            size="small"
+                            className={cardStyles.actionBtn}
+                            icon={<EyeOutlined />}
+                            aria-label={`查看模板 ${template.name}`}
+                            onClick={() => setMarketTemplatePreview(template)}
+                          />
+                        </Tooltip>
+                      </div>
                     </div>
-                    <div className={styles.cardFooter}>
-                      <span className={styles.cardAuthor}>@平台</span>
+                    <p className={cardStyles.cardDescription}>
+                      {template.description || '暂无描述'}
+                    </p>
+                    <div className={cardStyles.cardFooter}>
+                      <Text type="secondary" className={cardStyles.footerHint}>
+                        @平台
+                      </Text>
                       <Button
                         type="link"
                         size="small"
@@ -572,32 +619,59 @@ export function SkillsPage(): React.ReactElement {
               </Button>
             </Empty>
           ) : (
-            <div className={styles.grid}>
-              {filteredSkills.map((skill) => (
+            <div className={cardStyles.grid}>
+              {filteredSkills.map((skill, index) => (
                 <Card
                   key={skill.id}
                   variant="borderless"
-                  className={styles.card}
-                  hoverable
-                  onClick={() => void openSkillDetail(skill.id)}
+                  className={cardStyles.card}
+                  style={{ '--card-index': index } as CSSProperties}
                 >
-                  <div className={styles.cardHead}>
-                    <div className={styles.cardTitleRow}>
-                      <Tooltip title={skill.name}>
-                        <span className={styles.cardTitle}>{skill.name}</span>
-                      </Tooltip>
-
-                      <SkillStatusTag skill={skill} />
+                  <div className={cardStyles.cardHead}>
+                    <div className={cardStyles.cardTitleBlock}>
+                      <Text className={cardStyles.cardTitle} ellipsis={{ tooltip: skill.name }}>
+                        {skill.name}
+                      </Text>
+                      <div className={cardStyles.tagRow}>
+                        <SkillStatusTag skill={skill} />
+                        {skill.isBuiltin ? (
+                          <Tag className={cardStyles.mutedTag}>内置</Tag>
+                        ) : null}
+                      </div>
                     </div>
-                    <p className={styles.cardDesc}>
-                      {skill.description || '暂无描述'}
-                    </p>
+                    <div className={cardStyles.cardActions}>
+                      <Tooltip title="查看详情">
+                        <Button
+                          type="text"
+                          size="small"
+                          className={cardStyles.actionBtn}
+                          icon={<EyeOutlined />}
+                          aria-label={`查看技能 ${skill.name}`}
+                          onClick={() => void openSkillDetail(skill.id)}
+                        />
+                      </Tooltip>
+                      <Tooltip title="编辑技能">
+                        <Button
+                          type="text"
+                          size="small"
+                          className={cardStyles.actionBtn}
+                          icon={<EditOutlined />}
+                          aria-label={`编辑技能 ${skill.name}`}
+                          onClick={() => void openSkillEdit(skill.id)}
+                        />
+                      </Tooltip>
+                    </div>
                   </div>
-                  <div className={styles.cardFooter}>
-                    <span className={styles.cardAuthor}>
+                  <p className={cardStyles.cardDescription}>
+                    {skill.description || '暂无描述'}
+                  </p>
+                  <div className={cardStyles.cardFooter}>
+                    <Text type="secondary" className={cardStyles.footerHint}>
                       {skill.isBuiltin ? '@平台' : '@你'}
-                    </span>
-                    <span className={styles.cardUsage}>0 次使用</span>
+                    </Text>
+                    <Text type="secondary" className={cardStyles.metaLabel}>
+                      0 次使用
+                    </Text>
                   </div>
                 </Card>
               ))}
@@ -605,6 +679,29 @@ export function SkillsPage(): React.ReactElement {
           )}
         </Spin>
       </FeatureScrollBody>
+
+      <Modal
+        title={marketTemplatePreview?.name ?? '模板详情'}
+        open={Boolean(marketTemplatePreview)}
+        onCancel={() => setMarketTemplatePreview(null)}
+        footer={
+          marketTemplatePreview ? (
+            <Button
+              type="primary"
+              loading={installingId === marketTemplatePreview.id}
+              onClick={() => void handleInstall(marketTemplatePreview)}
+            >
+              安装到项目
+            </Button>
+          ) : null
+        }
+        width={560}
+        destroyOnHidden
+      >
+        {marketTemplatePreview ? (
+          <p className={styles.description}>{marketTemplatePreview.description || '暂无描述'}</p>
+        ) : null}
+      </Modal>
 
       {/* 技能详情抽屉 */}
       <Modal
