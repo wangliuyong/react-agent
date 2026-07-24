@@ -479,6 +479,8 @@ export function AssetsPanel(): React.ReactElement {
                         </div>
                       </div>
                       <Tag className={cardStyles.primaryTag}>{AGENT_ASSET_KIND_LABELS[asset.kind]}</Tag>
+
+
                     </div>
 
                     <div className={cardStyles.cardBody}>

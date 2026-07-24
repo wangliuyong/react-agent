@@ -74,7 +74,7 @@ export const AGENT_ASSET_ZONE_LABELS: Record<AgentAssetZone, string> = {
   artifacts: '通用产物',
   'videos/scenes': '场景素材',
   'videos/projects': '视频项目',
-  'videos/other': '视频其他'
+  'videos/other': '视频'
 }
 
 /** 类别展示文案 */
