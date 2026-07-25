@@ -119,6 +119,23 @@
   font-size: 11px !important;
 }
 
+.usageModal :global(.ant-modal-body) {
+  max-height: min(72vh, 680px);
+  overflow: auto;
+}
+
+.usageBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.usageMarkdown {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--db-text-secondary);
+}
+
 .detailModal :global(.ant-modal-body) {
   max-height: min(72vh, 720px);
   overflow: auto;

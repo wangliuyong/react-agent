@@ -6,6 +6,7 @@ import type {
   AgentToolPermission
 } from '@shared/types'
 import { queryToolLabel } from '@/features/chat/utils/agent-status'
+import { SkillMarkdown } from '@/features/skills/components/SkillMarkdown'
 import { queryAgentToolsCatalog } from '../../api'
 import cardStyles from '@/components/entity-card'
 import styles from './ToolsPanel.module.css'
@@ -68,6 +69,9 @@ export function ToolsPanel(): React.ReactElement {
   const [detailOpen, setDetailOpen] = useState(false)
   const [detail, setDetail] = useState<AgentToolCatalogItem | null>(null)
 
+  const [usageOpen, setUsageOpen] = useState(false)
+  const [usageTool, setUsageTool] = useState<AgentToolCatalogItem | null>(null)
+
   const hydrate = useCallback(async (): Promise<void> => {
     setLoading(true)
     setError(null)
@@ -102,6 +106,11 @@ export function ToolsPanel(): React.ReactElement {
   const openDetail = (tool: AgentToolCatalogItem): void => {
     setDetail(tool)
     setDetailOpen(true)
+  }
+
+  const openUsage = (tool: AgentToolCatalogItem): void => {
+    setUsageTool(tool)
+    setUsageOpen(true)
   }
 
   const rolesUsingTool = (toolName: string): AgentRoleName[] =>
@@ -180,10 +189,8 @@ export function ToolsPanel(): React.ReactElement {
                       <Card
                         key={tool.name}
                         variant="borderless"
-                        hoverable
                         className={cardStyles.card}
                         style={{ '--card-index': index } as CSSProperties}
-                        onClick={() => openDetail(tool)}
                       >
                         <div className={cardStyles.cardHead}>
                           <div className={cardStyles.cardIdentity}>
@@ -192,13 +199,37 @@ export function ToolsPanel(): React.ReactElement {
                             </span>
                             <div className={cardStyles.cardTitleBlock}>
                               <Text className={cardStyles.cardTitle}>
+                                {/* <Tag className={perm.tagClass}>{perm.label}</Tag> */}
                                 {queryToolLabel(tool.name)}
                               </Text>
                               <code className={cardStyles.cardSubtitle}>{tool.name}</code>
+
                             </div>
                           </div>
-                          <Tag className={perm.tagClass}>{perm.label}</Tag>
+                          <div className={cardStyles.cardActions}>
+                            <Tooltip title="使用说明">
+                              <Button
+                                type="text"
+                                size="small"
+                                className={cardStyles.actionBtn}
+                                icon={<ReadOutlined />}
+                                aria-label={`查看 ${queryToolLabel(tool.name)} 使用说明`}
+                                onClick={() => openUsage(tool)}
+                              />
+                            </Tooltip>
+                            <Tooltip title="查看详情">
+                              <Button
+                                type="text"
+                                size="small"
+                                className={cardStyles.actionBtn}
+                                icon={<EyeOutlined />}
+                                aria-label={`查看 ${queryToolLabel(tool.name)} 详情`}
+                                onClick={() => openDetail(tool)}
+                              />
+                            </Tooltip>
+                          </div>
                         </div>
+
                         <p className={cardStyles.cardDescription}>{tool.description}</p>
                         <div className={cardStyles.cardFooter}>
                           <Text type="secondary" className={cardStyles.footerHint}>
@@ -206,9 +237,6 @@ export function ToolsPanel(): React.ReactElement {
                               ? `注入 ${roles.map((r) => ROLE_LABELS[r]).join('、')}`
                               : '未注入任何角色'}
                           </Text>
-                          {/* <Button type="link" size="small" icon={<CodeOutlined />}>
-                            详情
-                          </Button> */}
                         </div>
                       </Card>
                     )
@@ -273,6 +301,29 @@ export function ToolsPanel(): React.ReactElement {
           </Spin>
         </div>
       )}
+
+      <Modal
+        title={
+          usageTool ? `${queryToolLabel(usageTool.name)} · 使用说明` : '使用说明'
+        }
+        open={usageOpen}
+        onCancel={() => setUsageOpen(false)}
+        footer={null}
+        width={680}
+        destroyOnHidden
+        className={styles.usageModal}
+      >
+        {!usageTool ? (
+          <Empty description="未选择工具" />
+        ) : (
+          <div className={styles.usageBody}>
+            <code className={styles.detailId}>{usageTool.name}</code>
+            <div className={styles.usageMarkdown}>
+              <SkillMarkdown source={usageTool.usageGuide} />
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         title={detail ? queryToolLabel(detail.name) : '工具详情'}

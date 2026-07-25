@@ -8,6 +8,7 @@ import type {
 } from '../../../../shared/types'
 import { queryRoleToolInjections } from '../graph/role-tools'
 import { getAllTools } from './index'
+import { queryToolUsageGuide } from './usage-guides'
 
 /** 不参与工具定义扫描的辅助文件 */
 const SKIP_FILES = new Set(['index.ts', 'types.ts', 'catalog.ts', 'langchain-adapter.ts'])
@@ -135,6 +136,7 @@ export function queryAgentToolsCatalog(): AgentToolCatalog {
       name: tool.name,
       description: tool.description,
       permission: tool.permission as AgentToolPermission,
+      usageGuide: queryToolUsageGuide(tool),
       parameters: tool.parameters,
       source: loc
         ? {

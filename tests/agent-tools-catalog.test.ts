@@ -15,6 +15,8 @@ describe('agent tools catalog', () => {
     expect(realtime?.source?.relativePath).toContain('stock-tools.ts')
     expect(realtime?.sourceCode).toContain("name: 'query_ashare_realtime_analysis'")
     expect(realtime?.sourceCode).toContain('export const')
+    expect(realtime?.usageGuide).toContain('功能说明')
+    expect(realtime?.usageGuide).toContain(realtime!.description)
   })
 
   it('角色注入：general 全量，supervisor 无工具，researcher 含 A 股工具', () => {
@@ -30,5 +32,17 @@ describe('agent tools catalog', () => {
     expect(byRole.researcher.mode).toBe('whitelist')
     expect(byRole.researcher.toolNames).toContain('query_ashare_realtime_analysis')
     expect(byRole.researcher.toolNames).toContain('query_ashare_kline')
+  })
+
+  it('query_weather / notify_message 使用说明含调用示例与参数', () => {
+    const catalog = queryAgentToolsCatalog()
+    const weather = catalog.tools.find((t) => t.name === 'query_weather')
+    const notify = catalog.tools.find((t) => t.name === 'notify_message')
+    expect(weather?.usageGuide).toContain('"city": "合肥"')
+    expect(weather?.usageGuide).toContain('notify_message')
+    expect(notify?.usageGuide).toContain('channelId')
+    expect(notify?.usageGuide).toContain('msgType')
+    expect(notify?.usageGuide).toContain('模板 B')
+    expect(notify?.usageGuide).toContain('query_weather')
   })
 })

@@ -1411,6 +1411,8 @@ export interface AgentToolCatalogItem {
   name: string
   description: string
   permission: AgentToolPermission
+  /** 设置页「使用说明」展示的 Markdown（由主进程生成） */
+  usageGuide: string
   /** JSON Schema 风格参数定义 */
   parameters: Record<string, unknown>
   source: AgentToolSourceLocation | null
