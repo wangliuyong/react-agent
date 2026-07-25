@@ -1,6 +1,6 @@
 {
   "name": "lingxi",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "灵犀 · AI助手",
   "main": "./out/main/index.js",
   "build": {
@@ -34,10 +34,10 @@
     "install:browser:official": "playwright install chromium",
     "install:remotion-browser": "node scripts/install-remotion-browser.mjs",
     "postinstall": "electron-builder install-app-deps",
-    "pack:mac": "pnpm build && electron-builder --mac",
-    "pack:mac:arm64": "pnpm build && electron-builder --mac --arm64",
-    "pack:mac:x64": "pnpm build && electron-builder --mac --x64",
-    "pack:win": "pnpm build && electron-builder --win --x64"
+    "pack:mac": "node scripts/pack.mjs mac",
+    "pack:mac:arm64": "node scripts/pack.mjs mac:arm64",
+    "pack:mac:x64": "node scripts/pack.mjs mac:x64",
+    "pack:win": "node scripts/pack.mjs win"
   },
   "dependencies": {
     "@ant-design/icons": "^5.6.1",
