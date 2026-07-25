@@ -43,6 +43,31 @@ export interface RemotionTemplateSummary extends RemotionTemplateMeta {
   previewFile?: string
 }
 
+/** 模板详情（维护界面） */
+export interface RemotionTemplateDetail extends RemotionTemplateSummary {
+  /** defaultProps.json 原文（对象） */
+  defaultProps: Record<string, unknown>
+  /** 模板目录下相对文件列表（白名单扩展） */
+  files: string[]
+  /** 是否可编辑 meta / 删除（用户目录下的模板） */
+  editable: boolean
+}
+
+/** 更新用户模板 meta（不可改 id / origin） */
+export interface RemotionTemplateMetaUpdateInput {
+  templateId: string
+  name: string
+  description?: string
+  tags?: string[]
+  compositionId?: string
+  width?: number
+  height?: number
+  fps?: number
+  durationInFrames?: number
+  /** 可选：覆盖 defaultProps.json */
+  defaultProps?: Record<string, unknown>
+}
+
 /** 会话工程活动模板标记 */
 export interface RemotionActiveTemplateState {
   templateId: string

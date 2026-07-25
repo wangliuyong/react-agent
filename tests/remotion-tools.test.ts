@@ -63,9 +63,28 @@ describe('Remotion 内置工具', () => {
     expect(remotionServiceSource).toContain('postWriteRootGenerated')
     expect(remotionServiceSource).toContain('queryRemotionInputPropsFromDisk')
     expect(remotionServiceSource).toContain('inputProps')
+    expect(remotionServiceSource).toContain('postEnsureRemotionStudioZh')
+    expect(remotionServiceSource).toContain('apply-remotion-studio-zh.mjs')
     expect(remotionSfxSource).toContain('@remotion/sfx/dist/esm/index.mjs')
     expect(starterSfxLib).toContain('REMOTION_SFX')
     expect(starterSfxLib).toContain('remotion.media/whoosh.wav')
+  })
+
+  it('提供 Remotion Studio 中文界面补丁脚本与词典', () => {
+    const script = readFileSync(
+      new URL('../scripts/apply-remotion-studio-zh.mjs', import.meta.url),
+      'utf8'
+    )
+    const dict = readFileSync(
+      new URL('../resources/remotion/studio-zh-dict.json', import.meta.url),
+      'utf8'
+    )
+    expect(script).toContain('studio-zh-dict.json')
+    expect(script).toContain('@remotion/studio')
+    expect(dict).toContain('"Compositions"')
+    expect(dict).toContain('"合成列表"')
+    expect(dict).toContain('"Inspector"')
+    expect(dict).toContain('"检查器"')
   })
 
   it('general 提示词与视频角色包含 Remotion 指引', () => {

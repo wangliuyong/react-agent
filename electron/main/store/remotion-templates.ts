@@ -22,7 +22,9 @@ import {
   type RemotionApplyTemplateInput,
   type RemotionApplyTemplateResult,
   type RemotionSaveTemplateFromChatInput,
+  type RemotionTemplateDetail,
   type RemotionTemplateMeta,
+  type RemotionTemplateMetaUpdateInput,
   type RemotionTemplateOrigin,
   type RemotionTemplateSummary
 } from '../../../shared/remotion-template'
@@ -151,6 +153,180 @@ export function queryRemotionTemplates(
 /** 按 id 查找模板（用户优先） */
 export function queryRemotionTemplateById(templateId: string): RemotionTemplateSummary | null {
   return queryRemotionTemplates().find((t) => t.id === templateId) ?? null
+}
+
+function queryIsUserEditableTemplate(summary: RemotionTemplateSummary): boolean {
+  const userDir = join(queryUserRemotionTemplatesDir(), summary.id)
+  return existsSync(userDir) && resolve(summary.dir) === resolve(userDir)
+}
+
+/** 列举模板包内相对文件路径 */
+function queryTemplateRelativeFiles(dir: string): string[] {
+  const files: string[] = []
+  const walk = (current: string, prefix: string): void => {
+    if (!existsSync(current)) return
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      if (entry.name.startsWith('.')) continue
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name
+      const abs = join(current, entry.name)
+      if (entry.isDirectory()) {
+        if (entry.name === 'node_modules' || entry.name === 'out') continue
+        walk(abs, rel)
+        continue
+      }
+      if (entry.isFile() && TEMPLATE_FILE_EXT.test(entry.name)) {
+        files.push(rel)
+      }
+    }
+  }
+  walk(dir, '')
+  return files.sort()
+}
+
+/** 读取模板详情（维护界面） */
+export function queryRemotionTemplateDetail(templateId: string): RemotionTemplateDetail | null {
+  const summary = queryRemotionTemplateById(templateId)
+  if (!summary) return null
+
+  let defaultProps: Record<string, unknown> = {}
+  const propsPath = join(summary.dir, 'defaultProps.json')
+  if (existsSync(propsPath)) {
+    try {
+      const raw = JSON.parse(readFileSync(propsPath, 'utf-8')) as unknown
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        defaultProps = raw as Record<string, unknown>
+      }
+    } catch {
+      defaultProps = {}
+    }
+  }
+
+  return {
+    ...summary,
+    defaultProps,
+    files: queryTemplateRelativeFiles(summary.dir),
+    editable: queryIsUserEditableTemplate(summary)
+  }
+}
+
+/**
+ * 更新用户模板 meta.json（及可选 defaultProps）。
+ * 内置模板不可直接改；需先 postDuplicateRemotionTemplate。
+ */
+export function postUpdateRemotionTemplateMeta(
+  input: RemotionTemplateMetaUpdateInput
+): RemotionTemplateDetail {
+  validateRemotionTemplateId(input.templateId)
+  const summary = queryRemotionTemplateById(input.templateId)
+  if (!summary) throw new Error(`未找到模板「${input.templateId}」`)
+  if (!queryIsUserEditableTemplate(summary)) {
+    throw new Error('内置模板不可直接编辑，请先「复制为可编辑副本」')
+  }
+
+  const name = String(input.name ?? '').trim()
+  if (!name) throw new Error('模板名称不能为空')
+
+  const metaPath = join(summary.dir, 'meta.json')
+  let existing: RemotionTemplateMeta
+  try {
+    existing = parseRemotionTemplateMeta(
+      JSON.parse(readFileSync(metaPath, 'utf-8')) as unknown,
+      summary.origin
+    )
+  } catch {
+    existing = { ...summary }
+  }
+
+  const nextMeta: RemotionTemplateMeta = {
+    ...existing,
+    id: summary.id,
+    name,
+    description: input.description != null ? String(input.description) : existing.description,
+    tags: input.tags ?? existing.tags,
+    compositionId:
+      input.compositionId != null
+        ? String(input.compositionId).trim() || 'Main'
+        : existing.compositionId,
+    width: input.width ?? existing.width,
+    height: input.height ?? existing.height,
+    fps: input.fps ?? existing.fps,
+    durationInFrames: input.durationInFrames ?? existing.durationInFrames,
+    origin: summary.origin === 'bundled' ? 'local' : summary.origin
+  }
+
+  writeFileSync(metaPath, JSON.stringify(nextMeta, null, 2), 'utf-8')
+
+  if (input.defaultProps != null) {
+    writeFileSync(
+      join(summary.dir, 'defaultProps.json'),
+      JSON.stringify(input.defaultProps, null, 2),
+      'utf-8'
+    )
+  }
+
+  const detail = queryRemotionTemplateDetail(summary.id)
+  if (!detail) throw new Error('更新后读取模板失败')
+  return detail
+}
+
+/**
+ * 将任意已有模板复制到用户目录（新 id），便于维护内置模板的可编辑副本。
+ */
+export function postDuplicateRemotionTemplate(
+  sourceTemplateId: string,
+  targetId: string,
+  name?: string
+): RemotionTemplateDetail {
+  validateRemotionTemplateId(targetId)
+  const source = queryRemotionTemplateById(sourceTemplateId)
+  if (!source) throw new Error(`未找到源模板「${sourceTemplateId}」`)
+
+  const dest = join(queryUserRemotionTemplatesDir(), targetId)
+  if (existsSync(dest)) {
+    throw new Error(`模板 id「${targetId}」已存在`)
+  }
+
+  mkdirSync(dest, { recursive: true })
+  postCopyDirFiltered(source.dir, dest)
+
+  const metaPath = join(dest, 'meta.json')
+  let meta: RemotionTemplateMeta
+  try {
+    meta = parseRemotionTemplateMeta(
+      JSON.parse(readFileSync(metaPath, 'utf-8')) as unknown,
+      'local'
+    )
+  } catch {
+    meta = {
+      id: targetId,
+      name: name?.trim() || `${source.name} 副本`,
+      origin: 'local',
+      tags: source.tags,
+      compositionId: source.compositionId,
+      width: source.width,
+      height: source.height,
+      fps: source.fps,
+      durationInFrames: source.durationInFrames
+    }
+  }
+
+  const nextMeta: RemotionTemplateMeta = {
+    ...meta,
+    id: targetId,
+    name: name?.trim() || meta.name || `${source.name} 副本`,
+    origin: 'local',
+    createdAt: new Date().toISOString(),
+    sourceUrl: source.sourceUrl,
+    sourceSessionId: source.sourceSessionId
+  }
+  writeFileSync(metaPath, JSON.stringify(nextMeta, null, 2), 'utf-8')
+  if (!existsSync(join(dest, 'defaultProps.json'))) {
+    writeFileSync(join(dest, 'defaultProps.json'), '{}', 'utf-8')
+  }
+
+  const detail = queryRemotionTemplateDetail(targetId)
+  if (!detail) throw new Error('复制后读取模板失败')
+  return detail
 }
 
 /** 读取会话工程 inputProps；文件缺失返回 {} */

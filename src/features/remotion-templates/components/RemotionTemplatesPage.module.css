@@ -1,0 +1,241 @@
+/* 视频模板页 — 工具栏与弹窗；列表卡片统一使用 entity-card（对齐技能市场） */
+
+.searchInput {
+  width: 200px;
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* ── 详情弹窗 ── */
+.detailModal :global(.ant-modal-body) {
+  padding-top: 8px;
+}
+
+.detailBody {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-height: min(62vh, 640px);
+  overflow: auto;
+}
+
+.detailHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--db-border-light);
+}
+
+.detailId {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--db-hover);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+.detailTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.aspectBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--db-border-light);
+  background: var(--db-bg);
+  font-size: 12px;
+  color: var(--db-text-secondary);
+  white-space: nowrap;
+}
+
+.aspectFrame {
+  display: inline-block;
+  border: 1.5px solid var(--db-primary);
+  border-radius: 2px;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.aspectFrameLandscape {
+  width: 18px;
+  height: 11px;
+}
+
+.aspectFramePortrait {
+  width: 11px;
+  height: 18px;
+}
+
+.aspectFrameSquare {
+  width: 14px;
+  height: 14px;
+}
+
+.description {
+  position: relative;
+  padding: 14px 16px 14px 18px;
+  margin: 0 !important;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid var(--db-primary-border);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--db-text);
+}
+
+.description::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--db-primary);
+}
+
+.sectionLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--db-text-secondary);
+}
+
+.sectionLabel::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--db-border-light);
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+
+.metaFull {
+  grid-column: 1 / -1;
+}
+
+.metaLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--db-text-tertiary);
+  margin-bottom: 4px;
+  letter-spacing: 0.02em;
+}
+
+.metaValue {
+  font-size: 13px;
+  color: var(--db-text);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.codeBlock {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--db-radius-md);
+  border: 1px solid var(--db-border-light);
+  background: var(--db-bg);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--db-text-secondary);
+  overflow: auto;
+  max-height: 200px;
+}
+
+.fileList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.fileItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--db-bg);
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.fileItem:hover {
+  border-color: var(--db-border-light);
+  background: var(--db-hover);
+}
+
+.fileItem code {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+.pathText {
+  font-size: 12px;
+  word-break: break-all;
+}
+
+/* ── 导入 / 复制 / 编辑弹窗 ── */
+.modalHint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--db-text-secondary);
+}
+
+.modalHint code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--db-hover);
+  font-size: 12px;
+}
+
+.importField {
+  margin-bottom: 12px;
+}
+
+.formRow {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.monoTextarea {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.editModal :global(.ant-modal-body) {
+  padding-top: 12px;
+}

@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
+import { queryNormalizeExternalHttpUrl } from '@shared/external-url'
 import { ChatCodeBlock } from '../ChatCodeBlock'
 import styles from './ChatMarkdown.module.css'
 
@@ -12,10 +13,11 @@ interface ChatMarkdownProps {
   className?: string
 }
 
-/** 在浏览器中打开 http(s) 链接，Electron 走系统默认浏览器 */
+/** 在浏览器中打开合法 http(s) 链接，Electron 走系统默认浏览器 */
 function openExternalLink(href: string): void {
-  if (!/^https?:\/\//i.test(href)) return
-  void window.api.postOpenExternal(href)
+  const normalized = queryNormalizeExternalHttpUrl(href)
+  if (!normalized) return
+  void window.api.postOpenExternal(normalized)
 }
 
 /** 根据是否流式输出构建 Markdown 组件映射 */
@@ -26,9 +28,10 @@ function createMarkdownComponents(streaming: boolean): Components {
         href={href}
         className={styles.link}
         onClick={(event) => {
-          if (href && /^https?:\/\//i.test(href)) {
+          const normalized = href ? queryNormalizeExternalHttpUrl(href) : null
+          if (normalized) {
             event.preventDefault()
-            openExternalLink(href)
+            openExternalLink(normalized)
           }
         }}
       >

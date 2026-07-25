@@ -82,7 +82,7 @@ export function SaveRemotionTemplateModal({
     >
       <p className={styles.hint}>
         将当前会话的 Remotion 工程快照保存到本地模板库，可在「技能 → 视频模板」或 Agent
-        remotion_apply_template 中复用。
+        remotion_apply_template 中复用。也可在侧栏「视频模板」中管理。
       </p>
       <Form layout="vertical">
         <Form.Item label="模板名称" required>

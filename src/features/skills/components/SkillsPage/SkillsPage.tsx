@@ -20,13 +20,11 @@ import {
 } from '@/components/page-shell'
 import cardStyles from '@/components/entity-card'
 import styles from './SkillsPage.module.css'
-import { RemotionTemplatesTab } from '@/features/remotion-templates/components/RemotionTemplatesTab'
-import { queryRemotionTemplateList } from '@/features/remotion-templates/api'
 
 const { Text } = Typography
 
-/** 主 Tab：全部 / 活跃 / 已归档 / 市场模板 / 我的技能 / 视频模板 */
-type SkillTab = 'all' | 'active' | 'archived' | 'market' | 'mine' | 'remotion'
+/** 主 Tab：全部 / 活跃 / 已归档 / 市场模板 / 我的技能 */
+type SkillTab = 'all' | 'active' | 'archived' | 'market' | 'mine'
 
 /** 二级筛选：全部 / 平台内置 / 自定义 */
 type SkillScope = 'all' | 'platform' | 'custom'
@@ -135,7 +133,6 @@ export function SkillsPage(): React.ReactElement {
   const [importPreviewing, setImportPreviewing] = useState(false)
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [remotionTemplateCount, setRemotionTemplateCount] = useState(0)
   const importFileInputRef = useRef<HTMLInputElement>(null)
 
   const [form] = Form.useForm<SkillUpsertInput>()
@@ -150,20 +147,14 @@ export function SkillsPage(): React.ReactElement {
     void loadTemplates()
   }, [tab, loadTemplates])
 
-  useEffect(() => {
-    if (tab !== 'remotion') return
-    void queryRemotionTemplateList().then((list) => setRemotionTemplateCount(list.length))
-  }, [tab, search])
-
   /** 当前 Tab 下的技能数量（用于工具条计数） */
   const tabCount = useMemo(() => {
     if (tab === 'market') return templates.length
-    if (tab === 'remotion') return remotionTemplateCount
     if (tab === 'all') return skills.length
     if (tab === 'active') return skills.filter((s) => s.enabled).length
     if (tab === 'archived') return skills.filter((s) => !s.enabled).length
     return skills.filter((s) => !s.isBuiltin).length
-  }, [tab, skills, templates, remotionTemplateCount])
+  }, [tab, skills, templates])
 
   /** 经过 Tab、范围、搜索、排序后的技能列表 */
   const filteredSkills = useMemo(() => {
@@ -519,11 +510,10 @@ export function SkillsPage(): React.ReactElement {
             { label: '活跃技能', value: 'active' },
             { label: '已归档', value: 'archived' },
             { label: '市场', value: 'market' },
-            { label: '视频模板', value: 'remotion' },
             { label: '我的', value: 'mine' }
           ]}
         />
-        {tab !== 'remotion' && tab !== 'market' ? (
+        {tab !== 'market' ? (
         <Segmented
           value={scope}
           onChange={(v) => setScope(v as SkillScope)}
@@ -539,7 +529,7 @@ export function SkillsPage(): React.ReactElement {
           <Input
             allowClear
             prefix={<SearchOutlined />}
-            placeholder={tab === 'remotion' ? '搜索视频模板...' : '搜索技能...'}
+            placeholder="搜索技能..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={styles.searchInput}
@@ -558,9 +548,6 @@ export function SkillsPage(): React.ReactElement {
       </FeaturePageToolbar>
 
       <FeatureScrollBody>
-        {tab === 'remotion' ? (
-          <RemotionTemplatesTab search={search} />
-        ) : (
         <Spin spinning={loading && (tab === 'market' ? templates.length === 0 : skills.length === 0)}>
           {tab === 'market' ? (
             filteredTemplates.length === 0 ? (
@@ -693,7 +680,6 @@ export function SkillsPage(): React.ReactElement {
             </div>
           )}
         </Spin>
-        )}
       </FeatureScrollBody>
 
       <Modal

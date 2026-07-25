@@ -73,6 +73,25 @@ function createWindow(): void {
 
   setMainWindow(mainWindow)
 
+  // 拦截 target=_blank / window.open：仅打开合法 http(s)，避免 Invalid URL 刷屏
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    void (async () => {
+      const { queryNormalizeExternalHttpUrl } = await import('../../shared/external-url')
+      const normalized = queryNormalizeExternalHttpUrl(url)
+      if (!normalized) {
+        console.warn('[window-open] 忽略非法 URL：', url)
+        return
+      }
+      try {
+        await shell.openExternal(normalized)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.warn('[window-open] 打开失败：', normalized, msg)
+      }
+    })()
+    return { action: 'deny' }
+  })
+
   if (process.env.ELECTRON_RENDERER_URL) {
     // 本地开发：加载 Vite 开发服务器
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -135,7 +154,20 @@ app.on('before-quit', () => {
 })
 
 ipcMain.handle('shell:open-external', async (_e, url: string) => {
-  await shell.openExternal(url)
+  const { queryNormalizeExternalHttpUrl } = await import('../../shared/external-url')
+  const normalized = queryNormalizeExternalHttpUrl(url)
+  if (!normalized) {
+    console.warn('[shell:open-external] 忽略非法 URL：', String(url ?? ''))
+    return { ok: false as const, error: '非法 URL' }
+  }
+  try {
+    await shell.openExternal(normalized)
+    return { ok: true as const }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn('[shell:open-external] 打开失败：', normalized, msg)
+    return { ok: false as const, error: msg }
+  }
 })
 
 ipcMain.handle('post:reveal-path', async (_e, filePath: string) => {

@@ -1,12 +1,13 @@
 import { create } from 'zustand'
 
-/** 主内容区视图：聊天 / 业务系统 / 发布工作台 / 设置 / 技能 / 规则 / 渠道 / 定时 / 流程 */
+/** 主内容区视图：聊天 / 业务系统 / 发布工作台 / 设置 / 技能 / 视频模板 / 规则 / 渠道 / 定时 / 流程 */
 export type AppView =
   | 'chat'
   | 'business'
   | 'publish'
   | 'settings'
   | 'skills'
+  | 'remotion-templates'
   | 'rules'
   | 'channels'
   | 'schedule'
@@ -20,6 +21,7 @@ const APP_VIEWS: AppView[] = [
   'publish',
   'settings',
   'skills',
+  'remotion-templates',
   'rules',
   'channels',
   'schedule',

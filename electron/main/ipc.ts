@@ -65,7 +65,10 @@ import { querySkillImportPreview, postImportSkillFromUrl } from './store/skill-i
 import {
   postApplyRemotionTemplate,
   postDeleteRemotionTemplate,
+  postDuplicateRemotionTemplate,
   postSaveRemotionTemplateFromChat,
+  postUpdateRemotionTemplateMeta,
+  queryRemotionTemplateDetail,
   queryRemotionTemplates
 } from './store/remotion-templates'
 import { postImportRemotionTemplateFromUrl } from './store/remotion-template-import'
@@ -316,6 +319,9 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.queryRemotionTemplates, (_e, filter?) =>
     queryRemotionTemplates(filter)
   )
+  ipcMain.handle(IpcChannels.queryRemotionTemplateDetail, (_e, templateId: string) =>
+    queryRemotionTemplateDetail(templateId)
+  )
   ipcMain.handle(IpcChannels.postApplyRemotionTemplate, (_e, input) =>
     postApplyRemotionTemplate(input)
   )
@@ -327,6 +333,14 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IpcChannels.postImportRemotionTemplateFromUrl, (_e, url: string, targetId?: string) =>
     postImportRemotionTemplateFromUrl(url, targetId)
+  )
+  ipcMain.handle(IpcChannels.postUpdateRemotionTemplateMeta, (_e, input) =>
+    postUpdateRemotionTemplateMeta(input)
+  )
+  ipcMain.handle(
+    IpcChannels.postDuplicateRemotionTemplate,
+    (_e, sourceTemplateId: string, targetId: string, name?: string) =>
+      postDuplicateRemotionTemplate(sourceTemplateId, targetId, name)
   )
   ipcMain.handle(IpcChannels.queryLocalImageDataUrl, (_e, filePath: string) =>
     queryLocalImageDataUrl(filePath)

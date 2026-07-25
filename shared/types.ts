@@ -68,10 +68,13 @@ export const IpcChannels = {
   postSummarizeSkillFromSession: 'post:skill-summarize-from-session',
   // Remotion 视频模板
   queryRemotionTemplates: 'query:remotion-templates',
+  queryRemotionTemplateDetail: 'query:remotion-template-detail',
   postApplyRemotionTemplate: 'post:remotion-template:apply',
   postSaveRemotionTemplateFromChat: 'post:remotion-template-save-from-chat',
   postDeleteRemotionTemplate: 'post:remotion-template:delete',
   postImportRemotionTemplateFromUrl: 'post:remotion-template-import-from-url',
+  postUpdateRemotionTemplateMeta: 'post:remotion-template:update-meta',
+  postDuplicateRemotionTemplate: 'post:remotion-template:duplicate',
   queryLocalImageDataUrl: 'query:local-image-data-url',
   /** 本地音视频 → media:// URL，供聊天内联播放 */
   queryLocalMediaUrl: 'query:local-media-url',
@@ -2298,6 +2301,9 @@ export interface ElectronApi {
     query?: string
     origin?: string
   }) => Promise<import('./remotion-template').RemotionTemplateSummary[]>
+  queryRemotionTemplateDetail: (
+    templateId: string
+  ) => Promise<import('./remotion-template').RemotionTemplateDetail | null>
   postApplyRemotionTemplate: (input: {
     sessionId: string
     templateId: string
@@ -2322,6 +2328,14 @@ export interface ElectronApi {
     url: string,
     targetId?: string
   ) => Promise<import('./remotion-template').RemotionTemplateSummary[]>
+  postUpdateRemotionTemplateMeta: (
+    input: import('./remotion-template').RemotionTemplateMetaUpdateInput
+  ) => Promise<import('./remotion-template').RemotionTemplateDetail>
+  postDuplicateRemotionTemplate: (
+    sourceTemplateId: string,
+    targetId: string,
+    name?: string
+  ) => Promise<import('./remotion-template').RemotionTemplateDetail>
   queryLocalImageDataUrl: (filePath: string) => Promise<string | null>
   queryLocalMediaUrl: (filePath: string) => Promise<string | null>
   /** 校验本地路径是否存在 */
@@ -2367,7 +2381,9 @@ export interface ElectronApi {
   /** 选择本地文件夹（流程输出节点等） */
   postSelectDirectory: () => Promise<string | null>
   /** 在系统默认浏览器中打开链接 */
-  postOpenExternal: (url: string) => Promise<void>
+  postOpenExternal: (
+    url: string
+  ) => Promise<{ ok: true } | { ok: false; error: string }>
   /** 在系统文件管理器中显示本地文件（成片/剧本等产物） */
   postRevealPath: (filePath: string) => Promise<{ ok: true } | { ok: false; error: string }>
   /** 在系统默认浏览器中打开本地文件 */

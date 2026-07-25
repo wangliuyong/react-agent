@@ -3,7 +3,7 @@
  * 使用 @remotion/bundler + @remotion/renderer，避免在 Electron 主进程依赖外部 npx。
  */
 
-import { type ChildProcess, spawn } from 'child_process'
+import { type ChildProcess, spawn, spawnSync } from 'child_process'
 import { app, shell } from 'electron'
 import { createRequire } from 'module'
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
@@ -13,6 +13,9 @@ import { getVideosDir } from '../store/paths'
 import { queryRemotionSfxWebpackOverride } from './remotion-sfx'
 
 const requireFromMain = createRequire(__filename)
+
+/** Studio 中文补丁是否已在本进程尝试过（失败也会记，避免反复阻塞启动） */
+let studioZhEnsureAttempted = false
 
 /** Remotion 渲染阶段进度 */
 export interface RemotionRenderProgress {
@@ -317,6 +320,45 @@ function queryRemotionCliPath(): string {
   }
 }
 
+/**
+ * 启动 Studio 前确保 @remotion/studio 已打中文补丁。
+ * 官方暂无 i18n，依赖 scripts/apply-remotion-studio-zh.mjs 对 dist 做字符串替换。
+ */
+function postEnsureRemotionStudioZh(): void {
+  if (studioZhEnsureAttempted) return
+  studioZhEnsureAttempted = true
+
+  const scriptPath = join(app.getAppPath(), 'scripts', 'apply-remotion-studio-zh.mjs')
+  if (!existsSync(scriptPath)) {
+    console.warn('[remotion] 找不到 Studio 汉化脚本，跳过：', scriptPath)
+    return
+  }
+
+  try {
+    const result = spawnSync(process.execPath, [scriptPath], {
+      cwd: app.getAppPath(),
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1'
+      },
+      encoding: 'utf8',
+      timeout: 60_000
+    })
+    if (result.status !== 0) {
+      console.warn(
+        '[remotion] Studio 汉化脚本退出码非 0：',
+        result.status,
+        result.stderr || result.stdout || ''
+      )
+    } else if (result.stdout?.trim()) {
+      console.log(result.stdout.trim())
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn(`[remotion] Studio 汉化失败（不影响启动）: ${msg}`)
+  }
+}
+
 /** 从 Studio 进程输出中提取本地预览 URL */
 function queryStudioUrlFromOutput(chunk: string): string | null {
   const httpMatch = chunk.match(/https?:\/\/(?:localhost|127\.0\.0\.1):\d+\b/)
@@ -341,12 +383,20 @@ export async function postStartRemotionStudio(
     }
   }
 
+  // 首次启动前应用 Studio 中文界面补丁（幂等）
+  postEnsureRemotionStudioZh()
+
   const existing = studioBySession.get(input.sessionId)
   // 进程仍存活则复用；工程目录变更时关掉旧实例再启新的
   if (existing && queryIsChildAlive(existing.process)) {
     if (existing.projectDir === input.projectDir) {
       if (input.openBrowser !== false) {
-        await shell.openExternal(existing.url)
+        try {
+          await shell.openExternal(existing.url)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          console.warn('[remotion] 打开已有 Studio URL 失败：', existing.url, msg)
+        }
       }
       return {
         ok: true,
