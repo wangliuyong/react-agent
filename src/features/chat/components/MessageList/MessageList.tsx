@@ -174,7 +174,8 @@ export function MessageList({
             {m.thinkingContent?.trim() ? (
               <div className={`${styles.row} ${styles.rowThinking}`}>
                 <span className={styles.label}>灵犀</span>
-                <ThinkingBlock content={m.thinkingContent} />
+                {/* 历史步骤已进入后续叙述/工具，折叠已完成思考 */}
+                <ThinkingBlock content={m.thinkingContent} nextNodeStarted />
               </div>
             ) : null}
             {showNarrative || showToolGroup || showHoistedStock ? (
@@ -215,6 +216,13 @@ export function MessageList({
             content={thinkingText}
             streaming={running}
             inProgress={thinkingInProgress}
+            // 思考完成后仍展开；流式回答 / 工具 / pending 开始后才折叠
+            nextNodeStarted={
+              !thinkingInProgress &&
+              (Boolean(displayStreamingText) ||
+                Boolean(activeToolName) ||
+                showPending)
+            }
           />
         </div>
       ) : null}
