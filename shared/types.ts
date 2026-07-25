@@ -1166,7 +1166,7 @@ export interface PublishPlan {
 }
 
 /** 定时任务重复规则 */
-export type ScheduleRepeat = 'once' | 'daily' | 'weekly'
+export type ScheduleRepeat = 'once' | 'daily' | 'weekdays' | 'weekly'
 
 /** 定时任务最近一次执行状态 */
 export type ScheduleRunStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped'
@@ -1185,14 +1185,24 @@ export interface ScheduledTask {
   /** 关闭后调度器跳过，nextRunAt 置空 */
   enabled: boolean
   repeat: ScheduleRepeat
-  /** HH:mm，daily / weekly 使用（兼容旧数据；新数据以 timesOfDay 为准） */
+  /** HH:mm，daily / weekdays / weekly 使用（兼容旧数据；新数据以 timesOfDay 为准） */
   timeOfDay: string
-  /** 每日/每周多个执行时刻，HH:mm 数组，升序去重 */
+  /** 每日/工作日/每周多个执行时刻，HH:mm 数组，升序去重 */
   timesOfDay?: string[]
   /** weekly 时 0=周日 … 6=周六 */
   weekday?: number
   /** once 时执行的 Unix 毫秒时间戳 */
   runAt?: number
+  /**
+   * 循环任务生效区间起点（Unix 毫秒，含当日）。
+   * 仅 daily / weekdays / weekly 使用；未设置表示不限制开始。
+   */
+  activeFrom?: number
+  /**
+   * 循环任务生效区间终点（Unix 毫秒，含当日）。
+   * 仅 daily / weekdays / weekly 使用；未设置表示不限制结束。
+   */
+  activeUntil?: number
   actionType: ScheduleActionType
   /** 关联发布计划 id（与镜像工作流 id 相同） */
   publishPlanId?: string

@@ -5,6 +5,7 @@ import {
   formatNextRunAt,
   formatScheduleSummary,
   formatScheduledTaskRunCount,
+  normalizeScheduleActiveRange,
   normalizeScheduleTimesOfDay,
   queryRunInBackground,
   queryScheduleTimesOfDay,
@@ -36,8 +37,10 @@ interface TaskFormValues {
   repeat: ScheduleRepeat
   runAt?: Dayjs
   weekday?: number
-  /** daily / weekly 可配置多个执行时刻 */
+  /** daily / weekdays / weekly 可配置多个执行时刻 */
   timesOfDay?: Dayjs[]
+  /** 循环任务可选生效日期区间 [起, 止] */
+  activeRange?: [Dayjs, Dayjs]
   actionType: ScheduleActionType
   publishPlanId?: string
   workflowId?: string
@@ -84,6 +87,15 @@ function parseTimeOfDay(hhmm: string | undefined): Dayjs {
  *（preserve={false} 时未挂载的条件字段会被丢弃，导致编辑回显失败）。
  */
 function taskToFormValues(task: ScheduledTask): TaskFormValues {
+  // 生效区间回显：有起止则组成 RangePicker 值；仅一侧有值时也尽量展示
+  const activeRange: [Dayjs, Dayjs] | undefined =
+    task.activeFrom != null || task.activeUntil != null
+      ? [
+          dayjs(task.activeFrom ?? task.activeUntil),
+          dayjs(task.activeUntil ?? task.activeFrom)
+        ]
+      : undefined
+
   return {
     title: task.title,
     description: task.description,
@@ -91,6 +103,7 @@ function taskToFormValues(task: ScheduledTask): TaskFormValues {
     runAt: task.runAt ? dayjs(task.runAt) : undefined,
     weekday: task.weekday ?? 1,
     timesOfDay: queryScheduleTimesOfDay(task).map(parseTimeOfDay),
+    activeRange,
     actionType: task.actionType,
     publishPlanId: task.publishPlanId,
     workflowId: task.workflowId,
@@ -103,6 +116,16 @@ function taskToFormValues(task: ScheduledTask): TaskFormValues {
 
 /** 将表单值合并回定时任务实体 */
 function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): ScheduledTask {
+  const activeRange = normalizeScheduleActiveRange(
+    values.repeat,
+    values.repeat !== 'once' && values.activeRange?.[0]
+      ? values.activeRange[0].startOf('day').valueOf()
+      : undefined,
+    values.repeat !== 'once' && values.activeRange?.[1]
+      ? values.activeRange[1].endOf('day').valueOf()
+      : undefined
+  )
+
   return {
     ...base,
     title: values.title.trim(),
@@ -110,6 +133,9 @@ function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): Sched
     repeat: values.repeat,
     runAt: values.repeat === 'once' ? values.runAt?.valueOf() : base.runAt,
     weekday: values.repeat === 'weekly' ? values.weekday : base.weekday,
+    // 切换为一次性时清掉区间字段，避免脏数据残留
+    activeFrom: activeRange.activeFrom,
+    activeUntil: activeRange.activeUntil,
     ...(values.repeat !== 'once'
       ? (() => {
         const timesOfDay = normalizeScheduleTimesOfDay(
@@ -150,6 +176,15 @@ function computeScheduleStats(tasks: ScheduledTask[]): ScheduleStats {
 function resolveTaskDisplayStatus(task: ScheduledTask): TaskDisplayStatus {
   if (task.lastRunStatus === 'running') return 'executing'
   if (task.repeat === 'once' && !task.enabled && task.lastRunAt != null) return 'completed'
+  // 生效区间已结束后无下次执行，视为已完成
+  if (
+    task.enabled &&
+    task.nextRunAt == null &&
+    task.activeUntil != null &&
+    task.activeUntil < Date.now()
+  ) {
+    return 'completed'
+  }
   if (!task.enabled) return 'paused'
   return 'running'
 }
@@ -336,6 +371,13 @@ function TaskEditModal({
                 </div>
               )}
             </Form.List>
+            <Form.Item
+              label="生效时间范围"
+              name="activeRange"
+              extra="可选。限制任务仅在该日期区间内触发；留空表示长期有效"
+            >
+              <DatePicker.RangePicker style={{ width: '100%' }} />
+            </Form.Item>
           </>
         )}
         <Form.Item label="执行动作" name="actionType" rules={[{ required: true, message: '请选择执行动作' }]}>
