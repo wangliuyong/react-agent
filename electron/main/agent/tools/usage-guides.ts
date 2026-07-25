@@ -28,7 +28,8 @@ const USAGE_GUIDE_OVERRIDES: Record<string, string> = {
 
 - 新建任务默认 \`enabled=false\`，需用户确认后再改为 \`true\` 才会真正调度。
 - \`actionType=publish_plan\` 时 \`publishPlanId\` 必须已存在（可先 \`query_publish_plans\` / \`post_publish_plan\`）。
-- \`once\` 用 \`runAt\`（毫秒时间戳）；\`daily\` / \`weekly\` 用 \`timesOfDay\`（\`HH:mm\`），\`weekly\` 还需 \`weekday\`（0=周日 … 6=周六）。
+- \`once\` 用 \`runAt\`（毫秒时间戳）；\`daily\` / \`weekdays\` / \`weekly\` 用 \`timesOfDay\`（\`HH:mm\`），\`weekly\` 还需 \`weekday\`（0=周日 … 6=周六）。
+- 循环任务可选 \`activeFrom\` / \`activeUntil\`（毫秒时间戳）限制生效日期区间。
 
 ## 示例
 

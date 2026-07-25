@@ -9,7 +9,10 @@ import type {
   ScheduleRepeat
 } from '../../../../shared/types'
 import { normalizePublishPlan } from '../../../../shared/publish-normalize'
-import { normalizeScheduleTimesOfDay } from '../../../../shared/schedule-utils'
+import {
+  normalizeScheduleActiveRange,
+  normalizeScheduleTimesOfDay
+} from '../../../../shared/schedule-utils'
 import { normalizePublishSubTaskChannels } from '../../../../shared/publish-channels'
 import { queryRunInBackground } from '../../../../shared/schedule-utils'
 import { queryAgentRules } from '../../store/rules'
@@ -53,8 +56,8 @@ function validateScheduledTaskInput(args: Record<string, unknown>): string | nul
   if (!title) return '缺少 title（任务名称）'
 
   const repeat = String(args.repeat ?? '').trim() as ScheduleRepeat
-  if (!['once', 'daily', 'weekly'].includes(repeat)) {
-    return 'repeat 须为 once、daily 或 weekly'
+  if (!['once', 'daily', 'weekdays', 'weekly'].includes(repeat)) {
+    return 'repeat 须为 once、daily、weekdays 或 weekly'
   }
 
   const actionType = String(args.actionType ?? '').trim() as ScheduleActionType
@@ -70,7 +73,7 @@ function validateScheduledTaskInput(args: Record<string, unknown>): string | nul
   } else {
     const times = parseStringArray(args.timesOfDay)
     if (times.length === 0) {
-      return 'daily/weekly 必须提供 timesOfDay（HH:mm 数组，如 ["09:00"]）'
+      return 'daily/weekdays/weekly 必须提供 timesOfDay（HH:mm 数组，如 ["09:00"]）'
     }
     for (const t of times) {
       if (!HH_MM.test(t)) return `timesOfDay 格式无效：${t}，应为 HH:mm`
@@ -106,6 +109,26 @@ function validateScheduledTaskInput(args: Record<string, unknown>): string | nul
     if (prompt.length < 10) return 'custom_prompt 类型时 customPrompt 至少 10 个字符'
   }
 
+  if (repeat !== 'once') {
+    const from = args.activeFrom
+    const until = args.activeUntil
+    if (from != null && !Number.isFinite(Number(from))) {
+      return 'activeFrom 须为 Unix 毫秒时间戳'
+    }
+    if (until != null && !Number.isFinite(Number(until))) {
+      return 'activeUntil 须为 Unix 毫秒时间戳'
+    }
+    if (
+      from != null &&
+      until != null &&
+      Number.isFinite(Number(from)) &&
+      Number.isFinite(Number(until)) &&
+      Number(until) < Number(from)
+    ) {
+      return 'activeUntil 不得早于 activeFrom'
+    }
+  }
+
   return null
 }
 
@@ -122,6 +145,11 @@ function buildScheduledTaskFromArgs(args: Record<string, unknown>): ScheduledTas
       : parseStringArray(args.timesOfDay)
   )
   const actionType = String(args.actionType).trim() as ScheduleActionType
+  const activeRange = normalizeScheduleActiveRange(
+    repeat,
+    args.activeFrom != null ? Number(args.activeFrom) : undefined,
+    args.activeUntil != null ? Number(args.activeUntil) : undefined
+  )
 
   const enabled =
     args.enabled !== undefined ? Boolean(args.enabled) : (existing?.enabled ?? false)
@@ -159,6 +187,8 @@ function buildScheduledTaskFromArgs(args: Record<string, unknown>): ScheduledTas
           ? base.weekday
           : base.weekday,
     runAt: repeat === 'once' ? Number(args.runAt) : base.runAt,
+    activeFrom: repeat === 'once' ? undefined : activeRange.activeFrom ?? base.activeFrom,
+    activeUntil: repeat === 'once' ? undefined : activeRange.activeUntil ?? base.activeUntil,
     actionType,
     publishPlanId:
       actionType === 'publish_plan' ? String(args.publishPlanId).trim() : undefined,
@@ -232,14 +262,22 @@ export const postScheduledTaskTool: AgentTool = {
       id: { type: 'string', description: '可选，传入则更新已有任务' },
       title: { type: 'string', description: '任务名称' },
       description: { type: 'string', description: '备注说明' },
-      repeat: { type: 'string', enum: ['once', 'daily', 'weekly'] },
+      repeat: { type: 'string', enum: ['once', 'daily', 'weekdays', 'weekly'] },
       timesOfDay: {
         type: 'array',
         items: { type: 'string' },
-        description: 'daily/weekly 执行时刻 HH:mm'
+        description: 'daily/weekdays/weekly 执行时刻 HH:mm'
       },
       weekday: { type: 'number', description: 'weekly 时 0=周日 … 6=周六' },
       runAt: { type: 'number', description: 'once 时 Unix 毫秒时间戳' },
+      activeFrom: {
+        type: 'number',
+        description: '循环任务生效起点（Unix 毫秒，含当日）'
+      },
+      activeUntil: {
+        type: 'number',
+        description: '循环任务生效终点（Unix 毫秒，含当日）'
+      },
       actionType: {
         type: 'string',
         enum: ['publish_plan', 'custom_prompt', 'workflow']
