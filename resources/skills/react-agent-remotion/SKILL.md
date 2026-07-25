@@ -58,7 +58,8 @@ description: >-
    ```
    remotion_render({ compositionId: "Main", outputFileName: "video.mp4" })
    ```
-   - 成功后在回复中保留工具返回的 **mp4 绝对路径**
+   - 工具会暂停并展示「确认渲染」；用户确认后 **在同一次 remotion_render 调用内**直接导出，不要改方案或重写 Composition
+   - 成功后在回复中保留工具返回的 **mp4 绝对路径**；并会自动关闭本会话 Studio 进程
    - 首次渲染可能下载 Chromium，耗时较长，需提前告知用户
 
 ### 6. 任务清单

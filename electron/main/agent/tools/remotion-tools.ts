@@ -143,7 +143,9 @@ export const remotionRenderTool: AgentTool = {
     'compositionId 必须与 src/Root.tsx 中注册的 id 一致。' +
     '同一会话同时只允许一个渲染：若已有进行中的渲染会复用该任务，不会并行启动第二个。' +
     '成功时返回本地 mp4 绝对路径，回复中务必保留该路径供聊天内联预览。' +
-    '禁止在未调用本工具成功前声称视频已生成。',
+    '禁止在未调用本工具成功前声称视频已生成。' +
+    '用户在本工具弹窗点「确认渲染」后，工具会在同一次调用内直接导出 mp4；' +
+    '禁止再修改 Composition/Root、更换 compositionId 或重新制定渲染方案。',
   permission: 'sensitive',
   parameters: {
     type: 'object',
@@ -183,10 +185,12 @@ export const remotionRenderTool: AgentTool = {
     const confirm = await ctx.emitAwaitUser(
       `即将渲染 Composition「${compositionId}」为 mp4，耗时可能较长。请确认是否继续。`,
       [
-        { id: 'render', label: '确认渲染', description: '开始导出 mp4' },
+        { id: 'render', label: '确认渲染', description: '按当前工程与 compositionId 直接导出 mp4' },
         { id: 'preview', label: '先预览 Studio', description: '暂不渲染，建议先 remotion_studio' },
         { id: 'cancel', label: '取消', description: '放弃本次渲染' }
-      ]
+      ],
+      // 确认结果仅由本工具继续消费，避免落盘 user 消息导致模型误以为要改方案
+      { appendUserContinueMessage: false }
     )
     if (queryIsUserCancelIntent(confirm)) {
       // 先停渲染与 Studio，再中止 Agent，避免后台进程残留
@@ -222,6 +226,9 @@ export const remotionRenderTool: AgentTool = {
       )
     }
 
+    // 成片已导出：关闭本会话 Studio，释放预览进程占用的端口与 CPU
+    postStopRemotionStudios(ctx.sessionId)
+
     // 渲染成功后自动勾选任务清单中的「渲染/导出」步骤，避免长时间执行后 UI 仍显示执行中
     ctx.updateTasks((tasks) =>
       tasks.map((t) =>
@@ -238,13 +245,15 @@ export const remotionRenderTool: AgentTool = {
         `视频路径：${result.path}\n` +
         `compositionId：${compositionId}\n` +
         `工程目录：${projectDir}\n` +
+        '已自动关闭本会话 Remotion Studio 进程。\n' +
         '请在回复中保留上述本地 mp4 路径，便于聊天界面内联预览。',
       {
         remotionRenderOk: '1',
         videoPath: result.path,
         remotionCompositionId: compositionId,
         remotionProjectDir: projectDir,
-        remotionRenderReused: result.reused ? '1' : '0'
+        remotionRenderReused: result.reused ? '1' : '0',
+        remotionStudioStopped: '1'
       }
     )
   }

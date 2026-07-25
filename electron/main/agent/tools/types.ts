@@ -15,7 +15,8 @@ export interface ToolContext {
    */
   emitAwaitUser: (
     reason: string,
-    choices?: UserChoiceOption[]
+    choices?: UserChoiceOption[],
+    options?: { appendUserContinueMessage?: boolean }
   ) => Promise<UserContinueResult>
   /** 更新任务清单（含 workflow skipped） */
   updateTasks: (updater: (tasks: TaskItem[]) => TaskItem[]) => void

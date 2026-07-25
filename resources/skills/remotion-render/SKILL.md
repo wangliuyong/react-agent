@@ -22,6 +22,13 @@ remotion_studio()
 
 ## 在灵犀中渲染（替代 npx remotion render）
 
+### 用户确认「确认渲染」后
+
+- 确认在 **remotion_render 工具内部**完成，同一次工具调用会继续执行打包与导出
+- **禁止**在用户确认后修改 `Composition.tsx` / `Root.tsx`、新增 Composition 或更换 `compositionId`
+- 若渲染报错，只修复阻塞导出的最小问题后 **再次调用 remotion_render**（仍用原 compositionId），不要擅自重做创意方案
+- 渲染成功后会 **自动关闭本会话 Remotion Studio 进程**；若还需预览请再调用 `remotion_studio`
+
 ### 基础用法
 ```
 remotion_render({

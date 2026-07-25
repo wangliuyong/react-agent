@@ -60,12 +60,19 @@ export type { UserContinueResult } from './choice-resolver'
 export interface AwaitUserRequest {
   reason: string
   choices?: UserChoiceOption[]
+  /**
+   * 用户点继续后是否写入会话 user 消息（默认 true）。
+   * 工具内门禁（如 remotion_render 确认渲染）应设为 false：确认结果由工具继续消费，
+   * 避免模型把「【已选：确认渲染】」当成新指令而改方案。
+   */
+  appendUserContinueMessage?: boolean
 }
 
 interface PendingAwaitState {
   reason: string
   choices?: UserChoiceOption[]
   interruptId: string
+  appendUserContinueMessage: boolean
 }
 
 const abortMap = new Map<string, AbortController>()
@@ -81,7 +88,10 @@ function uuidv4(): string {
 }
 
 function normalizeAwaitRequest(request: string | AwaitUserRequest): AwaitUserRequest {
-  return typeof request === 'string' ? { reason: request } : request
+  if (typeof request === 'string') {
+    return { reason: request }
+  }
+  return request
 }
 
 /**
@@ -219,9 +229,12 @@ export function postGraphContinue(
   const result = resolveUserContinue(normalized, pending?.choices)
 
   markAwaitUserResolved(sessionId, pending?.interruptId)
+  const appendContinue = pending?.appendUserContinueMessage !== false
   pendingAwaitBySession.delete(sessionId)
-  // 统一在此落盘用户选择与补充说明，供后续 ReAct 轮次读取
-  appendUserContinueMessage(sessionId, result)
+  // 方案选择等需落盘；工具内确认（如渲染门禁）由工具继续执行，不写 user 气泡以免模型改方案
+  if (appendContinue) {
+    appendUserContinueMessage(sessionId, result)
+  }
   waiter.resolve(result)
   continueWaiters.delete(sessionId)
 }
@@ -284,7 +297,8 @@ export async function waitForGraphUserContinue(
   pendingAwaitBySession.set(sessionId, {
     reason: normalized.reason,
     choices: normalized.choices,
-    interruptId
+    interruptId,
+    appendUserContinueMessage: normalized.appendUserContinueMessage !== false
   })
 
   if (!options?.skipPlaceholder) {
@@ -343,8 +357,12 @@ function buildToolContext(
     fullAccess,
     attachmentPaths,
     signal,
-    emitAwaitUser: async (reason, choices?) => {
-      return waitForGraphUserContinue(sessionId, { reason, choices })
+    emitAwaitUser: async (reason, choices?, options?) => {
+      return waitForGraphUserContinue(sessionId, {
+        reason,
+        choices,
+        appendUserContinueMessage: options?.appendUserContinueMessage
+      })
     },
     updateTasks: (updater) => {
       const current = querySession(sessionId)
