@@ -159,6 +159,11 @@ export const remotionRenderTool: AgentTool = {
       projectDir: {
         type: 'string',
         description: '工程目录绝对路径；缺省为当前会话 remotion 目录'
+      },
+      quality: {
+        type: 'string',
+        enum: ['fast', 'standard', 'high'],
+        description: '渲染画质预设：fast（快速预览，体积小）/ standard（标准平衡，默认）/ high（高质量，体积大）'
       }
     },
     required: []
@@ -172,6 +177,7 @@ export const remotionRenderTool: AgentTool = {
       : `remotion-${Date.now()}`
     const fileName = safeName.toLowerCase().endsWith('.mp4') ? safeName : `${safeName}.mp4`
     const outputPath = join(projectDir, 'out', fileName)
+    const quality = args.quality === 'fast' || args.quality === 'high' ? args.quality : 'standard'
 
     // 渲染前强制暂停：高成本不可逆操作，即使用户开启 fullAccess 也需确认
     const confirm = await ctx.emitAwaitUser(
@@ -198,6 +204,7 @@ export const remotionRenderTool: AgentTool = {
       projectDir,
       compositionId,
       outputPath,
+      quality,
       signal: ctx.signal,
       onProgress: (progress) => {
         ctx.emitToolProgress?.(remotionRenderTool.name, {

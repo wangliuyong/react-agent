@@ -21,12 +21,27 @@ export interface RemotionRenderProgress {
   message?: string
 }
 
+/** 渲染画质预设 */
+export type RemotionQualityPreset = 'fast' | 'standard' | 'high'
+
+/** 画质预设对应的编码参数 */
+const QUALITY_PRESETS: Record<RemotionQualityPreset, { crf: number; concurrency: number }> = {
+  /** 快速预览：体积小，速度快，画质一般 */
+  fast: { crf: 28, concurrency: 2 },
+  /** 标准平衡：默认选项，速度与画质兼顾 */
+  standard: { crf: 23, concurrency: 4 },
+  /** 高质量：画质好，体积大，渲染慢 */
+  high: { crf: 18, concurrency: 6 }
+}
+
 export interface RemotionRenderResult {
   ok: boolean
   message: string
   path?: string
   /** 是否复用了同会话已在进行的渲染 */
   reused?: boolean
+  /** 错误分类，用于排错提示 */
+  errorType?: 'bundle' | 'composition' | 'render' | 'browser' | 'unknown'
 }
 
 /** 会话内进行中的渲染任务 */
@@ -148,6 +163,12 @@ export interface RemotionRenderInput {
   signal?: AbortSignal
   /** 渲染各阶段进度回调（节流后推送 UI） */
   onProgress?: (progress: RemotionRenderProgress) => void
+  /** 画质预设，默认 standard */
+  quality?: RemotionQualityPreset
+  /** 自定义 CRF（0-51，越小画质越好），覆盖 quality 预设 */
+  crf?: number
+  /** 并发渲染线程数，覆盖 quality 预设 */
+  concurrency?: number
 }
 
 /**
@@ -476,9 +497,15 @@ export async function postRenderRemotionVideo(
   const report = createRemotionProgressReporter(broadcastProgress)
 
   job.promise = (async (): Promise<RemotionRenderResult> => {
+    // 解析画质参数
+    const qualityPreset = input.quality ?? 'standard'
+    const preset = QUALITY_PRESETS[qualityPreset]
+    const crf = input.crf ?? preset.crf
+    const concurrency = input.concurrency ?? preset.concurrency
+
     try {
       report({ phase: 'browser', percent: 0, message: '准备浏览器（首次可能下载）…' })
-      console.log('[remotion] 准备浏览器（首次可能下载，请稍候）…')
+      console.log(`[remotion] 准备浏览器（画质=${qualityPreset}, crf=${crf}）…`)
 
       const { ensureBrowser } = await import('@remotion/renderer')
       await ensureBrowser({
@@ -504,65 +531,111 @@ export async function postRenderRemotionVideo(
       const { bundle } = await import('@remotion/bundler')
       const { renderMedia, selectComposition } = await import('@remotion/renderer')
 
-      const bundleLocation = await bundle({
-        entryPoint,
-        onProgress: ({ progress }) => {
-          if (renderSignal.aborted) {
-            throw new Error('渲染已取消')
+      let bundleLocation: string
+      try {
+        bundleLocation = await bundle({
+          entryPoint,
+          onProgress: ({ progress }) => {
+            if (renderSignal.aborted) {
+              throw new Error('渲染已取消')
+            }
+            const overall = queryBundleOverallPercent(progress)
+            report({
+              phase: 'bundle',
+              percent: overall,
+              message: `打包 Composition ${progress}%`
+            })
+            if (progress % 25 === 0) {
+              console.log(`[remotion] 打包进度 ${progress}%`)
+            }
           }
-          const overall = queryBundleOverallPercent(progress)
-          report({
-            phase: 'bundle',
-            percent: overall,
-            message: `打包 Composition ${progress}%`
-          })
-          if (progress % 25 === 0) {
-            console.log(`[remotion] 打包进度 ${progress}%`)
-          }
+        })
+      } catch (bundleErr) {
+        const msg = bundleErr instanceof Error ? bundleErr.message : String(bundleErr)
+        return {
+          ok: false,
+          errorType: 'bundle',
+          message:
+            `打包失败（代码语法错误或依赖缺失）：${msg}\n` +
+            '请检查：\n' +
+            '1. Composition.tsx / Root.tsx 是否有 TypeScript 语法错误\n' +
+            '2. import 的文件路径是否正确\n' +
+            '3. 是否引用了不存在的依赖包'
         }
-      })
+      }
 
       report({ phase: 'render', percent: 30, message: '开始渲染视频…' })
       console.log('[remotion] 选择 Composition 并渲染…')
-      const composition = await selectComposition({
-        serveUrl: bundleLocation,
-        id: input.compositionId,
-        inputProps: {}
-      })
 
-      await renderMedia({
-        composition,
-        serveUrl: bundleLocation,
-        codec: 'h264',
-        outputLocation: input.outputPath,
-        onProgress: ({ progress }) => {
-          if (renderSignal.aborted) {
-            throw new Error('渲染已取消')
-          }
-          const pct = Math.round(progress * 100)
-          const overall = queryRenderOverallPercent(progress)
-          report({
-            phase: 'render',
-            percent: overall,
-            message: `渲染视频 ${pct}%`
-          })
-          if (pct % 10 === 0) {
-            console.log(`[remotion] 渲染进度 ${pct}%`)
-          }
+      let composition: Awaited<ReturnType<typeof selectComposition>>
+      try {
+        composition = await selectComposition({
+          serveUrl: bundleLocation,
+          id: input.compositionId,
+          inputProps: {}
+        })
+      } catch (compErr) {
+        const msg = compErr instanceof Error ? compErr.message : String(compErr)
+        return {
+          ok: false,
+          errorType: 'composition',
+          message:
+            `找不到 Composition「${input.compositionId}」：${msg}\n` +
+            '请确认 Root.tsx 中 <Composition id="..."> 与渲染参数 compositionId 拼写完全一致。'
         }
-      })
+      }
+
+      try {
+        await renderMedia({
+          composition,
+          serveUrl: bundleLocation,
+          codec: 'h264',
+          crf,
+          concurrency,
+          outputLocation: input.outputPath,
+          onProgress: ({ progress }) => {
+            if (renderSignal.aborted) {
+              throw new Error('渲染已取消')
+            }
+            const pct = Math.round(progress * 100)
+            const overall = queryRenderOverallPercent(progress)
+            report({
+              phase: 'render',
+              percent: overall,
+              message: `渲染视频 ${pct}%`
+            })
+            if (pct % 10 === 0) {
+              console.log(`[remotion] 渲染进度 ${pct}%`)
+            }
+          }
+        })
+      } catch (renderErr) {
+        const msg = renderErr instanceof Error ? renderErr.message : String(renderErr)
+        return {
+          ok: false,
+          errorType: 'render',
+          message:
+            `渲染失败：${msg}\n` +
+            '常见原因：\n' +
+            '1. 组件运行时错误（某帧计算异常）\n' +
+            '2. 引用的图片/音频素材不存在\n' +
+            '3. public/ 目录中的资源路径错误\n' +
+            '建议先用 remotion_studio 预览定位问题帧'
+        }
+      }
 
       report({ phase: 'render', percent: 100, message: '渲染完成' })
 
       return {
         ok: true,
-        message: `Remotion 渲染成功：${input.outputPath}`,
+        message: `Remotion 渲染成功（${qualityPreset} 画质）：${input.outputPath}`,
         path: input.outputPath
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       return {
         ok: false,
+        errorType: 'unknown',
         message:
           `Remotion 渲染失败：${msg}。` +
           '请检查 Composition 代码是否有语法错误，compositionId 是否与 Root.tsx 中 id 一致。'
