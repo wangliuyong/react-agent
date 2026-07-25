@@ -19,6 +19,8 @@ interface PublishState {
   removePlan: (id: string) => Promise<void>
   /** 导入内置发布计划（按固定 id 去重，不覆盖已有数据） */
   addBuiltinPlans: () => Promise<PublishPlan[]>
+  /** 订阅主进程推送，保持列表与 Agent 工具写入同步 */
+  bindPublishPlansUpdates: () => () => void
 }
 
 export const usePublishStore = create<PublishState>((set, get) => ({
@@ -79,5 +81,17 @@ export const usePublishStore = create<PublishState>((set, get) => ({
       activePlanId: get().activePlanId ?? plans[0]?.id ?? null
     })
     return plans
+  },
+
+  bindPublishPlansUpdates: () => {
+    return window.api.onPublishPlansUpdate((plans) => {
+      const normalized = plans.map(normalizePublishPlan)
+      const current = get().activePlanId
+      const activePlanId =
+        current && normalized.some((p) => p.id === current)
+          ? current
+          : (normalized[0]?.id ?? null)
+      set({ plans: normalized, activePlanId })
+    })
   }
 }))

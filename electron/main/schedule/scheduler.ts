@@ -1,5 +1,4 @@
 import type { ScheduledTask, Session } from '../../../shared/types'
-import { IpcChannels } from '../../../shared/types'
 import {
   computeNextRunAt,
   incrementScheduledTaskRunCount,
@@ -24,7 +23,7 @@ import {
   emitSessionStarted
 } from '../agent/graph-bridge'
 import { postRunWorkflow } from '../workflow/engine'
-import { getMainWindow } from '../window'
+import { emitScheduleUpdate } from '../store/resource-notify'
 import {
   isScheduleTaskRunning,
   markScheduleTaskRunning,
@@ -35,13 +34,6 @@ import {
 const TICK_MS = 30_000
 
 let tickTimer: ReturnType<typeof setInterval> | null = null
-
-function emitScheduleUpdate(): void {
-  const win = getMainWindow()
-  if (win && !win.isDestroyed()) {
-    win.webContents.send(IpcChannels.onScheduleUpdate, queryScheduledTasks())
-  }
-}
 
 function createScheduleSession(task: ScheduledTask): Session {
   const now = Date.now()

@@ -26,7 +26,6 @@ import {
 import {
   queryPublishPlans,
   queryPublishPlan,
-  postPublishPlan,
   postDeletePublishPlan,
   postInitPublishPlans,
   postImportBuiltinPublishPlans
@@ -34,16 +33,21 @@ import {
 import {
   queryScheduledTasks,
   queryScheduledTask,
-  postScheduledTask,
   postDeleteScheduledTask,
   postInitScheduledTasks,
   postImportBuiltinScheduledTasks
 } from './store/schedules'
+import {
+  postAgentRuleAndNotify,
+  postPublishPlanAndSync,
+  postScheduledTaskAndNotify
+} from './store/resource-writes'
 import { triggerScheduledTask } from './schedule/scheduler'
 import {
   runLangGraphChat,
   postGraphAbort,
-  postGraphContinue
+  postGraphContinue,
+  postGraphResyncAfterRendererLoad
 } from './agent/graph-bridge'
 import { getBrowserService } from './browser/service'
 import { getBrowserProfileDir } from './store/paths'
@@ -73,7 +77,6 @@ import {
 } from './store/channels'
 import {
   queryAgentRules,
-  postAgentRule,
   postDeleteAgentRule
 } from './store/rules'
 import {
@@ -133,16 +136,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannels.queryPublishPlans, () => queryPublishPlans())
   ipcMain.handle(IpcChannels.queryPublishPlan, (_e, id: string) => queryPublishPlan(id))
-  ipcMain.handle(IpcChannels.postPublishPlan, (_e, plan: PublishPlan) => {
-    const saved = postPublishPlan(plan)
-    // 与编排引擎镜像同步（不放 store/plans，避免与 migrate-publish 循环依赖）
-    try {
-      syncPublishPlanWorkflow(saved)
-    } catch {
-      /* 执行时会惰性迁移 */
-    }
-    return saved
-  })
+  ipcMain.handle(IpcChannels.postPublishPlan, (_e, plan: PublishPlan) =>
+    postPublishPlanAndSync(plan)
+  )
   ipcMain.handle(IpcChannels.postDeletePublishPlan, (_e, id: string) => {
     // 先按分类决定是否删镜像工作流（需读盘），再删计划文件
     postDeletePublishPlanWorkflow(id)
@@ -177,7 +173,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.queryScheduledTasks, () => queryScheduledTasks())
   ipcMain.handle(IpcChannels.queryScheduledTask, (_e, id: string) => queryScheduledTask(id))
   ipcMain.handle(IpcChannels.postScheduledTask, (_e, task: ScheduledTask) =>
-    postScheduledTask(task)
+    postScheduledTaskAndNotify(task)
   )
   ipcMain.handle(IpcChannels.postDeleteScheduledTask, (_e, id: string) =>
     postDeleteScheduledTask(id)
@@ -197,6 +193,9 @@ export function registerIpcHandlers(): void {
   })
   ipcMain.handle(IpcChannels.postAgentAbort, (_e, sessionId: string) => {
     postGraphAbort(sessionId)
+  })
+  ipcMain.handle(IpcChannels.postAgentResyncRenderer, () => {
+    postGraphResyncAfterRendererLoad()
   })
   ipcMain.handle(
     IpcChannels.postAgentContinue,
@@ -355,7 +354,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannels.queryAgentRules, () => queryAgentRules())
   ipcMain.handle(IpcChannels.postAgentRule, (_e, input: AgentRuleUpsertInput) =>
-    postAgentRule(input)
+    postAgentRuleAndNotify(input)
   )
   ipcMain.handle(IpcChannels.postDeleteAgentRule, (_e, id: string) => postDeleteAgentRule(id))
 

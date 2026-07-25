@@ -57,7 +57,13 @@ const TOOL_LABELS: Record<string, string> = {
   switch_model: '切换模型',
   update_task_list: '更新任务',
   list_attachments: '查看附件',
-  use_skill: '加载技能'
+  use_skill: '加载技能',
+  query_scheduled_tasks: '查看定时任务',
+  post_scheduled_task: '保存定时任务',
+  query_publish_plans: '查看发布计划',
+  post_publish_plan: '保存发布计划',
+  query_agent_rules: '查看用户规则',
+  post_agent_rule: '保存用户规则'
 }
 
 /** 将 tool 名格式化为可读文案 */

@@ -1,5 +1,4 @@
 import type { AgentEvent, ChatMessage, ScheduledTask } from '../../../shared/types'
-import { IpcChannels } from '../../../shared/types'
 import { computeNextRunAt } from '../../../shared/schedule-utils'
 import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
 import { queryWorkflowHasNotifyNode } from '../../../shared/workflow-notify'
@@ -10,20 +9,13 @@ import { queryWorkflow } from '../store/workflows'
 import { queryLatestWorkflowRunBySession } from '../store/workflow-runs'
 import { postScheduleTaskNotify } from '../notify/send'
 import { queryExtractNotifyMarkdown } from '../workflow/tool-result'
-import { getMainWindow } from '../window'
+import { emitScheduleUpdate } from '../store/resource-notify'
 
 /** 会话 id → 定时任务 id */
 const sessionTaskMap = new Map<string, string>()
 
 /** 正在执行中的任务 id */
 const runningTaskIds = new Set<string>()
-
-function emitScheduleUpdate(): void {
-  const win = getMainWindow()
-  if (win && !win.isDestroyed()) {
-    win.webContents.send(IpcChannels.onScheduleUpdate, queryScheduledTasks())
-  }
-}
 
 /** 流程引擎写入的 assistant 占位文案，不作为任务汇报正文 */
 const WORKFLOW_ASSISTANT_SKIP = new Set(['流程执行完毕。', '流程已中止。'])

@@ -1,14 +1,10 @@
-import type { Session } from '@shared/types'
-
 /**
- * 判断会话是否处于执行中。
- * 优先使用进程内 runningSessionIds；刷新后从任务清单 running 状态恢复。
+ * 判断会话是否处于执行中（仅依赖进程内 runningSessionIds）。
+ * 落盘任务状态在刷新后可能短暂滞后，不可单独作为执行中依据。
  */
 export function queryIsSessionRunning(
   sessionId: string,
-  runningSessionIds: ReadonlySet<string>,
-  session?: Session | null
+  runningSessionIds: ReadonlySet<string>
 ): boolean {
-  if (runningSessionIds.has(sessionId)) return true
-  return (session?.tasks ?? []).some((t) => t.status === 'running')
+  return runningSessionIds.has(sessionId)
 }

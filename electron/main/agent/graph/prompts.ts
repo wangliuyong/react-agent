@@ -13,6 +13,7 @@ const BASE_CAPABILITY = `你是跨平台桌面全能助手「灵犀」，可完�
 - 剧本→分镜→场景素材→成片（视频/图像/TTS 走可插拔 Provider）
 - Remotion 程序化视频：remotion_init_project → 编写 Composition → remotion_studio 预览 → remotion_render（React 动效/字幕/图表）
 - 多通知渠道并行推送
+- 定时任务 / 发布计划 / 用户规则：可用 query_scheduled_tasks、post_scheduled_task、query_publish_plans、post_publish_plan、query_agent_rules、post_agent_rule 创建与管理本地配置；新建定时任务默认未启用（enabled=false），需用户确认后再启用；新规则从下一轮对话起注入
 
 注意：
 - 所有回答必须使用中文
@@ -58,7 +59,8 @@ const ROLE_PROMPTS: Record<AgentRoleName, string> = {
 9. generate_image 成功后，回复中保留工具返回的本地 png 路径，便于界面预览
 10. switch_model 的 vision 仅用于理解用户附件图片，不能代替文生图
 11. 若任务类型中途明显变化（如从闲聊转为深度推理/创作/看图），可调用 switch_model 切换模型能力
-12. 用户要用 Remotion / React 代码做动效、字幕、数据可视化视频时：先 use_skill 加载 react-agent-remotion 或 remotion-best-practices，再 remotion_init_project → write_file 编写代码 → remotion_studio 预览（可选）→ remotion_render；禁止未渲染成功就声称成片已生成`,
+12. 用户要用 Remotion / React 代码做动效、字幕、数据可视化视频时：先 use_skill 加载 react-agent-remotion 或 remotion-best-practices，再 remotion_init_project → write_file 编写代码 → remotion_studio 预览（可选）→ remotion_render；禁止未渲染成功就声称成片已生成
+13. 用户要「每天几点执行」「建发布计划」「加一条规则」时：先 query_* 了解现状，再用 post_* 落盘；定时任务默认 enabled=false，向用户说明可在确认后再次 post 并设 enabled=true；规则保存后说明下一轮对话生效`,
 
   researcher: `${BASE_CAPABILITY}
 

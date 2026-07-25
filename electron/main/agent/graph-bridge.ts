@@ -28,7 +28,7 @@ import type {
   UserChoiceOption
 } from '../../../shared/types'
 import { querySettings } from '../store/settings'
-import { querySession, postSession } from '../store/sessions'
+import { querySession, querySessions, postSession } from '../store/sessions'
 import { getMainWindow } from '../window'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
 import { queryWaitThinkingSettled, postResetThinkingGate, postThinkingReasoningComplete } from './thinking-gate'
@@ -172,6 +172,23 @@ export function pauseRunningSessionTasks(sessionId: string): void {
   session.tasks = pauseRunningTasks(session.tasks)
   persistSession(session)
   emitAgentEvent({ type: 'task_update', sessionId, tasks: session.tasks })
+}
+
+/**
+ * 渲染进程刷新 / 冷启动后同步主进程执行态。
+ * 中止仍在内存中的 LangGraph 运行，并将落盘仍为 running 的任务重置为 pending，
+ * 避免前端 hydrate 误判「执行中」导致输入框长期禁用。
+ */
+export function postGraphResyncAfterRendererLoad(): void {
+  for (const sessionId of Array.from(abortMap.keys())) {
+    postGraphAbort(sessionId)
+  }
+  for (const session of querySessions()) {
+    if (!queryHasRunningTasks(session.tasks ?? [])) continue
+    session.tasks = pauseRunningTasks(session.tasks ?? [])
+    postSession(session)
+    emitAgentEvent({ type: 'task_update', sessionId: session.id, tasks: session.tasks })
+  }
 }
 
 export function postGraphAbort(sessionId: string): void {

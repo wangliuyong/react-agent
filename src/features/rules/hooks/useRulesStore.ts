@@ -12,6 +12,8 @@ interface RulesState {
   removeRule: (id: string) => Promise<void>
   /** 切换启用状态：读盘对象后整对象 upsert，保持与 postAgentRule 契约一致 */
   toggleEnabled: (id: string, enabled: boolean) => Promise<void>
+  /** 订阅主进程推送，保持列表与 Agent 工具写入同步 */
+  bindRulesUpdates: () => () => void
 }
 
 export const useRulesStore = create<RulesState>((set, get) => ({
@@ -57,6 +59,12 @@ export const useRulesStore = create<RulesState>((set, get) => ({
       description: rule.description,
       content: rule.content,
       enabled
+    })
+  },
+
+  bindRulesUpdates: () => {
+    return window.api.onAgentRulesUpdate((rules) => {
+      set({ rules })
     })
   }
 }))

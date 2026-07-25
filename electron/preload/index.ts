@@ -3,6 +3,7 @@ import { IpcChannels } from '../../shared/types'
 import type {
   AgentChatRequest,
   AgentEvent,
+  AgentRule,
   AgentRuleUpsertInput,
   AppSettings,
   ModelOption,
@@ -58,6 +59,7 @@ const api: ElectronApi = {
   postAgentChat: (req: AgentChatRequest) => ipcRenderer.invoke(IpcChannels.postAgentChat, req),
   postAgentAbort: (sessionId: string) =>
     ipcRenderer.invoke(IpcChannels.postAgentAbort, sessionId),
+  postAgentResyncRenderer: () => ipcRenderer.invoke(IpcChannels.postAgentResyncRenderer),
   postAgentContinue: (
     sessionId: string,
     payload?: import('../../shared/types').AgentContinuePayload | string
@@ -155,6 +157,22 @@ const api: ElectronApi = {
     }
     ipcRenderer.on(IpcChannels.onScheduleUpdate, listener)
     return () => ipcRenderer.removeListener(IpcChannels.onScheduleUpdate, listener)
+  },
+
+  onPublishPlansUpdate: (cb) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: PublishPlan[]): void => {
+      cb(data)
+    }
+    ipcRenderer.on(IpcChannels.onPublishPlansUpdate, listener)
+    return () => ipcRenderer.removeListener(IpcChannels.onPublishPlansUpdate, listener)
+  },
+
+  onAgentRulesUpdate: (cb) => {
+    const listener = (_event: Electron.IpcRendererEvent, data: AgentRule[]): void => {
+      cb(data)
+    }
+    ipcRenderer.on(IpcChannels.onAgentRulesUpdate, listener)
+    return () => ipcRenderer.removeListener(IpcChannels.onAgentRulesUpdate, listener)
   },
 
   postSelectImages: () => ipcRenderer.invoke('dialog:select-images'),

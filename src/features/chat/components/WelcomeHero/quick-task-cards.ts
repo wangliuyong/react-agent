@@ -36,7 +36,20 @@ export const QUICK_TASK_CARDS: QuickCard[] = [
   {
     title: '设置定时任务',
     desc: '创建周期性执行的自动化任务计划',
-    prompt: '帮我设置一个定时任务：每天早上 9 点自动搜索 AI 热点并生成摘要。'
+    prompt:
+      '请用 post_scheduled_task 帮我创建一个定时任务：每天早上 9 点（daily，timesOfDay ["09:00"]）用 custom_prompt 搜索 AI 热点并生成摘要。标题自拟，默认不要启用，等我确认后再启用。'
+  },
+  {
+    title: '创建发布计划',
+    desc: '编排多渠道子任务，供定时或手动发布引用',
+    prompt:
+      '请用 post_publish_plan 创建一个普通发布计划：标题「每日热点速递」，包含 1 个子任务，渠道 xhs，contentPrompt 说明根据今日科技热点撰写小红书笔记并配图。创建后把计划 id 告诉我。'
+  },
+  {
+    title: '添加一条规则',
+    desc: '写入 Agent 用户规则，下轮对话起生效',
+    prompt:
+      '请用 post_agent_rule 添加一条规则：名称「回复风格」，正文要求所有回答简洁、分点列出，优先给出可执行步骤。保存后提醒我下一轮对话起生效。'
   },
   {
     title: '发一条抖音图文',

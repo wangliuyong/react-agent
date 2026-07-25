@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { AntdAppBridge } from '@/components/AntdAppBridge/AntdAppBridge'
 import { AppShell } from '@/layouts/AppShell'
 import { useAppStore } from '@/stores/app-store'
@@ -24,8 +25,11 @@ export default function App(): React.ReactElement {
   const hydrateRules = useRulesStore((s) => s.hydrate)
   const hydrateWorkflows = useWorkflowsStore((s) => s.hydrate)
   const bindScheduleUpdates = useScheduleStore((s) => s.bindScheduleUpdates)
+  const bindPublishPlansUpdates = usePublishStore((s) => s.bindPublishPlansUpdates)
+  const bindRulesUpdates = useRulesStore((s) => s.bindRulesUpdates)
 
   useEffect(() => {
+    const unsubAgent = bindAgentEvents()
     void hydrateSettings()
     void hydrateSessions()
     void hydratePlans()
@@ -33,11 +37,14 @@ export default function App(): React.ReactElement {
     void hydrateChannels()
     void hydrateRules()
     void hydrateWorkflows()
-    const unsubAgent = bindAgentEvents()
     const unsubSchedule = bindScheduleUpdates()
+    const unsubPlans = bindPublishPlansUpdates()
+    const unsubRules = bindRulesUpdates()
     return () => {
       unsubAgent()
       unsubSchedule()
+      unsubPlans()
+      unsubRules()
     }
   }, [
     hydrateSettings,
@@ -48,7 +55,9 @@ export default function App(): React.ReactElement {
     hydrateRules,
     hydrateWorkflows,
     bindAgentEvents,
-    bindScheduleUpdates
+    bindScheduleUpdates,
+    bindPublishPlansUpdates,
+    bindRulesUpdates
   ])
 
   return (

@@ -53,7 +53,7 @@ export function useSidebarNavigation({ view }: UseSidebarNavigationOptions) {
     title: s.title,
     updatedAt: s.updatedAt,
     type: querySessionType(s),
-    running: queryIsSessionRunning(s.id, runningSessionIds, s)
+    running: queryIsSessionRunning(s.id, runningSessionIds)
   }))
 
   return {

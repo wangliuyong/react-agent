@@ -42,6 +42,11 @@ export async function postAgentAbort(sessionId: string): Promise<void> {
   return window.api.postAgentAbort(sessionId)
 }
 
+/** 渲染进程冷启动 / 刷新后与主进程执行态对齐 */
+export async function postAgentResyncRenderer(): Promise<void> {
+  return window.api.postAgentResyncRenderer()
+}
+
 export async function postAgentContinue(
   sessionId: string,
   payload?: AgentContinuePayload | string

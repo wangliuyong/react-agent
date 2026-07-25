@@ -37,6 +37,7 @@ export const IpcChannels = {
   // Agent
   postAgentChat: 'post:agent:chat',
   postAgentAbort: 'post:agent:abort',
+  postAgentResyncRenderer: 'post:agent:resync-renderer',
   postAgentContinue: 'post:agent:continue',
   // 浏览器
   queryBrowserStatus: 'query:browser:status',
@@ -102,6 +103,8 @@ export const IpcChannels = {
   onAgentEvent: 'event:agent',
   onBrowserFrame: 'event:browser-frame',
   onScheduleUpdate: 'event:schedule-update',
+  onPublishPlansUpdate: 'event:publish-plans-update',
+  onAgentRulesUpdate: 'event:agent-rules-update',
   /** 在系统文件管理器中显示本地路径 */
   postRevealPath: 'post:reveal-path',
   /** 在系统默认浏览器中打开本地文件（HTML 等） */
@@ -1788,6 +1791,7 @@ export interface ElectronApi {
   postImportBuiltinScheduledTasks: () => Promise<ScheduledTask[]>
   postAgentChat: (req: AgentChatRequest) => Promise<void>
   postAgentAbort: (sessionId: string) => Promise<void>
+  postAgentResyncRenderer: () => Promise<void>
   postAgentContinue: (
     sessionId: string,
     payload?: AgentContinuePayload | string
@@ -1855,6 +1859,8 @@ export interface ElectronApi {
   onAgentEvent: (cb: (event: AgentEvent) => void) => () => void
   onBrowserFrame: (cb: (frame: BrowserFramePayload) => void) => () => void
   onScheduleUpdate: (cb: (tasks: ScheduledTask[]) => void) => () => void
+  onPublishPlansUpdate: (cb: (plans: PublishPlan[]) => void) => () => void
+  onAgentRulesUpdate: (cb: (rules: AgentRule[]) => void) => () => void
   /** 选择本地图片文件 */
   postSelectImages: () => Promise<string[]>
   /** 选择本地文件夹（流程输出节点等） */

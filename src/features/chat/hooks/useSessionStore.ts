@@ -16,6 +16,7 @@ import {
   postAgentAbort,
   postAgentChat,
   postAgentContinue,
+  postAgentResyncRenderer,
   postCreateSession,
   postDeleteSession,
   querySession,
@@ -278,17 +279,6 @@ function syncActiveRunning(
   return activeSessionId != null && runningSessionIds.has(activeSessionId)
 }
 
-/** 从落盘任务清单恢复执行中会话（刷新后侧边栏 loading 仍可用） */
-function queryRunningSessionIdsFromSessions(sessions: Session[]): Set<string> {
-  const ids = new Set<string>()
-  for (const session of sessions) {
-    if ((session.tasks ?? []).some((t) => t.status === 'running')) {
-      ids.add(session.id)
-    }
-  }
-  return ids
-}
-
 /** 写入某会话的挂起确认原因（不可变） */
 function withPendingAwaitReason(
   map: Record<string, string>,
@@ -432,6 +422,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   hydrate: async () => {
+    const isColdStart = !sessionStoreHydratedOnce
+    if (isColdStart) {
+      await postAgentResyncRenderer()
+    }
+
     const sessions = await querySessions()
     const prevId = get().activeSessionId
     // 保留当前选中会话（若仍存在），避免 done 后 hydrate 把焦点跳走并丢掉继续态
@@ -440,16 +435,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       sessions[0]?.id ??
       null
     const sessionIdSet = new Set(sessions.map((s) => s.id))
-    const persistedRunningIds = queryRunningSessionIdsFromSessions(sessions)
-    // 合并进程内标记；仅冷启动时从落盘 running 任务恢复，避免 done 后 hydrate 误判仍在执行
+    // 仅保留进程内仍在执行的会话；刷新后由 postAgentResyncRenderer 清理落盘 running
     const runningSessionIds = new Set<string>()
     for (const id of Array.from(get().runningSessionIds)) {
       if (sessionIdSet.has(id)) runningSessionIds.add(id)
-    }
-    if (!sessionStoreHydratedOnce) {
-      for (const id of Array.from(persistedRunningIds)) {
-        runningSessionIds.add(id)
-      }
     }
     sessionStoreHydratedOnce = true
     const normalizedSessions = querySessionsWithStaleRunningPaused(sessions, runningSessionIds)
