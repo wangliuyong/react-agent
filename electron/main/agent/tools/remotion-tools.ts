@@ -13,6 +13,7 @@ import {
   postStopRemotionStudios,
   queryRemotionProjectDir
 } from '../../media/remotion-service'
+import { postEnableRemotionSfx } from '../../media/remotion-sfx'
 import { AgentUserCancelledError } from '../agent-user-cancelled'
 import { queryIsUserCancelIntent } from '../choice-resolver'
 import type { AgentTool } from './types'
@@ -66,12 +67,66 @@ export const remotionInitProjectTool: AgentTool = {
         `入口：${result.entryPoint}\n` +
         `默认 compositionId：${result.compositionId}\n` +
         '下一步：用 write_file 编写 src/Composition.tsx，必要时修改 src/Root.tsx；' +
+        '需要官方音效时先 use_skill(remotion-sfx)，推荐 src/lib/remotion-sfx.ts 按需取 URL；' +
+        '若使用 import from "@remotion/sfx" 则先 remotion_enable_sfx。' +
         '可用 remotion_studio 预览，确认后 remotion_render 导出 mp4。',
       {
         remotionProjectOk: '1',
         remotionProjectDir: result.projectDir,
         remotionCompositionId: result.compositionId,
         remotionEntryPoint: result.entryPoint
+      }
+    )
+  }
+}
+
+/**
+ * 为当前会话 Remotion 工程按需启用官方 @remotion/sfx 包解析。
+ * 仅当 Composition 使用 `import { whoosh } from '@remotion/sfx'` 时需要；
+ * 使用 src/lib/remotion-sfx.ts CDN 目录时无需调用。
+ */
+export const remotionEnableSfxTool: AgentTool = {
+  name: 'remotion_enable_sfx',
+  description:
+    '为当前会话 Remotion 工程启用官方音效库 @remotion/sfx 的模块解析（Webpack alias）。' +
+    '仅当代码使用 import from "@remotion/sfx" 时必须先调用；' +
+    '若使用工程内 src/lib/remotion-sfx.ts 的 REMOTION_SFX 常量（CDN URL）则无需调用。' +
+    '调用前须 remotion_init_project。启用后可用 remotion_studio / remotion_render。',
+  permission: 'sensitive',
+  parameters: {
+    type: 'object',
+    properties: {
+      projectDir: {
+        type: 'string',
+        description: '工程目录绝对路径；缺省为当前会话 remotion 目录'
+      }
+    },
+    required: []
+  },
+  async execute(args, ctx) {
+    const projectDir = String(args.projectDir ?? queryRemotionProjectDir(ctx.sessionId)).trim()
+    let result: ReturnType<typeof postEnableRemotionSfx>
+    try {
+      result = postEnableRemotionSfx(ctx.sessionId)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      return `${msg}\n请先 remotion_init_project。`
+    }
+
+    if (result.projectDir !== projectDir) {
+      return `会话工程目录为 ${result.projectDir}，与参数 projectDir 不一致，请核对。`
+    }
+
+    const status = result.alreadyEnabled ? '（此前已启用，已刷新 alias 配置）' : '已启用官方音效库解析。'
+    return queryEncodeWorkflowCtxResult(
+      `${status}\n` +
+        `工程目录：${result.projectDir}\n` +
+        '用法示例：import { whoosh, ding } from "@remotion/sfx"；配合 <Sequence> + <Audio src={whoosh} />。\n' +
+        '或无需本工具：import { REMOTION_SFX } from "./lib/remotion-sfx" 按需取 URL。\n' +
+        '完整选音指南：use_skill(remotion-sfx)。',
+      {
+        remotionSfxEnabled: '1',
+        remotionProjectDir: result.projectDir
       }
     )
   }

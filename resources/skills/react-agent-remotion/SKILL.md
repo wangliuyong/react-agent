@@ -24,6 +24,7 @@ description: >-
    - 编写 React 画面：`use_skill('remotion-markup')`
    - 设计规范（推荐）：`use_skill('remotion-design-system')` — 提升视频专业感必备
    - 字幕：`use_skill('remotion-captions')`
+   - 官方音效（按需）：`use_skill('remotion-sfx')` — 转场/UI/提示音
    - 渲染细节：`use_skill('remotion-render')`
 
 ### 2. 初始化工程
@@ -73,6 +74,7 @@ description: >-
 | `write_file` | 写入/修改 Composition、Root、资源引用 |
 | `read_file` | 读取已有工程文件排错 |
 | `remotion_studio` | 启动 Remotion Studio 本地预览（浏览器打开） |
+| `remotion_enable_sfx` | 按需启用 `@remotion/sfx` 包导入（用 CDN 目录时可不调） |
 | `remotion_render` | 打包并渲染 mp4（首次可能下载 Chromium，较慢） |
 | `generate_image` | 可选：生成素材图后放入 `public/` 并用 `staticFile()` 引用 |
 
@@ -90,6 +92,7 @@ description: >-
 - **动画 Hook**：useFadeIn / useSlideUp / useScaleIn / useSpringIn / useBreathing / useTypewriter
 - **错落计算**：staggerDelay（多元素依次入场）
 - **缓动预设**：EASE_STANDARD / EASE_APPLE / EASE_BOUNCE_IN / SPRING_PRESETS
+- **官方音效目录**：`src/lib/remotion-sfx.ts`（按需 import；详见 `remotion-sfx` 技能）
 
 ### 设计系统
 - **配色**：DARK_TECH / LIGHT_MINIMAL / PREMIUM_GOLD 三套主题 + 渐变预设

@@ -32,6 +32,9 @@ importers:
       '@remotion/renderer':
         specifier: ^4.0.496
         version: 4.0.496(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@remotion/sfx':
+        specifier: 4.0.496
+        version: 4.0.496
       '@tanstack/react-virtual':
         specifier: ^3.14.6
         version: 3.14.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1132,6 +1135,9 @@ packages:
     peerDependencies:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
+
+  '@remotion/sfx@4.0.496':
+    resolution: {integrity: sha512-Jg1mq3b4HU1CeRd2ceSNXP8L5mZ8a6pajPRSGkawXnjNtaX8eMWgOfAVew1mYSxSSCkGLHsnfcnndKplQ3IiQA==}
 
   '@remotion/streaming@4.0.496':
     resolution: {integrity: sha512-drMlOZZRJ/iVvU+Kr/4T5B2UA7ctZFvUXbSuf4+p1kWN9pz6Th/sEYQfwx/8MEjzkWiKb23vuPLc4lTEFBBJIA==}
@@ -5768,6 +5774,8 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+
+  '@remotion/sfx@4.0.496': {}
 
   '@remotion/streaming@4.0.496': {}
 

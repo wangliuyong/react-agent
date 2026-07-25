@@ -10,6 +10,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { queryBundledResourcesRoot } from '../store/resources'
 import { getVideosDir } from '../store/paths'
+import { queryRemotionSfxWebpackOverride } from './remotion-sfx'
 
 const requireFromMain = createRequire(__filename)
 
@@ -533,8 +534,11 @@ export async function postRenderRemotionVideo(
 
       let bundleLocation: string
       try {
+        const sfxWebpackOverride = queryRemotionSfxWebpackOverride(input.projectDir)
         bundleLocation = await bundle({
           entryPoint,
+          rootDir: input.projectDir,
+          ...(sfxWebpackOverride ? { webpackOverride: sfxWebpackOverride } : {}),
           onProgress: ({ progress }) => {
             if (renderSignal.aborted) {
               throw new Error('渲染已取消')

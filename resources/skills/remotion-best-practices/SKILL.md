@@ -17,6 +17,7 @@ description: >-
 | `remotion-markup` | 编写 Remotion React 画面与动效 | 动画 API、内置组件库、动画工具函数 |
 | `remotion-design-system` | 需要专业视觉设计、配色排版规范时 | 配色系统、排版层级、动效设计原则、质感技巧 |
 | `remotion-captions` | 字幕生成与展示 | Caption 数据结构、字幕组件、卡拉OK效果 |
+| `remotion-sfx` | 需要转场/UI/提示音效时 | @remotion/sfx 按需用法、音量与 Sequence 对齐 |
 | `remotion-render` | 渲染参数与导出策略 | 渲染前检查、常见问题排查、格式说明 |
 
 ## 灵犀内置工具（替代官方 CLI）
@@ -53,7 +54,8 @@ src/
 │   └── typography.ts   # 字号层级 + 间距系统
 ├── lib/                # 工具函数库
 │   ├── easings.ts      # 缓动曲线 + Spring 预设
-│   └── animations.ts   # 10+ 动画 Hook（淡入/滑入/错落/呼吸/打字机...）
+│   ├── animations.ts   # 10+ 动画 Hook（淡入/滑入/错落/呼吸/打字机...）
+│   └── remotion-sfx.ts # 官方音效 CDN 目录（按需 import）
 ├── components/         # 可复用组件
 │   ├── AnimatedText.tsx  # 逐字错落动画文字
 │   ├── TitleCard.tsx     # 标题卡片（带装饰线）

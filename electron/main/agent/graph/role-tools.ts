@@ -29,6 +29,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'write_file',
     'generate_image',
     'remotion_init_project',
+    'remotion_enable_sfx',
     'remotion_studio',
     'list_attachments'
   ],
@@ -57,6 +58,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'generate_script',
     'generate_storyboard',
     'remotion_init_project',
+    'remotion_enable_sfx',
     'remotion_studio',
     'update_task_list'
   ],
@@ -68,6 +70,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'write_file',
     'generate_scene_assets',
     'remotion_init_project',
+    'remotion_enable_sfx',
     'remotion_studio',
     'remotion_render',
     'update_task_list',
@@ -77,6 +80,7 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'use_skill',
     'switch_model',
     'compose_video',
+    'remotion_enable_sfx',
     'remotion_studio',
     'remotion_render',
     'notify_message',

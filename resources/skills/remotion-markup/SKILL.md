@@ -212,6 +212,21 @@ import { staticFile } from 'remotion'
 <Audio src={staticFile('bgm.mp3')} volume={0.3} />
 ```
 
+### 官方音效（按需）
+- 需要音效时加载 `remotion-sfx` 技能
+- **推荐**：`import { REMOTION_SFX } from './lib/remotion-sfx'`，只引用用到的 `REMOTION_SFX.whoosh.url` 等
+- **或**：先 `remotion_enable_sfx()`，再 `import { whoosh } from '@remotion/sfx'`
+- 用 `<Sequence from={…}>` 对齐画面帧，设置合适 `volume`
+
+```tsx
+import { Audio, Sequence } from 'remotion'
+import { REMOTION_SFX } from './lib/remotion-sfx'
+
+<Sequence from={12} durationInFrames={18}>
+  <Audio src={REMOTION_SFX.whoosh.url} volume={0.75} />
+</Sequence>
+```
+
 ### 字体
 - 推荐 `@remotion/google-fonts` 加载 Google Fonts
 - 本地字体需放入 public 并通过 CSS @font-face 加载

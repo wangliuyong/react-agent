@@ -17,20 +17,32 @@ const promptsSource = readFileSync(
   new URL('../electron/main/agent/graph/prompts.ts', import.meta.url),
   'utf8'
 )
+const remotionSfxSource = readFileSync(
+  new URL('../electron/main/media/remotion-sfx.ts', import.meta.url),
+  'utf8'
+)
+const starterSfxLib = readFileSync(
+  new URL('../resources/remotion/starter/src/lib/remotion-sfx.ts', import.meta.url),
+  'utf8'
+)
+
 const roleToolsSource = readFileSync(
   new URL('../electron/main/agent/graph/role-tools.ts', import.meta.url),
   'utf8'
 )
 
 describe('Remotion 内置工具', () => {
-  it('注册 remotion_init_project / remotion_studio / remotion_render', () => {
+  it('注册 remotion_init_project / remotion_enable_sfx / remotion_studio / remotion_render', () => {
     expect(remotionToolsSource).toContain("name: 'remotion_init_project'")
+    expect(remotionToolsSource).toContain("name: 'remotion_enable_sfx'")
     expect(remotionToolsSource).toContain("name: 'remotion_studio'")
     expect(remotionToolsSource).toContain("name: 'remotion_render'")
     expect(remotionToolsSource).toContain('postInitRemotionProject')
+    expect(remotionToolsSource).toContain('postEnableRemotionSfx')
     expect(remotionToolsSource).toContain('postStartRemotionStudio')
     expect(remotionToolsSource).toContain('postRenderRemotionVideo')
     expect(indexSource).toContain('remotionInitProjectTool')
+    expect(indexSource).toContain('remotionEnableSfxTool')
     expect(indexSource).toContain('remotionStudioTool')
     expect(indexSource).toContain('remotionRenderTool')
   })
@@ -44,7 +56,10 @@ describe('Remotion 内置工具', () => {
     expect(remotionServiceSource).toContain('createRemotionProgressReporter')
     expect(remotionServiceSource).toContain('renderBySession')
     expect(remotionServiceSource).toContain('queryIsChildAlive')
-    expect(remotionToolsSource).toContain('sessionId: ctx.sessionId')
+    expect(remotionServiceSource).toContain('queryRemotionSfxWebpackOverride')
+    expect(remotionSfxSource).toContain('@remotion/sfx/dist/esm/index.mjs')
+    expect(starterSfxLib).toContain('REMOTION_SFX')
+    expect(starterSfxLib).toContain('remotion.media/whoosh.wav')
   })
 
   it('general 提示词与视频角色包含 Remotion 指引', () => {
@@ -52,6 +67,7 @@ describe('Remotion 内置工具', () => {
     expect(promptsSource).toContain('remotion_studio')
     expect(promptsSource).toContain('remotion_render')
     expect(promptsSource).toContain('react-agent-remotion')
+    expect(roleToolsSource).toContain('remotion_enable_sfx')
     expect(roleToolsSource).toContain('remotion_init_project')
     expect(roleToolsSource).toContain('remotion_studio')
     expect(roleToolsSource).toContain('remotion_render')

@@ -23,7 +23,12 @@ import { notifyMessageTool } from './notify-tools'
 import { useSkillTool } from './skill-tools'
 import { switchModelTool } from './model-tools'
 import { generateImageTool } from './image-tools'
-import { remotionInitProjectTool, remotionRenderTool, remotionStudioTool } from './remotion-tools'
+import {
+  remotionEnableSfxTool,
+  remotionInitProjectTool,
+  remotionRenderTool,
+  remotionStudioTool
+} from './remotion-tools'
 import { presentPlanChoicesTool } from './confirm-tools'
 import { managementTools } from './management-tools'
 import type { AgentTool } from './types'
@@ -50,6 +55,7 @@ export function getAllTools(): AgentTool[] {
     generateSceneAssetsTool,
     composeVideoTool,
     remotionInitProjectTool,
+    remotionEnableSfxTool,
     remotionStudioTool,
     remotionRenderTool,
     browserNavigateTool,

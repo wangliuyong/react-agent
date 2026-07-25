@@ -48,6 +48,7 @@
     "@remotion/bundler": "^4.0.496",
     "@remotion/cli": "^4.0.496",
     "@remotion/renderer": "^4.0.496",
+    "@remotion/sfx": "4.0.496",
     "@tanstack/react-virtual": "^3.14.6",
     "@xyflow/react": "^12.11.2",
     "antd": "^5.24.2",
