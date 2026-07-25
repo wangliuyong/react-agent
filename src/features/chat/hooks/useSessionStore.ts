@@ -887,12 +887,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         return
       }
 
-      /** LLM 每次调用结束后同步累计 token，供输入框与历史对话展示 */
+      /** LLM 每次调用结束后同步累计 token 与当前上下文占用 */
       if (event.type === 'token_update') {
         set((state) => ({
           sessions: patchSession(state.sessions, event.sessionId, (session) => ({
             ...session,
-            tokenUsed: event.tokenUsed
+            tokenUsed: event.tokenUsed,
+            contextTokens: event.contextTokens
           }))
         }))
         return

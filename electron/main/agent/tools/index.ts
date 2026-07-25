@@ -27,7 +27,11 @@ import {
   remotionEnableSfxTool,
   remotionInitProjectTool,
   remotionRenderTool,
-  remotionStudioTool
+  remotionStudioTool,
+  queryRemotionTemplatesTool,
+  remotionApplyTemplateTool,
+  remotionUpdateInputPropsTool,
+  remotionSaveTemplateTool
 } from './remotion-tools'
 import { presentPlanChoicesTool } from './confirm-tools'
 import { managementTools } from './management-tools'
@@ -58,6 +62,10 @@ export function getAllTools(): AgentTool[] {
     remotionEnableSfxTool,
     remotionStudioTool,
     remotionRenderTool,
+    queryRemotionTemplatesTool,
+    remotionApplyTemplateTool,
+    remotionUpdateInputPropsTool,
+    remotionSaveTemplateTool,
     browserNavigateTool,
     browserSnapshotTool,
     browserClickTool,

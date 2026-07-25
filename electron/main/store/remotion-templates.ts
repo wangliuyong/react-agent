@@ -12,7 +12,7 @@ import {
   statSync,
   writeFileSync
 } from 'fs'
-import { basename, dirname, join, relative, resolve } from 'path'
+import { dirname, join, relative, resolve } from 'path'
 import {
   parseRemotionTemplateMeta,
   REMOTION_ACTIVE_TEMPLATE_FILE,
@@ -25,13 +25,12 @@ import {
   type RemotionTemplateMeta,
   type RemotionTemplateOrigin,
   type RemotionTemplateSummary
-} from '../../shared/remotion-template'
+} from '../../../shared/remotion-template'
 import {
   postInitRemotionProject,
   postWriteRootGenerated,
   queryRemotionProjectDir
 } from '../media/remotion-service'
-import { getDataRoot } from './paths'
 import { queryBundledResourcesRoot, queryWritableResourcesRoot } from './resources'
 
 /** 第三方/存档允许拷贝的扩展名 */
@@ -567,11 +566,3 @@ export function postRemoveSkillBoundRemotionTemplates(skillId: string): string[]
   }
   return removed
 }
-
-/** 供测试/调试：数据根（勿在渲染层滥用） */
-export function queryRemotionTemplatesDataHint(): string {
-  return getDataRoot()
-}
-
-/** 导出 basename 避免 unused 警告在部分打包器 */
-export { basename }

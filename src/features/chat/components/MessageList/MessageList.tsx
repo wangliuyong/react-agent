@@ -40,6 +40,8 @@ interface MessageListProps {
   awaitUserReason?: string | null
   /** 技能 id → 展示名，用于「加载技能：xxx」 */
   skillNameById?: ReadonlyMap<string, string>
+  /** 当前会话 id（存 Remotion 模板等） */
+  sessionId?: string | null
 }
 
 /** 展示组件：执行时间线（叙述 + 已调用 N 个工具）+ 流式/思考态 */
@@ -54,7 +56,8 @@ export function MessageList({
   activeToolArgs = null,
   activeToolProgress = null,
   awaitUserReason = null,
-  skillNameById
+  skillNameById,
+  sessionId = null
 }: MessageListProps): React.ReactElement {
   // 过滤 system、以及工作流步骤等过程注入消息（不对用户侧展示）
   const visible = messages.filter((m) => !queryIsUiHiddenChatMessage(m))
@@ -127,6 +130,7 @@ export function MessageList({
                   attachmentPaths={m.attachmentPaths}
                   markdownClassName={styles.userMarkdown}
                   showDoneAlert={false}
+                  sessionId={sessionId}
                 />
               </div>
             </div>
@@ -152,6 +156,7 @@ export function MessageList({
                 tools={[item.message]}
                 declaredCount={1}
                 skillNameById={skillNameById}
+                sessionId={sessionId}
               />
             </div>
           )
@@ -183,7 +188,7 @@ export function MessageList({
                 <span className={styles.label}>灵犀</span>
                 {showNarrative ? (
                   <div className={styles.assistantCard}>
-                    <AssistantBody content={narrative} />
+                    <AssistantBody content={narrative} sessionId={sessionId} />
                   </div>
                 ) : null}
                 {showHoistedStock ? (
@@ -200,6 +205,7 @@ export function MessageList({
                     declaredCount={declaredCount || tools.length}
                     toolCalls={m.toolCalls}
                     skillNameById={skillNameById}
+                    sessionId={sessionId}
                   />
                 ) : null}
               </div>
@@ -231,7 +237,7 @@ export function MessageList({
         <div className={`${styles.row} ${styles.rowAssistant}`}>
           <span className={styles.label}>灵犀</span>
           <div className={`${styles.assistantCard} ${styles.assistantCardStreaming}`}>
-            <AssistantBody content={displayStreamingText} streaming />
+            <AssistantBody content={displayStreamingText} streaming sessionId={sessionId} />
           </div>
         </div>
       ) : null}
@@ -264,15 +270,17 @@ export function MessageList({
 
 function AssistantBody({
   content,
-  streaming = false
+  streaming = false,
+  sessionId = null
 }: {
   content: string
   streaming?: boolean
+  sessionId?: string | null
 }): React.ReactElement {
   if (!content && streaming) {
     return <TypingIndicator label="正在思考…" />
   }
   if (!content) return <Text type="secondary">…</Text>
 
-  return <MessageRichContent content={content} streaming={streaming} />
+  return <MessageRichContent content={content} streaming={streaming} sessionId={sessionId} />
 }

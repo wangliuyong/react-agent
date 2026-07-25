@@ -186,7 +186,7 @@ export function postWriteRootGenerated(
  */
 import React from 'react'
 import { Composition } from 'remotion'
-import { ActiveTemplate } from './ActiveTemplate'
+import ActiveTemplate from './ActiveTemplate'
 ${hasSchema ? "import { activeTemplateSchema } from './activeSchema'\n" : ''}
 
 export const GENERATED_COMPOSITION = {

@@ -16,6 +16,7 @@ export interface ToolCallGroupProps {
   toolCalls?: ChatMessageToolCall[]
   /** 技能 id → 展示名 */
   skillNameById?: ReadonlyMap<string, string>
+  sessionId?: string | null
 }
 
 /**
@@ -26,7 +27,8 @@ export function ToolCallGroup({
   tools,
   declaredCount,
   toolCalls,
-  skillNameById
+  skillNameById,
+  sessionId = null
 }: ToolCallGroupProps): React.ReactElement | null {
   const count = declaredCount && declaredCount > 0 ? declaredCount : tools.length
   if (count <= 0) return null
@@ -86,6 +88,7 @@ export function ToolCallGroup({
                               markdownClassName={styles.toolMarkdown}
                               showDoneAlert={false}
                               showStockCharts={t.toolName !== ASHARE_REALTIME_ANALYSIS_TOOL}
+                              sessionId={sessionId}
                             />
                           )
                         }

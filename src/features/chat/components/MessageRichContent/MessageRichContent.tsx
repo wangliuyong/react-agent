@@ -27,6 +27,7 @@ interface MessageRichContentProps {
   showDoneAlert?: boolean
   /** 为 false 时不渲染 K 线（由消息列表在正式内容区外置展示） */
   showStockCharts?: boolean
+  sessionId?: string | null
 }
 
 /**
@@ -38,7 +39,8 @@ export function MessageRichContent({
   streaming = false,
   markdownClassName,
   showDoneAlert = true,
-  showStockCharts = true
+  showStockCharts = true,
+  sessionId = null
 }: MessageRichContentProps): React.ReactElement {
   const images = extractMessageImages(content, attachmentPaths)
   const { audio, video } = extractMessageMedia(content)
@@ -64,7 +66,7 @@ export function MessageRichContent({
       <LazyMessageKlineChart charts={stockCharts} liveRefresh={stockLiveRefresh} />
       <MessageImageGallery images={images} />
       <MessageAudioPlayer items={audio} />
-      <MessageVideoPlayer items={video} />
+      <MessageVideoPlayer items={video} sessionId={sessionId} />
       <MessageHtmlPreview items={htmlItems} />
       <ArtifactLinks content={content} excludePaths={previewPaths} />
       {showDoneAlert && /执行完毕/.test(content) ? (

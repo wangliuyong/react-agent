@@ -4,7 +4,7 @@
  */
 import React from 'react'
 import { Composition } from 'remotion'
-import { ActiveTemplate } from './ActiveTemplate'
+import ActiveTemplate from './ActiveTemplate'
 
 export const GENERATED_COMPOSITION = {
   id: 'Main',

@@ -99,6 +99,16 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.postImportSkillFromUrl, url, targetId),
   postSummarizeSkillFromSession: (sessionId: string) =>
     ipcRenderer.invoke(IpcChannels.postSummarizeSkillFromSession, sessionId),
+  queryRemotionTemplates: (filter?: { tag?: string; query?: string; origin?: string }) =>
+    ipcRenderer.invoke(IpcChannels.queryRemotionTemplates, filter),
+  postApplyRemotionTemplate: (input) =>
+    ipcRenderer.invoke(IpcChannels.postApplyRemotionTemplate, input),
+  postSaveRemotionTemplateFromChat: (input) =>
+    ipcRenderer.invoke(IpcChannels.postSaveRemotionTemplateFromChat, input),
+  postDeleteRemotionTemplate: (templateId: string) =>
+    ipcRenderer.invoke(IpcChannels.postDeleteRemotionTemplate, templateId),
+  postImportRemotionTemplateFromUrl: (url: string, targetId?: string) =>
+    ipcRenderer.invoke(IpcChannels.postImportRemotionTemplateFromUrl, url, targetId),
   queryLocalImageDataUrl: (filePath: string) =>
     ipcRenderer.invoke(IpcChannels.queryLocalImageDataUrl, filePath),
   queryLocalMediaUrl: (filePath: string) =>

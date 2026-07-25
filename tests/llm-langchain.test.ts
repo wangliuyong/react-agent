@@ -19,8 +19,16 @@ function querySettingsWithConnection(opts: {
     opts.baseUrl ??
     (provider === 'deepseek'
       ? 'https://api.deepseek.com'
-      : 'https://dashscope.aliyuncs.com/compatible-mode/v1')
-  const model = opts.model ?? (provider === 'deepseek' ? 'deepseek-v4-flash' : 'qwen-plus')
+      : provider === 'volcengine_ark'
+        ? 'https://ark.cn-beijing.volces.com/api/v3'
+        : 'https://dashscope.aliyuncs.com/compatible-mode/v1')
+  const model =
+    opts.model ??
+    (provider === 'deepseek'
+      ? 'deepseek-v4-flash'
+      : provider === 'volcengine_ark'
+        ? 'doubao-seed-2-1-pro-260628'
+        : 'qwen-plus')
   return {
     provider,
     apiKey,
@@ -30,7 +38,12 @@ function querySettingsWithConnection(opts: {
       {
         ...DEFAULT_CONNECTION,
         id: DEFAULT_CONNECTION_ID,
-        label: provider === 'deepseek' ? 'DeepSeek' : '百炼',
+        label:
+          provider === 'deepseek'
+            ? 'DeepSeek'
+            : provider === 'volcengine_ark'
+              ? '火山方舟'
+              : '百炼',
         provider,
         apiKey,
         baseUrl,
@@ -133,6 +146,26 @@ describe('聊天模型配置', () => {
   it('百炼普通 Qwen 模型不注入 thinking 参数', () => {
     expect(queryChatModelConfig(BASE_SETTINGS).modelKwargs).toBeUndefined()
   })
+
+  it('火山方舟豆包模型使用 thinking.type', () => {
+    expect(
+      queryChatModelConfig(
+        querySettingsWithConnection({
+          provider: 'volcengine_ark',
+          apiKey: 'ark-test',
+          baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+          model: 'doubao-seed-2-1-pro-260628'
+        })
+      )
+    ).toEqual(
+      expect.objectContaining({
+        apiKey: 'ark-test',
+        model: 'doubao-seed-2-1-pro-260628',
+        configuration: { baseURL: 'https://ark.cn-beijing.volces.com/api/v3' },
+        modelKwargs: { thinking: { type: 'disabled' } }
+      })
+    )
+  })
 })
 
 describe('thinking 模型参数', () => {
@@ -144,6 +177,16 @@ describe('thinking 模型参数', () => {
         'deepseek'
       )
     ).toEqual({ thinking: { type: 'disabled' } })
+  })
+
+  it('火山方舟使用 thinking.type', () => {
+    expect(
+      queryThinkingModelKwargs(
+        { thinkingEnabled: true },
+        'doubao-seed-2-1-pro-260628',
+        'volcengine_ark'
+      )
+    ).toEqual({ thinking: { type: 'enabled' } })
   })
 
   it('百炼兼容模式使用 enable_thinking', () => {

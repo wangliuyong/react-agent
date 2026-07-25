@@ -167,6 +167,7 @@ function appendWorkflowMessage(
     session.tasks = latest.tasks
     session.title = latest.title
     session.tokenUsed = latest.tokenUsed
+    session.contextTokens = latest.contextTokens
   }
   const full: ChatMessage = {
     id: crypto.randomUUID(),
@@ -233,6 +234,7 @@ function persistSessionTasks(session: Session, tasks: TaskItem[]): void {
     session.messages = latest.messages
     session.title = latest.title
     session.tokenUsed = latest.tokenUsed
+    session.contextTokens = latest.contextTokens
   }
   session.tasks = tasks
   session.updatedAt = Date.now()

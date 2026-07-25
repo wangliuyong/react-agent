@@ -25,7 +25,12 @@ function queryNormalizeProvider(
   baseUrl: string,
   customProviders: CustomModelProvider[]
 ): ModelProvider {
-  if (raw === 'deepseek' || raw === 'dashscope' || raw === 'openai_compatible') {
+  if (
+    raw === 'deepseek' ||
+    raw === 'dashscope' ||
+    raw === 'volcengine_ark' ||
+    raw === 'openai_compatible'
+  ) {
     return raw
   }
   const id = String(raw ?? '').trim()
@@ -33,6 +38,7 @@ function queryNormalizeProvider(
     return id as ModelProvider
   }
   if (String(baseUrl).includes('api.deepseek.com')) return 'deepseek'
+  if (String(baseUrl).includes('ark.cn-beijing.volces.com')) return 'volcengine_ark'
   return DEFAULT_SETTINGS.provider
 }
 

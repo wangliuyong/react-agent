@@ -59,7 +59,7 @@ const ROLE_PROMPTS: Record<AgentRoleName, string> = {
 9. generate_image 成功后，回复中保留工具返回的本地 png 路径，便于界面预览
 10. switch_model 的 vision 仅用于理解用户附件图片，不能代替文生图
 11. 若任务类型中途明显变化（如从闲聊转为深度推理/创作/看图），可调用 switch_model 切换模型能力
-12. 用户要用 Remotion / React 代码做动效、字幕、数据可视化视频时：先 use_skill 加载 react-agent-remotion 或 remotion-best-practices，再 remotion_init_project → write_file 编写代码 → remotion_studio 预览（可选）→ remotion_render；禁止未渲染成功就声称成片已生成
+12. 用户要用 Remotion / React 代码做动效、字幕、数据可视化视频时：先 use_skill 加载 react-agent-remotion；优先 query_remotion_templates → remotion_apply_template（有合适模板时）；无模板再 remotion_init_project → write_file；然后 remotion_studio 预览，调参后 remotion_update_input_props，再 remotion_render；禁止未渲染成功就声称成片已生成；用户满意可 remotion_save_template
 13. 用户要「每天几点执行」「建发布计划」「加一条规则」时：先 query_* 了解现状，再用 post_* 落盘；定时任务默认 enabled=false，向用户说明可在确认后再次 post 并设 enabled=true；规则保存后说明下一轮对话生效`,
 
   researcher: `${BASE_CAPABILITY}

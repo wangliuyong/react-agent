@@ -66,6 +66,12 @@ export const IpcChannels = {
   postImportSkillFromUrl: 'post:skill-import-from-url',
   /** 从会话成功步骤总结技能草稿（LLM + 规则兜底） */
   postSummarizeSkillFromSession: 'post:skill-summarize-from-session',
+  // Remotion 视频模板
+  queryRemotionTemplates: 'query:remotion-templates',
+  postApplyRemotionTemplate: 'post:remotion-template:apply',
+  postSaveRemotionTemplateFromChat: 'post:remotion-template-save-from-chat',
+  postDeleteRemotionTemplate: 'post:remotion-template:delete',
+  postImportRemotionTemplateFromUrl: 'post:remotion-template-import-from-url',
   queryLocalImageDataUrl: 'query:local-image-data-url',
   /** 本地音视频 → media:// URL，供聊天内联播放 */
   queryLocalMediaUrl: 'query:local-media-url',
@@ -114,7 +120,11 @@ export const IpcChannels = {
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 
 /** 应用设置（本地 JSON 缓存） */
-export type BuiltInModelProvider = 'dashscope' | 'deepseek' | 'openai_compatible'
+export type BuiltInModelProvider =
+  | 'dashscope'
+  | 'deepseek'
+  | 'volcengine_ark'
+  | 'openai_compatible'
 /** 用户自定义 OpenAI 兼容供应商，持久化 id 以 custom: 前缀区分内置项 */
 export type CustomModelProviderId = `custom:${string}`
 export type ModelProvider = BuiltInModelProvider | CustomModelProviderId
@@ -224,6 +234,9 @@ export const DEFAULT_CONNECTION_IDS = {
 
 const DASHSCOPE_COMPAT_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
 
+/** 火山方舟 OpenAI 兼容 Chat/Models Base URL（北京） */
+const VOLCENGINE_ARK_BASE = 'https://ark.cn-beijing.volces.com/api/v3'
+
 /**
  * 按种子凭证生成一套默认多模型连接。
  * 为什么：Supervisor 按角色路由后，各角色通过 roleModelMap 落到不同模型；
@@ -240,9 +253,61 @@ export function queryBuildDefaultConnections(seed?: {
     seed?.baseUrl?.trim() ||
     (provider === 'deepseek'
       ? 'https://api.deepseek.com'
-      : provider === 'openai_compatible'
-        ? 'https://api.openai.com/v1'
-        : DASHSCOPE_COMPAT_BASE)
+      : provider === 'volcengine_ark'
+        ? VOLCENGINE_ARK_BASE
+        : provider === 'openai_compatible'
+          ? 'https://api.openai.com/v1'
+          : DASHSCOPE_COMPAT_BASE)
+
+  if (provider === 'volcengine_ark') {
+    return [
+      {
+        id: DEFAULT_CONNECTION_IDS.default,
+        label: '通用对话（Doubao Seed 2.1 Pro）',
+        provider: 'volcengine_ark',
+        apiKey,
+        baseUrl,
+        model: 'doubao-seed-2-1-pro-260628',
+        capabilities: ['chat', 'reasoning', 'vision', 'longContext']
+      },
+      {
+        id: DEFAULT_CONNECTION_IDS.fast,
+        label: '路由调度（Doubao Seed 2.1 Turbo）',
+        provider: 'volcengine_ark',
+        apiKey,
+        baseUrl,
+        model: 'doubao-seed-2-1-turbo-260628',
+        capabilities: ['chat', 'vision']
+      },
+      {
+        id: DEFAULT_CONNECTION_IDS.reason,
+        label: '调研推理（Doubao Seed 2.1 Pro）',
+        provider: 'volcengine_ark',
+        apiKey,
+        baseUrl,
+        model: 'doubao-seed-2-1-pro-260628',
+        capabilities: ['reasoning', 'chat', 'longContext']
+      },
+      {
+        id: DEFAULT_CONNECTION_IDS.creative,
+        label: '创作编剧（Doubao Seed Evolving）',
+        provider: 'volcengine_ark',
+        apiKey,
+        baseUrl,
+        model: 'doubao-seed-evolving',
+        capabilities: ['creative', 'chat', 'longContext']
+      },
+      {
+        id: DEFAULT_CONNECTION_IDS.media,
+        label: '媒体生成（百炼 · 万相/TTS）',
+        provider: 'dashscope',
+        apiKey: '',
+        baseUrl: DASHSCOPE_COMPAT_BASE,
+        model: 'qwen-plus',
+        capabilities: ['vision', 'chat']
+      }
+    ]
+  }
 
   if (provider === 'deepseek') {
     return [
@@ -545,6 +610,17 @@ export const MODEL_PROVIDER_OPTIONS: ModelProviderOption[] = [
     defaultModel: 'deepseek-v4-flash'
   },
   {
+    value: 'volcengine_ark',
+    label: '火山方舟',
+    apiKeyLabel: 'API Key',
+    /**
+     * 快速入门：https://www.volcengine.com/docs/82379/1399008
+     * 模型列表：https://www.volcengine.com/docs/82379/1330310
+     */
+    defaultBaseUrl: VOLCENGINE_ARK_BASE,
+    defaultModel: 'doubao-seed-2-1-pro-260628'
+  },
+  {
     value: 'openai_compatible',
     label: 'OpenAI 兼容',
     apiKeyLabel: 'API Key',
@@ -567,6 +643,11 @@ export interface ModelOption {
    * 下拉项优先展示，便于从平台长列表中快速筛选。
    */
   category?: string
+  /**
+   * 最大上下文窗口（token 数）。
+   * 为什么：聊天框需展示「已用 / 上限」，并按模型切换上限。
+   */
+  contextWindow?: number
 }
 
 /**
@@ -591,10 +672,10 @@ export function queryModelCategory(modelId: string): string {
   ) {
     return '语音'
   }
-  if (/(wanx|wan2\.|t2i|text2image|image-synthesis|flux|stable-diffusion)/.test(id)) {
+  if (/(wanx|wan2\.|t2i|text2image|image-synthesis|flux|stable-diffusion|seedream)/.test(id)) {
     return '文生图'
   }
-  if (/(i2v|image2video|video-generation|animate|kling)/.test(id)) {
+  if (/(i2v|image2video|video-generation|animate|kling|seedance)/.test(id)) {
     return '图生视频'
   }
   if (/(embedding|text-embedding|bge-)/.test(id)) {
@@ -632,12 +713,13 @@ export function queryModelCategory(modelId: string): string {
 
 /**
  * 判断模型是否支持 thinking / reasoning_content 开关。
- * 覆盖 DeepSeek 官方、百炼托管 DeepSeek、Qwen3 混合思考等兼容 OpenAI 的模型。
+ * 覆盖 DeepSeek 官方、百炼托管 DeepSeek、Qwen3、火山方舟豆包 Seed 等兼容 OpenAI 的模型。
  */
 export function queryModelSupportsThinking(model: string): boolean {
   const id = model.trim().toLowerCase()
   if (!id) return false
   if (/deepseek/.test(id)) return true
+  if (/^doubao-seed/.test(id)) return true
   if (/(reasoner|reasoning|thinking|r1|qwq)/.test(id)) return true
   if (/^qwen3/.test(id)) return true
   if (/kimi-k2/i.test(id)) return true
@@ -647,7 +729,7 @@ export function queryModelSupportsThinking(model: string): boolean {
 
 /**
  * 按供应商与 thinkingEnabled 生成模型 thinking 参数（写入 ChatOpenAI.modelKwargs）。
- * - DeepSeek 官方 API：thinking.type = enabled | disabled
+ * - DeepSeek / 火山方舟：thinking.type = enabled | disabled
  * - 百炼 / 兼容网关：enable_thinking = true | false（DeepSeek V4、Qwen3 等）
  */
 export function queryThinkingModelKwargs(
@@ -657,7 +739,7 @@ export function queryThinkingModelKwargs(
 ): Record<string, unknown> | undefined {
   if (!queryModelSupportsThinking(model)) return undefined
 
-  if (provider === 'deepseek') {
+  if (provider === 'deepseek' || provider === 'volcengine_ark') {
     return {
       thinking: { type: settings.thinkingEnabled ? 'enabled' : 'disabled' }
     }
@@ -667,23 +749,111 @@ export function queryThinkingModelKwargs(
   return { enable_thinking: settings.thinkingEnabled }
 }
 
-/** 下拉展示：名称 · 类型 — 说明 */
+/**
+ * 将上下文 token 数格式化为短展示（如 256000 → 256k）。
+ * @param allowZero 为 true 时允许展示 0（占用侧需要）
+ */
+export function queryFormatContextWindow(
+  tokens?: number,
+  allowZero = false
+): string | undefined {
+  if (tokens == null || !Number.isFinite(tokens) || tokens < 0) return undefined
+  if (tokens === 0) return allowZero ? '0' : undefined
+  if (tokens >= 1000) {
+    const k = tokens / 1000
+    return Number.isInteger(k) ? `${k}k` : `${Number(k.toFixed(1))}k`
+  }
+  return String(Math.round(tokens))
+}
+
+/**
+ * 格式化聊天框上下文占用展示：当前占用 / 模型上限。
+ * 占用应为最近一次请求的 prompt tokens，不是会话累计消耗。
+ */
+export function queryFormatContextUsageLabel(
+  contextTokens: number,
+  maxTokens: number
+): string {
+  const used =
+    queryFormatContextWindow(Math.max(0, contextTokens), true) ?? '0'
+  const max = queryFormatContextWindow(maxTokens) ?? String(Math.round(maxTokens))
+  return `${used}/${max}`
+}
+
+/**
+ * 查询模型最大上下文窗口。
+ * 优先精确匹配 MODEL_OPTIONS；无记录时按命名约定做保守推断。
+ */
+export function queryModelContextWindow(model: string): number | undefined {
+  const id = model.trim()
+  if (!id) return undefined
+  const known = MODEL_OPTIONS.find((m) => m.value === id)?.contextWindow
+  if (known && known > 0) return known
+
+  const lower = id.toLowerCase()
+  if (/1024k|1m\b/.test(lower)) return 1_024_000
+  if (/256k/.test(lower)) return 256_000
+  if (/200k/.test(lower)) return 200_000
+  if (/128k/.test(lower)) return 128_000
+  if (/64k/.test(lower)) return 64_000
+  if (/32k/.test(lower)) return 32_000
+  if (/16k/.test(lower)) return 16_000
+  if (/8k/.test(lower)) return 8_000
+  if (/4k/.test(lower)) return 4_000
+  if (/^doubao-seed-evolving/.test(lower)) return 1_024_000
+  if (/^doubao-seed-(2-1|2-0|1-8|1-6|code)/.test(lower)) return 256_000
+  if (/^doubao-seed-character/.test(lower)) return 128_000
+  if (/^doubao-1-5-pro-32k/.test(lower)) return 128_000
+  if (/^doubao-1-5/.test(lower)) return 32_000
+  if (/^deepseek-v4/.test(lower)) return 1_024_000
+  if (/^deepseek-v3/.test(lower)) return 128_000
+  if (/^glm-5/.test(lower)) return 1_024_000
+  if (/^glm-4-7/.test(lower)) return 200_000
+  if (/^qwen-long/.test(lower)) return 10_000_000
+  if (/^qwen3|^qwen-max|^qwen-plus|^qwen-turbo/.test(lower)) return 128_000
+  return undefined
+}
+
+/** 下拉展示：名称 · 类型 · 上下文 — 说明 */
 export function queryModelOptionDisplayLabel(option: ModelOption): string {
   const category = option.category || queryModelCategory(option.value)
-  const head = `${option.label} · ${category}`
+  const context =
+    queryFormatContextWindow(option.contextWindow ?? queryModelContextWindow(option.value))
+  const head = context
+    ? `${option.label} · ${category} · ${context}`
+    : `${option.label} · ${category}`
   return option.description ? `${head} — ${option.description}` : head
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [
-  { provider: 'dashscope', value: 'qwen-plus', label: 'Qwen Plus', description: '均衡，推荐默认' },
-  { provider: 'dashscope', value: 'qwen-max', label: 'Qwen Max', description: '能力最强' },
+  {
+    provider: 'dashscope',
+    value: 'qwen-plus',
+    label: 'Qwen Plus',
+    description: '均衡，推荐默认',
+    contextWindow: 128_000
+  },
+  {
+    provider: 'dashscope',
+    value: 'qwen-max',
+    label: 'Qwen Max',
+    description: '能力最强',
+    contextWindow: 128_000
+  },
   {
     provider: 'dashscope',
     value: 'qwen-turbo',
     label: 'Qwen Turbo',
-    description: '速度快、成本低'
+    description: '速度快、成本低',
+    contextWindow: 128_000
   },
-  { provider: 'dashscope', value: 'qwen-long', label: 'Qwen Long', description: '超长上下文' },
+  {
+    provider: 'dashscope',
+    value: 'qwen-long',
+    label: 'Qwen Long',
+    description: '超长上下文',
+    contextWindow: 10_000_000
+  },
   /**
    * DeepSeek 官方模型（与 GET /models 文档示例一致）：
    * https://api-docs.deepseek.com/zh-cn/api/list-models
@@ -693,70 +863,347 @@ export const MODEL_OPTIONS: ModelOption[] = [
     provider: 'deepseek',
     value: 'deepseek-v4-flash',
     label: 'DeepSeek V4 Flash',
-    description: '高速推理，推荐默认'
+    description: '高速推理，推荐默认',
+    contextWindow: 1_024_000
   },
   {
     provider: 'deepseek',
     value: 'deepseek-v4-pro',
     label: 'DeepSeek V4 Pro',
-    description: '更强推理能力'
+    description: '更强推理能力',
+    contextWindow: 1_024_000
   },
   // 阿里云百炼中的 DeepSeek 模型
-  { provider: 'dashscope', value: 'deepseek-v4-flash', label: 'deepseek-v4-flash' },
-  { provider: 'dashscope', value: 'deepseek-v4-pro', label: 'deepseek-v4-pro' },
+  {
+    provider: 'dashscope',
+    value: 'deepseek-v4-flash',
+    label: 'deepseek-v4-flash',
+    contextWindow: 1_024_000
+  },
+  {
+    provider: 'dashscope',
+    value: 'deepseek-v4-pro',
+    label: 'deepseek-v4-pro',
+    contextWindow: 1_024_000
+  },
   // Qwen 3.x
   {
     provider: 'dashscope',
     value: 'qwen3.6-flash-2026-04-16',
-    label: 'qwen3.6-flash-2026-04-16'
+    label: 'qwen3.6-flash-2026-04-16',
+    contextWindow: 128_000
   },
-  { provider: 'dashscope', value: 'qwen3.5-ocr', label: 'qwen3.5-ocr' },
-  { provider: 'dashscope', value: 'qwen3.6-35b-a3b', label: 'qwen3.6-35b-a3b' },
+  { provider: 'dashscope', value: 'qwen3.5-ocr', label: 'qwen3.5-ocr', contextWindow: 128_000 },
+  {
+    provider: 'dashscope',
+    value: 'qwen3.6-35b-a3b',
+    label: 'qwen3.6-35b-a3b',
+    contextWindow: 128_000
+  },
   {
     provider: 'dashscope',
     value: 'qwen3.7-max-2026-05-17',
-    label: 'qwen3.7-max-2026-05-17'
+    label: 'qwen3.7-max-2026-05-17',
+    contextWindow: 128_000
   },
   {
     provider: 'dashscope',
     value: 'qwen3.7-max-2026-06-08',
-    label: 'qwen3.7-max-2026-06-08'
+    label: 'qwen3.7-max-2026-06-08',
+    contextWindow: 128_000
   },
-  { provider: 'dashscope', value: 'qwen3.7-max-preview', label: 'qwen3.7-max-preview' },
+  {
+    provider: 'dashscope',
+    value: 'qwen3.7-max-preview',
+    label: 'qwen3.7-max-preview',
+    contextWindow: 128_000
+  },
   {
     provider: 'dashscope',
     value: 'qwen3.5-plus-2026-04-20',
-    label: 'qwen3.5-plus-2026-04-20'
+    label: 'qwen3.5-plus-2026-04-20',
+    contextWindow: 128_000
   },
-  { provider: 'dashscope', value: 'qwen3.6-max-preview', label: 'qwen3.6-max-preview' },
-  { provider: 'dashscope', value: 'qwen3.7-max', label: 'qwen3.7-max' },
+  {
+    provider: 'dashscope',
+    value: 'qwen3.6-max-preview',
+    label: 'qwen3.6-max-preview',
+    contextWindow: 128_000
+  },
+  { provider: 'dashscope', value: 'qwen3.7-max', label: 'qwen3.7-max', contextWindow: 128_000 },
   {
     provider: 'dashscope',
     value: 'qwen3.7-max-2026-05-20',
-    label: 'qwen3.7-max-2026-05-20'
+    label: 'qwen3.7-max-2026-05-20',
+    contextWindow: 128_000
   },
   {
     provider: 'dashscope',
     value: 'qwen3.7-plus-2026-05-26',
-    label: 'qwen3.7-plus-2026-05-26'
+    label: 'qwen3.7-plus-2026-05-26',
+    contextWindow: 128_000
   },
-  { provider: 'dashscope', value: 'qwen3.6-flash', label: 'qwen3.6-flash' },
+  { provider: 'dashscope', value: 'qwen3.6-flash', label: 'qwen3.6-flash', contextWindow: 128_000 },
   // GLM
-  { provider: 'dashscope', value: 'glm-5.1', label: 'glm-5.1' },
-  { provider: 'dashscope', value: 'glm-5.2', label: 'glm-5.2' },
+  { provider: 'dashscope', value: 'glm-5.1', label: 'glm-5.1', contextWindow: 200_000 },
+  { provider: 'dashscope', value: 'glm-5.2', label: 'glm-5.2', contextWindow: 200_000 },
   // Kimi
   {
     provider: 'dashscope',
     value: 'kimi-k2.7-code',
     label: 'kimi-k2.7-code',
-    description: '代码能力强'
+    description: '代码能力强',
+    contextWindow: 256_000
   },
-  { provider: 'dashscope', value: 'kimi-k2.6', label: 'kimi-k2.6' }
+  { provider: 'dashscope', value: 'kimi-k2.6', label: 'kimi-k2.6', contextWindow: 256_000 },
+
+  /**
+   * 火山方舟模型（官方模型列表，含上下文窗口）：
+   * https://www.volcengine.com/docs/82379/1330310
+   * 聊天优先实时拉取 /models；此处作无 Key / 请求失败时的静态兜底。
+   */
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-evolving',
+    label: 'Doubao Seed Evolving',
+    description: '周级迭代 Coding & Agent',
+    category: '深度推理',
+    contextWindow: 1_024_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-2-1-pro-260628',
+    label: 'Doubao Seed 2.1 Pro',
+    description: '旗舰级 Agent 通用模型',
+    category: '深度推理',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-2-1-turbo-260628',
+    label: 'Doubao Seed 2.1 Turbo',
+    description: '高吞吐生产场景',
+    category: '高速对话',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-2-0-lite-260428',
+    label: 'Doubao Seed 2.0 Lite',
+    description: '性价比均衡',
+    category: '文本对话',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-2-0-mini-260428',
+    label: 'Doubao Seed 2.0 Mini',
+    description: '低时延高并发',
+    category: '高速对话',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-2-0-pro-260215',
+    label: 'Doubao Seed 2.0 Pro',
+    description: '复杂推理与长链路',
+    category: '深度推理',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-2-0-lite-260215',
+    label: 'Doubao Seed 2.0 Lite (260215)',
+    category: '文本对话',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-2-0-mini-260215',
+    label: 'Doubao Seed 2.0 Mini (260215)',
+    category: '高速对话',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-2-0-code-preview-260215',
+    label: 'Doubao Seed 2.0 Code',
+    description: '编程场景增强',
+    category: '代码',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-character-260628',
+    label: 'Doubao Seed Character',
+    description: '角色扮演',
+    category: '文本对话',
+    contextWindow: 128_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-1-8-251228',
+    label: 'Doubao Seed 1.8',
+    description: '即将下线',
+    category: '深度推理',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-code-preview-251028',
+    label: 'Doubao Seed Code Preview',
+    description: '即将下线',
+    category: '代码',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-character-251128',
+    label: 'Doubao Seed Character (251128)',
+    category: '文本对话',
+    contextWindow: 128_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-1-6-flash-250828',
+    label: 'Doubao Seed 1.6 Flash',
+    description: '即将下线',
+    category: '高速对话',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-1-6-vision-250815',
+    label: 'Doubao Seed 1.6 Vision',
+    description: '即将下线',
+    category: '视觉理解',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-1-6-251015',
+    label: 'Doubao Seed 1.6 (251015)',
+    description: '即将下线',
+    category: '深度推理',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-1-6-250615',
+    label: 'Doubao Seed 1.6',
+    description: '即将下线',
+    category: '深度推理',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-1-6-flash-250615',
+    label: 'Doubao Seed 1.6 Flash (250615)',
+    description: '即将下线',
+    category: '高速对话',
+    contextWindow: 256_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-seed-translation-250915',
+    label: 'Doubao Seed Translation',
+    description: '翻译增强',
+    category: '文本对话',
+    contextWindow: 4_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-1-5-pro-32k-250115',
+    label: 'Doubao 1.5 Pro 32k',
+    description: '即将下线',
+    category: '文本对话',
+    contextWindow: 128_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-1-5-pro-32k-character-250715',
+    label: 'Doubao 1.5 Pro Character',
+    description: '即将下线',
+    category: '文本对话',
+    contextWindow: 32_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-1-5-lite-32k-250115',
+    label: 'Doubao 1.5 Lite 32k',
+    description: '即将下线',
+    category: '高速对话',
+    contextWindow: 32_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-1-5-vision-pro-32k-250115',
+    label: 'Doubao 1.5 Vision Pro',
+    description: '即将下线',
+    category: '视觉理解',
+    contextWindow: 32_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'glm-5-2-260617',
+    label: 'GLM-5.2',
+    category: '深度推理',
+    contextWindow: 1_024_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'glm-4-7-251222',
+    label: 'GLM-4.7',
+    description: '即将下线',
+    category: '深度推理',
+    contextWindow: 200_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'deepseek-v4-pro-260425',
+    label: 'DeepSeek V4 Pro（方舟）',
+    category: '深度推理',
+    contextWindow: 1_024_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'deepseek-v4-flash-260425',
+    label: 'DeepSeek V4 Flash（方舟）',
+    category: '高速对话',
+    contextWindow: 1_024_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'deepseek-v3-2-251201',
+    label: 'DeepSeek V3.2（方舟）',
+    description: '即将下线',
+    category: '深度推理',
+    contextWindow: 128_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-embedding-vision-251215',
+    label: 'Doubao Embedding Vision',
+    category: '向量嵌入',
+    contextWindow: 128_000
+  },
+  {
+    provider: 'volcengine_ark',
+    value: 'doubao-embedding-vision-250615',
+    label: 'Doubao Embedding Vision (250615)',
+    category: '向量嵌入',
+    contextWindow: 128_000
+  }
 ]
 
 /** 判断是否为内置供应商 */
 export function queryIsBuiltInProvider(provider: ModelProvider): provider is BuiltInModelProvider {
-  return provider === 'dashscope' || provider === 'deepseek' || provider === 'openai_compatible'
+  return (
+    provider === 'dashscope' ||
+    provider === 'deepseek' ||
+    provider === 'volcengine_ark' ||
+    provider === 'openai_compatible'
+  )
 }
 
 /** 生成新的自定义供应商 id */
@@ -1096,8 +1543,13 @@ export interface Session {
   tasks: TaskItem[]
   /** 会话类型；旧数据缺省时由 querySessionType 推断 */
   type?: SessionType
-  /** 累计估算 token（展示用） */
+  /** 累计估算 token（历史/账单展示用，可跨多次请求累加） */
   tokenUsed: number
+  /**
+   * 最近一次 LLM 请求的 prompt tokens（当前上下文占用）。
+   * 聊天框「占用/上限」用此字段，旧会话缺省视为 0。
+   */
+  contextTokens?: number
   createdAt: number
   updatedAt: number
 }
@@ -1292,7 +1744,14 @@ export type AgentEvent =
     content: string
   }
   /** LLM 调用结束后的 token 累计更新（执行中实时刷新 UI） */
-  | { type: 'token_update'; sessionId: string; tokenUsed: number; delta: number }
+  | {
+      type: 'token_update'
+      sessionId: string
+      tokenUsed: number
+      /** 当前上下文占用（最近一次 prompt tokens） */
+      contextTokens: number
+      delta: number
+    }
   /** 长耗时工具执行中的进度（如 Remotion 渲染） */
   | {
       type: 'tool_progress'
@@ -1833,6 +2292,36 @@ export interface ElectronApi {
   postImportSkillFromUrl: (url: string, targetId?: string) => Promise<ProjectSkillDetail>
   /** 从会话成功步骤总结技能草稿，供任务清单「发布到技能市场」预览编辑 */
   postSummarizeSkillFromSession: (sessionId: string) => Promise<SkillUpsertInput>
+  /** Remotion 模板列表 */
+  queryRemotionTemplates: (filter?: {
+    tag?: string
+    query?: string
+    origin?: string
+  }) => Promise<import('./remotion-template').RemotionTemplateSummary[]>
+  postApplyRemotionTemplate: (input: {
+    sessionId: string
+    templateId: string
+    props?: Record<string, unknown>
+    compositionId?: string
+    width?: number
+    height?: number
+    fps?: number
+    durationInFrames?: number
+  }) => Promise<import('./remotion-template').RemotionApplyTemplateResult>
+  postSaveRemotionTemplateFromChat: (input: {
+    sessionId: string
+    name: string
+    templateId: string
+    tags?: string[]
+    videoPath?: string
+    projectDir?: string
+    compositionId?: string
+  }) => Promise<import('./remotion-template').RemotionTemplateSummary>
+  postDeleteRemotionTemplate: (templateId: string) => Promise<void>
+  postImportRemotionTemplateFromUrl: (
+    url: string,
+    targetId?: string
+  ) => Promise<import('./remotion-template').RemotionTemplateSummary[]>
   queryLocalImageDataUrl: (filePath: string) => Promise<string | null>
   queryLocalMediaUrl: (filePath: string) => Promise<string | null>
   /** 校验本地路径是否存在 */

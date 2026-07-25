@@ -67,14 +67,16 @@ describe('从平台拉取模型列表', () => {
         value: 'deepseek-v4-flash',
         label: 'DeepSeek V4 Flash',
         description: '高速推理，推荐默认',
-        category: '高速对话'
+        category: '高速对话',
+        contextWindow: 1_024_000
       },
       {
         provider: 'deepseek',
         value: 'deepseek-v4-pro',
         label: 'DeepSeek V4 Pro',
         description: '更强推理能力',
-        category: '文本对话'
+        category: '文本对话',
+        contextWindow: 1_024_000
       }
     ])
   })
@@ -292,8 +294,9 @@ describe('模型类型推断', () => {
         value: 'qwen-plus',
         label: 'Qwen Plus',
         description: '均衡，推荐默认',
-        category: '文本对话'
+        category: '文本对话',
+        contextWindow: 128_000
       })
-    ).toBe('Qwen Plus · 文本对话 — 均衡，推荐默认')
+    ).toBe('Qwen Plus · 文本对话 · 128k — 均衡，推荐默认')
   })
 })

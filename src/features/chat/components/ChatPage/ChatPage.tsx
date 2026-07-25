@@ -190,6 +190,7 @@ export function ChatPage(): React.ReactElement {
               activeToolProgress={activeToolProgress}
               awaitUserReason={awaitUserReason}
               skillNameById={skillNameById}
+              sessionId={session?.id ?? null}
             />
           )}
         </div>
@@ -207,7 +208,7 @@ export function ChatPage(): React.ReactElement {
         skillNameById={skillNameById}
         awaitUserReason={awaitUserReason}
         awaitUserChoices={awaitUserChoices}
-        tokenUsed={session?.tokenUsed ?? 0}
+        contextTokens={session?.contextTokens ?? 0}
         onSend={(text, paths) => void sendMessage(text, paths)}
         onAbort={() => void abort()}
         onContinue={(userInput, choiceId) => void continueRun({ userInput, choiceId })}

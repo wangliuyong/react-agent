@@ -1,0 +1,12 @@
+{
+  "id": "karaoke-captions",
+  "name": "卡拉OK字幕短片",
+  "description": "横版 16:9 字幕卡点模板，适合旁白/金句/热点速览",
+  "origin": "bundled",
+  "tags": ["caption", "karaoke", "16:9", "subtitle"],
+  "compositionId": "Main",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "durationInFrames": 300
+}

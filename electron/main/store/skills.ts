@@ -19,6 +19,10 @@ import type {
 } from '../../../shared/types'
 import { getDataRoot } from './paths'
 import { queryBundledResourcesRoot, querySkillsDir } from './resources'
+import {
+  postRegisterSkillBoundRemotionTemplates,
+  postRemoveSkillBoundRemotionTemplates
+} from './remotion-templates'
 
 /** 技能启用状态持久化路径 */
 function getSkillStatesPath(): string {
@@ -290,6 +294,14 @@ export function postProjectSkill(input: SkillUpsertInput): ProjectSkillDetail {
 
   const detail = queryProjectSkillDetail(input.id)
   if (!detail) throw new Error('技能保存后读取失败')
+
+  // 注册附属 remotion-templates/（第三期 skill-bound）
+  try {
+    postRegisterSkillBoundRemotionTemplates(input.id, skillDir)
+  } catch (err) {
+    console.warn('[skills] 注册附属 Remotion 模板失败', err)
+  }
+
   return detail
 }
 
@@ -306,6 +318,12 @@ export function postDeleteProjectSkill(id: string): void {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     throw new Error(`删除技能失败：${msg}`)
+  }
+
+  try {
+    postRemoveSkillBoundRemotionTemplates(id)
+  } catch (err) {
+    console.warn('[skills] 移除附属 Remotion 模板失败', err)
   }
 
   const states = readSkillStates()
@@ -367,6 +385,13 @@ export function postInstallSkillTemplate(
 
   const detail = queryProjectSkillDetail(id)
   if (!detail) throw new Error('模板安装后读取失败')
+
+  try {
+    postRegisterSkillBoundRemotionTemplates(id, destDir)
+  } catch (err) {
+    console.warn('[skills] 安装技能模板时注册 Remotion 附属失败', err)
+  }
+
   return detail
 }
 

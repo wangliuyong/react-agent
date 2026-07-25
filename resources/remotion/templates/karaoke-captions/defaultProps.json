@@ -1,0 +1,13 @@
+{
+  "headline": "今日 AI 热点速览",
+  "theme": "DARK_TECH",
+  "accentColor": "#3b82f6",
+  "captions": [
+    { "text": "欢迎来到灵犀 AI", "startMs": 0, "endMs": 2500 },
+    { "text": "用代码驱动每一个像素", "startMs": 2500, "endMs": 5000 },
+    { "text": "精确控制每一帧动画", "startMs": 5000, "endMs": 7500 },
+    { "text": "让创意无限延伸", "startMs": 7500, "endMs": 10000 }
+  ],
+  "karaoke": true,
+  "fontSize": 56
+}

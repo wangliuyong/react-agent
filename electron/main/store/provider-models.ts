@@ -1,5 +1,6 @@
 import {
   queryModelCategory,
+  queryModelContextWindow,
   queryModelOptions,
   queryProviderOption,
   type AppSettings,
@@ -132,12 +133,15 @@ export function queryModelOptionsFromListResponse(
     const known = staticByValue.get(id)
     const category = queryModelCategory(id)
     const ownedBy = item.owned_by?.trim()
+    const contextWindow = known?.contextWindow ?? queryModelContextWindow(id)
     return {
       provider,
       value: id,
       label: known?.label ?? id,
       description: known?.description ?? (ownedBy ? `来源 ${ownedBy}` : undefined),
-      category
+      category,
+      // 平台 /models 通常不带上下文上限，保留本地已知规格 / 命名推断便于聊天框展示
+      ...(contextWindow ? { contextWindow } : {})
     }
   })
 }

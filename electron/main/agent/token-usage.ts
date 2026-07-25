@@ -26,7 +26,7 @@ function emitAgentEvent(event: AgentEvent): void {
   }
 }
 
-/** 从任意 usage 对象解析 token 总数 */
+/** 从任意 usage 对象解析 token 总数（prompt + completion） */
 function queryTokensFromUsageRecord(usage: unknown): number {
   if (!usage || typeof usage !== 'object') return 0
   const record = usage as TokenUsageLike
@@ -46,12 +46,57 @@ function queryTokensFromUsageRecord(usage: unknown): number {
   return sum > 0 ? sum : 0
 }
 
+/**
+ * 从任意 usage 对象解析 prompt / input tokens。
+ * 为什么：聊天框「上下文占用」应对齐单次请求窗口，不能用累计 total。
+ */
+function queryPromptTokensFromUsageRecord(usage: unknown): number {
+  if (!usage || typeof usage !== 'object') return 0
+  const record = usage as TokenUsageLike
+  const prompt = record.promptTokens ?? record.prompt_tokens ?? record.input_tokens
+  return typeof prompt === 'number' && prompt > 0 ? prompt : 0
+}
+
 /** 从 LangChain usage_metadata 解析 token 总数 */
 export function queryTokensFromUsageMetadata(
   usage: AIMessage['usage_metadata'] | undefined
 ): number {
   if (!usage) return 0
   return queryTokensFromUsageRecord(usage)
+}
+
+/** 遍历 LLMResult 中各 usage 字段，取首个正数 */
+function queryFirstPositiveFromLlmResult(
+  result: LLMResult,
+  queryFromUsage: (usage: unknown) => number
+): number {
+  const llmOutput = result.llmOutput as Record<string, unknown> | undefined
+  if (llmOutput) {
+    const fromOutput =
+      queryFromUsage(llmOutput.tokenUsage) || queryFromUsage(llmOutput.usage)
+    if (fromOutput > 0) return fromOutput
+  }
+
+  for (const generationGroup of result.generations) {
+    for (const generation of generationGroup) {
+      const message = generation.message
+      if (message && typeof message === 'object' && 'usage_metadata' in message) {
+        const fromMeta = queryFromUsage((message as AIMessage).usage_metadata)
+        if (fromMeta > 0) return fromMeta
+      }
+      const responseMetadata =
+        message && typeof message === 'object' && 'response_metadata' in message
+          ? ((message as AIMessage).response_metadata as Record<string, unknown>)
+          : undefined
+      if (responseMetadata) {
+        const fromResponse =
+          queryFromUsage(responseMetadata.tokenUsage) ||
+          queryFromUsage(responseMetadata.usage)
+        if (fromResponse > 0) return fromResponse
+      }
+    }
+  }
+  return 0
 }
 
 /** 从单次 LLM 调用的 LLMResult 汇总 token（兼容 llmOutput 与 generations） */
@@ -88,16 +133,37 @@ export function queryTokensFromLlmResult(result: LLMResult): number {
 }
 
 /**
+ * 从单次 LLM 调用解析当前上下文占用（prompt / input tokens）。
+ * 取首个有效值，避免 generations 重复累加。
+ */
+export function queryPromptTokensFromLlmResult(result: LLMResult): number {
+  return queryFirstPositiveFromLlmResult(result, queryPromptTokensFromUsageRecord)
+}
+
+/**
  * 累加会话 token 并落盘，同时推送 token_update 供 UI 实时刷新。
  * 每次 LLM 调用结束通过 callback 触发一次。
+ * @param contextTokens 本次请求的 prompt tokens；有值时刷新会话当前上下文占用
  */
-export function postSessionTokenDelta(sessionId: string, delta: number): void {
+export function postSessionTokenDelta(
+  sessionId: string,
+  delta: number,
+  contextTokens?: number
+): void {
   if (!Number.isFinite(delta) || delta <= 0) return
 
   const session = querySession(sessionId)
   if (!session) return
 
   session.tokenUsed += Math.round(delta)
+  // 最近一次 prompt 才是「当前上下文占用」，与累计 tokenUsed 分离
+  if (
+    contextTokens != null &&
+    Number.isFinite(contextTokens) &&
+    contextTokens > 0
+  ) {
+    session.contextTokens = Math.round(contextTokens)
+  }
   session.updatedAt = Date.now()
   postSession(session)
 
@@ -105,6 +171,7 @@ export function postSessionTokenDelta(sessionId: string, delta: number): void {
     type: 'token_update',
     sessionId,
     tokenUsed: session.tokenUsed,
+    contextTokens: session.contextTokens ?? 0,
     delta: Math.round(delta)
   })
 }
@@ -116,7 +183,8 @@ export function createSessionTokenUsageHandler(sessionId: string): BaseCallbackH
   return BaseCallbackHandler.fromMethods({
     handleLLMEnd(output: LLMResult) {
       const delta = queryTokensFromLlmResult(output)
-      postSessionTokenDelta(sessionId, delta)
+      const contextTokens = queryPromptTokensFromLlmResult(output)
+      postSessionTokenDelta(sessionId, delta, contextTokens)
     }
   })
 }

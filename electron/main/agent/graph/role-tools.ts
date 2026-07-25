@@ -31,6 +31,9 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'remotion_init_project',
     'remotion_enable_sfx',
     'remotion_studio',
+    'query_remotion_templates',
+    'remotion_apply_template',
+    'remotion_update_input_props',
     'list_attachments'
   ],
   publisher: [
@@ -60,6 +63,9 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'remotion_init_project',
     'remotion_enable_sfx',
     'remotion_studio',
+    'query_remotion_templates',
+    'remotion_apply_template',
+    'remotion_update_input_props',
     'update_task_list'
   ],
   videographer: [
@@ -73,6 +79,10 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'remotion_enable_sfx',
     'remotion_studio',
     'remotion_render',
+    'query_remotion_templates',
+    'remotion_apply_template',
+    'remotion_update_input_props',
+    'remotion_save_template',
     'update_task_list',
     'list_attachments'
   ],
@@ -83,6 +93,10 @@ const ROLE_WHITELIST: Record<Exclude<AgentRoleName, 'supervisor'>, string[] | nu
     'remotion_enable_sfx',
     'remotion_studio',
     'remotion_render',
+    'query_remotion_templates',
+    'remotion_apply_template',
+    'remotion_update_input_props',
+    'remotion_save_template',
     'notify_message',
     'read_file',
     'write_file',

@@ -10,6 +10,7 @@ export function createEmptySession(id: string, type: SessionType = 'chat'): Sess
     tasks: [],
     type,
     tokenUsed: 0,
+    contextTokens: 0,
     createdAt: now,
     updatedAt: now
   }

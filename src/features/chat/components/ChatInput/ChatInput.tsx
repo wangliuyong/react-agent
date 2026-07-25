@@ -1,6 +1,9 @@
 import {
   MODEL_OPTIONS,
+  queryFormatContextUsageLabel,
+  queryFormatContextWindow,
   queryModelCategory,
+  queryModelContextWindow,
   queryModelLabel,
   queryModelOptionDisplayLabel,
   type ModelOption,
@@ -37,7 +40,8 @@ interface ChatInputProps {
   awaitUserReason?: string | null
   /** 挂起确认时的可选方案 */
   awaitUserChoices?: UserChoiceOption[] | null
-  tokenUsed?: number
+  /** 当前上下文占用（最近一次 prompt tokens），非会话累计消耗 */
+  contextTokens?: number
   onSend: (text: string, paths: string[]) => void
   onAbort: () => void
   onContinue: (userInput?: string, choiceId?: string) => void
@@ -83,7 +87,7 @@ export function ChatInput({
   skillNameById,
   awaitUserReason,
   awaitUserChoices = null,
-  tokenUsed = 0,
+  contextTokens = 0,
   onSend,
   onAbort,
   onContinue
@@ -108,10 +112,13 @@ export function ChatInput({
     customProviders: settings.customProviders
   })
 
-  /** 参考样式：以 120k 为展示上限 */
-  const tokenDisplayMax = 200_000
-  const tokenDisplayUsed = Math.round(tokenUsed / 1000)
-  const tokenDisplayMaxK = Math.round(tokenDisplayMax / 1000)
+  /**
+   * 当前占用 = 最近一次 prompt tokens；上限 = 模型上下文窗口。
+   * 为什么：tokenUsed 是会话累计消耗，会远超单次窗口但仍可继续对话。
+   */
+  const tokenDisplayMax = queryModelContextWindow(settings.model) ?? 200_000
+  const tokenDisplayMaxLabel = queryFormatContextWindow(tokenDisplayMax) ?? '200k'
+  const tokenDisplayLabel = queryFormatContextUsageLabel(contextTokens, tokenDisplayMax)
 
   const statusLabel = useMemo(
     () =>
@@ -352,9 +359,13 @@ export function ChatInput({
             <Space size={10}>
               <div className={styles.token} data-running={running}>
                 {running ? <LoadingOutlined className={styles.tokenSpin} spin /> : null}
-                <Text type="secondary" className={styles.tokenText}>
-                  {running ? '处理中' : `${tokenDisplayUsed}k/${tokenDisplayMaxK}k`}
-                </Text>
+                <Tooltip
+                  title={`当前上下文占用 / 模型上限 ${tokenDisplayMaxLabel}（非累计消耗）`}
+                >
+                  <Text type="secondary" className={styles.tokenText}>
+                    {running ? '处理中' : tokenDisplayLabel}
+                  </Text>
+                </Tooltip>
               </div>
               {running && !awaitingUser ? (
                 <Button
