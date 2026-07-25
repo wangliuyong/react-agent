@@ -10,7 +10,10 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { queryBundledResourcesRoot } from '../store/resources'
 import { getVideosDir } from '../store/paths'
-import { queryRemotionSfxWebpackOverride } from './remotion-sfx'
+import {
+  postEnsureRemotionWebpackConfig,
+  queryComposeRemotionWebpackOverride
+} from './remotion-webpack'
 
 const requireFromMain = createRequire(__filename)
 
@@ -132,6 +135,9 @@ export function postInitRemotionProject(
     hasSchema: existsSync(join(projectDir, 'src', 'activeSchema.ts')),
     defaultProps: queryRemotionInputPropsFromDisk(projectDir)
   })
+
+  // 会话工程无 node_modules：注入 Webpack 对应用内 zod 等依赖的解析
+  postEnsureRemotionWebpackConfig(projectDir)
 
   return {
     projectDir,
@@ -386,10 +392,13 @@ export async function postStartRemotionStudio(
   // 首次启动前应用 Studio 中文界面补丁（幂等）
   postEnsureRemotionStudioZh()
 
+  // 确保 Webpack 能解析应用内 zod 等依赖（旧会话工程可能仍缺此配置）
+  const webpackConfigUpdated = postEnsureRemotionWebpackConfig(input.projectDir)
+
   const existing = studioBySession.get(input.sessionId)
-  // 进程仍存活则复用；工程目录变更时关掉旧实例再启新的
+  // 进程仍存活则复用；工程目录变更或 webpack 配置更新时关掉旧实例再启新的
   if (existing && queryIsChildAlive(existing.process)) {
-    if (existing.projectDir === input.projectDir) {
+    if (existing.projectDir === input.projectDir && !webpackConfigUpdated) {
       if (input.openBrowser !== false) {
         try {
           await shell.openExternal(existing.url)
@@ -665,16 +674,19 @@ export async function postRenderRemotionVideo(
 
       report({ phase: 'bundle', percent: 10, message: '打包 Composition…' })
       console.log('[remotion] 打包 Composition…')
+      // 保证 remotion.config.ts 含 zod 等应用依赖解析（与 Studio 一致）
+      postEnsureRemotionWebpackConfig(input.projectDir)
       const { bundle } = await import('@remotion/bundler')
       const { renderMedia, selectComposition } = await import('@remotion/renderer')
 
       let bundleLocation: string
       try {
-        const sfxWebpackOverride = queryRemotionSfxWebpackOverride(input.projectDir)
+        // 应用内 zod 等依赖 + 可选 @remotion/sfx（会话工程无独立 node_modules）
+        const webpackOverride = queryComposeRemotionWebpackOverride(input.projectDir)
         bundleLocation = await bundle({
           entryPoint,
           rootDir: input.projectDir,
-          ...(sfxWebpackOverride ? { webpackOverride: sfxWebpackOverride } : {}),
+          webpackOverride,
           onProgress: ({ progress }) => {
             if (renderSignal.aborted) {
               throw new Error('渲染已取消')

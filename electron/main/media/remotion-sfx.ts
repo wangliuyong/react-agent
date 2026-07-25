@@ -7,6 +7,7 @@ import { join } from 'path'
 import { createRequire } from 'module'
 import type { WebpackOverrideFn } from '@remotion/bundler'
 import { queryRemotionProjectDir } from './remotion-service'
+import { postEnsureRemotionWebpackConfig } from './remotion-webpack'
 
 const requireFromMain = createRequire(__filename)
 
@@ -36,7 +37,7 @@ export function queryIsRemotionSfxEnabled(projectDir: string): boolean {
 /**
  * 为会话 Remotion 工程启用官方音效库：
  * - 写入标记文件供渲染 bundle 读取
- * - 更新 remotion.config.ts，使 Studio 预览也能 resolve `@remotion/sfx`
+ * - 更新 remotion.config.ts（含应用依赖 zod + sfx alias），使 Studio 预览也能 resolve
  */
 export function postEnableRemotionSfx(sessionId: string): RemotionSfxEnableResult {
   const projectDir = queryRemotionProjectDir(sessionId)
@@ -50,7 +51,8 @@ export function postEnableRemotionSfx(sessionId: string): RemotionSfxEnableResul
   const alreadyEnabled = queryIsRemotionSfxEnabled(projectDir)
 
   writeFileSync(markerPath, sfxModulePath, 'utf-8')
-  postPatchRemotionConfigForSfx(projectDir, sfxModulePath)
+  // 统一写入：应用依赖（zod）+ sfx alias
+  postEnsureRemotionWebpackConfig(projectDir)
 
   return { projectDir, alreadyEnabled, sfxModulePath }
 }
@@ -75,31 +77,4 @@ export function queryRemotionSfxWebpackOverride(projectDir: string): WebpackOver
       }
     }
   })
-}
-
-/** 覆盖 remotion.config.ts：保留默认渲染选项并注入音效 alias */
-function postPatchRemotionConfigForSfx(projectDir: string, sfxEsmPath: string): void {
-  const configPath = join(projectDir, 'remotion.config.ts')
-  const escapedPath = sfxEsmPath.replace(/\\/g, '/')
-
-  const source = `import { Config } from '@remotion/cli/config'
-
-/** 渲染输出覆盖同名文件，避免 Agent 重复渲染失败 */
-Config.setOverwriteOutput(true)
-Config.setVideoImageFormat('jpeg')
-
-// ${REMOTION_SFX_CONFIG_MARKER} — 按需启用 @remotion/sfx（灵犀应用内官方音效库）
-Config.overrideWebpackConfig((currentConfig) => ({
-  ...currentConfig,
-  resolve: {
-    ...currentConfig.resolve,
-    alias: {
-      ...(currentConfig.resolve?.alias ?? {}),
-      '@remotion/sfx': '${escapedPath}',
-    },
-  },
-}))
-`
-
-  writeFileSync(configPath, source, 'utf-8')
 }

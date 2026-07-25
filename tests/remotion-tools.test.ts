@@ -21,6 +21,10 @@ const remotionSfxSource = readFileSync(
   new URL('../electron/main/media/remotion-sfx.ts', import.meta.url),
   'utf8'
 )
+const remotionWebpackSource = readFileSync(
+  new URL('../electron/main/media/remotion-webpack.ts', import.meta.url),
+  'utf8'
+)
 const starterSfxLib = readFileSync(
   new URL('../resources/remotion/starter/src/lib/remotion-sfx.ts', import.meta.url),
   'utf8'
@@ -68,6 +72,13 @@ describe('Remotion 内置工具', () => {
     expect(remotionSfxSource).toContain('@remotion/sfx/dist/esm/index.mjs')
     expect(starterSfxLib).toContain('REMOTION_SFX')
     expect(starterSfxLib).toContain('remotion.media/whoosh.wav')
+    // 会话工程无 node_modules：schema 依赖的 zod 必须经 Webpack alias / resolve.modules 解析
+    expect(remotionWebpackSource).toContain("queryRemotionZodModulePath")
+    expect(remotionWebpackSource).toContain("REMOTION_APP_DEPS_CONFIG_MARKER")
+    expect(remotionWebpackSource).toContain("postEnsureRemotionWebpackConfig")
+    expect(remotionServiceSource).toContain('postEnsureRemotionWebpackConfig')
+    expect(remotionServiceSource).toContain('queryComposeRemotionWebpackOverride')
+    expect(remotionSfxSource).toContain('postEnsureRemotionWebpackConfig')
   })
 
   it('提供 Remotion Studio 中文界面补丁脚本与词典', () => {
