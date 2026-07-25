@@ -10,9 +10,7 @@ import {
 import { useSettingsStore } from '@/features/settings'
 import { useProviderModels } from '@/features/settings/hooks/useProviderModels'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
-import { queryShouldShowToolProgress, queryToolProgressTitle } from '../../utils/queryToolProgressDisplay'
 import { TypingIndicator } from '../TypingIndicator'
-import { ToolProgressBar } from '../ToolProgressBar/ToolProgressBar'
 import { postSelectImages } from '../../api'
 import styles from './ChatInput.module.css'
 
@@ -114,8 +112,6 @@ export function ChatInput({
   const tokenDisplayMax = 200_000
   const tokenDisplayUsed = Math.round(tokenUsed / 1000)
   const tokenDisplayMaxK = Math.round(tokenDisplayMax / 1000)
-
-  const showToolProgress = queryShouldShowToolProgress(activeToolName, activeToolProgress)
 
   const statusLabel = useMemo(
     () =>
@@ -237,20 +233,11 @@ export function ChatInput({
           </div>
         ) : null}
 
-        {running && !awaitUserReason ? (
-          showToolProgress && activeToolProgress && activeToolName ? (
-            <div className={styles.statusBar}>
-              <ToolProgressBar
-                compact
-                label={queryToolProgressTitle(activeToolName)}
-                progress={activeToolProgress}
-              />
-            </div>
-          ) : statusLabel ? (
-            <div className={styles.statusBar}>
-              <TypingIndicator label={statusLabel} compact />
-            </div>
-          ) : null
+        {/* 长耗时进度条只在消息区展示，输入区仅保留文字状态，避免双进度条 */}
+        {running && !awaitUserReason && statusLabel ? (
+          <div className={styles.statusBar}>
+            <TypingIndicator label={statusLabel} compact />
+          </div>
         ) : null}
 
         {paths.length > 0 ? (
