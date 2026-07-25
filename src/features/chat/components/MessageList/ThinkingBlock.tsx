@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { LazyChatMarkdown } from '../LazyChatMarkdown'
 import { TypingIndicator } from '../TypingIndicator'
 import styles from './MessageList.module.css'
@@ -11,8 +12,10 @@ interface ThinkingBlockProps {
   inProgress?: boolean
 }
 
+const THINKING_PANEL_KEY = 'thinking'
+
 /**
- * 思考过程：默认折叠，避免挤占主阅读流；与工具组折叠交互一致。
+ * 思考过程折叠面板：思考中自动展开，完成后自动折叠；用户仍可手动切换。
  */
 export function ThinkingBlock({
   content,
@@ -23,13 +26,26 @@ export function ThinkingBlock({
   const headerLabel =
     inProgress && !hasBody ? '正在思考…' : inProgress ? '思考中…' : '已完成思考'
 
+  /** 与 inProgress 同步的展开态；用户手动切换后，下次状态变化会再次对齐 */
+  const [activeKeys, setActiveKeys] = useState<string[]>(
+    inProgress ? [THINKING_PANEL_KEY] : []
+  )
+
+  useEffect(() => {
+    setActiveKeys(inProgress ? [THINKING_PANEL_KEY] : [])
+  }, [inProgress])
+
   return (
     <Collapse
       size="small"
       className={styles.thinkingCollapse}
+      activeKey={activeKeys}
+      onChange={(keys) => {
+        setActiveKeys(Array.isArray(keys) ? keys : keys ? [keys] : [])
+      }}
       items={[
         {
-          key: 'thinking',
+          key: THINKING_PANEL_KEY,
           label: <span className={styles.thinkingCollapseLabel}>{headerLabel}</span>,
           children: hasBody ? (
             <LazyChatMarkdown
