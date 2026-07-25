@@ -1,0 +1,12 @@
+{
+  "id": "brand-intro",
+  "name": "黑金品牌片头",
+  "description": "竖版 9:16 高端黑金片头，适合品牌开场与短视频封面动效",
+  "origin": "bundled",
+  "tags": ["intro", "brand", "9:16", "premium"],
+  "compositionId": "Main",
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "durationInFrames": 150
+}

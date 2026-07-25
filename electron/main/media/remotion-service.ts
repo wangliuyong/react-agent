@@ -119,13 +119,15 @@ export function postInitRemotionProject(
     created = true
   }
 
-  // 每次初始化可更新 Root.tsx 中的画幅/时长（竖版 9:16 等需显式传入 width/height）
-  postPatchRootComposition(projectDir, {
+  // 写入 Root.generated.tsx（画幅/时长/defaultProps），避免正则改 Root.tsx
+  postWriteRootGenerated(projectDir, {
     compositionId,
     width,
     height,
     fps,
-    durationInFrames
+    durationInFrames,
+    hasSchema: existsSync(join(projectDir, 'src', 'activeSchema.ts')),
+    defaultProps: queryRemotionInputPropsFromDisk(projectDir)
   })
 
   return {
@@ -136,23 +138,105 @@ export function postInitRemotionProject(
   }
 }
 
-/** 更新 Root.tsx 中默认 Composition 的元数据 */
-function postPatchRootComposition(
+export interface RemotionRootGeneratedConfig {
+  compositionId: string
+  width: number
+  height: number
+  fps: number
+  durationInFrames: number
+  /** 是否注册 schema（Studio Props 面板） */
+  hasSchema?: boolean
+  /** 写入 Composition defaultProps */
+  defaultProps?: Record<string, unknown>
+}
+
+/** 读取会话 .remotion-input-props.json（无 electron 循环依赖，本地轻量实现） */
+function queryRemotionInputPropsFromDisk(projectDir: string): Record<string, unknown> {
+  const path = join(projectDir, '.remotion-input-props.json')
+  if (!existsSync(path)) return {}
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf-8')) as unknown
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      return raw as Record<string, unknown>
+    }
+  } catch {
+    // ignore
+  }
+  return {}
+}
+
+/**
+ * 生成 src/Root.generated.tsx，由 Root.tsx 引用。
+ * 替代旧的正则 patch，避免破坏注释与多 Composition 块。
+ */
+export function postWriteRootGenerated(
   projectDir: string,
-  config: Required<Pick<RemotionInitConfig, 'compositionId' | 'width' | 'height' | 'fps' | 'durationInFrames'>>
+  config: RemotionRootGeneratedConfig
 ): void {
-  const rootPath = join(projectDir, 'src', 'Root.tsx')
-  if (!existsSync(rootPath)) return
+  const srcDir = join(projectDir, 'src')
+  if (!existsSync(srcDir)) return
 
-  let rootSource = readFileSync(rootPath, 'utf-8')
-  rootSource = rootSource
-    .replace(/id="[^"]*"/, `id="${config.compositionId}"`)
-    .replace(/durationInFrames=\{?\d+\}?/, `durationInFrames={${config.durationInFrames}}`)
-    .replace(/fps=\{?\d+\}?/, `fps={${config.fps}}`)
-    .replace(/width=\{?\d+\}?/, `width={${config.width}}`)
-    .replace(/height=\{?\d+\}?/, `height={${config.height}}`)
+  const hasSchema = Boolean(config.hasSchema)
+  const defaultProps = config.defaultProps ?? {}
+  const propsLiteral = JSON.stringify(defaultProps, null, 2)
 
-  writeFileSync(rootPath, rootSource, 'utf-8')
+  const source = `/**
+ * 由灵犀自动生成：画幅 / 时长 / defaultProps。
+ * 请勿手改；调用 remotion_init_project / remotion_apply_template 时会覆盖。
+ */
+import React from 'react'
+import { Composition } from 'remotion'
+import { ActiveTemplate } from './ActiveTemplate'
+${hasSchema ? "import { activeTemplateSchema } from './activeSchema'\n" : ''}
+
+export const GENERATED_COMPOSITION = {
+  id: ${JSON.stringify(config.compositionId)},
+  width: ${config.width},
+  height: ${config.height},
+  fps: ${config.fps},
+  durationInFrames: ${config.durationInFrames}
+} as const
+
+export const GENERATED_DEFAULT_PROPS = ${propsLiteral} as const
+
+/** 注册到 RemotionRoot 的主 Composition */
+export const GeneratedMainComposition: React.FC = () => (
+  <Composition
+    id={GENERATED_COMPOSITION.id}
+    component={ActiveTemplate}
+    durationInFrames={GENERATED_COMPOSITION.durationInFrames}
+    fps={GENERATED_COMPOSITION.fps}
+    width={GENERATED_COMPOSITION.width}
+    height={GENERATED_COMPOSITION.height}
+    defaultProps={GENERATED_DEFAULT_PROPS as Record<string, unknown>}
+${hasSchema ? '    schema={activeTemplateSchema}\n' : ''}  />
+)
+`
+
+  writeFileSync(join(srcDir, 'Root.generated.tsx'), source, 'utf-8')
+
+  // 确保 Root.tsx 使用 GeneratedMainComposition（首次 init 从 starter 复制已包含）
+  const rootPath = join(srcDir, 'Root.tsx')
+  if (existsSync(rootPath)) {
+    let rootSource = readFileSync(rootPath, 'utf-8')
+    if (!rootSource.includes('GeneratedMainComposition')) {
+      rootSource = `import { GeneratedMainComposition } from './Root.generated'
+
+/**
+ * Remotion 根入口：主 Composition 由 Root.generated.tsx 注册。
+ * 可在此追加额外 Composition（竖版/方形等）。
+ */
+export const RemotionRoot: React.FC = () => {
+  return (
+    <>
+      <GeneratedMainComposition />
+    </>
+  )
+}
+`
+      writeFileSync(rootPath, rootSource, 'utf-8')
+    }
+  }
 }
 
 export interface RemotionRenderInput {
@@ -170,6 +254,8 @@ export interface RemotionRenderInput {
   crf?: number
   /** 并发渲染线程数，覆盖 quality 预设 */
   concurrency?: number
+  /** 传给 Composition 的 props；缺省读 .remotion-input-props.json */
+  inputProps?: Record<string, unknown>
 }
 
 /**
@@ -571,12 +657,16 @@ export async function postRenderRemotionVideo(
       report({ phase: 'render', percent: 30, message: '开始渲染视频…' })
       console.log('[remotion] 选择 Composition 并渲染…')
 
+      // 优先显式 inputProps，否则读会话工程 props 文件
+      const inputProps: Record<string, unknown> =
+        input.inputProps ?? queryRemotionInputPropsFromDisk(input.projectDir)
+
       let composition: Awaited<ReturnType<typeof selectComposition>>
       try {
         composition = await selectComposition({
           serveUrl: bundleLocation,
           id: input.compositionId,
-          inputProps: {}
+          inputProps
         })
       } catch (compErr) {
         const msg = compErr instanceof Error ? compErr.message : String(compErr)
@@ -585,7 +675,7 @@ export async function postRenderRemotionVideo(
           errorType: 'composition',
           message:
             `找不到 Composition「${input.compositionId}」：${msg}\n` +
-            '请确认 Root.tsx 中 <Composition id="..."> 与渲染参数 compositionId 拼写完全一致。'
+            '请确认 Root.tsx / Root.generated.tsx 中 Composition id 与渲染参数 compositionId 拼写完全一致。'
         }
       }
 
@@ -597,6 +687,7 @@ export async function postRenderRemotionVideo(
           crf,
           concurrency,
           outputLocation: input.outputPath,
+          inputProps,
           onProgress: ({ progress }) => {
             if (renderSignal.aborted) {
               throw new Error('渲染已取消')
