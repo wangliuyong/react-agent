@@ -477,7 +477,10 @@ function TaskCard({
       ) : null}
       <div className={styles.taskCardHeader}>
         <div className={styles.taskCardTitleRow}>
-          <span className={styles.taskCardTitle}>{task.title || '未命名任务'}</span>
+          <Tooltip title={task.title}>
+            <span className={styles.taskCardTitle}>{task.title || '未命名任务'}</span>
+          </Tooltip>
+
 
         </div>
         <div className={styles.footerActions}>
