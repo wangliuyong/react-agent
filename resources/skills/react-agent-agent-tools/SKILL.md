@@ -14,6 +14,9 @@ description: >-
 |------|------|
 | `electron/main/agent/tools/index.ts` | **工具注册表**，新增工具只在此 append |
 | `electron/main/agent/tools/types.ts` | `AgentTool`、`ToolContext`、`ToolPermission` |
+| `electron/main/agent/tools/management-tools.ts` | 定时任务 / 发布计划 / 规则的 query* + post* |
+| `electron/main/store/resource-writes.ts` | 写盘 + 镜像同步 + 列表广播（IPC 与工具共用） |
+| `electron/main/store/resource-notify.ts` | `event:schedule-update` / `publish-plans-update` / `agent-rules-update` |
 | `electron/main/agent/tools/langchain-adapter.ts` | `AgentTool` → LangChain `tool()` + `interrupt` 权限门 |
 | `electron/main/agent/graph-bridge.ts` | **聊天/步骤唯一入口**：stream → `AgentEvent`、abort / continue |
 | `electron/main/agent/llm-langchain.ts` | ChatOpenAI 工厂（DashScope） |
@@ -79,6 +82,18 @@ export const myTool: AgentTool = {
 ## 角色工具白名单
 
 修改 `graph/role-tools.ts` 时，调研员默认含 `fetch_hot_topics`（多平台 source 见工具 parameters.enum）。
+
+## 本地配置管理工具
+
+`management-tools.ts` 提供聊天创建本地实体的能力（仅 `general` 全量注册，不进其它角色白名单）：
+
+| 工具 | 说明 |
+|------|------|
+| `query_scheduled_tasks` / `post_scheduled_task` | 定时任务；新建默认 `enabled=false` |
+| `query_publish_plans` / `post_publish_plan` | 发布计划；`post` 必须 `postPublishPlanAndSync` |
+| `query_agent_rules` / `post_agent_rule` | 用户规则；下轮对话起注入 |
+
+写路径必须走 `resource-writes.ts`，禁止只调 store `post*` 而漏同步 / 漏广播。
 
 ## 验证
 
