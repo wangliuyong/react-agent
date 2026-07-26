@@ -37,6 +37,7 @@ export function ChatPage(): React.ReactElement {
   const continueRun = useSessionStore((s) => s.continueRun)
   const resumeRun = useSessionStore((s) => s.resumeRun)
   const canResume = useSessionStore((s) => s.canResume)
+  const reconcileActiveExecutionState = useSessionStore((s) => s.reconcileActiveExecutionState)
   const createSession = useSessionStore((s) => s.createSession)
   const settings = useSettingsStore((s) => s.settings)
   const settingsLoaded = useSettingsStore((s) => s.loaded)
@@ -77,6 +78,21 @@ export function ChatPage(): React.ReactElement {
   const messages = session?.messages ?? []
   const tasks = session?.tasks ?? []
   const isEmpty = messages.length === 0 && !streamingText && !running
+
+  /**
+   * 极短流程可能在 beginExternalRun 之前已结束，遗留 running=true。
+   * 根据会话落盘内容纠偏，避免一直显示「正在思考 / 处理中」。
+   */
+  useEffect(() => {
+    reconcileActiveExecutionState()
+  }, [
+    session?.id,
+    session?.updatedAt,
+    running,
+    session?.tasks,
+    messages.length,
+    reconcileActiveExecutionState
+  ])
 
   /** 消息区滚动容器：在 body 层统一滚动，便于与顶栏/输入区解耦 */
   const bodyRef = useRef<HTMLDivElement>(null)

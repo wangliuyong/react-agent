@@ -32,6 +32,7 @@ import { postChatExecutionCommand } from '../utils/postChatExecutionCommand'
 import { queryToolArgsRecord } from '../utils/agent-status'
 import { queryAreAllTasksSettled } from '../utils/queryAreAllTasksSettled'
 import { queryShouldIgnoreAgentStreamForSession } from '../utils/queryShouldIgnoreAgentStreamForSession'
+import { queryShouldMarkExternalRunRunning } from '../utils/queryShouldMarkExternalRunRunning'
 import { useAppStore } from '@/stores/app-store'
 import { appMessage } from '@/lib/app-message'
 
@@ -88,13 +89,13 @@ function patchThinkingDelta(
   delta: string,
   activeId: string | null
 ): Partial<SessionState> {
-  const runningSessionIds = withRunningSession(state.runningSessionIds, sessionId)
-  if (sessionId !== activeId) {
-    return { runningSessionIds }
-  }
-
   const session = state.sessions.find((x) => x.id === sessionId)
   if (queryShouldIgnoreAgentStreamForSession(session)) {
+    return {}
+  }
+
+  const runningSessionIds = withRunningSession(state.runningSessionIds, sessionId)
+  if (sessionId !== activeId) {
     return { runningSessionIds }
   }
 
@@ -139,13 +140,13 @@ function patchTextDelta(
   delta: string,
   activeId: string | null
 ): Partial<SessionState> {
-  const runningSessionIds = withRunningSession(state.runningSessionIds, sessionId)
-  if (sessionId !== activeId) {
-    return { runningSessionIds }
-  }
-
   const session = state.sessions.find((x) => x.id === sessionId)
   if (queryShouldIgnoreAgentStreamForSession(session)) {
+    return {}
+  }
+
+  const runningSessionIds = withRunningSession(state.runningSessionIds, sessionId)
+  if (sessionId !== activeId) {
     return { runningSessionIds }
   }
 
@@ -262,6 +263,11 @@ interface SessionState {
    * 以便任务清单展示「中断」且不经过 sendMessage。
    */
   beginExternalRun: (sessionId: string) => void
+  /**
+   * 当前会话内容已表明流程结束，但 running 仍为 true 时强制复位。
+   * 用于修复「IPC 返回后 beginExternalRun」与极短流程 done 的竞态遗留态。
+   */
+  reconcileActiveExecutionState: () => void
   bindAgentEvents: () => () => void
   getActiveSession: () => Session | null
 }
@@ -725,29 +731,69 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   beginExternalRun: (sessionId) => {
-    set((state) => ({
-      activeSessionId: sessionId,
-      runningSessionIds: withRunningSession(state.runningSessionIds, sessionId),
-      running: true,
-      // 保留该会话已挂起的确认原因，避免清掉即将展示的确认条
-      ...syncActiveAwaitState(
-        sessionId,
-        state.sessions.find((s) => s.id === sessionId),
-        state.pendingAwaitReasons,
-        state.pendingAwaitChoices,
-        true
-      ),
-      canResume: false,
-      streamingText: '',
-      thinkingText: '',
-      thinkingInProgress: false,
-      pendingStreamingText: '',
-      pendingToolName: null,
-      pendingToolArgs: null,
-      activeToolName: null,
-      activeToolArgs: null,
-      activeToolProgress: null
-    }))
+    set((state) => {
+      const session = state.sessions.find((s) => s.id === sessionId)
+      /**
+       * 极短流程（如仅开始→结束）可能在 runWorkflow IPC 返回前已 emit done 并落盘。
+       * hydrate 之后若仍无条件把 running 设回 true，UI 会永久停在「处理中 / 正在思考」。
+       */
+      const markRunning = queryShouldMarkExternalRunRunning(session)
+      if (!markRunning) {
+        return {
+          activeSessionId: sessionId,
+          runningSessionIds: withoutRunningSession(state.runningSessionIds, sessionId),
+          ...buildActiveSessionExecutionIdlePatch(),
+          ...syncActiveAwaitState(
+            sessionId,
+            session,
+            state.pendingAwaitReasons,
+            state.pendingAwaitChoices,
+            false
+          )
+        }
+      }
+
+      return {
+        activeSessionId: sessionId,
+        runningSessionIds: withRunningSession(state.runningSessionIds, sessionId),
+        running: true,
+        // 保留该会话已挂起的确认原因，避免清掉即将展示的确认条
+        ...syncActiveAwaitState(
+          sessionId,
+          session,
+          state.pendingAwaitReasons,
+          state.pendingAwaitChoices,
+          true
+        ),
+        canResume: false,
+        streamingText: '',
+        thinkingText: '',
+        thinkingInProgress: false,
+        pendingStreamingText: '',
+        pendingToolName: null,
+        pendingToolArgs: null,
+        activeToolName: null,
+        activeToolArgs: null,
+        activeToolProgress: null
+      }
+    })
+  },
+
+  /** 会话已结束但仍显示执行中时，强制复位（修复极短流程竞态遗留态） */
+  reconcileActiveExecutionState: () => {
+    set((state) => {
+      const session = state.sessions.find((s) => s.id === state.activeSessionId)
+      if (!state.running || !session || queryShouldMarkExternalRunRunning(session)) {
+        return state
+      }
+      return {
+        runningSessionIds: withoutRunningSession(
+          state.runningSessionIds,
+          session.id
+        ),
+        ...buildActiveSessionExecutionIdlePatch()
+      }
+    })
   },
 
   bindAgentEvents: () => {
