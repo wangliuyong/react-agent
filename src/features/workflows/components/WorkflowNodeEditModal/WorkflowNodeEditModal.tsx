@@ -673,8 +673,18 @@ export function WorkflowNodeEditModal({
     >
       <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
         {!isEditingCondition && (
-          <Form.Item name="type" label="类型" rules={[{ required: true }]}>
-            <Select options={typeOptions} />
+          <Form.Item
+            name="type"
+            label="类型"
+            rules={[{ required: true }]}
+            tooltip={
+              node
+                ? '类型在添加节点时选定，编辑时不可更改'
+                : undefined
+            }
+          >
+            {/* 已有节点禁止改类型，避免表单字段与执行逻辑错乱 */}
+            <Select options={typeOptions} disabled={Boolean(node)} />
           </Form.Item>
         )}
         {isEditingCondition && <Form.Item name="type" hidden><Input /></Form.Item>}
