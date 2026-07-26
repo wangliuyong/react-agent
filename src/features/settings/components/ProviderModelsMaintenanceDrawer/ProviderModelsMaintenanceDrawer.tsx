@@ -489,22 +489,6 @@ export function ProviderModelsMaintenanceDrawer({
         closeIcon={<CloseOutlined />}
         destroyOnHidden
         className={styles.drawer}
-        extra={
-          activeTab === 'manual' ? (
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              添加模型
-            </Button>
-          ) : activeTab === 'platform' ? (
-            <Button
-              icon={<ReloadOutlined />}
-              loading={platformLoading}
-              disabled={!canFetchPlatform}
-              onClick={() => setPlatformRefreshToken((n) => n + 1)}
-            >
-              刷新平台列表
-            </Button>
-          ) : null
-        }
       >
 
         <p className={styles.lead}>
@@ -523,8 +507,14 @@ export function ProviderModelsMaintenanceDrawer({
               children: (
                 <div className={styles.tabPane}>
                   <div className={styles.paneHint}>
-                    <EditOutlined />
-                    <span>手动维护编码、上下文、规模与类型；点「保存设置」写入本机。</span>
+                    <span>
+                      <EditOutlined />
+                      <span>手动维护编码、上下文、规模与类型；点「保存设置」写入本机。</span>
+                    </span>
+
+                    <Button type="primary" onClick={openCreate}>
+                      添加模型
+                    </Button>
                   </div>
                   <div className={styles.tableArea} ref={tableHostRef}>
                     {renderTable(
@@ -547,10 +537,13 @@ export function ProviderModelsMaintenanceDrawer({
               children: (
                 <div className={styles.tabPane}>
                   <div className={styles.paneHint}>
-                    <BookOutlined />
                     <span>
-                      应用内置静态列表，平台不可达时下拉会回退到此处。只读，可将条目登记到本机以补充元数据。
+                      <BookOutlined />
+                      <span>
+                        应用内置静态列表，平台不可达时下拉会回退到此处。只读，可将条目登记到本机以补充元数据。
+                      </span>
                     </span>
+
                   </div>
                   <div className={styles.tableArea} ref={tableHostRef}>
                     {renderTable(
@@ -573,12 +566,23 @@ export function ProviderModelsMaintenanceDrawer({
               children: (
                 <div className={styles.tabPane}>
                   <div className={styles.paneHint}>
-                    <CloudDownloadOutlined />
                     <span>
-                      {canFetchPlatform
-                        ? '来自供应商 OpenAI 兼容 /models；可刷新，可将未登记项一键写入本机。'
-                        : '请先在供应商卡片配置完整 API Key，再拉取平台列表。'}
+                      <CloudDownloadOutlined />
+                      <span>
+                        {canFetchPlatform
+                          ? '来自供应商 OpenAI 兼容 /models；可刷新，可将未登记项一键写入本机。'
+                          : '请先在供应商卡片配置完整 API Key，再拉取平台列表。'}
+                      </span>
                     </span>
+
+                    <Button
+                      icon={<ReloadOutlined />}
+                      loading={platformLoading}
+                      disabled={!canFetchPlatform}
+                      onClick={() => setPlatformRefreshToken((n) => n + 1)}
+                    >
+                      刷新平台列表
+                    </Button>
                   </div>
                   {platformError ? (
                     <div className={styles.errorBanner}>{platformError}</div>

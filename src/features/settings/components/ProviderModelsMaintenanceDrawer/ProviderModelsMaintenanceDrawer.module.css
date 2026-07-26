@@ -150,7 +150,8 @@
 
 .paneHint {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 10px 12px;
   border-radius: var(--db-radius-md);
