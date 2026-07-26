@@ -6,11 +6,13 @@ import {
 } from '../shared/types'
 import {
   LONG_CONTEXT_CHAR_THRESHOLD,
+  queryHasExplicitPublishIntent,
   queryInferModelCapability,
   queryInferSupervisorNext,
   queryParseSupervisorRoute,
   queryPipelineEntryRole,
-  queryResolveModelConnection
+  queryResolveModelConnection,
+  querySanitizeSupervisorNext
 } from '../electron/main/agent/model-router'
 
 function queryTestSettings(overrides?: Partial<AppSettings>): AppSettings {
@@ -109,15 +111,42 @@ describe('queryResolveModelConnection', () => {
 })
 
 describe('supervisor 路由辅助', () => {
-  it('关键词兜底 video / publish', () => {
+  it('关键词兜底 video / publish / content', () => {
     expect(queryInferSupervisorNext('', '生成视频成片')).toBe('video')
     expect(queryInferSupervisorNext('', '帮我发小红书')).toBe('publish')
+    expect(queryInferSupervisorNext('', '帮我发一条抖音图文并发布')).toBe('publish')
+    expect(queryInferSupervisorNext('', '选 1 个热点深入解析创作内容')).toBe('content')
+    expect(queryInferSupervisorNext('', '帮我写一篇小红书文案')).toBe('content')
     expect(queryInferSupervisorNext('', '你好')).toBe('general')
+  })
+
+  it('未明确要求发布时，sanitize 将 publish 降级为 content/general', () => {
+    expect(
+      querySanitizeSupervisorNext('publish', '选 1 个热点深入解析创作内容')
+    ).toBe('content')
+    expect(querySanitizeSupervisorNext('publish', '帮我发小红书')).toBe('publish')
+    expect(querySanitizeSupervisorNext('publish', '今天天气怎么样')).toBe('general')
+    expect(querySanitizeSupervisorNext('content', '选热点创作')).toBe('content')
+  })
+
+  it('发布意图识别：创作不等于发布', () => {
+    expect(queryHasExplicitPublishIntent('选 1 个热点深入解析创作内容')).toBe(false)
+    expect(queryHasExplicitPublishIntent('帮我写小红书文案，先不要发布')).toBe(false)
+    expect(queryHasExplicitPublishIntent('创作内容并发布到小红书')).toBe(true)
+    expect(queryHasExplicitPublishIntent('帮我发一条小红书')).toBe(true)
   })
 
   it('next 映射管线入口', () => {
     expect(queryPipelineEntryRole('general')).toBe('general')
+    expect(queryPipelineEntryRole('content')).toBe('researcher')
     expect(queryPipelineEntryRole('publish')).toBe('researcher')
     expect(queryPipelineEntryRole('video')).toBe('scriptwriter')
+  })
+
+  it('解析 content 路由', () => {
+    expect(queryParseSupervisorRoute('{"next":"content","capability":"creative"}')).toEqual({
+      next: 'content',
+      capability: 'creative'
+    })
   })
 })

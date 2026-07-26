@@ -19,6 +19,14 @@ export const AgentGraphAnnotation = Annotation.Root({
     default: () => 'general'
   }),
   /**
+   * 管线种类（supervisor 写入）。
+   * content = 调研→撰文后结束；publish = 调研→撰文→发布。
+   */
+  pipelineKind: Annotation<'general' | 'content' | 'publish' | 'video'>({
+    reducer: (_prev, next) => next,
+    default: () => 'general'
+  }),
+  /**
    * 当前任务模型能力；空字符串表示未显式指定（走 roleModelMap）。
    * Supervisor / 规则推断 / switch_model 写入。
    */

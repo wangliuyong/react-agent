@@ -92,11 +92,34 @@ export function queryResolveModelConnection(
 }
 
 /** Supervisor 路由目标 */
-export type SupervisorNextTarget = 'general' | 'publish' | 'video'
+export type SupervisorNextTarget = 'general' | 'content' | 'publish' | 'video'
 
 export interface SupervisorRoute {
   next: SupervisorNextTarget
   capability?: ModelCapability
+}
+
+/** 明确要求发布到渠道的表述（不含「创作/热点」等宽泛词） */
+const PUBLISH_INTENT_RE =
+  /发布到|发布一篇|发布一条|发布笔记|发布图文|发到|发一篇|发一条|发条|帮我发|发小红书|发抖音|上架|投稿|自动发布|创作并发布|写完.*发布|并发布|然后发布|再发布/
+
+/** 明确否定发布 */
+const PUBLISH_NEGATE_RE = /不要发布|先不发布|暂不发布|别发布|不要发|先不发/
+
+/** 内容生产（调研/撰稿）但不必然发布 */
+const CONTENT_PIPELINE_RE =
+  /热点|撰稿|配图|图文|创作|文案|写一篇|写文案|深入解析|小红书|抖音|选题|成稿/
+
+/**
+ * 用户是否明确要求发布。否定表述优先（如「不要发布」「先不发」）。
+ */
+export function queryHasExplicitPublishIntent(text: string): boolean {
+  const trimmed = text.trim()
+  if (!trimmed) return false
+  if (PUBLISH_NEGATE_RE.test(trimmed)) return false
+  if (PUBLISH_INTENT_RE.test(trimmed)) return true
+  // 单独出现「发布」动词（否定句已在上方拦截）
+  return /发布/.test(trimmed)
 }
 
 /**
@@ -110,7 +133,12 @@ export function queryParseSupervisorRoute(text: string): SupervisorRoute | null 
     const parsed = JSON.parse(jsonMatch[0]) as { next?: unknown; capability?: unknown }
     const nextRaw = typeof parsed.next === 'string' ? parsed.next.trim() : ''
     let next: SupervisorNextTarget | undefined
-    if (nextRaw === 'general' || nextRaw === 'publish' || nextRaw === 'video') {
+    if (
+      nextRaw === 'general' ||
+      nextRaw === 'content' ||
+      nextRaw === 'publish' ||
+      nextRaw === 'video'
+    ) {
       next = nextRaw
     }
     if (!next) return null
@@ -122,7 +150,8 @@ export function queryParseSupervisorRoute(text: string): SupervisorRoute | null 
 }
 
 /**
- * 关键词兜底路由（与历史 chat-graph 行为对齐）。
+ * 关键词兜底路由。
+ * 注意：热点/撰稿/小红书等只进 content，只有明确「发布/发一篇」才进 publish。
  */
 export function queryInferSupervisorNext(
   supervisorText: string,
@@ -132,9 +161,26 @@ export function queryInferSupervisorNext(
   if (/剧本|分镜|成片|生成视频|一句话.*视频|短剧|口播视频/.test(blob)) {
     return 'video'
   }
-  if (/发布|小红书|抖音|热点|撰稿|配图|图文/.test(blob)) {
+  // 发布意图以用户原文为准，避免 Supervisor 残片误伤
+  if (queryHasExplicitPublishIntent(userText)) {
     return 'publish'
   }
+  if (CONTENT_PIPELINE_RE.test(userText) || CONTENT_PIPELINE_RE.test(supervisorText)) {
+    return 'content'
+  }
+  return 'general'
+}
+
+/**
+ * 纠正 Supervisor 误路由：未明确要求发布时，不得进入 publisher 节点。
+ */
+export function querySanitizeSupervisorNext(
+  next: SupervisorNextTarget,
+  userText: string
+): SupervisorNextTarget {
+  if (next !== 'publish') return next
+  if (queryHasExplicitPublishIntent(userText)) return 'publish'
+  if (CONTENT_PIPELINE_RE.test(userText)) return 'content'
   return 'general'
 }
 
@@ -144,7 +190,7 @@ export function queryInferSupervisorNext(
 export function queryPipelineEntryRole(
   next: SupervisorNextTarget
 ): 'general' | 'researcher' | 'scriptwriter' {
-  if (next === 'publish') return 'researcher'
+  if (next === 'publish' || next === 'content') return 'researcher'
   if (next === 'video') return 'scriptwriter'
   return 'general'
 }

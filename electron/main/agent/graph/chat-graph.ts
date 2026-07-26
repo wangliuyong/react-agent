@@ -21,7 +21,9 @@ import {
   queryInferSupervisorNext,
   queryParseSupervisorRoute,
   queryPipelineEntryRole,
-  queryResolveModelConnection
+  queryResolveModelConnection,
+  querySanitizeSupervisorNext,
+  type SupervisorNextTarget
 } from '../model-router'
 
 /** 进程内唯一 checkpointer；thread_id = sessionId */
@@ -49,8 +51,9 @@ type PipelineRole = Exclude<AgentRoleName, 'supervisor'>
 
 /**
  * 构建聊天多智能体协作图：
- * START → supervisor → general | publish管线 | video管线 → END
+ * START → supervisor → general | content/publish管线 | video管线 → END
  *
+ * content: researcher → writer → END（只创作不发布）
  * publish: researcher → writer → publisher
  * video:   scriptwriter → videographer → editor
  */
@@ -129,7 +132,8 @@ export function buildChatGraph(params: BuildChatGraphParams) {
 
     const userText = lastUserText(state.messages)
     const parsed = queryParseSupervisorRoute(text)
-    const nextTarget = parsed?.next ?? queryInferSupervisorNext(text, userText)
+    const inferred = parsed?.next ?? queryInferSupervisorNext(text, userText)
+    const nextTarget: SupervisorNextTarget = querySanitizeSupervisorNext(inferred, userText)
     const nextAgent = queryPipelineEntryRole(nextTarget)
 
     // Supervisor capability 优先；缺失则规则推断
@@ -142,9 +146,10 @@ export function buildChatGraph(params: BuildChatGraphParams) {
 
     return {
       nextAgent,
+      pipelineKind: nextTarget,
       activeAgent: 'supervisor',
       activeCapability: capability,
-      messages: [new AIMessage({ content: `[路由] → ${nextAgent} · ${capability}` })]
+      messages: [new AIMessage({ content: `[路由] → ${nextAgent} · ${capability} · ${nextTarget}` })]
     }
   }
 
@@ -165,7 +170,11 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     })
     .addEdge('general', END)
     .addEdge('researcher', 'writer')
-    .addEdge('writer', 'publisher')
+    // 仅 publish 管线进入发布员；content 在撰稿后结束
+    .addConditionalEdges('writer', (state) => (state.pipelineKind === 'publish' ? 'publisher' : END), {
+      publisher: 'publisher',
+      [END]: END
+    })
     .addEdge('publisher', END)
     .addEdge('scriptwriter', 'videographer')
     .addEdge('videographer', 'editor')
