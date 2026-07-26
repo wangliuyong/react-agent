@@ -54,7 +54,7 @@ const TOOL_NAME_OPTIONS: { value: string; label: string }[] = [
   { value: 'query_ashare_kline', label: 'query_ashare_kline（A股K线）' },
   { value: 'query_ashare_realtime_analysis', label: 'query_ashare_realtime_analysis（实时K线+分析）' },
   { value: 'query_weather', label: 'query_weather（查询天气）' },
-  { value: 'query_web_data', label: 'query_web_data（获取网页数据）' },
+  { value: 'query_web_data', label: 'query_web_data（读取链接正文）' },
   { value: 'generate_script', label: 'generate_script（生成剧本）' },
   { value: 'generate_storyboard', label: 'generate_storyboard（生成分镜）' },
   { value: 'generate_scene_assets', label: 'generate_scene_assets（生成场景素材）' },

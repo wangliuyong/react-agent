@@ -41,7 +41,7 @@ const TOOL_LABELS: Record<string, string> = {
   query_ashare_kline: 'A股K线',
   query_ashare_realtime_analysis: 'A股实时分析',
   query_weather: '查询天气',
-  query_web_data: '获取网页数据',
+  query_web_data: '读取链接正文',
   generate_script: '生成剧本',
   generate_storyboard: '生成分镜',
   generate_scene_assets: '生成场景素材',

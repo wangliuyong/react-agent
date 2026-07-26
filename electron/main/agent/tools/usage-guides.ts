@@ -129,6 +129,39 @@ const USAGE_GUIDE_OVERRIDES: Record<string, string> = {
 
 成稿、配图齐全，且用户确认要发布到**抖音图文**时调用。登录与结果判定同小红书发布工具。`,
 
+  query_web_data: `## 何时使用
+
+用户粘贴了网页链接（掘金、知乎、公众号、CSDN、博客、GitHub 等），需要**阅读 / 总结 / 基于原文创作**时，先调用本工具拉取标题与正文，再作答。不要凭 URL 臆造内容。
+
+## 如何调用
+
+\`\`\`json
+{ "url": "https://juejin.cn/post/xxxxxxxxxxxx" }
+\`\`\`
+
+强前端 / SPA 站点（正文 HTTP 抓不到）可加：
+
+\`\`\`json
+{ "url": "https://zhuanlan.zhihu.com/p/xxxxxxxxxxxx", "preferBrowser": true }
+\`\`\`
+
+## 参数说明
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| \`url\` | 是 | http/https 链接 |
+| \`preferBrowser\` | 否 | \`true\` 时跳过 HTTP，直接无头浏览器 |
+| \`maxLength\` | 否 | 正文最大字符数（默认约 20000） |
+
+## 返回内容
+
+含标题、URL、可选作者/摘要与正文；并写入工作流上下文 \`webDataOk\` / \`webData\` / \`webDataUrl\` / \`webDataTitle\`。
+
+## 注意
+
+- 需登录才能看的页面可能失败，应如实告知用户。
+- 热点榜单用 \`fetch_hot_topics\`；只要配图用 \`fetch_web_images\`。`,
+
   query_weather: `## 如何调用
 
 Agent 以 **tool_calls** 调用本工具，参数为 JSON 对象（见下表）。用户指定城市时**必须**传 \`city\`，不要只靠 IP 定位。
