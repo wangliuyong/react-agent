@@ -5,7 +5,8 @@ import {
   type AppSettings,
   type CustomModelProvider,
   type ModelConnection,
-  type ModelProvider
+  type ModelProvider,
+  type ProviderModelCatalog
 } from '@shared/types'
 
 /** 单个供应商下与密钥/地址相关的表单草稿 */
@@ -39,7 +40,8 @@ export function querySettingsFormValues(settings: AppSettings): AppSettings {
     thinkingEnabled: settings.thinkingEnabled,
     maxTurns: settings.maxTurns,
     launchAtLogin: settings.launchAtLogin,
-    customProviders: settings.customProviders ?? []
+    customProviders: settings.customProviders ?? [],
+    providerModelCatalog: settings.providerModelCatalog ?? {}
   }
 }
 
@@ -135,6 +137,7 @@ export function queryModelApiSavePatch(params: {
   fullAccess: boolean
   thinkingEnabled: boolean
   customProviders: CustomModelProvider[]
+  providerModelCatalog: ProviderModelCatalog
 }): Partial<AppSettings> {
   const {
     activeProvider,
@@ -156,6 +159,7 @@ export function queryModelApiSavePatch(params: {
     fullAccess,
     thinkingEnabled,
     customProviders,
+    providerModelCatalog: params.providerModelCatalog,
     connections: queryApplyProviderDraftsToConnections(
       settings.connections ?? [],
       drafts,

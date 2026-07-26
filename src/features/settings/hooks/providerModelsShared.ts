@@ -1,4 +1,10 @@
-import { queryProviderOption, type AppSettings, type ModelOption, type ModelProvider } from '@shared/types'
+import {
+  queryProviderOption,
+  type AppSettings,
+  type ModelOption,
+  type ModelProvider,
+  type ProviderModelsFetchResult
+} from '@shared/types'
 
 /** API Key 过短时不请求平台，避免输入过程中误报 401 */
 export const MIN_PROVIDER_API_KEY_LENGTH = 8
@@ -44,7 +50,7 @@ export async function queryProviderModelsFromApi(
   creds: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'> & {
     customProviders?: AppSettings['customProviders']
   }
-): Promise<ModelOption[]> {
+): Promise<ProviderModelsFetchResult> {
   return window.api.queryProviderModels(queryProviderModelsRequest(creds))
 }
 

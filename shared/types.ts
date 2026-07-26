@@ -209,6 +209,11 @@ export interface AppSettings {
   launchAtLogin: boolean
   /** 用户自定义模型供应商列表 */
   customProviders: CustomModelProvider[]
+  /**
+   * 按供应商手动维护的模型目录（编码、上下文、规模、类型等）。
+   * 与平台 /models 拉取结果合并后用于设置页与连接下拉。
+   */
+  providerModelCatalog: ProviderModelCatalog
 }
 
 export const DEFAULT_CONNECTION_ID = 'conn-default'
@@ -514,7 +519,160 @@ export const DEFAULT_SETTINGS: AppSettings = {
   thinkingEnabled: false,
   maxTurns: 40,
   launchAtLogin: false,
-  customProviders: []
+  customProviders: [],
+  providerModelCatalog: {}
+}
+
+/**
+ * 用户在设置页为某供应商手动登记的一条模型元数据。
+ * modelId 与 OpenAI 兼容接口中的 model 字段一致。
+ */
+export interface ProviderModelRecord {
+  /** 列表行稳定 id（编辑/删除用） */
+  id: string
+  /** 模型编码（API model 字段） */
+  modelId: string
+  /** 展示名称；为空时回退 modelId */
+  displayName?: string
+  /** 上下文窗口，如 128K、200000 */
+  contextWindow?: string
+  /** 参数量 / 规模，如 7B、235B-A22B */
+  size?: string
+  /** 模型类型文案，如「文本对话」「视觉理解」 */
+  category?: string
+  /** 补充说明 */
+  description?: string
+  /** 是否支持 thinking / reasoning 开关 */
+  supportsThinking?: boolean
+  /** 是否支持视觉输入 */
+  supportsVision?: boolean
+}
+
+/** 供应商 id → 手动维护的模型列表 */
+export type ProviderModelCatalog = Partial<Record<ModelProvider, ProviderModelRecord[]>>
+
+/** 设置页模型类型下拉常用项 */
+export const PROVIDER_MODEL_CATEGORY_PRESETS = [
+  '文本对话',
+  '高速对话',
+  '深度推理',
+  '视觉理解',
+  '长文本',
+  '代码',
+  '语音',
+  '文生图',
+  '图生视频',
+  '向量嵌入',
+  '全模态',
+  '通用模型'
+] as const
+
+/** 生成模型目录行 id */
+export function queryNewProviderModelRecordId(): string {
+  const suffix = Math.random().toString(36).slice(2, 8)
+  return `pm-${Date.now().toString(36)}-${suffix}`
+}
+
+/** 归一化磁盘中的 providerModelCatalog，去重 modelId、剥离空行 */
+export function queryNormalizeProviderModelCatalog(raw: unknown): ProviderModelCatalog {
+  if (!raw || typeof raw !== 'object') return {}
+  const result: ProviderModelCatalog = {}
+  for (const [providerKey, list] of Object.entries(raw as Record<string, unknown>)) {
+    if (!Array.isArray(list)) continue
+    const seen = new Set<string>()
+    const records: ProviderModelRecord[] = []
+    for (const item of list) {
+      if (!item || typeof item !== 'object') continue
+      const row = item as Record<string, unknown>
+      const modelId = String(row.modelId ?? row.value ?? '').trim()
+      if (!modelId || seen.has(modelId)) continue
+      seen.add(modelId)
+      const displayName = String(row.displayName ?? row.label ?? '').trim()
+      const contextWindow = String(row.contextWindow ?? '').trim()
+      const size = String(row.size ?? '').trim()
+      const category = String(row.category ?? '').trim()
+      const description = String(row.description ?? '').trim()
+      const id = String(row.id ?? '').trim() || queryNewProviderModelRecordId()
+      records.push({
+        id,
+        modelId,
+        ...(displayName ? { displayName } : {}),
+        ...(contextWindow ? { contextWindow } : {}),
+        ...(size ? { size } : {}),
+        ...(category ? { category } : {}),
+        ...(description ? { description } : {}),
+        ...(row.supportsThinking === true ? { supportsThinking: true } : {}),
+        ...(row.supportsVision === true ? { supportsVision: true } : {})
+      })
+    }
+    if (records.length > 0) {
+      result[providerKey as ModelProvider] = records
+    }
+  }
+  return result
+}
+
+/** 读取某供应商下已登记的模型目录 */
+export function queryProviderModelCatalogForProvider(
+  catalog: ProviderModelCatalog | undefined,
+  provider: ModelProvider
+): ProviderModelRecord[] {
+  return catalog?.[provider] ?? []
+}
+
+/** 将手动登记条目转为下拉用的 ModelOption */
+export function queryModelOptionsFromProviderRecords(
+  provider: ModelProvider,
+  records: ProviderModelRecord[]
+): ModelOption[] {
+  return records.map((record) => {
+    const modelId = record.modelId.trim()
+    const metaParts = [
+      record.size?.trim(),
+      record.contextWindow?.trim() ? `上下文 ${record.contextWindow.trim()}` : ''
+    ].filter(Boolean)
+    const description =
+      record.description?.trim() ||
+      (metaParts.length > 0 ? metaParts.join(' · ') : undefined)
+    return {
+      provider,
+      value: modelId,
+      label: record.displayName?.trim() || modelId,
+      description,
+      category: record.category?.trim() || queryModelCategory(modelId)
+    }
+  })
+}
+
+/**
+ * 合并多来源模型列表（静态兜底、平台拉取、手动目录），按 modelId 去重，后出现的元数据覆盖前者。
+ */
+export function queryMergeModelOptionLists(...lists: ModelOption[][]): ModelOption[] {
+  const map = new Map<string, ModelOption>()
+  for (const list of lists) {
+    for (const item of list) {
+      const value = item.value.trim()
+      if (!value) continue
+      const prev = map.get(value)
+      map.set(value, prev ? { ...prev, ...item, value } : { ...item, value })
+    }
+  }
+  return Array.from(map.values())
+}
+
+/** 解析某供应商的完整可选模型（静态 + 手动目录 + 可选远程列表） */
+export function queryResolvedModelOptionsForProvider(
+  provider: ModelProvider,
+  catalog: ProviderModelCatalog | undefined,
+  remoteModels?: ModelOption[] | null
+): ModelOption[] {
+  const manual = queryModelOptionsFromProviderRecords(
+    provider,
+    queryProviderModelCatalogForProvider(catalog, provider)
+  )
+  const staticFallback = queryModelOptions(provider)
+  const remote = remoteModels ?? []
+  return queryMergeModelOptionLists(staticFallback, manual, remote)
 }
 
 /** 模型供应商选项（聊天与设置页共用） */
@@ -567,6 +725,16 @@ export interface ModelOption {
    * 下拉项优先展示，便于从平台长列表中快速筛选。
    */
   category?: string
+}
+
+/**
+ * IPC 拉取平台模型列表的返回结构。
+ * 为什么：网络失败时不 reject，避免 Electron 主进程打印未处理 handler 错误。
+ */
+export interface ProviderModelsFetchResult {
+  models: ModelOption[]
+  /** 平台请求失败时的说明；成功拉取时为 undefined */
+  fetchError?: string
 }
 
 /**
@@ -1783,7 +1951,7 @@ export interface ElectronApi {
    */
   queryProviderModels: (
     override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>
-  ) => Promise<ModelOption[]>
+  ) => Promise<ProviderModelsFetchResult>
   querySessions: () => Promise<Session[]>
   querySession: (id: string) => Promise<Session | null>
   postSession: (session: Session) => Promise<Session>

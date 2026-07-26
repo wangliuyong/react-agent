@@ -84,5 +84,9 @@ export async function queryAshareKlineRefresh(
 export async function queryProviderModels(
   override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>
 ): Promise<ModelOption[]> {
-  return window.api.queryProviderModels(override)
+  const result = await window.api.queryProviderModels(override)
+  if (result.fetchError) {
+    throw new Error(result.fetchError)
+  }
+  return result.models
 }

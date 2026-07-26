@@ -190,6 +190,15 @@ function queryIsRetryableProviderModelsStatus(status: number): boolean {
 }
 
 function queryFormatProviderModelsError(failure: ProviderModelsFetchFailure): string {
+  if (failure.status === 0) {
+    const detail = failure.detail?.trim()
+    const reason =
+      detail && !/^fetch failed$/i.test(detail)
+        ? detail
+        : '网络不可达、代理或 DNS 异常'
+    const endpoint = failure.baseUrl ? `（${failure.baseUrl}）` : ''
+    return `无法连接模型列表服务${endpoint}：${reason}`
+  }
   const suffix = failure.detail ? `：${failure.detail}` : ''
   return `获取模型列表失败（HTTP ${failure.status}）${suffix}`
 }

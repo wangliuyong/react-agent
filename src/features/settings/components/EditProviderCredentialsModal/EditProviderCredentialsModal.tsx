@@ -2,10 +2,11 @@ import { Form, Input, Modal, Select } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import {
   queryModelOptionDisplayLabel,
-  queryModelOptions,
   queryProviderOption,
+  queryResolvedModelOptionsForProvider,
   type CustomModelProvider,
-  type ModelProvider
+  type ModelProvider,
+  type ProviderModelCatalog
 } from '@shared/types'
 import { useProviderModels } from '../../hooks/useProviderModels'
 import { queryProviderModelsStatusHint } from '../../hooks/providerModelsShared'
@@ -25,6 +26,8 @@ export interface EditProviderCredentialsModalProps {
   providerLabel: string
   initialValues: ProviderFormDraft
   customProviders: CustomModelProvider[]
+  /** 手动登记的模型目录，与平台列表合并 */
+  providerModelCatalog?: ProviderModelCatalog
   onCancel: () => void
   onSubmit: (values: ProviderFormDraft) => void
 }
@@ -39,6 +42,7 @@ export function EditProviderCredentialsModal({
   providerLabel,
   initialValues,
   customProviders,
+  providerModelCatalog,
   onCancel,
   onSubmit
 }: EditProviderCredentialsModalProps): React.ReactElement {
@@ -76,13 +80,16 @@ export function EditProviderCredentialsModal({
 
   const modelSelectOptions = useMemo(() => {
     if (!provider) return []
-    const fromApi = remoteModels != null
-    const providerModels = fromApi ? remoteModels : queryModelOptions(provider)
-    return providerModels.map((m) => ({
+    const merged = queryResolvedModelOptionsForProvider(
+      provider,
+      providerModelCatalog,
+      remoteModels
+    )
+    return merged.map((m) => ({
       value: m.value,
       label: queryModelOptionDisplayLabel(m)
     }))
-  }, [provider, remoteModels])
+  }, [provider, remoteModels, providerModelCatalog])
 
   const modelListExtra = queryProviderModelsStatusHint({
     apiKey: draftApiKey,

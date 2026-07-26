@@ -120,12 +120,22 @@ export function registerIpcHandlers(): void {
   // 默认读盘；设置页可传入未保存的草稿覆盖
   ipcMain.handle(
     IpcChannels.queryProviderModels,
-    (
+    async (
       _e,
       override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>
     ) => {
       const saved = querySettings()
-      return queryProviderModels(queryResolveProviderModelsCredentials(saved, override))
+      const creds = queryResolveProviderModelsCredentials(saved, override)
+      try {
+        const models = await queryProviderModels(creds)
+        return { models }
+      } catch (err) {
+        const fetchError =
+          err instanceof Error ? err.message : `拉取模型列表失败：${String(err)}`
+        // 渲染进程用 fetchError 展示；避免 IPC reject 触发 Electron 控制台红错
+        console.warn('[query:provider-models]', fetchError)
+        return { models: [], fetchError }
+      }
     }
   )
 

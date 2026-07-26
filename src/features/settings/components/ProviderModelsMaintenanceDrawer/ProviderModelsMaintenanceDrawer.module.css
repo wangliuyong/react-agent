@@ -1,0 +1,192 @@
+.drawer :global(.ant-drawer-header) {
+  border-bottom: 1px solid var(--db-border-light);
+}
+
+.drawer :global(.ant-drawer-title) {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--db-text);
+}
+
+.drawer :global(.ant-drawer-body) {
+  padding: 16px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--db-bg-subtle);
+}
+
+.lead {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--db-text-secondary);
+}
+
+.providerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tabs {
+  flex: 1;
+  min-height: 0;
+}
+
+.tabs :global(.ant-tabs-nav) {
+  margin-bottom: 12px !important;
+}
+
+.tabs :global(.ant-tabs-tab) {
+  padding: 8px 2px !important;
+  font-weight: 600;
+}
+
+.tabs :global(.ant-tabs-ink-bar) {
+  height: 2px;
+  border-radius: 2px;
+}
+
+.tabLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--db-bg-content);
+  border: 1px solid var(--db-border-light);
+  color: var(--db-text-tertiary);
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabs :global(.ant-tabs-tab-active) .tabCount {
+  background: var(--db-primary-muted);
+  border-color: transparent;
+  color: var(--db-primary);
+}
+
+.tabPane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.paneHint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--db-radius-md);
+  border: 1px dashed var(--db-border-light);
+  background: var(--db-bg-content);
+  color: var(--db-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.paneHint :global(.anticon) {
+  margin-top: 2px;
+  color: var(--db-primary);
+  flex-shrink: 0;
+}
+
+.errorBanner {
+  padding: 8px 12px;
+  border-radius: var(--db-radius-md);
+  border: 1px solid color-mix(in srgb, var(--db-danger, #cf1322) 28%, transparent);
+  background: color-mix(in srgb, var(--db-danger, #cf1322) 8%, var(--db-bg-content));
+  color: var(--db-danger, #a8071a);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tableWrap {
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-lg);
+  overflow: hidden;
+  background: var(--db-bg-content);
+}
+
+.tableWrap :global(.ant-table) {
+  background: transparent;
+}
+
+.tableWrap :global(.ant-table-thead > tr > th) {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--db-text-secondary);
+  background: var(--db-bg-subtle) !important;
+}
+
+.tableWrap :global(.ant-table-tbody > tr > td) {
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.modelIdCell {
+  font-family: var(--db-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-size: 12px;
+}
+
+.metaTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.emptyBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 16px;
+  text-align: center;
+  color: var(--db-text-tertiary);
+  font-size: 13px;
+}
+
+.editModal :global(.ant-modal-header) {
+  border-bottom: 1px solid var(--db-border-light);
+}
+
+.form :global(.ant-form-item-label > label) {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.form :global(.ant-input),
+.form :global(.ant-input-affix-wrapper),
+.form :global(.ant-select-selector) {
+  background: var(--db-bg-subtle);
+}
+
+.switchRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+}
+
+.switchItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--db-text);
+}

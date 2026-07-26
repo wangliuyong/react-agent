@@ -5,6 +5,7 @@ import {
   queryMergeDefaultRoleModelMap,
   queryMergeDefaultRolePromptOverrides,
   queryNormalizeCustomProviders,
+  queryNormalizeProviderModelCatalog,
   queryProviderOption,
   querySeedDefaultConnections,
   querySyncConnectionsProviderCredentials,
@@ -194,7 +195,8 @@ export function normalizeSettings(
     thinkingEnabled: Boolean(merged.thinkingEnabled),
     maxTurns: Number(merged.maxTurns) || DEFAULT_SETTINGS.maxTurns,
     launchAtLogin: Boolean(merged.launchAtLogin),
-    customProviders
+    customProviders,
+    providerModelCatalog: queryNormalizeProviderModelCatalog(raw.providerModelCatalog)
   }
 }
 

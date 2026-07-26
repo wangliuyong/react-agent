@@ -114,6 +114,13 @@
   color: var(--db-primary);
 }
 
+.manageModelsBtn {
+  flex-shrink: 0;
+  padding-inline: 4px !important;
+  font-size: 12px !important;
+  font-weight: 600;
+}
+
 @keyframes cardIn {
   from {
     opacity: 0;

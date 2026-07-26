@@ -91,16 +91,24 @@ export function useConnectionProviderModels(
           baseUrl: conn.baseUrl,
           customProviders
         })
-          .then((models) => {
+          .then((result) => {
             if (cancelled) return
+            if (result.fetchError) {
+              setModelsByKey((prev) => ({ ...prev, [cacheKey]: null }))
+              setErrorsByKey((prev) => ({
+                ...prev,
+                [cacheKey]: `${result.fetchError}；当前显示本地兜底`
+              }))
+              return
+            }
             setModelsByKey((prev) => ({
               ...prev,
-              [cacheKey]: models.length > 0 ? models : null
+              [cacheKey]: result.models.length > 0 ? result.models : null
             }))
             setErrorsByKey((prev) => ({
               ...prev,
               [cacheKey]:
-                models.length > 0 ? null : '平台返回空列表，已使用本地兜底'
+                result.models.length > 0 ? null : '平台返回空列表，已使用本地兜底'
             }))
           })
           .catch((err) => {

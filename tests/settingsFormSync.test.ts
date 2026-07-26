@@ -34,7 +34,8 @@ const SAVED_SETTINGS: AppSettings = {
   thinkingEnabled: false,
   maxTurns: 28,
   launchAtLogin: false,
-  customProviders: []
+  customProviders: [],
+  providerModelCatalog: {}
 }
 
 describe('设置页模型与 API 回显同步', () => {

@@ -123,11 +123,16 @@ export function useProviderModels(options: UseProviderModelsOptions): UseProvide
         baseUrl,
         customProviders
       })
-        .then((models) => {
+        .then((result) => {
           if (cancelled) return
           fetchedCredsRef.current = credsKey
-          if (models.length > 0) {
-            setRemoteModels(models)
+          if (result.fetchError) {
+            setRemoteModels(null)
+            setError(`${result.fetchError}；当前显示本地兜底`)
+            return
+          }
+          if (result.models.length > 0) {
+            setRemoteModels(result.models)
             setError(null)
           } else {
             // 保留上次列表，避免空响应把下拉刷成兜底闪烁

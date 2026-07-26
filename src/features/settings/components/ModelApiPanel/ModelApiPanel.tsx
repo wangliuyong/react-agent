@@ -2,13 +2,16 @@ import type { CSSProperties } from 'react'
 import {
   queryAllProviderOptions,
   queryIsCustomModelProvider,
+  queryProviderModelCatalogForProvider,
   queryRemoveCustomProvider,
   type CustomModelProvider,
-  type ModelProvider
+  type ModelProvider,
+  type ProviderModelCatalog
 } from '@shared/types'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
 import { AddModelProviderModal } from '../AddModelProviderModal'
 import { EditProviderCredentialsModal } from '../EditProviderCredentialsModal'
+import { ProviderModelsMaintenanceDrawer } from '../ProviderModelsMaintenanceDrawer'
 import {
   queryInitialProviderDrafts,
   queryModelApiSavePatch,
@@ -47,6 +50,8 @@ export function ModelApiPanel(): React.ReactElement {
     settings.customProviders ?? []
   )
   const [editingProvider, setEditingProvider] = useState<ModelProvider | null>(null)
+  const [modelsManagingProvider, setModelsManagingProvider] = useState<ModelProvider | null>(null)
+  const [providerModelCatalog, setProviderModelCatalog] = useState<ProviderModelCatalog>({})
   /** 添加供应商后跳过下一次全量同步，避免冲掉未保存草稿 */
   const skipSyncRef = useRef(false)
   /** 用户已切换「当前选用」但未保存时，避免 settings 更新把选用状态冲回 */
@@ -72,6 +77,7 @@ export function ModelApiPanel(): React.ReactElement {
     setFullAccess(settings.fullAccess)
     setThinkingEnabled(settings.thinkingEnabled)
     setCustomProviders(settings.customProviders ?? [])
+    setProviderModelCatalog(settings.providerModelCatalog ?? {})
   }, [loaded, settings])
 
   const handleSave = async (): Promise<void> => {
@@ -90,7 +96,8 @@ export function ModelApiPanel(): React.ReactElement {
           maxTurns,
           fullAccess,
           thinkingEnabled,
-          customProviders
+          customProviders,
+          providerModelCatalog
         })
       )
       activeProviderDirtyRef.current = false
@@ -168,6 +175,10 @@ export function ModelApiPanel(): React.ReactElement {
   }
 
   const editingProviderMeta = providerOptions.find((item) => item.value === editingProvider)
+  const modelsManagingMeta = providerOptions.find((item) => item.value === modelsManagingProvider)
+  const modelsManagingRecords = modelsManagingProvider
+    ? queryProviderModelCatalogForProvider(providerModelCatalog, modelsManagingProvider)
+    : []
   const editingDraft: ProviderFormDraft = editingProvider
     ? (providerDrafts[editingProvider] ?? {
       apiKey: '',
@@ -225,6 +236,10 @@ export function ModelApiPanel(): React.ReactElement {
           const isActive = activeProvider === option.value
           const isCustom = queryIsCustomModelProvider(option.value)
           const configured = Boolean(draft.apiKey.trim())
+          const manualModelCount = queryProviderModelCatalogForProvider(
+            providerModelCatalog,
+            option.value
+          ).length
 
           return (
             <Card
@@ -244,6 +259,9 @@ export function ModelApiPanel(): React.ReactElement {
                     <Tag className={configured ? cardStyles.successTag : cardStyles.neutralTag}>
                       {configured ? '已配置' : '未配置'}
                     </Tag>
+                    {manualModelCount > 0 ? (
+                      <Tag className={cardStyles.mutedTag}>{manualModelCount} 个登记模型</Tag>
+                    ) : null}
                   </div>
                 </div>
                 <div className={cardStyles.cardActions}>
@@ -319,6 +337,21 @@ export function ModelApiPanel(): React.ReactElement {
                     {draft.model || option.defaultModel}
                   </Text>
                 </div>
+              </div>
+
+              <div className={cardStyles.cardFooter}>
+                <Text type="secondary" className={cardStyles.footerHint}>
+                  平台列表 + 本机登记合并展示
+                </Text>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<DatabaseOutlined />}
+                  className={styles.manageModelsBtn}
+                  onClick={() => setModelsManagingProvider(option.value)}
+                >
+                  管理模型
+                </Button>
               </div>
             </Card>
           )
@@ -398,6 +431,7 @@ export function ModelApiPanel(): React.ReactElement {
         providerLabel={editingProviderMeta?.label ?? ''}
         initialValues={editingDraft}
         customProviders={customProviders}
+        providerModelCatalog={providerModelCatalog}
         onCancel={() => setEditingProvider(null)}
         onSubmit={(values) => {
           if (!editingProvider) return
@@ -413,6 +447,39 @@ export function ModelApiPanel(): React.ReactElement {
         open={addProviderOpen}
         onCancel={() => setAddProviderOpen(false)}
         onSubmit={handleAddCustomProvider}
+      />
+
+      <ProviderModelsMaintenanceDrawer
+        open={Boolean(modelsManagingProvider)}
+        provider={modelsManagingProvider}
+        providerLabel={modelsManagingMeta?.label ?? ''}
+        records={modelsManagingRecords}
+        apiKey={
+          modelsManagingProvider
+            ? (providerDrafts[modelsManagingProvider]?.apiKey ?? '')
+            : ''
+        }
+        baseUrl={
+          modelsManagingProvider
+            ? (providerDrafts[modelsManagingProvider]?.baseUrl ||
+                modelsManagingMeta?.defaultBaseUrl ||
+                '')
+            : ''
+        }
+        customProviders={customProviders}
+        onClose={() => setModelsManagingProvider(null)}
+        onChange={(nextRecords) => {
+          if (!modelsManagingProvider) return
+          setProviderModelCatalog((prev) => {
+            const next = { ...prev }
+            if (nextRecords.length === 0) {
+              delete next[modelsManagingProvider]
+            } else {
+              next[modelsManagingProvider] = nextRecords
+            }
+            return next
+          })
+        }}
       />
     </div>
   )

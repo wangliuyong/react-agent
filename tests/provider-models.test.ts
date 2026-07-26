@@ -184,6 +184,20 @@ describe('从平台拉取模型列表', () => {
     expect(models[2]?.category).toBe('高速对话')
   })
 
+  it('网络不可达时错误文案更易读', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'))
+    await expect(
+      queryProviderModels(
+        {
+          provider: 'deepseek',
+          apiKey: 'sk-test',
+          baseUrl: 'https://api.deepseek.com'
+        },
+        fetchMock as unknown as typeof fetch
+      )
+    ).rejects.toThrow(/无法连接模型列表服务/)
+  })
+
   it('百炼国内端点 401 时自动尝试国际站', async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.includes('dashscope.aliyuncs.com/compatible-mode')) {

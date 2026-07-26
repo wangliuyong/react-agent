@@ -3,8 +3,8 @@ import { useEffect, useMemo } from 'react'
 import {
   queryAllProviderOptions,
   queryModelOptionDisplayLabel,
-  queryModelOptions,
   queryProviderCredentialsFromSettings,
+  queryResolvedModelOptionsForProvider,
   type AppSettings,
   type ModelConnection,
   type ModelOption,
@@ -133,7 +133,11 @@ export function EditModelConnectionModal({
   const remote = draftConnection ? queryRemoteModels(draftConnection) : undefined
   const modelOptions = draftConnection
     ? querySelectOptions(
-        Array.isArray(remote) ? remote : queryModelOptions(draftConnection.provider),
+        queryResolvedModelOptionsForProvider(
+          draftConnection.provider,
+          settings.providerModelCatalog,
+          Array.isArray(remote) ? remote : null
+        ),
         draftConnection.model,
         draftConnection.provider
       )
