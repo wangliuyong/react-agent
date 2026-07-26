@@ -1,5 +1,6 @@
 import type { AgentTool } from './types'
 import { fetchWebImages } from '../../browser/fetch-web-images'
+import { queryClampXhsPublishText } from '../../browser/xhs-content-limits'
 import { publishXhsNote } from '../../browser/xhs-publish'
 import { queryInferXhsPublishType } from '../../browser/xhs-dom'
 import { queryPublishChannelMeta } from '../../../../shared/publish-channels'
@@ -67,6 +68,7 @@ export const xhsPublishNoteTool: AgentTool = {
     '必须先判断类型并传 publishType：' +
     'image=图文（默认，需配图）、video=视频（需 videoPaths）、' +
     'article=写长文、audio=发播客（需 audioPaths）。' +
+    '字数硬上限：图文/视频/播客标题≤20、正文≤1000；长文标题≤40、正文≤10000（超限自动截断）。' +
     '工具会自动打开对应官方链接：' +
     '?from=menu&target=image|video|article|audio，再填充标题正文。' +
     '渠道「拟人操作」开启时走浏览器拟人流程；关闭时走 SDK 占位。' +
@@ -75,8 +77,17 @@ export const xhsPublishNoteTool: AgentTool = {
   parameters: {
     type: 'object',
     properties: {
-      title: { type: 'string', description: '笔记标题，图文建议不超过 20 字' },
-      content: { type: 'string', description: '笔记正文 / 视频描述 / 长文正文' },
+      title: {
+        type: 'string',
+        description:
+          '笔记标题。图文/视频/播客硬上限 20 字，长文 40 字；超限时工具会自动截断'
+      },
+      content: {
+        type: 'string',
+        description:
+          '笔记正文 / 视频描述 / 长文正文。图文/视频/播客硬上限 1000 字，长文 10000 字；' +
+          '撰写时务必不超过上限，超限时工具会自动截断'
+      },
       publishType: {
         type: 'string',
         enum: ['image', 'video', 'article', 'audio'],
@@ -185,10 +196,17 @@ export const xhsPublishNoteTool: AgentTool = {
       )
     }
 
+    // 入口统一按平台上限截断，避免拟人/SDK 任一路径因超限无法发布
+    const clamped = queryClampXhsPublishText({
+      title: String(args.title ?? ''),
+      content: String(args.content ?? ''),
+      publishType
+    })
+
     if (!humanized) {
       return queryPublishAdapter('xhs', false).publish({
-        title: String(args.title ?? ''),
-        content: String(args.content ?? ''),
+        title: clamped.title,
+        content: clamped.content,
         imagePaths,
         signal: ctx.signal,
         emitAwaitUser: ctx.emitAwaitUser
@@ -196,8 +214,8 @@ export const xhsPublishNoteTool: AgentTool = {
     }
 
     return publishXhsNote({
-      title: String(args.title ?? ''),
-      content: String(args.content ?? ''),
+      title: clamped.title,
+      content: clamped.content,
       imagePaths,
       videoPaths,
       audioPaths,

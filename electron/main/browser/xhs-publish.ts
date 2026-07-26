@@ -14,6 +14,7 @@ import {
 } from './human-input'
 import { postVaryXhsPublishImages } from './xhs-image-variation'
 import { runXhsWarmupBrowse } from './xhs-warmup-path'
+import { queryClampXhsPublishText } from './xhs-content-limits'
 import {
   type XhsPublishType,
   XHS_PUBLISH_TYPE_LABELS,
@@ -201,8 +202,16 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   await humanStepPause({ min: 1500, max: 4000 })
   assertNotAborted(signal)
 
+  // —— 按平台字数上限截断后再填写（避免超限导致无法发布） ——
+  const clamped = queryClampXhsPublishText({ title, content, publishType })
+  const titleText = clamped.title
+  const contentText = clamped.content
+  const clampNote =
+    clamped.titleTruncated || clamped.contentTruncated
+      ? `已按上限截断（标题≤${clamped.titleMax}、正文≤${clamped.contentMax}）。`
+      : ''
+
   // —— 填写标题 / 正文（各类型共用启发式 selector） ——
-  const titleText = title.slice(0, publishType === 'article' ? 40 : 20)
   const titleFilled = await humanTypeBySelectors(
     page,
     [
@@ -235,13 +244,14 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
       'textarea[placeholder*="说说"]',
       '[class*="editor"] [contenteditable="true"]'
     ],
-    content,
+    contentText,
     { delayMin: 40, delayMax: 120 }
   )
   if (!bodyFilled) {
     return (
       `${mediaSummary}已打开「${typeLabel}」页（${publishUrl}），但未能自动定位标题/正文输入框。` +
-      `标题草稿: ${title}\n正文草稿: ${content}\n` +
+      `${clampNote}` +
+      `标题草稿: ${titleText}\n正文草稿: ${contentText}\n` +
       `请用 browser_snapshot + browser_type 继续填写。`
     )
   }
@@ -268,7 +278,7 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     ])
     return (
       `已按「${typeLabel}」打开创作台并填写标题与正文（${publishUrl}）。` +
-      `${mediaSummary}` +
+      `${mediaSummary}${clampNote}` +
       `停在待发布状态（autoPublish=false）。` +
       `页面已拟人滚到底部并停留确认；用户可在浏览器中检查后手动点「发布」。` +
       `${warmupMsg ? `\n${warmupMsg}` : ''}` +
@@ -315,7 +325,8 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   ])
 
   return (
-    `已触发「${typeLabel}」发布流程。标题「${title}」。入口 ${publishUrl}。` +
+    `已触发「${typeLabel}」发布流程。标题「${titleText}」。入口 ${publishUrl}。` +
+    `${clampNote}` +
     `智能体浏览器已自动关闭。` +
     `${warmupMsg ? `\n${warmupMsg}` : ''}` +
     `${offPeakWarn ? `\n⚠️ ${offPeakWarn}` : ''}` +
