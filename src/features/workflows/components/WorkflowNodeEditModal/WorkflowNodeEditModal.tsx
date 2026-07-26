@@ -25,6 +25,9 @@ import {
 import { useChannelsStore, queryEnabledNotifyChannelsFromStore } from '@/features/channels'
 import { postSelectDirectory } from '../../api'
 import {
+  queryToolArgsExample
+} from '../../utils/queryToolArgsExample'
+import {
   createAgentNode,
   createAwaitNode,
   createConditionNode,
@@ -141,6 +144,30 @@ interface FormValues {
 
 function formatKeysForForm(keys?: string[]): string {
   return keys?.join(', ') ?? ''
+}
+
+/**
+ * 判断参数 JSON 是否仍为「空模板」：未配置或仅空对象。
+ * 用户已手写参数时不应在切换工具时覆盖。
+ */
+function queryIsBlankToolArgsJson(raw: string | undefined): boolean {
+  const trimmed = (raw ?? '').trim()
+  if (!trimmed) return true
+  try {
+    const parsed = JSON.parse(trimmed) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false
+    return Object.keys(parsed as Record<string, unknown>).length === 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 将工具示例参数序列化为表单展示文本；空示例为 `{}`。
+ */
+function queryFormatArgsJsonForForm(example: Record<string, unknown>): string {
+  if (Object.keys(example).length === 0) return '{}'
+  return JSON.stringify(example, null, 2)
 }
 
 function nodeToFormValues(node: WorkflowNode): FormValues {
@@ -482,7 +509,10 @@ export function WorkflowNodeEditModal({
   const notifyMsgType = Form.useWatch('msgType', form) as FeishuNotifyMsgType | undefined
   const toolWhitelist = Form.useWatch('toolWhitelist', form)
   const toolName = Form.useWatch('toolName', form)
+  const argsJson = Form.useWatch('argsJson', form)
   const isEditingCondition = node?.type === 'condition'
+  /** 打开弹窗时记录的工具名，用于区分「用户改选」与「回填表单」 */
+  const initialToolNameRef = useRef<string | undefined>(undefined)
 
   const toolSelectOptions = useMemo(
     () =>
@@ -493,13 +523,34 @@ export function WorkflowNodeEditModal({
   )
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      initialToolNameRef.current = undefined
+      return
+    }
     if (node) {
       form.setFieldsValue(nodeToFormValues(node))
+      initialToolNameRef.current =
+        node.type === 'tool' ? node.toolName?.trim() || undefined : undefined
     } else {
       form.setFieldsValue(nodeToFormValues(createAgentNode()))
+      initialToolNameRef.current = undefined
     }
   }, [open, node, form])
+
+  /**
+   * 工具步骤：用户从下拉改选工具后，若参数 JSON 仍为 `{}`，自动填入该工具的示例参数。
+   */
+  useEffect(() => {
+    if (!open || type !== 'tool') return
+    const selected = (toolName ?? '').trim()
+    if (!selected) return
+    if (initialToolNameRef.current === selected) return
+    if (!queryIsBlankToolArgsJson(argsJson)) return
+    form.setFieldValue(
+      'argsJson',
+      queryFormatArgsJsonForForm(queryToolArgsExample(selected))
+    )
+  }, [open, type, toolName, argsJson, form])
 
   const typeOptions = useMemo(() => {
     const all: { value: WorkflowNode['type']; label: string }[] = [
