@@ -33,7 +33,7 @@ describe('fetch_hot_topics 多来源', () => {
       | Record<string, { enum?: string[] }>
       | undefined
     expect(props?.source?.enum).toEqual(
-      expect.arrayContaining(['douyin', 'kuaishou', 'xhs', 'tencent', 'weibo', 'baidu'])
+      expect.arrayContaining(['douyin', 'kuaishou', 'xhs', 'tencent', 'weibo', 'baidu', 'tophub'])
     )
   })
 
@@ -44,7 +44,8 @@ describe('fetch_hot_topics 多来源', () => {
       const cases: Array<{ source: string; min: number }> = [
         { source: 'douyin', min: 3 },
         { source: 'kuaishou', min: 3 },
-        { source: 'tencent', min: 3 }
+        { source: 'tencent', min: 3 },
+        { source: 'tophub', min: 3 }
       ]
       for (const c of cases) {
         const raw = await fetchHotTopicsTool.execute(

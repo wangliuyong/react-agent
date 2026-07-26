@@ -1,5 +1,5 @@
 import { WORKFLOW_CTX_PREFIX } from '../../workflow/tool-result'
-import { postHttpJson, queryHttpJson } from '../../net/http-client'
+import { postHttpJson, queryHttp, queryHttpJson } from '../../net/http-client'
 import { queryWithFallback } from '../../net/data-source'
 import { getBrowserService } from '../../browser/service'
 import type { AgentTool } from './types'
@@ -12,6 +12,7 @@ export type HotTopicSource =
   | 'kuaishou'
   | 'xhs'
   | 'tencent'
+  | 'tophub'
 
 /** 各来源展示名、榜单页 URL、浏览器文本过滤用噪声词 */
 const HOT_SOURCE_META: Record<
@@ -47,6 +48,11 @@ const HOT_SOURCE_META: Record<
     label: '腾讯新闻热点',
     pageUrl: 'https://news.qq.com/',
     noise: /登录|腾讯|新闻|热点|推荐|客户端|下载/
+  },
+  tophub: {
+    label: '今日热榜榜中榜',
+    pageUrl: 'https://tophub.today/hot',
+    noise: /登录|今日热榜|榜中榜|热榜|推荐|夜间模式|App|开放平台|赞助商/
   }
 }
 
@@ -254,6 +260,40 @@ async function queryTencentHotTopicsApi(): Promise<string[]> {
 }
 
 /**
+ * 从今日热榜 HTML 中抽取榜单条目标题。
+ * 为什么：站内榜单页（含 /hot 榜中榜与各 /n/{hashid} 子榜）统一用 itemid 锚文本承载标题。
+ */
+function queryParseTophubHtmlTitles(html: string): string[] {
+  const items: string[] = []
+  const re = /itemid="[^"]*">([^<]+)<\/a>/g
+  let match: RegExpExecArray | null
+  while ((match = re.exec(html)) !== null) {
+    const title = match[1].replace(/\s+/g, ' ').trim()
+    if (title.length >= 2 && title.length <= 120) {
+      items.push(title)
+    }
+  }
+  return items
+}
+
+/**
+ * 今日热榜（tophub.today）：优先拉取榜中榜 /hot 页面 HTML。
+ * 为什么：榜中榜聚合多平台当日高热，无需榜眼数据 API 密钥即可稳定获取标题列表。
+ */
+async function queryTophubHotTopicsApi(): Promise<string[]> {
+  const res = await queryHttp('https://tophub.today/hot', {
+    headers: {
+      Referer: 'https://tophub.today/',
+      Accept: 'text/html,application/xhtml+xml,*/*'
+    },
+    timeoutMs: 30_000,
+    retries: 1
+  })
+  const html = await res.text()
+  return queryRequireHotItems(queryParseTophubHtmlTitles(html))
+}
+
+/**
  * 无头浏览器兜底：打开对应榜单/发现页，抽取可见热点标题。
  * 小红书无稳定公开热榜 API（需签名），因此以浏览器 DOM 为主路径。
  */
@@ -261,7 +301,28 @@ async function queryHotTopicsViaBrowser(source: HotTopicSource): Promise<string[
   const meta = HOT_SOURCE_META[source]
   const browser = getBrowserService()
   await browser.navigate(meta.pageUrl, 'headless')
-  await browser.wait({ ms: source === 'xhs' ? 3500 : 2000 }, 'headless')
+  await browser.wait({ ms: source === 'xhs' || source === 'tophub' ? 3500 : 2000 }, 'headless')
+
+  if (source === 'tophub') {
+    const page = browser.getPage('headless')
+    if (page) {
+      const domTitles = await page
+        .evaluate(() => {
+          const out: string[] = []
+          for (const el of Array.from(document.querySelectorAll('a[itemid]'))) {
+            const text = (el.textContent || '').replace(/\s+/g, ' ').trim()
+            if (text.length >= 2 && text.length <= 120) out.push(text)
+          }
+          return out
+        })
+        .catch(() => [] as string[])
+      try {
+        return queryRequireHotItems(domTitles)
+      } catch {
+        // 继续走通用纯文本抽取
+      }
+    }
+  }
 
   if (source === 'xhs') {
     const page = browser.getPage('headless')
@@ -318,6 +379,8 @@ function queryApiFetchers(source: HotTopicSource): Array<() => Promise<string[]>
       return []
     case 'tencent':
       return [queryTencentHotTopicsApi]
+    case 'tophub':
+      return [queryTophubHotTopicsApi]
   }
 }
 
@@ -333,7 +396,7 @@ export const fetchHotTopicsTool: AgentTool = {
   name: 'fetch_hot_topics',
   description:
     '获取今日热点榜单。source 支持 weibo（微博）、baidu（百度）、douyin（抖音）、' +
-    'kuaishou（快手）、xhs（小红书）、tencent（腾讯新闻）。' +
+    'kuaishou（快手）、xhs（小红书）、tencent（腾讯新闻）、tophub（今日热榜榜中榜）。' +
     '优先调用公开 API；API 失败时自动用无头浏览器后台抓取（不弹窗）。' +
     '小红书公开接口不稳定时会直接走浏览器。' +
     '成功时写入 context.hotTopicsOk=1 与 hotTopics 文本；失败时 hotTopicsOk=0。',
@@ -345,7 +408,7 @@ export const fetchHotTopicsTool: AgentTool = {
         type: 'string',
         enum: HOT_SOURCE_LIST,
         description:
-          '热点来源：weibo | baidu | douyin | kuaishou | xhs | tencent'
+          '热点来源：weibo | baidu | douyin | kuaishou | xhs | tencent | tophub'
       },
       maxCount: {
         type: 'number',
