@@ -177,7 +177,8 @@ export function ProviderModelsMaintenanceDrawer({
     loading: platformLoading,
     error: platformError
   } = useProviderModels({
-    enabled: open && Boolean(provider) && activeTab === 'platform',
+    /** 抽屉打开即拉取平台列表，便于 Tab 角标与切换后直接展示 */
+    enabled: open && Boolean(provider),
     provider: provider ?? 'dashscope',
     apiKey: trimmedKey,
     baseUrl,
