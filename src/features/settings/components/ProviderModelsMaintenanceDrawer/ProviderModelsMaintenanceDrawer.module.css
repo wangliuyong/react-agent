@@ -1,5 +1,23 @@
 .drawer :global(.ant-drawer-header) {
+  position: relative;
+  /* 预留关闭按钮占位，避免与 extra 操作按钮重叠 */
+  padding-inline-end: 52px;
   border-bottom: 1px solid var(--db-border-light);
+}
+
+/* Ant Design 默认把关闭放在标题左侧；固定到标题栏最右上角 */
+.drawer :global(.ant-drawer-close) {
+  position: absolute;
+  inset-inline-end: 16px;
+  top: 50%;
+  z-index: 2;
+  margin: 0;
+  transform: translateY(-50%);
+}
+
+.drawer :global(.ant-drawer-header-title) {
+  flex: 1;
+  min-width: 0;
 }
 
 .drawer :global(.ant-drawer-title) {
@@ -8,11 +26,16 @@
   color: var(--db-text);
 }
 
+.drawer :global(.ant-drawer-extra) {
+  margin-inline-end: 0;
+}
+
 .drawer :global(.ant-drawer-body) {
   padding: 16px 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow: hidden;
   background: var(--db-bg-subtle);
 }
 
@@ -38,6 +61,18 @@
 .tabs {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs :global(.ant-tabs-content-holder) {
+  flex: 1;
+  min-height: 0;
+}
+
+.tabs :global(.ant-tabs-content),
+.tabs :global(.ant-tabs-tabpane) {
+  height: 100%;
 }
 
 .tabs :global(.ant-tabs-nav) {
@@ -86,6 +121,31 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+
+.tableArea {
+  flex: 1;
+  min-height: 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tableWrap {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-lg);
+  overflow: hidden;
+  background: var(--db-bg-content);
+}
+
+.tableWrap :global(.ant-table-wrapper),
+.tableWrap :global(.ant-spin-nested-loading),
+.tableWrap :global(.ant-spin-container) {
+  height: 100%;
 }
 
 .paneHint {
@@ -115,13 +175,6 @@
   color: var(--db-danger, #a8071a);
   font-size: 12px;
   line-height: 1.5;
-}
-
-.tableWrap {
-  border: 1px solid var(--db-border-light);
-  border-radius: var(--db-radius-lg);
-  overflow: hidden;
-  background: var(--db-bg-content);
 }
 
 .tableWrap :global(.ant-table) {

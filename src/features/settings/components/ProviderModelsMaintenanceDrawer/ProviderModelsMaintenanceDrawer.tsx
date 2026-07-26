@@ -1,6 +1,6 @@
 import { Drawer, Form, Input, Modal, Select, Switch, Table, Tabs } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   PROVIDER_MODEL_CATEGORY_PRESETS,
   queryModelCategory,
@@ -14,6 +14,9 @@ import {
 } from '@shared/types'
 import { useProviderModels } from '../../hooks/useProviderModels'
 import styles from './ProviderModelsMaintenanceDrawer.module.css'
+
+/** 小号表格表头近似高度，用于计算虚拟滚动视口 */
+const TABLE_HEAD_HEIGHT_PX = 40
 
 const { Text } = Typography
 
@@ -156,6 +159,15 @@ export function ProviderModelsMaintenanceDrawer({
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [platformRefreshToken, setPlatformRefreshToken] = useState(0)
+  const tableHostRef = useRef<HTMLDivElement>(null)
+  const [tableScrollY, setTableScrollY] = useState(320)
+
+  const syncTableScrollHeight = useCallback((): void => {
+    const el = tableHostRef.current
+    if (!el) return
+    const next = Math.max(120, el.clientHeight - TABLE_HEAD_HEIGHT_PX)
+    setTableScrollY((prev) => (prev === next ? prev : next))
+  }, [])
 
   const trimmedKey = apiKey.trim()
   const canFetchPlatform = trimmedKey.length >= 8
@@ -206,6 +218,25 @@ export function ProviderModelsMaintenanceDrawer({
     () => new Set(records.map((item) => item.modelId)),
     [records]
   )
+
+  useLayoutEffect(() => {
+    if (!open) return
+    syncTableScrollHeight()
+    const el = tableHostRef.current
+    if (!el) return
+    const observer = new ResizeObserver(() => syncTableScrollHeight())
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [
+    open,
+    activeTab,
+    platformError,
+    records.length,
+    fallbackRows.length,
+    platformRows.length,
+    platformLoading,
+    syncTableScrollHeight
+  ])
 
   const openCreate = (): void => {
     setActiveTab('manual')
@@ -431,25 +462,30 @@ export function ProviderModelsMaintenanceDrawer({
       return <div className={styles.emptyBlock}>{empty}</div>
     }
     return (
-      <Table<CatalogTableRow>
-        rowKey="key"
-        size="small"
-        pagination={rows.length > 10 ? { pageSize: 10, size: 'small' } : false}
-        scroll={{ x: 640 }}
-        columns={columns}
-        dataSource={rows}
-      />
+      <div className={styles.tableWrap}>
+        <Table<CatalogTableRow>
+          rowKey="key"
+          size="small"
+          virtual
+          pagination={false}
+          scroll={{ x: 640, y: tableScrollY }}
+          columns={columns}
+          dataSource={rows}
+        />
+      </div>
     )
   }
 
   return (
     <>
       <Drawer
-        title="模型维护"
+        title={providerLabel}
         placement="right"
         width={Math.min(760, typeof window !== 'undefined' ? window.innerWidth - 24 : 760)}
         open={open && Boolean(provider)}
         onClose={onClose}
+        closable
+        closeIcon={<CloseOutlined />}
         destroyOnHidden
         className={styles.drawer}
         extra={
@@ -469,10 +505,7 @@ export function ProviderModelsMaintenanceDrawer({
           ) : null
         }
       >
-        <span className={styles.providerBadge}>
-          <ApiOutlined />
-          {providerLabel}
-        </span>
+
         <p className={styles.lead}>
           本机登记可增删改；本地兜底为应用内置列表；平台拉取来自供应商 /models。保存设置后本机登记会与平台列表合并供下拉选用。
         </p>
@@ -480,6 +513,7 @@ export function ProviderModelsMaintenanceDrawer({
         <Tabs
           activeKey={activeTab}
           onChange={(key) => setActiveTab(key as CatalogTabKey)}
+          destroyInactiveTabPane
           className={styles.tabs}
           items={[
             {
@@ -491,7 +525,7 @@ export function ProviderModelsMaintenanceDrawer({
                     <EditOutlined />
                     <span>手动维护编码、上下文、规模与类型；点「保存设置」写入本机。</span>
                   </div>
-                  <div className={styles.tableWrap}>
+                  <div className={styles.tableArea} ref={tableHostRef}>
                     {renderTable(
                       manualRows,
                       manualColumns,
@@ -500,9 +534,6 @@ export function ProviderModelsMaintenanceDrawer({
                           style={{ fontSize: 28, marginBottom: 8, opacity: 0.35 }}
                         />
                         <div>暂无本机登记</div>
-                        <Button type="link" onClick={openCreate}>
-                          添加第一条
-                        </Button>
                       </>
                     )}
                   </div>
@@ -520,7 +551,7 @@ export function ProviderModelsMaintenanceDrawer({
                       应用内置静态列表，平台不可达时下拉会回退到此处。只读，可将条目登记到本机以补充元数据。
                     </span>
                   </div>
-                  <div className={styles.tableWrap}>
+                  <div className={styles.tableArea} ref={tableHostRef}>
                     {renderTable(
                       fallbackRows,
                       readonlyColumns,
@@ -551,7 +582,7 @@ export function ProviderModelsMaintenanceDrawer({
                   {platformError ? (
                     <div className={styles.errorBanner}>{platformError}</div>
                   ) : null}
-                  <div className={styles.tableWrap}>
+                  <div className={styles.tableArea} ref={tableHostRef}>
                     {platformLoading && platformRows.length === 0 ? (
                       <div className={styles.emptyBlock}>
                         <Spin />
