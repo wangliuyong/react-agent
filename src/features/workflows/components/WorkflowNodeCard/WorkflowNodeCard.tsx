@@ -1,4 +1,5 @@
 import type { WorkflowNode } from '@shared/types'
+import { queryNotifyTargets } from '@shared/workflow-notify'
 import { queryNodeTypeLabel } from '../../types'
 import styles from './WorkflowNodeCard.module.css'
 
@@ -23,7 +24,15 @@ function queryNodeSummary(node: WorkflowNode): string {
     return node.reason || '等待用户确认'
   }
   if (node.type === 'notify') {
-    return node.channelId ? `推送至 ${node.channelId}` : '（未选择渠道）'
+    const targets = queryNotifyTargets(node)
+    const parts: string[] = []
+    if (targets.includes('channel') && node.channelId) {
+      parts.push(`渠道 ${node.channelId}`)
+    }
+    if (targets.includes('toast')) {
+      parts.push('应用内 Toast')
+    }
+    return parts.length ? parts.join(' + ') : '（未配置通知方式）'
   }
   if (node.type === 'toast') {
     return node.contentTemplate?.slice(0, 80) || '（未填写内容）'

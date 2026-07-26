@@ -34,6 +34,11 @@ import type { ToolContext } from '../agent/tools/types'
 import { getMainWindow } from '../window'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
 import { postNotifyMessage } from '../notify/send'
+import {
+  queryNotifyHasChannel,
+  queryNotifyHasToast,
+  queryNotifyTargets
+} from '../../../shared/workflow-notify'
 import { queryFeishuMsgType } from '../../../shared/publish-channels'
 import { interpolateDeep } from './interpolate'
 import {
@@ -353,8 +358,8 @@ async function executeToolNode(
 }
 
 /**
- * 执行渠道通知节点：软插值标题/正文后调用 postNotifyMessage。
- * failSoft 为 true（默认）时发送失败不阻断流程。
+ * 执行统一通知节点：按 targets 推送渠道和/或应用内 Toast。
+ * failSoft 为 true（默认）时渠道发送失败不阻断流程。
  */
 async function executeNotifyNode(
   session: Session,
@@ -363,15 +368,62 @@ async function executeNotifyNode(
 ): Promise<{ context: Record<string, unknown>; summary: string }> {
   const beforeContext = context
   const messageFrom = querySessionMessageLength(session.id)
-  logWorkflowNodeInput('通知节点 · 上下文', node, context)
+  const targets = queryNotifyTargets(node)
+  const wantsChannel = queryNotifyHasChannel(node)
+  const wantsToast = queryNotifyHasToast(node)
+
+  logWorkflowNodeInput('通知节点 · 上下文', node, context, { targets })
+
+  const content = interpolatePromptSoft(node.contentTemplate, context).trim()
+  const display = content || '（空通知）'
+
+  const summaries: string[] = []
+  let nextContext = { ...context }
+  const output: Record<string, unknown> = {}
+
+  if (wantsToast) {
+    const level = node.toastLevel ?? 'info'
+    logWorkflowNodeInput('通知节点 · Toast 内容已解析', node, context, { content: display })
+    emitWorkflowToast(session.id, level, display)
+    summaries.push(`Toast：${display}`)
+    if (node.outputKeys?.length) {
+      for (const key of node.outputKeys) {
+        nextContext[key] = display
+        output[key] = display
+      }
+    } else {
+      nextContext[`toast_${node.id}`] = display
+      output[`toast_${node.id}`] = display
+    }
+  }
+
+  if (!wantsChannel) {
+    const summary = summaries.join('；') || display
+    appendWorkflowMessage(session, {
+      role: 'assistant',
+      content: `【${node.title}】${summary}`
+    })
+    return {
+      context: patchContextWithNodeExecution(
+        beforeContext,
+        nextContext,
+        node,
+        { targets, content: display },
+        output,
+        { from: messageFrom, to: querySessionMessageLength(session.id) }
+      ),
+      summary
+    }
+  }
+
+  const channelId = (node.channelId ?? '').trim() || 'feishu'
   const title = node.titleTemplate
     ? interpolatePromptSoft(node.titleTemplate, context)
     : undefined
-  const content = interpolatePromptSoft(node.contentTemplate, context).trim()
   const msgType = queryFeishuMsgType({
     msgType: node.msgType,
     richText: node.richText,
-    channelId: node.channelId
+    channelId
   })
   const imageKey = node.imageKey
     ? interpolatePromptSoft(node.imageKey, context).trim() || undefined
@@ -380,7 +432,8 @@ async function executeNotifyNode(
     ? interpolatePromptSoft(node.shareChatId, context).trim() || undefined
     : undefined
 
-  logWorkflowNodeInput('通知节点 · 内容已解析', node, context, {
+  logWorkflowNodeInput('通知节点 · 渠道内容已解析', node, context, {
+    channelId,
     title,
     content,
     msgType,
@@ -389,7 +442,8 @@ async function executeNotifyNode(
   })
 
   const nodeInput = {
-    channelId: node.channelId,
+    targets,
+    channelId,
     title,
     content,
     msgType,
@@ -417,7 +471,7 @@ async function executeNotifyNode(
     title?.trim() || (msgType === 'post' ? queryMarkdownHeadingTitle(content) : undefined)
 
   const result = await postNotifyMessage({
-    channelId: node.channelId,
+    channelId,
     title: resolvedTitle,
     content,
     msgType,
@@ -425,23 +479,19 @@ async function executeNotifyNode(
     shareChatId
   })
 
-  const summary = result.ok
+  const channelSummary = result.ok
     ? result.deduped
-      ? `通知已去重跳过（${node.channelId}）`
-      : `通知已发送至 ${node.channelId}`
+      ? `通知已去重跳过（${channelId}）`
+      : `通知已发送至 ${channelId}`
     : `通知发送失败：${result.error}`
 
-  appendWorkflowMessage(session, {
-    role: 'assistant',
-    content: `【${node.title}】${summary}`
-  })
+  summaries.push(channelSummary)
 
   if (!result.ok && node.failSoft === false) {
-    throw new Error(summary)
+    throw new Error(channelSummary)
   }
 
-  const nextContext = { ...context }
-  const notifyRecord: Record<string, unknown> = { summary }
+  const notifyRecord: Record<string, unknown> = { summary: channelSummary }
   if (result.request?.requestPath) {
     notifyRecord.requestPath = result.request.requestPath
   }
@@ -456,19 +506,21 @@ async function executeNotifyNode(
   }
 
   if (node.outputKeys?.length) {
+    const outVal = summaries.join('；')
     for (const key of node.outputKeys) {
-      nextContext[key] = summary
+      nextContext[key] = outVal
+      output[key] = outVal
     }
   } else {
     nextContext[`notify_${node.id}`] = notifyRecord
-  }
-
-  const output: Record<string, unknown> = {}
-  if (node.outputKeys?.length) {
-    for (const key of node.outputKeys) output[key] = summary
-  } else {
     output[`notify_${node.id}`] = notifyRecord
   }
+
+  const summary = summaries.join('；')
+  appendWorkflowMessage(session, {
+    role: 'assistant',
+    content: `【${node.title}】${summary}`
+  })
 
   return {
     context: patchContextWithNodeExecution(
@@ -484,45 +536,25 @@ async function executeNotifyNode(
 }
 
 /**
- * 执行 Toast 节点：软插值正文后通过 IPC 触发渲染进程 message。
+ * @deprecated 旧 toast 节点：读盘归一化前仍可能执行。
  */
 async function executeToastNode(
   session: Session,
   node: Extract<WorkflowLeafNode, { type: 'toast' }>,
   context: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
-  const beforeContext = context
-  const messageFrom = querySessionMessageLength(session.id)
-  logWorkflowNodeInput('Toast 节点 · 上下文', node, context)
-  const content = interpolatePromptSoft(node.contentTemplate, context).trim()
-  const display = content || '（空通知）'
-  logWorkflowNodeInput('Toast 节点 · 内容已解析', node, context, { content: display })
-
-  emitWorkflowToast(session.id, node.level, display)
-  appendWorkflowMessage(session, {
-    role: 'assistant',
-    content: `【${node.title}】Toast：${display}`
-  })
-
-  const nextContext = { ...context }
-  const output: Record<string, unknown> = {}
-  if (node.outputKeys?.length) {
-    for (const key of node.outputKeys) {
-      nextContext[key] = display
-      output[key] = display
-    }
-  } else {
-    nextContext[`toast_${node.id}`] = display
-    output[`toast_${node.id}`] = display
+  const legacy: Extract<WorkflowLeafNode, { type: 'notify' }> = {
+    id: node.id,
+    type: 'notify',
+    title: node.title,
+    targets: ['toast'],
+    contentTemplate: node.contentTemplate,
+    toastLevel: node.level,
+    inputKeys: node.inputKeys,
+    outputKeys: node.outputKeys
   }
-  return patchContextWithNodeExecution(
-    beforeContext,
-    nextContext,
-    node,
-    { content: display, level: node.level },
-    output,
-    { from: messageFrom, to: querySessionMessageLength(session.id) }
-  )
+  const { context: nextContext } = await executeNotifyNode(session, legacy, context)
+  return nextContext
 }
 
 const INPUT_KIND_LABELS: Record<string, string> = {

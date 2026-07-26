@@ -1686,19 +1686,28 @@ export interface WorkflowAwaitNode {
 /** Toast 级别，对应 Ant Design message */
 export type WorkflowToastLevel = 'success' | 'error' | 'warning' | 'info'
 
+/** 通知投递目标：渠道推送 / 应用内 Toast（可多选） */
+export type WorkflowNotifyTarget = 'channel' | 'toast'
+
 /**
- * 渠道通知节点：从 WorkflowRun.context 插值标题/正文后推送到通知渠道（飞书等）。
+ * 统一通知节点：可推送到通知渠道（飞书等）和/或应用内 Toast。
  * 上游节点通过 outputKeys 或 @@workflow_ctx@@ 写入 context，正文模板用 {{key}} 引用。
+ * targets 缺省视为 ['channel']，兼容旧版仅渠道通知的数据。
  */
 export interface WorkflowNotifyNode {
   id: string
   type: 'notify'
   title: string
-  /** 通知渠道 id，如 feishu */
-  channelId: string
-  /** 推送标题模板，支持 {{contextKey}} */
+  /**
+   * 通知目标；可同时选渠道与 Toast。
+   * 缺省：['channel']（兼容旧数据）。
+   */
+  targets?: WorkflowNotifyTarget[]
+  /** 通知渠道 id，如 feishu；targets 含 channel 时使用 */
+  channelId?: string
+  /** 推送标题模板，支持 {{contextKey}}（仅渠道） */
   titleTemplate?: string
-  /** 推送正文模板，支持 {{contextKey}}；image / share_chat 时可忽略 */
+  /** 正文/展示内容模板，支持 {{contextKey}}；image / share_chat 时可忽略 */
   contentTemplate: string
   /**
    * 飞书消息类型：text / post / image / share_chat。
@@ -1715,6 +1724,8 @@ export interface WorkflowNotifyNode {
   shareChatId?: string
   /** 发送失败时继续流程（默认 true，对齐发布计划「通知失败可忽略」） */
   failSoft?: boolean
+  /** 应用内 Toast 级别；targets 含 toast 时使用，默认 info */
+  toastLevel?: WorkflowToastLevel
   /** 声明需要从上游 context 读取的键；留空则从模板中 {{key}} 自动推断 */
   inputKeys?: WorkflowContextKey[]
   /** 可选：将发送结果摘要写入 context */
@@ -1722,8 +1733,7 @@ export interface WorkflowNotifyNode {
 }
 
 /**
- * 应用内 Toast 节点：流程执行时通过 IPC 触发渲染进程 Ant Design message。
- * 内容同样支持 {{contextKey}} 引用上游返回值。
+ * @deprecated 已合并进 WorkflowNotifyNode（targets 含 toast）；读盘时会归一化为 notify。
  */
 export interface WorkflowToastNode {
   id: string

@@ -404,7 +404,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
       {
         id: 'tpl_fr_notify',
         type: 'notify',
-        title: '渠道通知',
+        title: '通知',
         channelId: 'feishu',
         contentTemplate: '{{summary}}',
         msgType: 'post',
@@ -490,10 +490,11 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         outputKeys: ['videoPath']
       },
       {
-        id: 'tpl_v_toast',
-        type: 'toast',
+        id: 'tpl_v_notify',
+        type: 'notify',
         title: '成片完成提示',
-        level: 'success',
+        targets: ['toast'],
+        toastLevel: 'success',
         contentTemplate: '成片流程结束：{{videoPath}}'
       }
     ],
@@ -518,6 +519,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         id: 'tpl_w_notify',
         type: 'notify',
         title: '飞书通知',
+        targets: ['channel'],
         channelId: 'feishu',
         titleTemplate: '今日天气',
         contentTemplate: '{{weatherText}}',

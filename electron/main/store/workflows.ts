@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { queryFeishuMsgType } from '../../../shared/publish-channels'
+import { queryNotifyTargets } from '../../../shared/workflow-notify'
 import type {
   WorkflowAgentNode,
   WorkflowAwaitNode,
@@ -94,22 +95,38 @@ function normalizeLeaf(
 
   if (raw.type === 'notify') {
     const notify = raw as WorkflowNotifyNode
-    const channelId = String(notify.channelId || '').trim() || 'feishu'
+    const targets = queryNotifyTargets(notify)
+    const wantsChannel = targets.includes('channel')
+    const channelId = wantsChannel
+      ? String(notify.channelId || '').trim() || 'feishu'
+      : notify.channelId?.trim() || undefined
+    const toastLevel = notify.toastLevel
+    const validToastLevel =
+      toastLevel === 'success' ||
+      toastLevel === 'error' ||
+      toastLevel === 'warning' ||
+      toastLevel === 'info'
+        ? toastLevel
+        : 'info'
     return {
       ...base,
       type: 'notify',
+      targets,
       channelId,
       titleTemplate:
         notify.titleTemplate != null ? String(notify.titleTemplate) : undefined,
       contentTemplate: String(notify.contentTemplate || '').trim() || '{{summary}}',
-      msgType: queryFeishuMsgType({
-        msgType: notify.msgType,
-        richText: notify.richText,
-        channelId
-      }),
+      msgType: wantsChannel
+        ? queryFeishuMsgType({
+            msgType: notify.msgType,
+            richText: notify.richText,
+            channelId: channelId ?? 'feishu'
+          })
+        : undefined,
       imageKey: notify.imageKey?.trim() || undefined,
       shareChatId: notify.shareChatId?.trim() || undefined,
       failSoft: notify.failSoft !== false,
+      toastLevel: targets.includes('toast') ? validToastLevel : undefined,
       inputKeys: normalizeKeyList(notify.inputKeys),
       outputKeys: normalizeKeyList(notify.outputKeys)
     }
@@ -124,9 +141,10 @@ function normalizeLeaf(
         : 'info'
     return {
       ...base,
-      type: 'toast',
-      level: validLevel,
+      type: 'notify',
+      targets: ['toast'],
       contentTemplate: String(toast.contentTemplate || '').trim() || '{{summary}}',
+      toastLevel: validLevel,
       inputKeys: normalizeKeyList(toast.inputKeys),
       outputKeys: normalizeKeyList(toast.outputKeys)
     }

@@ -85,13 +85,21 @@ export function createAwaitNode(partial?: Partial<WorkflowAwaitNode>): WorkflowA
   }
 }
 
-/** 新建渠道通知节点：默认飞书富文本，正文引用上游 {{summary}} */
+/**
+ * 新建统一通知节点。
+ * 默认同时开启渠道推送（飞书富文本）与应用内 Toast；可通过 targets 裁剪。
+ */
 export function createNotifyNode(partial?: Partial<WorkflowNotifyNode>): WorkflowNotifyNode {
-  const channelId = partial?.channelId ?? 'feishu'
+  const targets = partial?.targets?.length
+    ? Array.from(new Set(partial.targets.filter((t) => t === 'channel' || t === 'toast')))
+    : (['channel', 'toast'] as const)
+  const wantsChannel = targets.includes('channel')
+  const channelId = wantsChannel ? (partial?.channelId ?? 'feishu') : partial?.channelId
   return {
     id: crypto.randomUUID(),
     type: 'notify',
-    title: partial?.title ?? '渠道通知',
+    title: partial?.title ?? '通知',
+    targets: [...targets],
     channelId,
     titleTemplate: partial?.titleTemplate,
     contentTemplate: partial?.contentTemplate ?? '{{summary}}',
@@ -99,23 +107,26 @@ export function createNotifyNode(partial?: Partial<WorkflowNotifyNode>): Workflo
       partial?.msgType ??
       (channelId === 'feishu' ? 'post' : undefined),
     failSoft: partial?.failSoft ?? true,
+    toastLevel: partial?.toastLevel ?? 'info',
     imageKey: partial?.imageKey,
     shareChatId: partial?.shareChatId,
+    inputKeys: partial?.inputKeys,
     outputKeys: partial?.outputKeys
   }
 }
 
-/** 新建 Toast 通知节点：应用内 message 提示 */
-export function createToastNode(partial?: Partial<WorkflowToastNode>): WorkflowToastNode {
-  return {
-    id: crypto.randomUUID(),
-    type: 'toast',
-    title: partial?.title ?? 'Toast 通知',
-    level: partial?.level ?? 'info',
+/**
+ * @deprecated 已合并进 createNotifyNode；保留以兼容旧调用，返回仅 Toast 目标的通知节点。
+ */
+export function createToastNode(partial?: Partial<WorkflowToastNode>): WorkflowNotifyNode {
+  return createNotifyNode({
+    title: partial?.title ?? '通知',
+    targets: ['toast'],
+    toastLevel: partial?.level ?? 'info',
     contentTemplate: partial?.contentTemplate ?? '{{summary}}',
     inputKeys: partial?.inputKeys,
     outputKeys: partial?.outputKeys
-  }
+  })
 }
 
 /** 新建输入节点：默认采集文字 */
@@ -181,6 +192,7 @@ export function createEmptyNode(type: WorkflowNode['type']): WorkflowNode {
   if (type === 'tool') return createToolNode()
   if (type === 'await_user') return createAwaitNode()
   if (type === 'notify') return createNotifyNode()
+  // toast 已合并进 notify；旧入口仍返回仅 Toast 目标的通知节点
   if (type === 'toast') return createToastNode()
   if (type === 'input') return createInputNode()
   if (type === 'output') return createOutputNode()
@@ -197,8 +209,8 @@ export function queryNodeTypeLabel(type: WorkflowNode['type']): string {
     agent: 'Agent',
     tool: '工具',
     await_user: '确认',
-    notify: '渠道通知',
-    toast: 'Toast',
+    notify: '通知',
+    toast: '通知',
     input: '输入',
     output: '输出',
     parallel: '并行组',

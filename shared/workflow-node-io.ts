@@ -47,6 +47,7 @@ export function queryNodeDefaultOutputKeys(node: WorkflowLeafNode): string[] {
     case 'notify':
       return [`notify_${node.id}`]
     case 'toast':
+      // 旧 toast 节点兼容；读盘后会归一化为 notify
       return [`toast_${node.id}`]
     case 'input': {
       const keys: string[] = []

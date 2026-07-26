@@ -237,6 +237,22 @@ function queryEdgeStyle(conditional = false): Partial<Edge> {
 }
 
 /**
+ * 新叶子落点：紧挨开始节点右侧；同列已有节点时向下错开，避免完全重叠。
+ */
+function queryPositionBesideStart(rfNodes: WorkflowCanvasRfNode[]): { x: number; y: number } {
+  const start = rfNodes.find(
+    (n): n is WorkflowTerminalRfNode =>
+      n.type === 'workflowTerminal' && n.data.terminal.type === 'start'
+  )
+  const baseX = (start?.position.x ?? 80) + 200
+  const baseY = start?.position.y ?? 40
+  const nearbyCount = rfNodes.filter(
+    (n) => n.type === 'workflow' && Math.abs(n.position.x - baseX) < 48
+  ).length
+  return { x: baseX, y: baseY + nearbyCount * 72 }
+}
+
+/**
  * 流程画布：开始/结束 + 叶子；双击连线编辑条件；无条件多出线=并行。
  */
 export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasProps>(
@@ -520,24 +536,23 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
 
     const addLeaf = useCallback(
       (leaf: WorkflowLeafNode): void => {
-        const offset = rfNodes.length
-        const rfNode: WorkflowRfNode = {
-          id: leaf.id,
-          type: 'workflow',
-          position: { x: 120 + (offset % 3) * 48, y: 100 + offset * 40 },
-          data: {
-            leaf,
-            onEdit: (id) => onEditRef.current(id),
-            onDelete: (id) => onDeleteRef.current(id)
-          }
-        }
         setNodes((ns) => {
+          const rfNode: WorkflowRfNode = {
+            id: leaf.id,
+            type: 'workflow',
+            position: queryPositionBesideStart(ns),
+            data: {
+              leaf,
+              onEdit: (id) => onEditRef.current(id),
+              onDelete: (id) => onDeleteRef.current(id)
+            }
+          }
           const next = [...ns, rfNode]
           queueMicrotask(() => emitChange(next, rfEdges))
           return next
         })
       },
-      [rfNodes.length, rfEdges, setNodes, emitChange]
+      [rfEdges, setNodes, emitChange]
     )
 
     useImperativeHandle(
@@ -573,7 +588,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
               {
                 id: node.id,
                 type: 'workflow' as const,
-                position: { x: 140, y: 120 + ns.length * 40 },
+                position: queryPositionBesideStart(ns),
                 data: {
                   leaf: node,
                   onEdit: (id: string) => onEditRef.current(id),
