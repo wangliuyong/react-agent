@@ -15,7 +15,7 @@ const { Text, Title, Paragraph } = Typography
 
 type ToolsView = 'list' | 'injection'
 
-const ROLE_LABELS: Record<AgentRoleName, string> = {
+const ROLE_LABELS: Record<string, string> = {
   supervisor: '调度器',
   general: '通用助手',
   researcher: '调研员',
@@ -129,7 +129,7 @@ export function ToolsPanel(): React.ReactElement {
             <span className={styles.countBadge}>{tools.length}</span>
           </div>
           <Text type="secondary" className={styles.panelDesc}>
-            查看已注册工具、源码定义，以及各角色当前注入的白名单
+            查看已注册工具与源码；角色注入可在「模型连接 → 角色卡片」中维护，此处为只读一览
           </Text>
         </div>
         <Space wrap>
@@ -234,7 +234,7 @@ export function ToolsPanel(): React.ReactElement {
                         <div className={cardStyles.cardFooter}>
                           <Text type="secondary" className={cardStyles.footerHint}>
                             {roles.length
-                              ? `注入 ${roles.map((r) => ROLE_LABELS[r]).join('、')}`
+                              ? `注入 ${roles.map((r) => ROLE_LABELS[r] ?? r).join('、')}`
                               : '未注入任何角色'}
                           </Text>
                         </div>
@@ -259,10 +259,13 @@ export function ToolsPanel(): React.ReactElement {
                 >
                   <div className={cardStyles.cardHead}>
                     <div className={cardStyles.cardTitleBlock}>
-                      <Text className={cardStyles.cardTitle}>{ROLE_LABELS[row.role]}</Text>
+                      <Text className={cardStyles.cardTitle}>
+                        {ROLE_LABELS[row.role] ?? row.role}
+                      </Text>
                       <code className={cardStyles.cardSubtitle}>{row.role}</code>
                     </div>
                     <Space size={6}>
+                      {row.customized ? <Tag className={cardStyles.primaryTag}>已自定义</Tag> : null}
                       <Tag
                         className={
                           row.mode === 'all'
@@ -274,6 +277,9 @@ export function ToolsPanel(): React.ReactElement {
                       >
                         {MODE_LABELS[row.mode]}
                       </Tag>
+                      {row.customized ? (
+                        <Tag className={cardStyles.mutedTag}>已自定义</Tag>
+                      ) : null}
                       <span className={styles.countBadge}>{row.toolNames.length}</span>
                     </Space>
                   </div>
@@ -360,7 +366,7 @@ export function ToolsPanel(): React.ReactElement {
                   <Text type="secondary">无</Text>
                 ) : (
                   rolesUsingTool(detail.name).map((role) => (
-                    <Tag key={role}>{ROLE_LABELS[role]}</Tag>
+                    <Tag key={role}>{ROLE_LABELS[role] ?? role}</Tag>
                   ))
                 )}
               </Space>

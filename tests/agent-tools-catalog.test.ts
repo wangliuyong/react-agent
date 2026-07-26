@@ -20,7 +20,7 @@ describe('agent tools catalog', () => {
   })
 
   it('角色注入：general 全量，supervisor 无工具，researcher 含 A 股工具', () => {
-    const injections = queryRoleToolInjections()
+    const injections = queryRoleToolInjections({})
     const byRole = Object.fromEntries(injections.map((r) => [r.role, r]))
 
     expect(byRole.supervisor.mode).toBe('none')
@@ -28,10 +28,26 @@ describe('agent tools catalog', () => {
 
     expect(byRole.general.mode).toBe('all')
     expect(byRole.general.toolNames).toContain('query_ashare_realtime_analysis')
+    expect(byRole.general.customized).toBe(false)
 
     expect(byRole.researcher.mode).toBe('whitelist')
     expect(byRole.researcher.toolNames).toContain('query_ashare_realtime_analysis')
     expect(byRole.researcher.toolNames).toContain('query_ashare_kline')
+    expect(byRole.scriptwriter.toolNames).toContain('query_web_data')
+  })
+
+  it('用户覆盖可把 scriptwriter 设为全量或收紧名单', () => {
+    const all = queryRoleToolInjections({ scriptwriter: null })
+    const scriptAll = all.find((r) => r.role === 'scriptwriter')
+    expect(scriptAll?.mode).toBe('all')
+    expect(scriptAll?.customized).toBe(true)
+
+    const tight = queryRoleToolInjections({
+      scriptwriter: ['query_web_data', 'update_task_list']
+    })
+    const scriptTight = tight.find((r) => r.role === 'scriptwriter')
+    expect(scriptTight?.mode).toBe('whitelist')
+    expect(scriptTight?.toolNames).toEqual(['query_web_data', 'update_task_list'])
   })
 
   it('query_weather / notify_message 使用说明含调用示例与参数', () => {

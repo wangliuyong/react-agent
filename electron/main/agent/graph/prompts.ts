@@ -1,6 +1,12 @@
 import { queryEnabledSkillPrompt } from '../../store/skills'
 import { queryEnabledRulePrompt } from '../../store/rules'
-import type { AgentRoleName, ModelRoleKey } from '../../../../shared/types'
+import { queryCustomAgentRole, queryIsCustomAgentRoleId } from '../../../../shared/agent-role-registry'
+import type {
+  AgentRoleName,
+  AppSettings,
+  BuiltinAgentRoleName,
+  ModelRoleKey
+} from '../../../../shared/types'
 
 /** 与历史 loop.ts 对齐的产品能力与发布规范（通用基座） */
 const BASE_CAPABILITY = `你是跨平台桌面全能助手「灵犀」，可完成内容创作、多渠道发布、天气通知与视频生产。
@@ -29,7 +35,7 @@ const BASE_CAPABILITY = `你是跨平台桌面全能助手「灵犀」，可完�
 - 节奏：单账号日更≤6篇、周更≤30篇；深夜0:00-6:00不发布
 - 内容：每篇笔记须差异化，禁止一套模板只换关键词`
 
-const ROLE_PROMPTS: Record<AgentRoleName, string> = {
+const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
   supervisor: `你是路由调度器。根据用户最新意图，只输出一个 JSON：{"next":"<目标>","capability":"<能力>"}。
 可选 next：
 - general：闲聊、问答、排障、天气/A股行情查询、单步工具、非完整管线
@@ -150,7 +156,7 @@ const ROLE_PROMPTS: Record<AgentRoleName, string> = {
  * Supervisor 只做路由，不加载任何用户规则或技能，避免每轮固定上下文浪费。
  */
 const ROLE_CONTEXT_BUDGETS: Record<
-  Exclude<AgentRoleName, 'supervisor'>,
+  Exclude<BuiltinAgentRoleName, 'supervisor'>,
   { ruleChars: number; skillChars: number }
 > = {
   general: { ruleChars: 4_000, skillChars: 4_000 },
@@ -167,16 +173,59 @@ const ROLE_CONTEXT_BUDGETS: Record<
  */
 export function buildRoleSystemPrompt(
   role: AgentRoleName,
-  rolePromptOverrides?: Partial<Record<ModelRoleKey, string>>
+  rolePromptOverrides?: Partial<Record<ModelRoleKey, string>>,
+  settings?: Pick<AppSettings, 'customAgentRoles'>
 ): string {
-  if (role === 'supervisor') return ROLE_PROMPTS.supervisor
+  if (role === 'supervisor') {
+    let prompt = ROLE_PROMPTS.supervisor
+    const customs = settings?.customAgentRoles ?? []
+    if (customs.length > 0) {
+      prompt +=
+        '\n\n可选 next（用户自定义角色，单步执行后结束；任务明确匹配时优先直达）：\n' +
+        customs
+          .map(
+            (c) =>
+              `- \`${c.id}\`（${c.label}）${c.description ? `：${c.description}` : ''}`
+          )
+          .join('\n') +
+        '\n示例：{"next":"custom_xxx","capability":"chat"}'
+    }
+    return prompt
+  }
 
-  const parts = [ROLE_PROMPTS[role]]
+  if (queryIsCustomAgentRoleId(role)) {
+    const def = queryCustomAgentRole(settings?.customAgentRoles, role)
+    const parts = [
+      BASE_CAPABILITY,
+      def?.systemPrompt?.trim() || '你是用户自定义助手，请严格遵循上述能力与用户角色说明。'
+    ]
+    const override = rolePromptOverrides?.[role as ModelRoleKey]?.trim()
+    if (override) {
+      parts.push(`## 用户角色设定（必须遵循）\n\n${override}`)
+    }
+    const budget = ROLE_CONTEXT_BUDGETS.general
+    const ruleBlock = queryEnabledRulePrompt(budget.ruleChars)
+    const skillBlock = queryEnabledSkillPrompt(budget.skillChars)
+    if (ruleBlock) {
+      parts.push(
+        `## 用户规则（必须优先遵循）\n\n以下规则适用于全部模型输出，包括思考推理过程与对用户的正式回复：\n\n${ruleBlock}`
+      )
+    }
+    if (skillBlock) {
+      parts.push(
+        `## 可用技能目录\n\n${skillBlock}\n\n仅当当前任务与某项技能描述明确匹配时，调用 \`use_skill\` 读取该技能的完整说明；不相关的技能不要加载。`
+      )
+    }
+    return parts.join('\n\n')
+  }
+
+  const builtin = role as BuiltinAgentRoleName
+  const parts = [ROLE_PROMPTS[builtin]]
   const override = rolePromptOverrides?.[role as ModelRoleKey]?.trim()
   if (override) {
     parts.push(`## 用户角色设定（必须遵循）\n\n${override}`)
   }
-  const budget = ROLE_CONTEXT_BUDGETS[role]
+  const budget = ROLE_CONTEXT_BUDGETS[builtin as Exclude<BuiltinAgentRoleName, 'supervisor'>]
   const ruleBlock = queryEnabledRulePrompt(budget.ruleChars)
   const skillBlock = queryEnabledSkillPrompt(budget.skillChars)
   if (ruleBlock) {

@@ -16,13 +16,11 @@ import { buildRoleSystemPrompt } from './prompts'
 import { queryToolsForRole, queryToolsByWhitelist } from './role-tools'
 import { createReactSubgraph, queryRecursionLimit } from './react-subgraph'
 import { queryLatestHumanMessage, trimMessagesToCharBudget } from '../token-budget'
+import { queryCustomAgentRoleIds } from '../../../../shared/agent-role-registry'
 import {
   queryInferModelCapability,
-  queryInferSupervisorNext,
-  queryParseSupervisorRoute,
-  queryPipelineEntryRole,
+  queryResolveSupervisorRoute,
   queryResolveModelConnection,
-  querySanitizeSupervisorNext,
   type SupervisorNextTarget
 } from '../model-router'
 
@@ -94,12 +92,23 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     }
     postResolveForRole(role, capabilityBox.current)
 
-    const tools = adaptAgentTools(queryToolsForRole(role), { ctx: toolCtx })
+    const tools = adaptAgentTools(
+      queryToolsForRole(
+        role,
+        settings.roleToolWhitelistOverrides,
+        settings.customAgentRoles
+      ),
+      { ctx: toolCtx }
+    )
     const roleInputMessages = trimMessagesToCharBudget(state.messages)
     const agent = createReactSubgraph({
       llm: queryRoleLlmFactory(role),
       tools,
-      systemPrompt: buildRoleSystemPrompt(role, settings.rolePromptOverrides),
+      systemPrompt: buildRoleSystemPrompt(
+        role,
+        settings.rolePromptOverrides,
+        settings
+      ),
       name: `role_${role}`
     })
     const result = await agent.invoke(
@@ -120,8 +129,11 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     const latestUserMessage = queryLatestHumanMessage(state.messages)
     const reply = await llm.invoke(
       latestUserMessage
-        ? [new SystemMessage(buildRoleSystemPrompt('supervisor')), latestUserMessage]
-        : [new SystemMessage(buildRoleSystemPrompt('supervisor'))]
+        ? [
+            new SystemMessage(buildRoleSystemPrompt('supervisor', undefined, settings)),
+            latestUserMessage
+          ]
+        : [new SystemMessage(buildRoleSystemPrompt('supervisor', undefined, settings))]
     )
     const text =
       typeof reply.content === 'string'
@@ -131,18 +143,17 @@ export function buildChatGraph(params: BuildChatGraphParams) {
           : String(reply.content ?? '')
 
     const userText = lastUserText(state.messages)
-    const parsed = queryParseSupervisorRoute(text)
-    const inferred = parsed?.next ?? queryInferSupervisorNext(text, userText)
-    const nextTarget: SupervisorNextTarget = querySanitizeSupervisorNext(inferred, userText)
-    const nextAgent = queryPipelineEntryRole(nextTarget)
+    const customIds = new Set(queryCustomAgentRoleIds(settings))
+    const route = queryResolveSupervisorRoute(text, userText, customIds)
+    const nextAgent = route.nextAgent
+    const nextTarget: SupervisorNextTarget = route.pipelineKind
 
     // Supervisor capability 优先；缺失则规则推断
     const capability: ModelCapability =
-      parsed?.capability ??
-      queryInferModelCapability(userText, state.attachmentPaths)
+      route.capability ?? queryInferModelCapability(userText, state.attachmentPaths)
 
     capabilityBox.current = capability
-    postResolveForRole(nextAgent, capability)
+    postResolveForRole(nextAgent as ModelRoleKey, capability)
 
     return {
       nextAgent,
@@ -153,7 +164,10 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     }
   }
 
-  const graph = new StateGraph(AgentGraphAnnotation)
+  const customRoles = settings.customAgentRoles ?? []
+  // LangGraph 对动态节点名的泛型较严；自定义角色在运行时注册，此处用宽松构建再 compile
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let builder: any = new StateGraph(AgentGraphAnnotation)
     .addNode('supervisor', supervisorNode)
     .addNode('general', async (state) => runRoleAgent('general', state))
     .addNode('researcher', async (state) => runRoleAgent('researcher', state))
@@ -162,25 +176,52 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     .addNode('scriptwriter', async (state) => runRoleAgent('scriptwriter', state))
     .addNode('videographer', async (state) => runRoleAgent('videographer', state))
     .addNode('editor', async (state) => runRoleAgent('editor', state))
+
+  for (const cr of customRoles) {
+    const roleId = cr.id as PipelineRole
+    builder = builder.addNode(cr.id, async (state: AgentGraphState) =>
+      runRoleAgent(roleId, state)
+    )
+  }
+
+  const supervisorBranches: Record<string, string> = {
+    general: 'general',
+    researcher: 'researcher',
+    scriptwriter: 'scriptwriter'
+  }
+  for (const cr of customRoles) {
+    supervisorBranches[cr.id] = cr.id
+  }
+
+  builder = builder
     .addEdge(START, 'supervisor')
-    .addConditionalEdges('supervisor', (state) => state.nextAgent || 'general', {
-      general: 'general',
-      researcher: 'researcher',
-      scriptwriter: 'scriptwriter'
-    })
+    .addConditionalEdges(
+      'supervisor',
+      (state: AgentGraphState) => state.nextAgent || 'general',
+      supervisorBranches
+    )
     .addEdge('general', END)
     .addEdge('researcher', 'writer')
-    // 仅 publish 管线进入发布员；content 在撰稿后结束
-    .addConditionalEdges('writer', (state) => (state.pipelineKind === 'publish' ? 'publisher' : END), {
-      publisher: 'publisher',
-      [END]: END
-    })
+    .addConditionalEdges(
+      'writer',
+      (state: AgentGraphState) => (state.pipelineKind === 'publish' ? 'publisher' : END),
+      {
+        publisher: 'publisher',
+        [END]: END
+      }
+    )
     .addEdge('publisher', END)
     .addEdge('scriptwriter', 'videographer')
     .addEdge('videographer', 'editor')
     .addEdge('editor', END)
 
-  return graph.compile({ checkpointer: chatCheckpointer })
+  for (const cr of customRoles) {
+    builder = builder.addEdge(cr.id, END)
+  }
+
+  return builder.compile({ checkpointer: chatCheckpointer }) as ReturnType<
+    typeof StateGraph.prototype.compile
+  >
 }
 
 function lastUserText(messages: BaseMessage[]): string {

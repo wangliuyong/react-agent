@@ -124,28 +124,65 @@ export function queryHasExplicitPublishIntent(text: string): boolean {
 
 /**
  * 解析 Supervisor 输出的 JSON：{"next":"...","capability":"..."}。
- * 容错：允许夹杂其它文本；next 非法时返回 null（由调用方关键词兜底）。
+ * next 可为管线目标 general/content/publish/video，或已注册的 custom_* 角色 id。
  */
-export function queryParseSupervisorRoute(text: string): SupervisorRoute | null {
+export function queryParseSupervisorRoute(
+  text: string,
+  customRoleIds: ReadonlySet<string> = new Set()
+): {
+  nextAgent: string
+  pipelineKind: SupervisorNextTarget
+  capability?: ModelCapability
+} | null {
   const jsonMatch = text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) return null
   try {
     const parsed = JSON.parse(jsonMatch[0]) as { next?: unknown; capability?: unknown }
     const nextRaw = typeof parsed.next === 'string' ? parsed.next.trim() : ''
-    let next: SupervisorNextTarget | undefined
+    const capability = queryNormalizeModelCapability(parsed.capability)
+    if (customRoleIds.has(nextRaw)) {
+      return capability
+        ? { nextAgent: nextRaw, pipelineKind: 'general', capability }
+        : { nextAgent: nextRaw, pipelineKind: 'general' }
+    }
+    let pipelineKind: SupervisorNextTarget | undefined
     if (
       nextRaw === 'general' ||
       nextRaw === 'content' ||
       nextRaw === 'publish' ||
       nextRaw === 'video'
     ) {
-      next = nextRaw
+      pipelineKind = nextRaw
     }
-    if (!next) return null
-    const capability = queryNormalizeModelCapability(parsed.capability)
-    return capability ? { next, capability } : { next }
+    if (!pipelineKind) return null
+    const nextAgent = queryPipelineEntryRole(pipelineKind)
+    return capability
+      ? { nextAgent, pipelineKind, capability }
+      : { nextAgent, pipelineKind }
   } catch {
     return null
+  }
+}
+
+/**
+ * 综合 JSON 解析与关键词兜底，得到下一跳 Agent 节点名。
+ */
+export function queryResolveSupervisorRoute(
+  supervisorText: string,
+  userText: string,
+  customRoleIds: ReadonlySet<string> = new Set()
+): {
+  nextAgent: string
+  pipelineKind: SupervisorNextTarget
+  capability?: ModelCapability
+} {
+  const parsed = queryParseSupervisorRoute(supervisorText, customRoleIds)
+  if (parsed) return parsed
+  const inferred = queryInferSupervisorNext(supervisorText, userText)
+  const pipelineKind = querySanitizeSupervisorNext(inferred, userText)
+  return {
+    nextAgent: queryPipelineEntryRole(pipelineKind),
+    pipelineKind
   }
 }
 

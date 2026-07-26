@@ -69,12 +69,17 @@ describe('queryParseSupervisorRoute', () => {
   it('解析 next 与 capability', () => {
     expect(
       queryParseSupervisorRoute('前缀 {"next":"publish","capability":"creative"} 后缀')
-    ).toEqual({ next: 'publish', capability: 'creative' })
+    ).toEqual({
+      nextAgent: 'researcher',
+      pipelineKind: 'publish',
+      capability: 'creative'
+    })
   })
 
   it('非法 capability 时仅保留 next', () => {
     expect(queryParseSupervisorRoute('{"next":"general","capability":"turbo"}')).toEqual({
-      next: 'general'
+      nextAgent: 'general',
+      pipelineKind: 'general'
     })
   })
 
@@ -84,6 +89,16 @@ describe('queryParseSupervisorRoute', () => {
 
   it('非法 next 返回 null', () => {
     expect(queryParseSupervisorRoute('{"next":"unknown"}')).toBeNull()
+  })
+
+  it('可路由到已注册的自定义角色', () => {
+    expect(
+      queryParseSupervisorRoute('{"next":"custom_legal","capability":"chat"}', new Set(['custom_legal']))
+    ).toEqual({
+      nextAgent: 'custom_legal',
+      pipelineKind: 'general',
+      capability: 'chat'
+    })
   })
 })
 
@@ -145,7 +160,8 @@ describe('supervisor 路由辅助', () => {
 
   it('解析 content 路由', () => {
     expect(queryParseSupervisorRoute('{"next":"content","capability":"creative"}')).toEqual({
-      next: 'content',
+      nextAgent: 'researcher',
+      pipelineKind: 'content',
       capability: 'creative'
     })
   })

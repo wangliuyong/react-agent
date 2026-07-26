@@ -3,26 +3,38 @@ import {
   DEFAULT_CONNECTION,
   DEFAULT_ROLE_PROMPT_OVERRIDES,
   queryAllProviderOptions,
+  queryIsChatPipelineRole,
   queryProviderCredentialsFromSettings,
   querySyncConnectionsProviderCredentials,
+  type AgentRoleToolInjection,
+  type CustomAgentRole,
   type ModelConnection,
   type ModelRoleKey,
   type RoleModelMap,
-  type RolePromptOverrides
+  type RolePromptOverrides,
+  type RoleToolWhitelistOverrides
 } from '@shared/types'
+import {
+  queryIsBuiltinRoleTask,
+  queryIsCustomAgentRoleId,
+  queryPostCustomAgentRoleId,
+  queryRoleTaskCardMetaList
+} from '@shared/agent-role-registry'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
+import { queryAgentToolsCatalog } from '../../api'
+import { AddCustomRoleModal } from '../AddCustomRoleModal'
 import { EditModelConnectionModal } from '../EditModelConnectionModal'
 import { EditRoleTaskModal } from '../EditRoleTaskModal'
 import {
   queryCapabilityLabel,
   queryNewConnectionId,
-  queryRolePromptPlaceholder,
-  ROLE_TASK_META
+  queryRolePromptPlaceholder
 } from './connectionPanelShared'
 import cardStyles from '@/components/entity-card'
 import styles from './ModelConnectionsPanel.module.css'
 
 const { Text, Title } = Typography
+const { confirm } = Modal
 
 /**
  * 多模型连接与角色映射配置面板。
@@ -47,8 +59,15 @@ export function ModelConnectionsPanel(): React.ReactElement {
   const [rolePromptOverrides, setRolePromptOverrides] = useState<RolePromptOverrides>(
     settings.rolePromptOverrides ?? {}
   )
+  const [roleToolWhitelistOverrides, setRoleToolWhitelistOverrides] =
+    useState<RoleToolWhitelistOverrides>(settings.roleToolWhitelistOverrides ?? {})
+  const [customAgentRoles, setCustomAgentRoles] = useState<CustomAgentRole[]>(
+    settings.customAgentRoles ?? []
+  )
+  const [roleInjections, setRoleInjections] = useState<AgentRoleToolInjection[]>([])
   const [editingConnection, setEditingConnection] = useState<ModelConnection | null>(null)
   const [editingRole, setEditingRole] = useState<ModelRoleKey | null>(null)
+  const [addingRole, setAddingRole] = useState(false)
 
   const providerLabelById = useMemo(() => {
     const map = new Map<string, string>()
@@ -57,6 +76,12 @@ export function ModelConnectionsPanel(): React.ReactElement {
     }
     return map
   }, [settings.customProviders])
+
+  const injectionByRole = useMemo(() => {
+    const map = new Map<string, AgentRoleToolInjection>()
+    for (const row of roleInjections) map.set(row.role, row)
+    return map
+  }, [roleInjections])
 
   useEffect(() => {
     setConnections(
@@ -68,17 +93,40 @@ export function ModelConnectionsPanel(): React.ReactElement {
     setDefaultConnectionId(settings.defaultConnectionId)
     setRoleModelMap(settings.roleModelMap ?? {})
     setRolePromptOverrides(settings.rolePromptOverrides ?? {})
+    setRoleToolWhitelistOverrides(settings.roleToolWhitelistOverrides ?? {})
+    setCustomAgentRoles(settings.customAgentRoles ?? [])
   }, [
     settings.connections,
     settings.defaultConnectionId,
     settings.roleModelMap,
     settings.rolePromptOverrides,
+    settings.roleToolWhitelistOverrides,
+    settings.customAgentRoles,
     settings.apiKey,
     settings.provider,
     settings.baseUrl,
     settings.model,
     settings.customProviders
   ])
+
+  useEffect(() => {
+    let cancelled = false
+    void queryAgentToolsCatalog()
+      .then((catalog) => {
+        if (!cancelled) setRoleInjections(catalog.roleInjections)
+      })
+      .catch(() => {
+        if (!cancelled) setRoleInjections([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [settings.roleToolWhitelistOverrides, settings.customAgentRoles])
+
+  const roleTaskCards = useMemo(
+    () => queryRoleTaskCardMetaList({ customAgentRoles }),
+    [customAgentRoles]
+  )
 
   const handleSave = async (): Promise<void> => {
     if (connections.length === 0) {
@@ -91,7 +139,9 @@ export function ModelConnectionsPanel(): React.ReactElement {
         connections,
         defaultConnectionId: defaultConnectionId || connections[0].id,
         roleModelMap,
-        rolePromptOverrides
+        rolePromptOverrides,
+        roleToolWhitelistOverrides,
+        customAgentRoles
       })
       message.success('模型连接已保存')
     } catch (err) {
@@ -106,7 +156,69 @@ export function ModelConnectionsPanel(): React.ReactElement {
     return connections.find((c) => c.id === id)?.label ?? '默认连接'
   }
 
-  const editingRoleMeta = ROLE_TASK_META.find((item) => item.value === editingRole)
+  const queryRoleToolSummary = (role: ModelRoleKey): string => {
+    if (!queryIsChatPipelineRole(role)) return ''
+    const customized = Object.prototype.hasOwnProperty.call(roleToolWhitelistOverrides, role)
+    const override = roleToolWhitelistOverrides[role]
+    if (customized) {
+      if (override === null) return '工具：全量（已自定义）'
+      return `工具：${override?.length ?? 0} 项（已自定义）`
+    }
+    const inj = injectionByRole.get(role)
+    if (!inj) return '工具：默认'
+    if (inj.mode === 'all') return '工具：全量（默认）'
+    return `工具：${inj.toolNames.length} 项（默认）`
+  }
+
+  const editingRoleMeta = roleTaskCards.find((item) => item.value === editingRole)
+  const editingInjection = editingRole ? injectionByRole.get(editingRole) : undefined
+  const editingCustomRole = editingRole
+    ? customAgentRoles.find((r) => r.id === editingRole)
+    : undefined
+
+  const handleDeleteEditingRole = (): void => {
+    if (!editingRole || queryIsBuiltinRoleTask(editingRole)) return
+    const label = editingRoleMeta?.label ?? editingRole
+    confirm({
+      title: `删除角色「${label}」？`,
+      content: '将移除该自定义角色及其模型映射、工具注入配置。内置角色不可删除。',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => {
+        const roleId = editingRole
+        setCustomAgentRoles((prev) => prev.filter((r) => r.id !== roleId))
+        setRoleModelMap((prev) => {
+          const next = { ...prev }
+          delete next[roleId]
+          return next
+        })
+        setRolePromptOverrides((prev) => {
+          const next = { ...prev }
+          delete next[roleId]
+          return next
+        })
+        setRoleToolWhitelistOverrides((prev) => {
+          const next = { ...prev }
+          delete next[roleId]
+          return next
+        })
+        setEditingRole(null)
+        message.success('已删除角色（请点击「保存连接」落盘）')
+      }
+    })
+  }
+
+  /** 弹窗展示的「当前生效」名单：优先本地未保存覆盖，否则目录里的解析结果 */
+  const queryEditingEffectiveTools = (): string[] | null | undefined => {
+    if (!editingRole || !queryIsChatPipelineRole(editingRole)) return undefined
+    if (Object.prototype.hasOwnProperty.call(roleToolWhitelistOverrides, editingRole)) {
+      return roleToolWhitelistOverrides[editingRole] ?? null
+    }
+    if (!editingInjection) return null
+    if (editingInjection.mode === 'all') return null
+    return editingInjection.toolNames
+  }
 
   return (
     <div className={styles.panel}>
@@ -161,7 +273,6 @@ export function ModelConnectionsPanel(): React.ReactElement {
                   <Text className={cardStyles.cardTitle} ellipsis={{ tooltip: conn.label }}>
                     {conn.label}
                   </Text>
-                  {/* {isDefault ? <Tag className={cardStyles.primaryTag}>默认</Tag> : null} */}
                 </div>
                 <div className={cardStyles.cardActions}>
                   {!isDefault ? (
@@ -247,20 +358,29 @@ export function ModelConnectionsPanel(): React.ReactElement {
 
       <div className={styles.roleSection}>
         <div className={styles.roleHeader}>
-          <Title level={5} className={styles.title}>
-            角色 / 任务 → 模型
-          </Title>
-          <Text type="secondary" className={styles.desc}>
-            Supervisor 路由到角色后使用对应连接；点击卡片维护角色设定与模型连接
-          </Text>
+          <div>
+            <Title level={5} className={styles.title}>
+              角色 / 任务 → 模型
+            </Title>
+            <Text type="secondary" className={styles.desc}>
+              Supervisor 路由到角色后使用对应连接；可添加自定义角色（内置不可删）
+            </Text>
+          </div>
+          <Button type="dashed" icon={<PlusOutlined />} onClick={() => setAddingRole(true)}>
+            添加角色
+          </Button>
         </div>
         <div className={styles.roleGrid}>
-          {ROLE_TASK_META.map((role, index) => {
+          {roleTaskCards.map((role, index) => {
             const mappedId = roleModelMap[role.value]
             const currentPrompt = rolePromptOverrides[role.value]?.trim() ?? ''
             const defaultPrompt = DEFAULT_ROLE_PROMPT_OVERRIDES[role.value]?.trim() ?? ''
-            // 与出厂默认不同才标「已自定义」，避免默认文案也显示自定义标签
             const hasOverride = Boolean(currentPrompt) && currentPrompt !== defaultPrompt
+            const toolSummary = queryRoleToolSummary(role.value)
+            const toolsCustomized = Object.prototype.hasOwnProperty.call(
+              roleToolWhitelistOverrides,
+              role.value
+            )
 
             return (
               <button
@@ -281,9 +401,22 @@ export function ModelConnectionsPanel(): React.ReactElement {
                   <ClusterOutlined className={styles.roleMetaIcon} aria-hidden />
                   <Text className={styles.roleConnection}>{queryConnectionLabel(mappedId)}</Text>
                 </div>
-                {hasOverride ? (
-                  <Tag className={styles.customPromptTag}>已自定义设定</Tag>
+                {toolSummary ? (
+                  <Text type="secondary" className={styles.roleToolMeta}>
+                    {toolSummary}
+                  </Text>
                 ) : null}
+                <div className={styles.roleTags}>
+                  {!role.builtin ? (
+                    <Tag className={styles.customPromptTag}>自定义角色</Tag>
+                  ) : null}
+                  {hasOverride ? (
+                    <Tag className={styles.customPromptTag}>已自定义设定</Tag>
+                  ) : null}
+                  {toolsCustomized ? (
+                    <Tag className={styles.customPromptTag}>已自定义工具</Tag>
+                  ) : null}
+                </div>
               </button>
             )
           })}
@@ -318,9 +451,26 @@ export function ModelConnectionsPanel(): React.ReactElement {
         connectionId={editingRole ? roleModelMap[editingRole] : undefined}
         promptOverride={editingRole ? rolePromptOverrides[editingRole] : undefined}
         promptPlaceholder={editingRole ? queryRolePromptPlaceholder(editingRole) : undefined}
+        customSystemPrompt={editingCustomRole?.systemPrompt}
+        toolWhitelist={queryEditingEffectiveTools()}
+        defaultToolWhitelist={
+          editingInjection
+            ? editingInjection.defaultToolNames === undefined
+              ? null
+              : editingInjection.defaultToolNames
+            : editingCustomRole
+              ? editingCustomRole.toolWhitelist
+              : null
+        }
+        toolWhitelistCustomized={Boolean(
+          editingRole &&
+            Object.prototype.hasOwnProperty.call(roleToolWhitelistOverrides, editingRole)
+        )}
         connections={connections}
+        canDeleteRole={Boolean(editingRole && queryIsCustomAgentRoleId(editingRole))}
         onCancel={() => setEditingRole(null)}
-        onSubmit={({ connectionId, promptOverride }) => {
+        onDelete={handleDeleteEditingRole}
+        onSubmit={({ connectionId, promptOverride, toolWhitelist, customSystemPrompt }) => {
           if (!editingRole) return
           setRoleModelMap((prev) => {
             const next = { ...prev }
@@ -330,12 +480,63 @@ export function ModelConnectionsPanel(): React.ReactElement {
           })
           setRolePromptOverrides((prev) => {
             const next = { ...prev }
-            // 显式写入空字符串，便于持久化时区分「用户已关闭默认」与「从未配置」
             if (!promptOverride) next[editingRole] = ''
             else next[editingRole] = promptOverride
             return next
           })
+          if (toolWhitelist !== undefined && queryIsChatPipelineRole(editingRole)) {
+            setRoleToolWhitelistOverrides((prev) => {
+              const next = { ...prev }
+              if (toolWhitelist === 'default') {
+                delete next[editingRole]
+              } else {
+                next[editingRole] = toolWhitelist
+              }
+              return next
+            })
+          }
+          if (
+            customSystemPrompt !== undefined &&
+            queryIsCustomAgentRoleId(editingRole)
+          ) {
+            setCustomAgentRoles((prev) =>
+              prev.map((r) =>
+                r.id === editingRole
+                  ? {
+                      ...r,
+                      systemPrompt: customSystemPrompt || r.systemPrompt,
+                      updatedAt: Date.now()
+                    }
+                  : r
+              )
+            )
+          }
           setEditingRole(null)
+        }}
+      />
+
+      <AddCustomRoleModal
+        open={addingRole}
+        onCancel={() => setAddingRole(false)}
+        onSubmit={(payload) => {
+          const id = queryPostCustomAgentRoleId(
+            payload.label,
+            customAgentRoles.map((r) => r.id)
+          ) as CustomAgentRole['id']
+          const now = Date.now()
+          const created: CustomAgentRole = {
+            id,
+            label: payload.label,
+            description: payload.description,
+            systemPrompt: payload.systemPrompt,
+            toolWhitelist: payload.toolWhitelist,
+            createdAt: now,
+            updatedAt: now
+          }
+          setCustomAgentRoles((prev) => [...prev, created])
+          setAddingRole(false)
+          setEditingRole(id)
+          message.success('已添加角色（请点击「保存连接」落盘）')
         }}
       />
     </div>

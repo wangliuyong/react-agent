@@ -6,6 +6,7 @@ import {
   queryMergeDefaultRolePromptOverrides,
   queryNormalizeCustomProviders,
   queryNormalizeProviderModelCatalog,
+  queryNormalizeRoleToolWhitelistOverrides,
   queryProviderOption,
   querySeedDefaultConnections,
   querySyncConnectionsProviderCredentials,
@@ -17,6 +18,7 @@ import {
   type RoleModelMap,
   type RolePromptOverrides
 } from '../../../shared/types'
+import { queryNormalizeCustomAgentRoles } from '../../../shared/agent-role-registry'
 import { postLaunchAtLogin } from './launch-at-login'
 import { getSettingsPath } from './paths'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
@@ -168,6 +170,12 @@ export function normalizeSettings(
       : undefined
   )
 
+  const roleToolWhitelistOverrides = queryNormalizeRoleToolWhitelistOverrides(
+    raw.roleToolWhitelistOverrides
+  )
+
+  const customAgentRoles = queryNormalizeCustomAgentRoles(raw.customAgentRoles)
+
   const draftForSync: AppSettings = {
     ...merged,
     provider: topProvider,
@@ -178,6 +186,8 @@ export function normalizeSettings(
     defaultConnectionId: primary.id,
     roleModelMap,
     rolePromptOverrides,
+    roleToolWhitelistOverrides,
+    customAgentRoles,
     customProviders
   }
   const syncedConnections = querySyncConnectionsProviderCredentials(connections, draftForSync)
@@ -191,6 +201,8 @@ export function normalizeSettings(
     defaultConnectionId: primary.id,
     roleModelMap,
     rolePromptOverrides,
+    roleToolWhitelistOverrides,
+    customAgentRoles,
     fullAccess: Boolean(merged.fullAccess),
     thinkingEnabled: Boolean(merged.thinkingEnabled),
     maxTurns: Number(merged.maxTurns) || DEFAULT_SETTINGS.maxTurns,

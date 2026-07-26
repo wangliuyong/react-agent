@@ -4,8 +4,10 @@ import type {
   AgentToolCatalog,
   AgentToolCatalogItem,
   AgentToolPermission,
-  AgentToolSourceLocation
+  AgentToolSourceLocation,
+  RoleToolWhitelistOverrides
 } from '../../../../shared/types'
+import { querySettings } from '../../store/settings'
 import { queryRoleToolInjections } from '../graph/role-tools'
 import { getAllTools } from './index'
 import { queryToolUsageGuide } from './usage-guides'
@@ -130,6 +132,15 @@ function queryToolSourceMap(): Map<string, AgentToolSourceLocation & { sourceCod
  */
 export function queryAgentToolsCatalog(): AgentToolCatalog {
   const sourceMap = queryToolSourceMap()
+  let roleToolOverrides: RoleToolWhitelistOverrides = {}
+  let customRoles: import('../../../../shared/types').CustomAgentRole[] = []
+  try {
+    const s = querySettings()
+    roleToolOverrides = s.roleToolWhitelistOverrides ?? {}
+    customRoles = s.customAgentRoles ?? []
+  } catch {
+    // vitest / 非 Electron：使用内置白名单
+  }
   const tools: AgentToolCatalogItem[] = getAllTools().map((tool) => {
     const loc = sourceMap.get(tool.name)
     return {
@@ -151,7 +162,7 @@ export function queryAgentToolsCatalog(): AgentToolCatalog {
 
   return {
     tools,
-    roleInjections: queryRoleToolInjections(),
+    roleInjections: queryRoleToolInjections(roleToolOverrides, customRoles),
     registeredCount: tools.length
   }
 }

@@ -57,6 +57,10 @@
 }
 
 .roleHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
@@ -147,6 +151,19 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--db-text);
+}
+
+.roleToolMeta {
+  font-size: 11px;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.roleTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
 }
 
 .customPromptTag {

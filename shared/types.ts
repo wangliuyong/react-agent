@@ -174,11 +174,57 @@ export type ModelRoleKey =
   | 'storyboard'
   | 'video'
   | 'default'
+  | `custom_${string}`
 
 export type RoleModelMap = Partial<Record<ModelRoleKey, string>>
 
 /** 用户自定义角色补充说明，追加到内置 system prompt 之后 */
 export type RolePromptOverrides = Partial<Record<ModelRoleKey, string>>
+
+/**
+ * 聊天多角色管线工具注入覆盖。
+ * - 缺省（未配置该角色键）：使用代码内置 ROLE_WHITELIST
+ * - null：注入全部已注册工具
+ * - string[]：显式白名单（空数组表示不注入任何工具）
+ */
+export type RoleToolWhitelistOverrides = Partial<Record<ModelRoleKey, string[] | null>>
+
+/** 参与聊天管线、可在设置中维护工具注入的角色（不含 supervisor） */
+export const CHAT_PIPELINE_AGENT_ROLES = [
+  'general',
+  'researcher',
+  'writer',
+  'publisher',
+  'scriptwriter',
+  'videographer',
+  'editor'
+] as const satisfies ReadonlyArray<ModelRoleKey>
+
+/** 是否可在设置页维护工具注入的 ModelRoleKey（含 custom_*） */
+export function queryIsChatPipelineRole(role: ModelRoleKey): boolean {
+  if (role.startsWith('custom_')) return true
+  return (CHAT_PIPELINE_AGENT_ROLES as readonly string[]).includes(role)
+}
+
+/** 归一化用户保存的角色工具白名单覆盖 */
+export function queryNormalizeRoleToolWhitelistOverrides(
+  raw: unknown
+): RoleToolWhitelistOverrides {
+  if (!raw || typeof raw !== 'object') return {}
+  const out: RoleToolWhitelistOverrides = {}
+  for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (!queryIsChatPipelineRole(key as ModelRoleKey)) continue
+    if (val === null) {
+      out[key as ModelRoleKey] = null
+      continue
+    }
+    if (Array.isArray(val)) {
+      const names = val.map((item) => String(item).trim()).filter(Boolean)
+      out[key as ModelRoleKey] = names
+    }
+  }
+  return out
+}
 
 export interface AppSettings {
   /**
@@ -199,6 +245,10 @@ export interface AppSettings {
   roleModelMap: RoleModelMap
   /** 用户自定义角色补充说明，追加到内置 system prompt */
   rolePromptOverrides: RolePromptOverrides
+  /** 用户自定义聊天管线角色工具白名单（相对内置 ROLE_WHITELIST） */
+  roleToolWhitelistOverrides: RoleToolWhitelistOverrides
+  /** 用户新增的自定义聊天角色（内置角色不可删） */
+  customAgentRoles: CustomAgentRole[]
   /** 完全访问：跳过部分敏感确认（发布前仍建议确认） */
   fullAccess: boolean
   /** DeepSeek 等模型的 thinking/推理过程输出开关（影响 reasoning_content 注入） */
@@ -515,6 +565,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultConnectionId: DEFAULT_CONNECTION_ID,
   roleModelMap: { ...DEFAULT_ROLE_MODEL_MAP },
   rolePromptOverrides: { ...DEFAULT_ROLE_PROMPT_OVERRIDES },
+  roleToolWhitelistOverrides: {},
+  customAgentRoles: [],
   fullAccess: false,
   thinkingEnabled: false,
   maxTurns: 40,
@@ -1401,7 +1453,7 @@ export interface ScheduledTask {
 
 /** Agent 流式事件（主进程推送到渲染进程） */
 /** 多智能体当前角色（可选，供 UI 状态文案） */
-export type AgentRoleName =
+export type BuiltinAgentRoleName =
   | 'supervisor'
   | 'general'
   | 'researcher'
@@ -1410,6 +1462,23 @@ export type AgentRoleName =
   | 'scriptwriter'
   | 'videographer'
   | 'editor'
+
+/** 内置角色 + 用户自定义 `custom_*` 角色 */
+export type AgentRoleName = BuiltinAgentRoleName | `custom_${string}`
+
+/** 用户自定义聊天角色（可增删；由 Supervisor 路由或单步执行） */
+export interface CustomAgentRole {
+  /** 固定为 custom_ 前缀的 slug */
+  id: `custom_${string}`
+  label: string
+  description: string
+  /** 角色系统说明（Markdown），与内置角色同级 */
+  systemPrompt: string
+  /** null = 注入全部工具；数组 = 白名单 */
+  toolWhitelist: string[] | null
+  createdAt: number
+  updatedAt: number
+}
 
 /** 长耗时工具进度快照（Remotion 渲染等） */
 export interface ToolProgressPayload {
@@ -1604,6 +1673,10 @@ export interface AgentRoleToolInjection {
   /** all = 全量注册表；whitelist = 显式名单；none = 无工具（如 supervisor） */
   mode: 'all' | 'whitelist' | 'none'
   toolNames: string[]
+  /** 内置默认：null = 全量；string[] = 默认白名单；supervisor 为 [] */
+  defaultToolNames?: string[] | null
+  /** 相对内置白名单，用户是否在设置中自定义了注入 */
+  customized?: boolean
 }
 
 /** 设置页「工具」Tab 聚合数据 */

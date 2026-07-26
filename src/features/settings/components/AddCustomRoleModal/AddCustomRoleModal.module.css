@@ -1,0 +1,15 @@
+.modal :global(.ant-modal-body) {
+  padding-top: 12px;
+}
+
+.lead {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--db-text-secondary);
+}
+
+.form :global(.ant-form-item-label > label) {
+  font-size: 13px;
+  font-weight: 600;
+}
