@@ -19,7 +19,7 @@ export interface StepPauseOptions {
 
 /**
  * 自动化步骤间随机停顿（2～10 秒），打破固定间隔的机器特征。
- * 用于发布、浏览热身等关键步骤之间。
+ * 用于发布等关键步骤之间。
  */
 export async function humanStepPause(opts?: StepPauseOptions): Promise<void> {
   const min = opts?.min ?? 2000

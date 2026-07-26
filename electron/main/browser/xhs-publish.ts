@@ -13,7 +13,6 @@ import {
   humanTypeInto
 } from './human-input'
 import { postVaryXhsPublishImages } from './xhs-image-variation'
-import { runXhsWarmupBrowse } from './xhs-warmup-path'
 import { queryClampXhsPublishText } from './xhs-content-limits'
 import {
   type XhsPublishType,
@@ -116,34 +115,15 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
           : '打开长文页并进入编辑器'
 
   setTasks([
-    { id: '0', title: '模拟浏览热身（发现页）', status: 'running' },
-    { id: '1', title: `打开小红书创作平台（${typeLabel}）`, status: 'pending' },
-    { id: '2', title: '确认登录状态', status: 'pending' },
-    { id: '3', title: mediaStepTitle, status: 'pending' },
-    { id: '4', title: '填写标题正文并发布', status: 'pending' }
+    { id: '0', title: `打开小红书创作平台（${typeLabel}）`, status: 'running' },
+    { id: '1', title: '确认登录状态', status: 'pending' },
+    { id: '2', title: mediaStepTitle, status: 'pending' },
+    { id: '3', title: '填写标题正文并发布', status: 'pending' }
   ])
 
   const browser = getBrowserService()
   const page = await browser.ensureStarted()
   assertNotAborted(signal)
-
-  // 非直达：先走发现页完整浏览链路
-  let warmupMsg = ''
-  try {
-    warmupMsg = await runXhsWarmupBrowse(page, { signal })
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    if (msg.includes('用户已中止') || msg.includes('深夜静默')) throw e
-    warmupMsg = `浏览热身部分跳过：${msg}`
-  }
-
-  setTasks([
-    { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
-    { id: '1', title: `打开小红书创作平台（${typeLabel}）`, status: 'running' },
-    { id: '2', title: '确认登录状态', status: 'pending' },
-    { id: '3', title: mediaStepTitle, status: 'pending' },
-    { id: '4', title: '填写标题正文并发布', status: 'pending' }
-  ])
 
   // 按类型直达官方菜单入口（from=menu&target=*）
   await browser.navigate(publishUrl)
@@ -152,11 +132,10 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   assertNotAborted(signal)
 
   setTasks([
-    { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
-    { id: '1', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
-    { id: '2', title: '确认登录状态', status: 'running' },
-    { id: '3', title: mediaStepTitle, status: 'pending' },
-    { id: '4', title: '填写标题正文并发布', status: 'pending' }
+    { id: '0', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
+    { id: '1', title: '确认登录状态', status: 'running' },
+    { id: '2', title: mediaStepTitle, status: 'pending' },
+    { id: '3', title: '填写标题正文并发布', status: 'pending' }
   ])
 
   const needLogin = await detectNeedLogin(page)
@@ -170,11 +149,10 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   }
 
   setTasks([
-    { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
-    { id: '1', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
-    { id: '2', title: '确认登录状态', status: 'done' },
-    { id: '3', title: mediaStepTitle, status: 'running' },
-    { id: '4', title: '填写标题正文并发布', status: 'pending' }
+    { id: '0', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
+    { id: '1', title: '确认登录状态', status: 'done' },
+    { id: '2', title: mediaStepTitle, status: 'running' },
+    { id: '3', title: '填写标题正文并发布', status: 'pending' }
   ])
 
   await removeXhsPopoverOverlay(page)
@@ -259,29 +237,26 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   await humanStepPause({ min: 2500, max: 6000 })
 
   setTasks([
-    { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
-    { id: '1', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
-    { id: '2', title: '确认登录状态', status: 'done' },
-    { id: '3', title: mediaStepTitle, status: 'done' },
-    { id: '4', title: '填写标题正文并发布', status: 'running' }
+    { id: '0', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
+    { id: '1', title: '确认登录状态', status: 'done' },
+    { id: '2', title: mediaStepTitle, status: 'done' },
+    { id: '3', title: '填写标题正文并发布', status: 'running' }
   ])
 
   if (!autoPublish) {
     await scrollXhsPublishFooterIntoView(page)
     await dwellBeforeXhsPublish(page)
     setTasks([
-      { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
-      { id: '1', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
-      { id: '2', title: '确认登录状态', status: 'done' },
-      { id: '3', title: mediaStepTitle, status: 'done' },
-      { id: '4', title: '填写标题正文并发布', status: 'pending' }
+      { id: '0', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
+      { id: '1', title: '确认登录状态', status: 'done' },
+      { id: '2', title: mediaStepTitle, status: 'done' },
+      { id: '3', title: '填写标题正文并发布', status: 'pending' }
     ])
     return (
       `已按「${typeLabel}」打开创作台并填写标题与正文（${publishUrl}）。` +
       `${mediaSummary}${clampNote}` +
       `停在待发布状态（autoPublish=false）。` +
       `页面已拟人滚到底部并停留确认；用户可在浏览器中检查后手动点「发布」。` +
-      `${warmupMsg ? `\n${warmupMsg}` : ''}` +
       `${offPeakWarn ? `\n⚠️ ${offPeakWarn}` : ''}`
     )
   }
@@ -317,18 +292,16 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   await browser.closeHeaded()
 
   setTasks([
-    { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
-    { id: '1', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
-    { id: '2', title: '确认登录状态', status: 'done' },
-    { id: '3', title: mediaStepTitle, status: 'done' },
-    { id: '4', title: '填写标题正文并发布', status: 'done' }
+    { id: '0', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
+    { id: '1', title: '确认登录状态', status: 'done' },
+    { id: '2', title: mediaStepTitle, status: 'done' },
+    { id: '3', title: '填写标题正文并发布', status: 'done' }
   ])
 
   return (
     `已触发「${typeLabel}」发布流程。标题「${titleText}」。入口 ${publishUrl}。` +
     `${clampNote}` +
     `智能体浏览器已自动关闭。` +
-    `${warmupMsg ? `\n${warmupMsg}` : ''}` +
     `${offPeakWarn ? `\n⚠️ ${offPeakWarn}` : ''}` +
     `【执行完毕】`
   )
