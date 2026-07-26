@@ -30,8 +30,44 @@ import { querySessionType } from '../utils/querySessionType'
 import { queryShouldResumeViaWorkflow } from '../utils/queryShouldResumeViaWorkflow'
 import { postChatExecutionCommand } from '../utils/postChatExecutionCommand'
 import { queryToolArgsRecord } from '../utils/agent-status'
+import { queryAreAllTasksSettled } from '../utils/queryAreAllTasksSettled'
+import { queryShouldIgnoreAgentStreamForSession } from '../utils/queryShouldIgnoreAgentStreamForSession'
 import { useAppStore } from '@/stores/app-store'
 import { appMessage } from '@/lib/app-message'
+
+/** 与 done 事件对齐：清除当前会话的 Agent 执行态 UI */
+function buildActiveSessionExecutionIdlePatch(): Partial<SessionState> {
+  return {
+    running: false,
+    awaitUserReason: null,
+    awaitUserChoices: null,
+    streamingText: '',
+    thinkingText: '',
+    thinkingInProgress: false,
+    pendingStreamingText: '',
+    pendingToolName: null,
+    pendingToolArgs: null,
+    activeToolName: null,
+    activeToolArgs: null,
+    activeToolProgress: null,
+    activeModelLabel: null,
+    canResume: false
+  }
+}
+
+/**
+ * 流程/定时/发布会话：任务清单已无 running 且全部终态时，应结束「执行中」展示。
+ * （结束节点完成后 task_update 会先于或与 workflow done 事件到达。）
+ */
+function queryShouldIdleTaskFlowExecution(
+  session: Session | undefined,
+  tasks: TaskItem[],
+  hasRunningTask: boolean
+): boolean {
+  if (hasRunningTask || !session) return false
+  if (!queryAreAllTasksSettled(tasks)) return false
+  return querySessionType({ ...session, tasks }) !== 'chat'
+}
 
 function findLastIndex<T>(items: T[], predicate: (item: T) => boolean): number {
   for (let i = items.length - 1; i >= 0; i--) {
@@ -57,6 +93,11 @@ function patchThinkingDelta(
     return { runningSessionIds }
   }
 
+  const session = state.sessions.find((x) => x.id === sessionId)
+  if (queryShouldIgnoreAgentStreamForSession(session)) {
+    return { runningSessionIds }
+  }
+
   if (state.running) {
     return {
       runningSessionIds,
@@ -69,7 +110,6 @@ function patchThinkingDelta(
     }
   }
 
-  const session = state.sessions.find((x) => x.id === sessionId)
   const lastAssistantIdx = session
     ? findLastIndex(session.messages, (m) => m.role === 'assistant')
     : -1
@@ -101,6 +141,11 @@ function patchTextDelta(
 ): Partial<SessionState> {
   const runningSessionIds = withRunningSession(state.runningSessionIds, sessionId)
   if (sessionId !== activeId) {
+    return { runningSessionIds }
+  }
+
+  const session = state.sessions.find((x) => x.id === sessionId)
+  if (queryShouldIgnoreAgentStreamForSession(session)) {
     return { runningSessionIds }
   }
 
@@ -811,21 +856,30 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
       if (event.type === 'tool_start') {
         const toolArgs = queryToolArgsRecord(event.args)
-        set((s) => ({
-          runningSessionIds: withRunningSession(s.runningSessionIds, event.sessionId),
-          ...(event.sessionId === activeId
-            ? {
-                activeToolName: s.thinkingInProgress ? null : event.toolName,
-                activeToolArgs: s.thinkingInProgress ? null : toolArgs,
-                pendingToolName: s.thinkingInProgress ? event.toolName : null,
-                pendingToolArgs: s.thinkingInProgress ? toolArgs : null,
-                activeToolProgress: null,
-                streamingText: '',
-                thinkingText: s.running ? s.thinkingText : '',
-                running: true
-              }
-            : {})
-        }))
+        set((state) => {
+          const session = state.sessions.find((s) => s.id === event.sessionId)
+          if (
+            event.sessionId === activeId &&
+            queryShouldIgnoreAgentStreamForSession(session)
+          ) {
+            return state
+          }
+          return {
+            runningSessionIds: withRunningSession(state.runningSessionIds, event.sessionId),
+            ...(event.sessionId === activeId
+              ? {
+                  activeToolName: state.thinkingInProgress ? null : event.toolName,
+                  activeToolArgs: state.thinkingInProgress ? null : toolArgs,
+                  pendingToolName: state.thinkingInProgress ? event.toolName : null,
+                  pendingToolArgs: state.thinkingInProgress ? toolArgs : null,
+                  activeToolProgress: null,
+                  streamingText: '',
+                  thinkingText: state.running ? state.thinkingText : '',
+                  running: true
+                }
+              : {})
+          }
+        })
         return
       }
 
@@ -879,7 +933,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   streamingText: '',
                   // 回答已落盘后清空临时思考，避免跑到列表末尾
                   thinkingText:
-                    incoming.role === 'assistant' ? '' : state.thinkingText
+                    incoming.role === 'assistant' ? '' : state.thinkingText,
+                  ...(incoming.role === 'assistant' &&
+                  /流程执行完毕/.test(incoming.content)
+                    ? {
+                        ...buildActiveSessionExecutionIdlePatch(),
+                        runningSessionIds: withoutRunningSession(
+                          state.runningSessionIds,
+                          event.sessionId
+                        )
+                      }
+                    : {})
                 }
               : {})
           }
@@ -902,19 +966,32 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         const tasks = event.tasks as TaskItem[]
         const hasRunningTask = tasks.some((t) => t.status === 'running')
         set((state) => {
+          const patchedSessions = patchSession(state.sessions, event.sessionId, (session) => ({
+            ...session,
+            tasks
+          }))
+          const session = patchedSessions.find((s) => s.id === event.sessionId)
+          const settledTaskFlow = queryShouldIdleTaskFlowExecution(
+            session,
+            tasks,
+            hasRunningTask
+          )
+          const shouldIdleActive = event.sessionId === activeId && settledTaskFlow
+
           const runningSessionIds = hasRunningTask
             ? withRunningSession(state.runningSessionIds, event.sessionId)
-            : state.runningSessionIds
+            : settledTaskFlow
+              ? withoutRunningSession(state.runningSessionIds, event.sessionId)
+              : state.runningSessionIds
+
           return {
-            sessions: patchSession(state.sessions, event.sessionId, (session) => ({
-              ...session,
-              tasks
-            })),
+            sessions: patchedSessions,
             runningSessionIds,
-            // 工作流引擎推进步骤时同步「执行中」，确保清单可中断
-            ...(event.sessionId === activeId && hasRunningTask
-              ? { running: true, canResume: false }
-              : {})
+            ...(shouldIdleActive
+              ? buildActiveSessionExecutionIdlePatch()
+              : event.sessionId === activeId && hasRunningTask
+                ? { running: true, canResume: false }
+                : {})
           }
         })
         return
@@ -966,21 +1043,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
             pendingAwaitReasons,
             pendingAwaitChoices,
             ...(event.sessionId === activeId
-              ? {
-                  running: false,
-                  awaitUserReason: null,
-                  awaitUserChoices: null,
-                  streamingText: '',
-                  thinkingText: '',
-                  thinkingInProgress: false,
-                  pendingStreamingText: '',
-                  pendingToolName: null,
-                  pendingToolArgs: null,
-                  activeToolName: null,
-                  activeToolArgs: null,
-                  activeToolProgress: null,
-                  activeModelLabel: null
-                }
+              ? buildActiveSessionExecutionIdlePatch()
               : {})
           }
         })
