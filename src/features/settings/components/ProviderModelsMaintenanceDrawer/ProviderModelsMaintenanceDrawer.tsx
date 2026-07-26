@@ -508,7 +508,6 @@ export function ProviderModelsMaintenanceDrawer({
                 <div className={styles.tabPane}>
                   <div className={styles.paneHint}>
                     <span>
-                      <EditOutlined />
                       <span>手动维护编码、上下文、规模与类型；点「保存设置」写入本机。</span>
                     </span>
 
@@ -538,7 +537,7 @@ export function ProviderModelsMaintenanceDrawer({
                 <div className={styles.tabPane}>
                   <div className={styles.paneHint}>
                     <span>
-                      <BookOutlined />
+
                       <span>
                         应用内置静态列表，平台不可达时下拉会回退到此处。只读，可将条目登记到本机以补充元数据。
                       </span>
@@ -567,7 +566,7 @@ export function ProviderModelsMaintenanceDrawer({
                 <div className={styles.tabPane}>
                   <div className={styles.paneHint}>
                     <span>
-                      <CloudDownloadOutlined />
+                      {/* <CloudDownloadOutlined /> */}
                       <span>
                         {canFetchPlatform
                           ? '来自供应商 OpenAI 兼容 /models；可刷新，可将未登记项一键写入本机。'
@@ -581,7 +580,7 @@ export function ProviderModelsMaintenanceDrawer({
                       disabled={!canFetchPlatform}
                       onClick={() => setPlatformRefreshToken((n) => n + 1)}
                     >
-                      刷新平台列表
+                      刷新
                     </Button>
                   </div>
                   {platformError ? (
