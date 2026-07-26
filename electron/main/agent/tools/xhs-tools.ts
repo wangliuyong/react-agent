@@ -1,6 +1,7 @@
 import type { AgentTool } from './types'
 import { fetchWebImages } from '../../browser/fetch-web-images'
 import { publishXhsNote } from '../../browser/xhs-publish'
+import { queryInferXhsPublishType } from '../../browser/xhs-dom'
 import { queryPublishChannelMeta } from '../../../../shared/publish-channels'
 import { queryPublishChannels } from '../../store/channels'
 import { queryPublishAdapter } from '../../publish/adapter'
@@ -56,34 +57,57 @@ export const fetchWebImagesTool: AgentTool = {
 
 /**
  * 小红书发布：配图优先网页下载路径；用户附件可选。
+ * Agent 应判断发布类型并传 publishType，工具会跳转对应官方入口：
+ * image / video / article / audio（from=menu&target=*）。
  */
 export const xhsPublishNoteTool: AgentTool = {
   name: 'xhs_publish_note',
   description:
-    '在小红书创作平台发布图文笔记。' +
-    '渠道「拟人操作」开启时：浏览热身、随机延迟、贝塞尔轨迹等拟人浏览器流程；' +
-    '关闭时：走平台 SDK（未接入会返回明确提示，不会静默打开浏览器）。' +
-    '配图优先使用 imagePaths（通常来自 fetch_web_images）；也可传 imageSourceUrl / imageUrls。' +
-    '若未登录（拟人模式）会暂停等待扫码。',
+    '在小红书创作平台发布笔记。' +
+    '必须先判断类型并传 publishType：' +
+    'image=图文（默认，需配图）、video=视频（需 videoPaths）、' +
+    'article=写长文、audio=发播客（需 audioPaths）。' +
+    '工具会自动打开对应官方链接：' +
+    '?from=menu&target=image|video|article|audio，再填充标题正文。' +
+    '渠道「拟人操作」开启时走浏览器拟人流程；关闭时走 SDK 占位。' +
+    '图文配图优先 imagePaths（通常来自 fetch_web_images）。未登录会暂停等人扫码。',
   permission: 'dangerous',
   parameters: {
     type: 'object',
     properties: {
-      title: { type: 'string', description: '笔记标题，建议不超过 20 字' },
-      content: { type: 'string', description: '笔记正文' },
+      title: { type: 'string', description: '笔记标题，图文建议不超过 20 字' },
+      content: { type: 'string', description: '笔记正文 / 视频描述 / 长文正文' },
+      publishType: {
+        type: 'string',
+        enum: ['image', 'video', 'article', 'audio'],
+        description:
+          '发布类型。图文=image，视频=video，写长文=article，发播客=audio。' +
+          '未传时：有 videoPaths→video，有 audioPaths→audio，' +
+          '正文≥140字且无图→article，否则 image。'
+      },
       imagePaths: {
         type: 'array',
         items: { type: 'string' },
-        description: '配图本地绝对路径（推荐：先 fetch_web_images 再传入）'
+        description: '图文配图本地绝对路径（publishType=image 时必填，推荐先 fetch_web_images）'
+      },
+      videoPaths: {
+        type: 'array',
+        items: { type: 'string' },
+        description: '视频本地绝对路径（publishType=video 时必填，如 mp4/mov）'
+      },
+      audioPaths: {
+        type: 'array',
+        items: { type: 'string' },
+        description: '播客音频本地绝对路径（publishType=audio 时必填）'
       },
       imageSourceUrl: {
         type: 'string',
-        description: '内容来源页 URL；若未给 imagePaths，将自动从该页抓取配图'
+        description: '内容来源页 URL；图文且未给 imagePaths 时，将自动从该页抓取配图'
       },
       imageUrls: {
         type: 'array',
         items: { type: 'string' },
-        description: '图片直链；若未给 imagePaths，将下载后使用'
+        description: '图片直链；图文且未给 imagePaths 时将下载后使用'
       },
       autoPublish: {
         type: 'boolean',
@@ -101,8 +125,21 @@ export const xhsPublishNoteTool: AgentTool = {
 
     let imagePaths =
       (args.imagePaths as string[] | undefined)?.filter(Boolean) ?? []
+    const videoPaths =
+      (args.videoPaths as string[] | undefined)?.filter(Boolean) ?? []
+    const audioPaths =
+      (args.audioPaths as string[] | undefined)?.filter(Boolean) ?? []
 
-    if (!imagePaths.length) {
+    const publishType = queryInferXhsPublishType({
+      publishType: args.publishType,
+      imagePaths,
+      videoPaths,
+      audioPaths,
+      content: String(args.content ?? '')
+    })
+
+    // 仅图文需要自动抓配图；视频/播客/长文不走配图逻辑
+    if (publishType === 'image' && !imagePaths.length) {
       const pageUrl = args.imageSourceUrl ? String(args.imageSourceUrl) : undefined
       const imageUrls = Array.isArray(args.imageUrls)
         ? (args.imageUrls as unknown[]).map(String)
@@ -121,15 +158,30 @@ export const xhsPublishNoteTool: AgentTool = {
       }
     }
 
-    if (!imagePaths.length && ctx.attachmentPaths.length) {
+    if (publishType === 'image' && !imagePaths.length && ctx.attachmentPaths.length) {
       imagePaths = [...ctx.attachmentPaths]
     }
 
-    if (!imagePaths.length) {
+    if (publishType === 'image' && !imagePaths.length) {
       return (
-        '缺少配图。请先调用 fetch_web_images（传入内容来源 pageUrl 或 imageUrls），' +
+        '图文发布缺少配图。请先调用 fetch_web_images（传入内容来源 pageUrl 或 imageUrls），' +
         '或在 xhs_publish_note 中传入 imageSourceUrl / imageUrls / imagePaths；' +
-        '用户本地上传图片为可选，有则可直接用。'
+        '用户本地上传图片为可选，有则可直接用。' +
+        '若实际要发视频/长文/播客，请传 publishType=video|article|audio 及对应素材路径。'
+      )
+    }
+
+    if (publishType === 'video' && !videoPaths.length) {
+      return (
+        '视频发布缺少 videoPaths。请传入本地视频绝对路径，并设置 publishType=video。' +
+        '入口：https://creator.xiaohongshu.com/publish/publish?from=menu&target=video'
+      )
+    }
+
+    if (publishType === 'audio' && !audioPaths.length) {
+      return (
+        '播客发布缺少 audioPaths。请传入本地音频绝对路径，并设置 publishType=audio。' +
+        '入口：https://creator.xiaohongshu.com/publish/publish?from=menu&target=audio'
       )
     }
 
@@ -147,9 +199,14 @@ export const xhsPublishNoteTool: AgentTool = {
       title: String(args.title ?? ''),
       content: String(args.content ?? ''),
       imagePaths,
+      videoPaths,
+      audioPaths,
+      publishType,
       autoPublish: args.autoPublish !== false,
       fullAccess: ctx.fullAccess,
-      emitAwaitUser: ctx.emitAwaitUser,
+      emitAwaitUser: async (reason) => {
+        await ctx.emitAwaitUser(reason)
+      },
       updateTasks: ctx.updateTasks,
       signal: ctx.signal
     })

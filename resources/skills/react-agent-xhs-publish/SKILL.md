@@ -28,13 +28,18 @@ description: >-
 
 ## 发布流程（xhs-publish.ts）
 
-1. 打开 `https://creator.xiaohongshu.com/publish/publish`
-2. 检测登录 → 未登录 `emitAwaitUser` 等人扫码
-3. 拟人上传配图、填标题（≤20 字建议）、正文（字段间 `humanStepPause`）
-4. 分段滚到底部发布栏 → 底栏停留约 3.5～9 秒（`dwellBeforeXhsPublish`）→ 再点发布
-5. `autoPublish=false` 时只填好停在待发布
-6. `fullAccess=false` 时正式发布前再次 `emitAwaitUser`
-7. 全程 `updateTasks` 更新任务清单
+1. Agent 判断类型并传 `publishType`（image / video / article / audio）
+2. 打开官方菜单入口（勿用 `source=image`）：
+   - 图文 https://creator.xiaohongshu.com/publish/publish?from=menu&target=image
+   - 视频 …&target=video
+   - 长文 …&target=article
+   - 播客 …&target=audio
+3. 检测登录 → 未登录 `emitAwaitUser` 等人扫码
+4. 按类型上传素材 / 进入编辑器，再拟人填标题与正文
+5. 分段滚到底部发布栏 → 底栏停留约 3.5～9 秒（`dwellBeforeXhsPublish`）→ 再点发布
+6. `autoPublish=false` 时只填好停在待发布
+7. `fullAccess=false` 时正式发布前再次 `emitAwaitUser`
+8. 全程 `updateTasks` 更新任务清单
 
 **DOM 改版**：优先 `humanClickText` 多文案 fallback；实在不行 `browser_snapshot` + 原子工具。
 **拟人**：禁止瞬间滚到底后立刻点发布；与抖音一致需「滚到底 → 停留确认 → 再发布」。
@@ -51,7 +56,10 @@ description: >-
 ### xhs_publish_note
 
 - `title`、`content` — 必填
-- `imagePaths` / `imageSourceUrl` / `imageUrls` — 配图
+- `publishType` — `image` | `video` | `article` | `audio`（先判断再传）
+- `imagePaths` / `imageSourceUrl` / `imageUrls` — 图文配图
+- `videoPaths` — 视频本地路径
+- `audioPaths` — 播客音频路径
 - `autoPublish` — 是否自动点发布
 - `permission: 'dangerous'`
 

@@ -7,11 +7,40 @@ import {
   rand,
   sleep
 } from './human-behavior'
-import { humanClickAt, humanClickLocator, humanMoveTo } from './human-input'
+import { humanClickAt, humanClickLocator, humanClickText, humanMoveTo } from './human-input'
 
-/** 小红书创作台发布页（与社区 MCP 对齐，带 source 参数） */
-export const XHS_PUBLISH_URL =
-  'https://creator.xiaohongshu.com/publish/publish?source=official'
+/** 小红书创作台四种发布类型（与顶栏 TAB 一一对应） */
+export type XhsPublishType = 'image' | 'video' | 'article' | 'audio'
+
+/** 创作台发布页根路径 */
+export const XHS_PUBLISH_BASE_URL =
+  'https://creator.xiaohongshu.com/publish/publish'
+
+/**
+ * 官方菜单入口（from=menu + target）。
+ * 注意：`source=image` 无效；必须用 `target=image|video|article|audio`。
+ * @see https://creator.xiaohongshu.com/publish/publish?from=menu&target=image
+ */
+export const XHS_PUBLISH_URLS: Record<XhsPublishType, string> = {
+  video: `${XHS_PUBLISH_BASE_URL}?from=menu&target=video`,
+  image: `${XHS_PUBLISH_BASE_URL}?from=menu&target=image`,
+  article: `${XHS_PUBLISH_BASE_URL}?from=menu&target=article`,
+  audio: `${XHS_PUBLISH_BASE_URL}?from=menu&target=audio`
+}
+
+/** @deprecated 请用 queryBuildXhsPublishUrl('image')；保留兼容旧引用 */
+export const XHS_PUBLISH_URL = XHS_PUBLISH_URLS.video
+
+/** 图文发布直达入口 */
+export const XHS_PUBLISH_IMAGE_URL = XHS_PUBLISH_URLS.image
+
+/** 发布类型中文标签（任务清单 / 日志） */
+export const XHS_PUBLISH_TYPE_LABELS: Record<XhsPublishType, string> = {
+  image: '上传图文',
+  video: '上传视频',
+  article: '写长文',
+  audio: '发播客'
+}
 
 interface TabHit {
   x: number
@@ -23,6 +52,122 @@ interface PublishInvokeResult {
   ok: boolean
   method: string
   error?: string
+}
+
+/** 页面信号：用于判定当前是否已在「上传图文」模式 */
+export interface XhsPublishModeSignals {
+  activeTabText: string
+  bodyText: string
+  fileAccept: string
+}
+
+/**
+ * 规范化 TAB 文案后判断是否为「上传图文」。
+ * 「写长文」含「文」但不含「图文」，需排除。
+ */
+export function queryMatchXhsImageTabLabel(text: string): boolean {
+  const n = text.replace(/\s+/g, '')
+  if (!n) return false
+  if (n.includes('长文') || n.includes('视频') || n.includes('播客')) return false
+  return n === '上传图文' || n === '图文' || n.includes('上传图文') || n === '图片'
+}
+
+/**
+ * 将 Agent / 用户传入的发布类型文案规范为 XhsPublishType。
+ * 支持：image/video/article/audio 以及 图文/视频/长文/播客 等中文别名。
+ */
+export function queryNormalizeXhsPublishType(raw: unknown): XhsPublishType | null {
+  if (raw == null) return null
+  const n = String(raw).trim().toLowerCase().replace(/\s+/g, '')
+  if (!n) return null
+  if (
+    n === 'image' ||
+    n === 'img' ||
+    n.includes('图文') ||
+    n === '图片' ||
+    n === 'note'
+  ) {
+    return 'image'
+  }
+  if (n === 'video' || n.includes('视频')) return 'video'
+  if (
+    n === 'article' ||
+    n === 'long' ||
+    n.includes('长文') ||
+    n.includes('文章')
+  ) {
+    return 'article'
+  }
+  if (n === 'audio' || n === 'podcast' || n.includes('播客') || n.includes('音频')) {
+    return 'audio'
+  }
+  return null
+}
+
+/**
+ * Agent 判断发布类型：显式 publishType 优先，其次素材路径，默认图文。
+ * - 有 videoPaths → 视频
+ * - 有 audioPaths → 播客
+ * - 正文很长且无图无视频 → 长文
+ * - 其余 → 图文
+ */
+export function queryInferXhsPublishType(input: {
+  publishType?: unknown
+  videoPaths?: string[]
+  audioPaths?: string[]
+  imagePaths?: string[]
+  content?: string
+}): XhsPublishType {
+  const explicit = queryNormalizeXhsPublishType(input.publishType)
+  if (explicit) return explicit
+
+  const videos = (input.videoPaths ?? []).filter(Boolean)
+  if (videos.length > 0) return 'video'
+
+  const audios = (input.audioPaths ?? []).filter(Boolean)
+  if (audios.length > 0) return 'audio'
+
+  const images = (input.imagePaths ?? []).filter(Boolean)
+  const contentLen = (input.content ?? '').trim().length
+  // 长文入口适合无配图、正文较长的笔记；有图仍走图文
+  if (contentLen >= 140 && images.length === 0) return 'article'
+
+  return 'image'
+}
+
+/** 按发布类型返回官方直达 URL（from=menu&target=*） */
+export function queryBuildXhsPublishUrl(type: XhsPublishType): string {
+  return XHS_PUBLISH_URLS[type] ?? XHS_PUBLISH_URLS.image
+}
+
+/**
+ * 构造图文发布 URL（兼容旧调用）。
+ * 始终返回官方菜单图文入口；忽略错误的 source=image。
+ */
+export function queryBuildXhsPublishImageUrl(_baseUrl?: string): string {
+  return XHS_PUBLISH_URLS.image
+}
+
+/**
+ * 根据激活 TAB / 正文文案 / file accept 判断是否已在图文上传模式。
+ * TAB 文案优先；否则看是否像图片上传区而非视频区。
+ */
+export function queryIsXhsImagePublishModeFromSignals(
+  signals: XhsPublishModeSignals
+): boolean {
+  const tab = (signals.activeTabText || '').replace(/\s+/g, '')
+  if (tab) {
+    if (queryMatchXhsImageTabLabel(tab)) return true
+    if (tab.includes('视频') || tab.includes('长文') || tab.includes('播客')) return false
+  }
+
+  const body = signals.bodyText || ''
+  const accept = (signals.fileAccept || '').toLowerCase()
+  if (/拖拽图片|上传图片/.test(body)) return true
+  if (accept.includes('image') && !accept.includes('video')) return true
+  if (/拖拽视频|上传视频/.test(body)) return false
+  if (accept.includes('video') && !accept.includes('image')) return false
+  return false
 }
 
 /**
@@ -57,69 +202,180 @@ export async function queryElementBlocked(
   }, selector)
 }
 
-/** 查找 creator-tab 并返回拟人点击坐标 */
-async function queryCreatorTabHit(page: Page, tabName: string): Promise<TabHit | null> {
-  return page.evaluate((name) => {
-    const tabs = Array.from(document.querySelectorAll('div.creator-tab')) as HTMLElement[]
+/**
+ * 采集发布页模式信号（激活 TAB / 正文 / file accept）。
+ * 在页面上下文执行，避免依赖单一 class。
+ */
+export async function queryXhsPublishModeSignals(page: Page): Promise<XhsPublishModeSignals> {
+  return page.evaluate(() => {
+    const tabSelectors = [
+      'div.creator-tab',
+      '[class*="creator-tab"]',
+      '[role="tab"]',
+      '.header-tabs [class*="tab"]'
+    ]
+    const tabs: HTMLElement[] = []
+    for (const sel of tabSelectors) {
+      document.querySelectorAll(sel).forEach((el) => tabs.push(el as HTMLElement))
+    }
+
+    let activeTabText = ''
     for (const tab of tabs) {
       const text = (tab.innerText || tab.textContent || '').trim()
-      if (text !== name) continue
-      const rect = tab.getBoundingClientRect()
-      if (rect.width < 2 || rect.height < 2) continue
-      const x = rect.left + rect.width / 2
-      const y = rect.top + rect.height / 2
-      const target = document.elementFromPoint(x, y)
-      const blocked = !(target === tab || tab.contains(target))
-      return { x, y, blocked }
+      if (!text) continue
+      const cls = typeof tab.className === 'string' ? tab.className : ''
+      const active =
+        /active|selected|current|is-active|tab-active/i.test(cls) ||
+        tab.getAttribute('aria-selected') === 'true' ||
+        tab.getAttribute('data-active') === 'true'
+      if (active) {
+        activeTabText = text
+        break
+      }
+    }
+
+    const input = document.querySelector(
+      '.upload-input, input[type="file"]'
+    ) as HTMLInputElement | null
+
+    return {
+      activeTabText,
+      bodyText: (document.body?.innerText || '').slice(0, 4000),
+      fileAccept: input?.accept || ''
+    }
+  })
+}
+
+/** 当前是否已在「上传图文」模式 */
+export async function queryIsXhsImagePublishMode(page: Page): Promise<boolean> {
+  const signals = await queryXhsPublishModeSignals(page)
+  return queryIsXhsImagePublishModeFromSignals(signals)
+}
+
+/** 查找图文 TAB 并返回拟人点击坐标（支持多 selector + 模糊文案） */
+async function queryCreatorTabHit(page: Page): Promise<TabHit | null> {
+  return page.evaluate(() => {
+    const matchLabel = (raw: string): boolean => {
+      const n = raw.replace(/\s+/g, '')
+      if (!n) return false
+      if (n.includes('长文') || n.includes('视频') || n.includes('播客')) return false
+      return n === '上传图文' || n === '图文' || n.includes('上传图文') || n === '图片'
+    }
+
+    const selectors = [
+      'div.creator-tab',
+      '[class*="creator-tab"]',
+      '[role="tab"]',
+      '.header-tabs [class*="tab"]'
+    ]
+    const seen = new Set<HTMLElement>()
+    for (const sel of selectors) {
+      const tabs = Array.from(document.querySelectorAll(sel)) as HTMLElement[]
+      for (const tab of tabs) {
+        if (seen.has(tab)) continue
+        seen.add(tab)
+        const text = (tab.innerText || tab.textContent || '').trim()
+        if (!matchLabel(text)) continue
+        const rect = tab.getBoundingClientRect()
+        if (rect.width < 2 || rect.height < 2) continue
+        const x = rect.left + rect.width / 2
+        const y = rect.top + rect.height / 2
+        const target = document.elementFromPoint(x, y)
+        const blocked = !(target === tab || tab.contains(target))
+        return { x, y, blocked }
+      }
     }
     return null
-  }, tabName)
+  })
+}
+
+/** DOM 内直接 click（绕过被遮挡时的坐标点击失败） */
+async function postClickXhsImageTabInDom(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const matchLabel = (raw: string): boolean => {
+      const n = raw.replace(/\s+/g, '')
+      if (!n) return false
+      if (n.includes('长文') || n.includes('视频') || n.includes('播客')) return false
+      return n === '上传图文' || n === '图文' || n.includes('上传图文') || n === '图片'
+    }
+    const nodes = Array.from(
+      document.querySelectorAll(
+        'div.creator-tab, [class*="creator-tab"], [role="tab"], button, span, a, div'
+      )
+    ) as HTMLElement[]
+    for (const el of nodes) {
+      const text = (el.innerText || el.textContent || '').trim()
+      // 只要叶子级/短文案节点，避免点到整块容器
+      if (text.length > 12) continue
+      if (!matchLabel(text)) continue
+      const rect = el.getBoundingClientRect()
+      if (rect.width < 2 || rect.height < 2) continue
+      el.click()
+      return true
+    }
+    return false
+  })
 }
 
 /**
  * 切换到「上传图文」TAB。
- * 被浮层遮挡时会先 removeXhsPopoverOverlay 再重试。
+ * 策略：已在图文则跳过 → 拟人点 TAB → DOM click → 直达 target=image URL。
+ * 每次点击后必须校验模式信号，避免「点了但还在视频页」的假成功。
  */
-export async function clickXhsImageTab(page: Page, timeoutMs = 15_000): Promise<boolean> {
+export async function clickXhsImageTab(page: Page, timeoutMs = 18_000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
 
   await page
-    .locator('div.upload-content')
+    .locator('div.upload-content, div.creator-tab, [class*="creator-tab"]')
     .first()
-    .waitFor({ state: 'visible', timeout: timeoutMs })
+    .waitFor({ state: 'visible', timeout: Math.min(timeoutMs, 12_000) })
     .catch(() => undefined)
 
+  if (await queryIsXhsImagePublishMode(page)) return true
+
+  let navigatedFallback = false
+
   while (Date.now() < deadline) {
-    const hit = await queryCreatorTabHit(page, '上传图文')
-    if (!hit) {
-      // 文案 fallback：部分版本 tab 文案为「图文」
-      const alt = await queryCreatorTabHit(page, '图文')
-      if (alt) {
-        if (alt.blocked) {
-          await removeXhsPopoverOverlay(page)
-          await sleep(250)
-          continue
-        }
-        await humanClickAt(page, alt.x, alt.y)
-        await humanStepPause({ min: 600, max: 1800 })
-        return true
+    if (await queryIsXhsImagePublishMode(page)) return true
+
+    await removeXhsPopoverOverlay(page)
+
+    const hit = await queryCreatorTabHit(page)
+    if (hit) {
+      if (hit.blocked) {
+        await removeXhsPopoverOverlay(page)
+        await sleep(250)
+        // 遮挡时直接走 DOM click
+        await postClickXhsImageTabInDom(page)
+      } else {
+        await humanClickAt(page, hit.x, hit.y)
       }
-      await sleep(250)
-      continue
+      await humanStepPause({ min: 700, max: 1600 })
+      if (await queryIsXhsImagePublishMode(page)) return true
+    } else {
+      // 文案 fallback（改版后 class 可能变化）
+      await humanClickText(page, ['上传图文', '图文'], { timeoutPer: 1200 })
+      await humanStepPause({ min: 500, max: 1200 })
+      if (await queryIsXhsImagePublishMode(page)) return true
+      await postClickXhsImageTabInDom(page)
+      await sleep(600)
+      if (await queryIsXhsImagePublishMode(page)) return true
     }
 
-    if (hit.blocked) {
-      await removeXhsPopoverOverlay(page)
-      await sleep(250)
-      continue
+    // TAB 点击无效时，用官方图文入口直达（from=menu&target=image）
+    if (!navigatedFallback && Date.now() + 2500 < deadline) {
+      navigatedFallback = true
+      await page
+        .goto(queryBuildXhsPublishUrl('image'), { waitUntil: 'domcontentloaded' })
+        .catch(() => undefined)
+      await humanStepPause({ min: 1500, max: 3200 })
+      if (await queryIsXhsImagePublishMode(page)) return true
     }
 
-    await humanClickAt(page, hit.x, hit.y)
-    await humanStepPause({ min: 600, max: 1800 })
-    return true
+    await sleep(280)
   }
 
-  return false
+  return queryIsXhsImagePublishMode(page)
 }
 
 /** 等待 xhs-publish-btn 宿主可点击（submit-disabled=false） */
@@ -368,6 +624,39 @@ export async function uploadXhsImages(page: Page, imagePaths: string[]): Promise
       .waitFor({ state: 'attached', timeout: 60_000 })
       .catch(() => sleep(2000))
   }
+}
+
+/**
+ * 上传视频 / 播客等媒体文件（单文件或少量文件）。
+ * 创作台通常用同一个 hidden file input，accept 随 target 变化。
+ */
+export async function uploadXhsMediaFiles(page: Page, mediaPaths: string[]): Promise<void> {
+  if (!mediaPaths.length) return
+  const input = page.locator('.upload-input, input[type="file"]').first()
+  await input.waitFor({ state: 'attached', timeout: 15_000 })
+  // 多文件一次传入（若 input 支持 multiple）；否则至少传首个
+  try {
+    await input.setInputFiles(mediaPaths)
+  } catch {
+    await input.setInputFiles(mediaPaths[0])
+  }
+  await humanStepPause({ min: 2000, max: 4500 })
+}
+
+/**
+ * 长文入口：若停在「写长文」落地页，点击「新的创作」进入编辑器。
+ */
+export async function ensureXhsArticleEditor(page: Page): Promise<boolean> {
+  const editor = page.locator('[contenteditable="true"], textarea, input[placeholder*="标题"]').first()
+  if (await editor.isVisible({ timeout: 1500 }).catch(() => false)) return true
+
+  const clicked = await humanClickText(page, ['新的创作', '开始创作', '写长文'], {
+    timeoutPer: 2000
+  })
+  if (clicked) {
+    await humanStepPause({ min: 1200, max: 2500 })
+  }
+  return editor.isVisible({ timeout: 5000 }).catch(() => false)
 }
 
 /** 键盘 Tab 聚焦到发布按钮后 Enter（绕过 closed shadow 的兜底方案） */

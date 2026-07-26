@@ -102,7 +102,23 @@ const USAGE_GUIDE_OVERRIDES: Record<string, string> = {
 
   xhs_publish_note: `## 何时使用
 
-成稿、配图路径齐全，且用户确认要发布到**小红书**时调用。
+成稿齐全，且用户确认要发布到**小红书**时调用。
+
+## 发布类型（必判）
+
+调用前根据用户意图选择 \`publishType\`，工具会直达官方入口再填充：
+
+| publishType | 场景 | 入口 |
+|-------------|------|------|
+| image | 图文笔记（默认） | \`?from=menu&target=image\` |
+| video | 上传视频 | \`?from=menu&target=video\` |
+| article | 写长文 | \`?from=menu&target=article\` |
+| audio | 发播客 | \`?from=menu&target=audio\` |
+
+- 图文需 \`imagePaths\`（或先 \`fetch_web_images\`）
+- 视频需 \`videoPaths\`
+- 播客需 \`audioPaths\`
+- 长文以正文为主，可不传图
 
 ## 注意
 

@@ -243,10 +243,13 @@ export const DEFAULT_PUBLISH_CHANNELS: PublishChannelMeta[] = [
     enabled: true,
     publishTool: 'xhs_publish_note',
     titleMaxLength: 20,
-    loginCheckUrl: 'https://creator.xiaohongshu.com/publish/publish?source=official',
+    loginCheckUrl: 'https://creator.xiaohongshu.com/publish/publish?from=menu&target=image',
     humanized: false,
     agentHint:
-      '优先使用 xhs_publish_note（可传 imageSourceUrl 或先 fetch 再传 imagePaths）。' +
+      '优先使用 xhs_publish_note。先判断类型并传 publishType：' +
+      'image=图文（配图）、video=视频（videoPaths）、article=长文、audio=播客（audioPaths）。' +
+      '工具会自动打开 from=menu&target=对应类型 的官方入口再填充。' +
+      '图文可传 imageSourceUrl 或先 fetch_web_images 再传 imagePaths。' +
       '渠道「拟人操作」关闭时走 SDK（未接入会提示）；开启后才用浏览器拟人发布。' +
       '内容须去同质化：每篇标题结构、正文段落、话题标签需差异化，禁止模板批量替换关键词。' +
       '拟人模式下工具会自动浏览热身、随机延迟、配图微处理；遵守日≤2篇/周≤10篇、深夜0-6点不操作。',
