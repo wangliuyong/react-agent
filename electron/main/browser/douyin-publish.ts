@@ -233,6 +233,9 @@ export async function publishDouyinNote(params: PublishDouyinParams): Promise<st
 
   await page.waitForTimeout(3000)
 
+  // 发布已触发：关闭有头浏览器，避免窗口长期占用与 profile 锁残留
+  await browser.closeHeaded()
+
   setTasks([
     { id: '1', title: '打开抖音创作者中心', status: 'done' },
     { id: '2', title: '确认登录状态', status: 'done' },
@@ -240,7 +243,7 @@ export async function publishDouyinNote(params: PublishDouyinParams): Promise<st
     { id: '4', title: '填写文案并发布', status: 'done' }
   ])
 
-  return `已触发抖音发布流程。标题「${title}」。请在智能体浏览器中确认是否发布成功。【执行完毕】`
+  return `已触发抖音发布流程。标题「${title}」。智能体浏览器已自动关闭。【执行完毕】`
 }
 
 async function detectNeedLogin(page: Page): Promise<boolean> {

@@ -1,10 +1,10 @@
-import { createWriteStream, existsSync, mkdirSync } from 'fs'
+import { createWriteStream, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { join, extname } from 'path'
 import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
 import { getArtifactsDir } from '../store/paths'
 import { getBrowserService } from './service'
-import { queryHttp } from '../net/http-client'
+import { HttpError, queryHttp } from '../net/http-client'
 
 export interface FetchWebImagesOptions {
   /** 内容来源页：打开后从页面提取大图 */
@@ -67,7 +67,9 @@ export async function fetchWebImages(opts: FetchWebImagesOptions): Promise<Fetch
     if (paths.length >= maxCount) break
     if (opts.signal?.aborted) throw new Error('用户已中止')
     try {
-      const saved = await downloadImageToFile(url, outDir, index)
+      const saved = await downloadImageToFile(url, outDir, index, {
+        pageUrl: opts.pageUrl
+      })
       if (saved) {
         paths.push(saved)
         sources.push(url)
@@ -82,7 +84,9 @@ export async function fetchWebImages(opts: FetchWebImagesOptions): Promise<Fetch
     return {
       paths: [],
       sources: [],
-      message: `候选 ${candidates.length} 张均下载失败。可换来源页，或让用户可选上传本地图。`
+      message:
+        `候选 ${candidates.length} 张均下载失败（常见原因：CDN 防盗链 403，如抖音/小红书图床）。` +
+        '请换来源 pageUrl、改传可访问的 imageUrls，或让用户本地上传配图。'
     }
   }
 
@@ -178,17 +182,111 @@ async function extractImageUrlsFromPage(pageUrl: string, limit: number): Promise
   return urls
 }
 
+/**
+ * 为图片直链构造 Referer，满足抖音/小红书等 CDN 防盗链。
+ * 勿用图片 CDN 自身 origin 作 Referer（易 403）。
+ */
+export function queryImageDownloadReferer(imageUrl: string, pageUrl?: string): string {
+  try {
+    const imgHost = new URL(imageUrl).hostname.toLowerCase()
+
+    if (pageUrl && /^https?:\/\//i.test(pageUrl)) {
+      const pageHost = new URL(pageUrl).hostname.toLowerCase()
+      // 来源页与图床同站或常见关联 CDN 时，用完整来源页 Referer
+      if (
+        imageUrl.includes(pageHost) ||
+        queryIsCdnRelatedToPage(imgHost, pageHost)
+      ) {
+        return pageUrl
+      }
+    }
+
+    if (/douyinpic\.com|byteimg\.com|bytednsdoc\.com|ibyteimg\.com/i.test(imgHost)) {
+      return 'https://www.douyin.com/'
+    }
+    if (/xhscdn\.com|xiaohongshu\.com|xhslink\.com/i.test(imgHost)) {
+      return 'https://www.xiaohongshu.com/'
+    }
+    if (/weibo\.cn|weibo\.com|sinaimg\.cn/i.test(imgHost)) {
+      return 'https://weibo.com/'
+    }
+
+    if (pageUrl && /^https?:\/\//i.test(pageUrl)) return pageUrl
+    return `${new URL(imageUrl).protocol}//${new URL(imageUrl).host}/`
+  } catch {
+    return pageUrl && /^https?:\/\//i.test(pageUrl) ? pageUrl : ''
+  }
+}
+
+/** 页面域名与图床是否常见关联（用于选用 pageUrl 作 Referer） */
+function queryIsCdnRelatedToPage(imgHost: string, pageHost: string): boolean {
+  if (imgHost.includes(pageHost) || pageHost.includes(imgHost)) return true
+  const pairs: Array<[RegExp, RegExp]> = [
+    [/douyinpic\.com|byteimg\.com|ibyteimg\.com/i, /douyin\.com/i],
+    [/xhscdn\.com/i, /xiaohongshu\.com|xhslink\.com/i],
+    [/sinaimg\.cn/i, /weibo\.(com|cn)/i]
+  ]
+  return pairs.some(([cdn, site]) => cdn.test(imgHost) && site.test(pageHost))
+}
+
+/** 部分 CDN 对 http 直链 403，优先尝试 https */
+export function queryPreferHttpsImageUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    if (u.protocol === 'http:') {
+      u.protocol = 'https:'
+      return u.toString()
+    }
+  } catch {
+    // ignore
+  }
+  return url
+}
+
+interface DownloadImageOptions {
+  pageUrl?: string
+}
+
 async function downloadImageToFile(
   url: string,
   outDir: string,
-  index: number
+  index: number,
+  opts?: DownloadImageOptions
 ): Promise<string | null> {
+  const candidates = [queryPreferHttpsImageUrl(url)]
+  if (candidates[0] !== url) candidates.push(url)
+
+  let lastError: unknown
+  for (const tryUrl of candidates) {
+    try {
+      return await downloadImageOnce(tryUrl, outDir, index, opts?.pageUrl)
+    } catch (err) {
+      lastError = err
+      const status = err instanceof HttpError ? err.status : 0
+      if (status === 403 || status === 401) {
+        try {
+          return await downloadImageViaBrowserRequest(tryUrl, outDir, index, opts?.pageUrl)
+        } catch (browserErr) {
+          lastError = browserErr
+        }
+      }
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
+async function downloadImageOnce(
+  url: string,
+  outDir: string,
+  index: number,
+  pageUrl?: string
+): Promise<string | null> {
+  const referer = queryImageDownloadReferer(url, pageUrl)
   const res = await queryHttp(url, {
     timeoutMs: 30_000,
     headers: {
-      // 部分站点需常见 UA，否则拒下图
       Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-      Referer: new URL(url).origin
+      ...(referer ? { Referer: referer } : {})
     }
   })
   if (!res.body) {
@@ -197,7 +295,6 @@ async function downloadImageToFile(
 
   const contentType = res.headers.get('content-type') || ''
   if (contentType && !contentType.startsWith('image/') && !contentType.includes('octet-stream')) {
-    // 有些 CDN 不返回 image/*，仍尝试按扩展名保存
     if (!/\.(jpe?g|png|webp|gif|bmp)(\?|$)/i.test(url)) {
       throw new Error(`非图片类型: ${contentType}`)
     }
@@ -205,8 +302,46 @@ async function downloadImageToFile(
 
   const ext = guessExt(url, contentType)
   const filePath = join(outDir, `image-${index + 1}${ext}`)
-  await pipeline(Readable.fromWeb(res.body as import('stream/web').ReadableStream), createWriteStream(filePath))
+  await pipeline(
+    Readable.fromWeb(res.body as import('stream/web').ReadableStream),
+    createWriteStream(filePath)
+  )
 
+  if (!existsSync(filePath)) return null
+  return filePath
+}
+
+/**
+ * Node fetch 被 CDN 403 时，用 Playwright 持久化上下文发请求（共享 Cookie / 更接近真实浏览器）。
+ */
+async function downloadImageViaBrowserRequest(
+  url: string,
+  outDir: string,
+  index: number,
+  pageUrl?: string
+): Promise<string | null> {
+  const browser = getBrowserService()
+  await browser.ensureStarted()
+  const page = browser.getPage()
+  if (!page) throw new Error('浏览器未就绪，无法兜底下载图片')
+
+  const referer = queryImageDownloadReferer(url, pageUrl)
+  const response = await page.context().request.get(url, {
+    timeout: 30_000,
+    headers: {
+      Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+      ...(referer ? { Referer: referer } : {})
+    }
+  })
+
+  if (!response.ok()) {
+    throw new HttpError(`HTTP ${response.status()}`, response.status(), url)
+  }
+
+  const contentType = response.headers()['content-type'] || ''
+  const ext = guessExt(url, contentType)
+  const filePath = join(outDir, `image-${index + 1}${ext}`)
+  writeFileSync(filePath, await response.body())
   if (!existsSync(filePath)) return null
   return filePath
 }

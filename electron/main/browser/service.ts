@@ -293,6 +293,14 @@ class BrowserService {
     releaseBrowserProfileLock(getHeadlessBrowserProfileDir())
   }
 
+  /**
+   * 关闭有头智能体浏览器（用户可见窗口）。
+   * 发布成功后调用，释放窗口与 profile 锁；无头抓取上下文不受影响。
+   */
+  async closeHeaded(): Promise<void> {
+    await this.headed.close()
+  }
+
   async close(): Promise<void> {
     await Promise.all([this.headed.close(), this.headless.close()])
   }

@@ -303,6 +303,9 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   await humanStepPause({ min: 2500, max: 5000 })
   postRecordXhsBehavior('publish')
 
+  // 发布已触发：关闭有头浏览器，避免窗口长期占用与 profile 锁残留
+  await browser.closeHeaded()
+
   setTasks([
     { id: '0', title: '模拟浏览热身（发现页）', status: 'done' },
     { id: '1', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
@@ -313,7 +316,7 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
 
   return (
     `已触发「${typeLabel}」发布流程。标题「${title}」。入口 ${publishUrl}。` +
-    `请在智能体浏览器中确认是否发布成功。` +
+    `智能体浏览器已自动关闭。` +
     `${warmupMsg ? `\n${warmupMsg}` : ''}` +
     `${offPeakWarn ? `\n⚠️ ${offPeakWarn}` : ''}` +
     `【执行完毕】`
