@@ -13,8 +13,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@shared/*": ["shared/*"]
+      "@shared/*": ["shared/*"],
+      "@remotion-starter/*": ["resources/remotion/starter/src/*"]
     }
   },
-  "include": ["src/**/*", "shared/**/*", "src/auto-imports.d.ts"]
+  "include": ["src/**/*", "shared/**/*", "resources/remotion/starter/src/**/*", "src/auto-imports.d.ts"]
 }

@@ -28,24 +28,35 @@ export const REMOTION_VIDEO_SEED_PROJECTS: RemotionVideoProject[] = [
     updatedAt: Date.now() - 86400_000
   },
   {
+    id: 'rv-news-hot',
+    title: '热点新闻 · 横版联播',
+    description: '片头闪屏、主标题导语、分条轮播与底部滚动字幕，内置 Remotion 模板',
+    category: 'news',
+    status: 'ready',
+    accent: '#e63946',
+    durationSec: 20,
+    compositionId: 'HotNews',
+    updatedAt: Date.now() - 900_000
+  },
+  {
     id: 'rv-news-morning',
     title: '早报快讯三栏',
     description: '标题区 + 滚动字幕 + 角标时间轴，横屏 16:9',
     category: 'news',
     status: 'rendering',
     accent: '#e85d4c',
-    durationSec: 45,
+    durationSec: 20,
     compositionId: 'NewsTickerWide',
     updatedAt: Date.now() - 1800_000
   },
   {
     id: 'rv-news-brief',
     title: '突发简讯竖屏',
-    description: '单条新闻大字报式排版，强调可读性',
+    description: '热点新闻竖版：大字报标题 + LIVE 滚动带',
     category: 'news',
     status: 'ready',
-    accent: '#d4a574',
-    durationSec: 28,
+    accent: '#ff4d4f',
+    durationSec: 15,
     compositionId: 'NewsFlashVertical',
     updatedAt: Date.now() - 7200_000
   },

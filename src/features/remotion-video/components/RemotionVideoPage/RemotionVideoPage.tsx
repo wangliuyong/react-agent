@@ -13,6 +13,8 @@ import {
   queryRemotionVideosByCategory,
   type RemotionVideoSort
 } from '../../utils/query-remotion-video-list'
+import { queryRemotionTemplatePreview } from '../../templates/template-preview-registry'
+import { RemotionTemplatePreviewPanel } from '../RemotionTemplatePreviewPanel/RemotionTemplatePreviewPanel'
 import {
   FeaturePageShell,
   FeaturePageHeader,
@@ -87,6 +89,7 @@ export function RemotionVideoPage(): React.ReactElement {
   const [category, setCategory] = useState<RemotionVideoCategory | 'all'>('all')
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<RemotionVideoSort>('updated_desc')
+  const [previewProject, setPreviewProject] = useState<RemotionVideoProject | null>(null)
 
   const filtered = useMemo(() => {
     const byCategory = queryRemotionVideosByCategory(REMOTION_VIDEO_SEED_PROJECTS, category)
@@ -95,6 +98,10 @@ export function RemotionVideoPage(): React.ReactElement {
   }, [category, search, sort])
 
   const handleOpenProject = (project: RemotionVideoProject): void => {
+    if (queryRemotionTemplatePreview(project.compositionId)) {
+      setPreviewProject(project)
+      return
+    }
     message.info(`「${project.title}」编辑器即将接入，当前为列表预览`)
   }
 
@@ -154,6 +161,12 @@ export function RemotionVideoPage(): React.ReactElement {
       </FeaturePageToolbar>
 
       <FeatureScrollBody>
+        {previewProject ? (
+          <RemotionTemplatePreviewPanel
+            project={previewProject}
+            onClose={() => setPreviewProject(null)}
+          />
+        ) : null}
         {filtered.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}

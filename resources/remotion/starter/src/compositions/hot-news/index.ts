@@ -1,0 +1,5 @@
+export { HotNewsComposition } from './HotNewsComposition'
+export { HotNewsBackground } from './HotNewsBackground'
+export { HotNewsTicker } from './HotNewsTicker'
+export { HOT_NEWS_WIDE_DEFAULT_PROPS, HOT_NEWS_VERTICAL_DEFAULT_PROPS } from './default-props'
+export type { HotNewsProps, HotNewsItem } from './types'

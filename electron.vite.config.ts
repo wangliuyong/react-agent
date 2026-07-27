@@ -71,7 +71,8 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': resolve('src'),
-        '@shared': resolve('shared')
+        '@shared': resolve('shared'),
+        '@remotion-starter': resolve('resources/remotion/starter/src')
       }
     },
     plugins: [

@@ -47,6 +47,7 @@
     "@langchain/openai": "^1.5.5",
     "@remotion/bundler": "^4.0.496",
     "@remotion/cli": "^4.0.496",
+    "@remotion/player": "^4.0.496",
     "@remotion/renderer": "^4.0.496",
     "@remotion/sfx": "4.0.496",
     "@tanstack/react-virtual": "^3.14.6",
