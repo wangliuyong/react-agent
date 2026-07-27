@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   queryFormatToolArgsExampleJson,
-  queryToolArgsExample
+  queryFormatToolContextPreviewJson,
+  queryToolArgsExample,
+  queryToolContextExample,
+  queryToolContextInputKeys,
+  queryToolContextPreview
 } from '../src/features/workflows/utils/queryToolArgsExample'
 
 describe('queryToolArgsExample', () => {
@@ -39,5 +43,33 @@ describe('queryToolArgsExample', () => {
       JSON.stringify({ source: 'weibo', maxCount: 20 }, null, 2)
     )
     expect(queryFormatToolArgsExampleJson('')).toBe('{}')
+  })
+
+  it('extracts context input keys from args placeholders', () => {
+    expect(queryToolContextInputKeys('write_file')).toEqual(['summary'])
+    expect(queryToolContextInputKeys('fetch_hot_topics')).toEqual([])
+    expect(queryToolContextInputKeys('xhs_publish_note').sort()).toEqual(
+      ['imagePath', 'summary'].sort()
+    )
+  })
+
+  it('builds tool context example with outputs', () => {
+    expect(queryToolContextExample('fetch_hot_topics')).toMatchObject({
+      hotTopicsOk: '1',
+      hotSource: 'weibo'
+    })
+    expect(queryToolContextExample('write_file')).toEqual({ summary: null })
+  })
+
+  it('merges upstream keys into context preview', () => {
+    expect(
+      queryToolContextPreview('fetch_hot_topics', ['summary'])
+    ).toMatchObject({
+      summary: null,
+      hotTopicsOk: '1'
+    })
+    expect(queryFormatToolContextPreviewJson('fetch_hot_topics', [])).toContain(
+      'hotTopicsOk'
+    )
   })
 })

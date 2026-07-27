@@ -3,6 +3,8 @@
  * 与 electron/main/agent/tools 的 parameters 对齐；值可含 {{contextKey}} 供上游插值。
  */
 
+import { queryJsonTemplateContextKeys } from '@shared/workflow-node-io'
+
 /** 各已注册工具的推荐示例参数（未知工具返回空对象） */
 const TOOL_ARGS_EXAMPLES: Record<string, Record<string, unknown>> = {
   use_skill: {
@@ -121,6 +123,68 @@ const TOOL_ARGS_EXAMPLES: Record<string, Record<string, unknown>> = {
 }
 
 /**
+ * 各工具执行后典型写入 workflow context 的字段（与 @@workflow_ctx@@ 对齐，值为示意）。
+ * 仅列出有明确 context patch 的工具；其余工具在预览中只展示参数 JSON 引用的入参键。
+ */
+const TOOL_CONTEXT_OUTPUT_EXAMPLES: Record<string, Record<string, unknown>> = {
+  fetch_hot_topics: {
+    hotTopicsOk: '1',
+    hotSource: 'weibo',
+    hotTopics: '…榜单正文…',
+    hotFetchSource: 'api'
+  },
+  query_ashare_kline: {
+    stockKlineOk: '1',
+    stockSymbols: '600519,000001',
+    stockKlineSummary: '…K 线摘要…'
+  },
+  query_ashare_realtime_analysis: {
+    stockAnalysisOk: '1',
+    stockSymbols: '600519,000001',
+    stockKlineSummary: '…',
+    stockAnalysisReport: '…',
+    stockSignal: 'hold'
+  },
+  query_weather: {
+    weatherOk: '1',
+    weatherText: '…',
+    weatherSummary: '…',
+    weatherCity: '北京'
+  },
+  query_web_data: {
+    webDataOk: '1',
+    webData: '…正文…',
+    webDataUrl: 'https://example.com',
+    webDataTitle: '…',
+    webDataSource: 'api'
+  },
+  generate_script: {
+    scriptOk: '1',
+    scriptPath: '/path/to/projects/…/script.md',
+    scriptTitle: '…',
+    scriptText: '…'
+  },
+  generate_storyboard: {
+    storyboardOk: '1',
+    storyboardPath: '/path/to/projects/…/storyboard.json',
+    storyboardTitle: '…',
+    shotCount: '3'
+  },
+  generate_scene_assets: {
+    sceneAssetsOk: '1',
+    sceneAssetPaths: '["…"]',
+    sceneVideoPaths: '["…"]',
+    sceneAudioPaths: '["…"]',
+    sceneAssetsManifest: '/path/to/assets-manifest.json'
+  },
+  compose_video: {
+    videoOk: '1',
+    videoPath: '/path/to/output.mp4',
+    videoMessage: '…'
+  }
+}
+
+/**
  * 按工具名查询参数示例对象。
  * 未注册或空名时返回 {}，便于表单默认展示。
  */
@@ -138,4 +202,63 @@ export function queryToolArgsExample(toolName: string): Record<string, unknown> 
  */
 export function queryFormatToolArgsExampleJson(toolName: string): string {
   return JSON.stringify(queryToolArgsExample(toolName), null, 2)
+}
+
+/**
+ * 从工具参数示例中提取需在 context 中提供的入参键（{{key}} 占位符）。
+ */
+export function queryToolContextInputKeys(toolName: string): string[] {
+  return queryJsonTemplateContextKeys(queryToolArgsExample(toolName))
+}
+
+/**
+ * 单工具典型 context 结构：入参键为 null，出参键为示意值。
+ */
+export function queryToolContextExample(toolName: string): Record<string, unknown> {
+  const key = toolName.trim()
+  if (!key) return {}
+
+  const preview: Record<string, unknown> = {}
+  for (const inputKey of queryToolContextInputKeys(key)) {
+    preview[inputKey] = null
+  }
+  const outputs = TOOL_CONTEXT_OUTPUT_EXAMPLES[key]
+  if (outputs) {
+    for (const [k, v] of Object.entries(outputs)) {
+      preview[k] = v
+    }
+  }
+  return preview
+}
+
+/**
+ * 表单 Context 预览：合并上游输出键与当前工具典型 context（上游键优先展示为 null）。
+ */
+export function queryToolContextPreview(
+  toolName: string,
+  upstreamOutputKeys: string[]
+): Record<string, unknown> {
+  const toolPreview = queryToolContextExample(toolName)
+  const merged: Record<string, unknown> = {}
+
+  for (const k of upstreamOutputKeys) {
+    merged[k] = toolPreview[k] ?? null
+  }
+  for (const [k, v] of Object.entries(toolPreview)) {
+    if (!(k in merged)) {
+      merged[k] = v
+    }
+  }
+  return merged
+}
+
+/**
+ * 将 context 预览格式化为表单只读 JSON 文本。
+ */
+export function queryFormatToolContextPreviewJson(
+  toolName: string,
+  upstreamOutputKeys: string[]
+): string {
+  const preview = queryToolContextPreview(toolName, upstreamOutputKeys)
+  return JSON.stringify(preview, null, 2)
 }

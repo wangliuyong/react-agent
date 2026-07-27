@@ -26,7 +26,9 @@ import {
 import { useChannelsStore, queryEnabledNotifyChannelsFromStore } from '@/features/channels'
 import { postSelectDirectory } from '../../api'
 import {
-  queryToolArgsExample
+  queryToolArgsExample,
+  queryFormatToolContextPreviewJson,
+  queryToolContextInputKeys
 } from '../../utils/queryToolArgsExample'
 import {
   createAgentNode,
@@ -568,7 +570,20 @@ export function WorkflowNodeEditModal({
       'argsJson',
       queryFormatArgsJsonForForm(queryToolArgsExample(selected))
     )
+    const currentInputKeys = parseContextKeyList(form.getFieldValue('inputKeys'))
+    if (!currentInputKeys.length) {
+      const inferred = queryToolContextInputKeys(selected)
+      if (inferred.length) {
+        form.setFieldValue('inputKeys', inferred.join(', '))
+      }
+    }
   }, [open, type, toolName, argsJson, form])
+
+  /** 工具步骤 Context 预览：随所选工具与上游输出键变化 */
+  const toolContextPreviewJson = useMemo(
+    () => queryFormatToolContextPreviewJson((toolName ?? '').trim(), upstreamOutputKeys),
+    [toolName, upstreamOutputKeys]
+  )
 
   const typeOptions = useMemo(() => {
     const all: { value: WorkflowNode['type']; label: string }[] = [
@@ -894,6 +909,24 @@ export function WorkflowNodeEditModal({
               initialValue="{}"
             >
               <Input.TextArea rows={5} placeholder='{"title":"{{summary}}"}；JSON 对象，值支持 {{contextKey}}' />
+            </Form.Item>
+            <Form.Item
+              label="Context"
+              tooltip="入参键（null）来自参数 JSON 的 {{key}}；示例值为本工具执行后典型写入的 context 字段"
+              extra={
+                (toolName ?? '').trim()
+                  ? '切换工具会自动更新；可与上游输出键合并展示'
+                  : '请选择工具以查看典型 context 字段'
+              }
+            >
+              <Input.TextArea
+                rows={Math.min(
+                  12,
+                  Math.max(3, toolContextPreviewJson.split('\n').length + 1)
+                )}
+                readOnly
+                value={toolContextPreviewJson}
+              />
             </Form.Item>
           </>
         )}
