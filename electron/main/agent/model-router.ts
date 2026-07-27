@@ -24,8 +24,11 @@ const IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif|bmp|heic|heif|svg)$/i
 const REASONING_RE =
   /推理|分析|证明|调试|排障|根因|算法|复杂度|对比方案|为什么|怎么实现|排查|定位问题/
 
-const CREATIVE_RE =
-  /写作|撰稿|文案|剧本|创作|润色|标题|小红书|抖音文案|诗|小说|脚本|分镜|故事/
+/**
+ * creative 仅对应「文生图 / 图生成视频」类媒体连接选型。
+ * 普通撰稿、文案、剧本不得命中，避免抢走角色绑定的文本模型。
+ */
+const CREATIVE_MEDIA_RE = /文生图|图生视频|图生成视频|文生视频|\bt2i\b|\bi2v\b|\bt2v\b/i
 
 const VISION_HINT_RE = /看图|识图|识别图片|OCR|截图|图片里|这张图/
 
@@ -39,13 +42,38 @@ export function queryNormalizeModelCapability(value: unknown): ModelCapability |
 }
 
 /**
+ * 用户是否明确要求文生图 / 图生成视频（才允许 creative 选型）。
+ */
+export function queryHasExplicitCreativeMediaIntent(text: string): boolean {
+  return CREATIVE_MEDIA_RE.test(text.trim())
+}
+
+/**
+ * 纠正误标的 capability：未明确文生图/图生成视频时，creative 降为 chat。
+ */
+export function querySanitizeModelCapability(
+  capability: ModelCapability | undefined,
+  userText: string
+): ModelCapability | undefined {
+  if (!capability) return undefined
+  if (capability === 'creative' && !queryHasExplicitCreativeMediaIntent(userText)) {
+    return 'chat'
+  }
+  return capability
+}
+
+/**
  * 按附件类型、文本长度与关键词推断模型能力。
- * 优先级：vision（附件/看图）→ longContext → reasoning → creative → chat。
+ * 优先级：creative（明确文生图/图生视频）→ vision（附件/看图）→ longContext → reasoning → chat。
  */
 export function queryInferModelCapability(
   text: string,
   attachmentPaths: string[] = []
 ): ModelCapability {
+  // 文生图/图生成视频优先于「这张图」等看图提示，避免 I2V 被误判为 vision
+  if (queryHasExplicitCreativeMediaIntent(text)) {
+    return 'creative'
+  }
   const hasImageAttachment = attachmentPaths.some((p) => IMAGE_EXT_RE.test(p))
   if (hasImageAttachment || VISION_HINT_RE.test(text)) {
     return 'vision'
@@ -55,9 +83,6 @@ export function queryInferModelCapability(
   }
   if (REASONING_RE.test(text)) {
     return 'reasoning'
-  }
-  if (CREATIVE_RE.test(text)) {
-    return 'creative'
   }
   return 'chat'
 }
@@ -74,10 +99,11 @@ export interface ResolveModelConnectionOptions {
  * 优先级：
  * 1. 有 role 时：角色映射连接若已具备该 capability（或无 capability）→ 用角色连接
  * 2. 角色连接不具备该 capability 时：优先同供应商具备该能力的连接
- *    （避免 DeepSeek 角色被升级到列表靠前的百炼「文生图」连接）
- * 3. 仅 vision 再全表按 capability 选型（文本角色无识图时改走媒体连接）
- *    creative / reasoning 等文本能力不得跨供应商抢走角色配置
+ * 3. vision / creative 再全表按 capability 选型（识图、文生图/图生成视频可跨到媒体连接）
+ *    reasoning / longContext / chat 不得跨供应商抢走角色配置
  * 4. 回退角色映射 / defaultConnectionId
+ *
+ * 注意：creative 仅应在明确文生图/图生成视频意图时传入（见 querySanitizeModelCapability）。
  */
 export function queryResolveModelConnection(
   settings: AppSettings,
@@ -99,9 +125,8 @@ export function queryResolveModelConnection(
     )
     if (sameProvider) return sameProvider
 
-    // 仅 vision 允许跨供应商（DeepSeek 文本角色 → 百炼媒体）
-    // 否则 Supervisor 的 creative 会把调研员打到「图生成视频 · dashscope」
-    if (opts.capability === 'vision') {
+    // vision / creative（文生图·图生成视频）允许跨供应商到媒体连接
+    if (opts.capability === 'vision' || opts.capability === 'creative') {
       const byCap = queryModelConnectionByCapability(settings, opts.capability)
       if (byCap.capabilities?.includes(opts.capability) && byCap.apiKey.trim()) {
         return byCap
@@ -204,7 +229,12 @@ export function queryResolveSupervisorRoute(
   capability?: ModelCapability
 } {
   const parsed = queryParseSupervisorRoute(supervisorText, customRoleIds)
-  if (parsed) return parsed
+  if (parsed) {
+    return {
+      ...parsed,
+      capability: querySanitizeModelCapability(parsed.capability, userText)
+    }
+  }
   const inferred = queryInferSupervisorNext(supervisorText, userText)
   const pipelineKind = querySanitizeSupervisorNext(inferred, userText)
   return {

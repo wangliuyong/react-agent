@@ -6,12 +6,15 @@ import {
 } from '../shared/types'
 import {
   LONG_CONTEXT_CHAR_THRESHOLD,
+  queryHasExplicitCreativeMediaIntent,
   queryHasExplicitPublishIntent,
   queryInferModelCapability,
   queryInferSupervisorNext,
   queryParseSupervisorRoute,
   queryPipelineEntryRole,
   queryResolveModelConnection,
+  queryResolveSupervisorRoute,
+  querySanitizeModelCapability,
   querySanitizeSupervisorNext
 } from '../electron/main/agent/model-router'
 
@@ -56,8 +59,15 @@ describe('queryInferModelCapability', () => {
     expect(queryInferModelCapability('帮我排查这个报错的根因')).toBe('reasoning')
   })
 
-  it('创作关键词推断 creative', () => {
-    expect(queryInferModelCapability('帮我写一篇小红书文案')).toBe('creative')
+  it('普通撰稿/文案不推断 creative，走 chat', () => {
+    expect(queryInferModelCapability('帮我写一篇小红书文案')).toBe('chat')
+    expect(queryInferModelCapability('选 1 个热点深入解析创作内容')).toBe('chat')
+  })
+
+  it('仅明确文生图/图生成视频才推断 creative', () => {
+    expect(queryInferModelCapability('用文生图做一张海报')).toBe('creative')
+    expect(queryInferModelCapability('把这张图生成视频')).toBe('creative')
+    expect(queryInferModelCapability('图生视频做成片')).toBe('creative')
   })
 
   it('普通闲聊默认 chat', () => {
@@ -103,18 +113,18 @@ describe('queryParseSupervisorRoute', () => {
 })
 
 describe('queryResolveModelConnection', () => {
-  it('角色连接不具备 capability 时，优先同供应商升级而非跨供应商', () => {
+  it('明确 creative 时，优先同供应商带 creative 的连接（媒体）', () => {
     const settings = queryTestSettings()
     const conn = queryResolveModelConnection(settings, {
       role: 'researcher',
       capability: 'creative'
     })
-    // researcher 映射 reason（无 creative）→ 同供应商 creative
-    expect(conn.id).toBe(DEFAULT_CONNECTION_IDS.creative)
+    // researcher 映射 reason（无 creative）→ 同供应商 media（creative）
+    expect(conn.id).toBe(DEFAULT_CONNECTION_IDS.media)
     expect(conn.provider).toBe('dashscope')
   })
 
-  it('DeepSeek 角色不会被列表前部的百炼文生图连接抢走', () => {
+  it('明确 creative（文生图）时，可跨供应商选用文生图连接', () => {
     const deepseekConns = queryBuildDefaultConnections({
       apiKey: 'sk-ds',
       provider: 'deepseek'
@@ -145,13 +155,12 @@ describe('queryResolveModelConnection', () => {
       role: 'researcher',
       capability: 'creative'
     })
-    expect(conn.provider).toBe('deepseek')
-    expect(conn.id).toBe(DEFAULT_CONNECTION_IDS.creative)
+    // DeepSeek 默认套装的 media 也带 creative；同供应商优先于列表前部的文生图
+    expect(conn.provider).toBe('dashscope')
+    expect(conn.capabilities).toContain('creative')
   })
 
-  it('DeepSeek 角色无同供应商 creative 时，坚持角色连接，不跨到图生成视频', () => {
-    // 复现：调研员绑定「默认 (DeepSeek)」，Supervisor 给出 creative，
-    // 列表里只有 dashscope「图生成视频」带 creative → 不得抢走角色配置
+  it('无明确 creative 意图时 sanitize 为 chat，坚持角色 DeepSeek 连接', () => {
     const settings = queryTestSettings({
       provider: 'deepseek',
       apiKey: 'sk-ds',
@@ -182,13 +191,56 @@ describe('queryResolveModelConnection', () => {
         researcher: DEFAULT_CONNECTION_IDS.default
       }
     })
+    const capability = querySanitizeModelCapability('creative', '选热点写一篇小红书文案')
+    expect(capability).toBe('chat')
     const conn = queryResolveModelConnection(settings, {
       role: 'researcher',
-      capability: 'creative'
+      capability
     })
     expect(conn.provider).toBe('deepseek')
     expect(conn.id).toBe(DEFAULT_CONNECTION_IDS.default)
     expect(conn.label).toBe('默认 (DeepSeek) 文本处理')
+  })
+
+  it('明确图生成视频时，creative 可跨到对应媒体连接', () => {
+    const settings = queryTestSettings({
+      provider: 'deepseek',
+      apiKey: 'sk-ds',
+      baseUrl: 'https://api.deepseek.com',
+      model: 'deepseek-v4-flash',
+      connections: [
+        {
+          id: 'conn-img2video',
+          label: '图生成视频',
+          provider: 'dashscope',
+          apiKey: 'sk-aliyun',
+          baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+          model: 'qwen-plus',
+          capabilities: ['creative', 'chat', 'vision']
+        },
+        {
+          id: DEFAULT_CONNECTION_IDS.default,
+          label: '默认 (DeepSeek) 文本处理',
+          provider: 'deepseek',
+          apiKey: 'sk-ds',
+          baseUrl: 'https://api.deepseek.com',
+          model: 'deepseek-v4-flash',
+          capabilities: ['chat']
+        }
+      ],
+      defaultConnectionId: DEFAULT_CONNECTION_IDS.default,
+      roleModelMap: {
+        researcher: DEFAULT_CONNECTION_IDS.default
+      }
+    })
+    const capability = querySanitizeModelCapability('creative', '请用图生成视频做成片')
+    expect(capability).toBe('creative')
+    const conn = queryResolveModelConnection(settings, {
+      role: 'researcher',
+      capability
+    })
+    expect(conn.label).toBe('图生成视频')
+    expect(conn.provider).toBe('dashscope')
   })
 
   it('vision 能力仍允许 DeepSeek 角色跨到百炼媒体连接', () => {
@@ -214,7 +266,7 @@ describe('queryResolveModelConnection', () => {
           apiKey: 'sk-aliyun',
           baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
           model: 'qwen-plus',
-          capabilities: ['vision']
+          capabilities: ['vision', 'creative']
         }
       ],
       defaultConnectionId: DEFAULT_CONNECTION_IDS.default,
@@ -240,6 +292,17 @@ describe('queryResolveModelConnection', () => {
     const settings = queryTestSettings()
     const conn = queryResolveModelConnection(settings, {})
     expect(conn.id).toBe(DEFAULT_CONNECTION_IDS.default)
+  })
+})
+
+describe('querySanitizeModelCapability', () => {
+  it('creative 仅在明确文生图/图生成视频时保留', () => {
+    expect(queryHasExplicitCreativeMediaIntent('帮我文生图')).toBe(true)
+    expect(queryHasExplicitCreativeMediaIntent('图生成视频')).toBe(true)
+    expect(queryHasExplicitCreativeMediaIntent('写小红书文案')).toBe(false)
+    expect(querySanitizeModelCapability('creative', '写一篇文案')).toBe('chat')
+    expect(querySanitizeModelCapability('creative', '文生图出海报')).toBe('creative')
+    expect(querySanitizeModelCapability('reasoning', '写一篇文案')).toBe('reasoning')
   })
 })
 
@@ -280,6 +343,32 @@ describe('supervisor 路由辅助', () => {
     expect(queryParseSupervisorRoute('{"next":"content","capability":"creative"}')).toEqual({
       nextAgent: 'researcher',
       pipelineKind: 'content',
+      capability: 'creative'
+    })
+  })
+
+  it('撰稿任务误标 creative 时 resolve 会降为 chat', () => {
+    expect(
+      queryResolveSupervisorRoute(
+        '{"next":"content","capability":"creative"}',
+        '选 1 个热点深入解析创作内容'
+      )
+    ).toEqual({
+      nextAgent: 'researcher',
+      pipelineKind: 'content',
+      capability: 'chat'
+    })
+  })
+
+  it('明确图生成视频时保留 creative', () => {
+    expect(
+      queryResolveSupervisorRoute(
+        '{"next":"video","capability":"creative"}',
+        '请用图生成视频做成片'
+      )
+    ).toEqual({
+      nextAgent: 'scriptwriter',
+      pipelineKind: 'video',
       capability: 'creative'
     })
   })

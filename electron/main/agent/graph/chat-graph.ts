@@ -21,6 +21,7 @@ import {
   queryInferModelCapability,
   queryResolveSupervisorRoute,
   queryResolveModelConnection,
+  querySanitizeModelCapability,
   type SupervisorNextTarget
 } from '../model-router'
 
@@ -154,9 +155,12 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     const nextAgent = route.nextAgent
     const nextTarget: SupervisorNextTarget = route.pipelineKind
 
-    // Supervisor capability 优先；缺失则规则推断
+    // Supervisor capability 优先；缺失则规则推断；creative 仅保留明确文生图/图生成视频
     const capability: ModelCapability =
-      route.capability ?? queryInferModelCapability(userText, state.attachmentPaths)
+      querySanitizeModelCapability(
+        route.capability ?? queryInferModelCapability(userText, state.attachmentPaths),
+        userText
+      ) ?? 'chat'
 
     capabilityBox.current = capability
     postResolveForRole(nextAgent as ModelRoleKey, capability)

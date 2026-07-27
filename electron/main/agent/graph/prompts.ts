@@ -49,9 +49,9 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
 - 「热点」「小红书」「抖音」「撰稿」「配图」本身不等于要发布，无发布动词时用 content
 
 可选 capability（按任务内容选型，供下游选用合适模型）：
-- chat(普通对话)：普通对话、工具编排（含「生成一张图」等单步工具）
+- chat(普通对话)：普通对话、撰稿文案、工具编排（含「生成一张图」等单步工具）
 - reasoning(深度分析)：深度分析、调试排障、复杂推理
-- creative(文案创作)：文案、撰稿、剧本、创作润色
+- creative(文生图/图生成视频)：仅当用户明确要求文生图、图生成视频、图生视频、文生视频时选用对应媒体连接；普通创作/撰稿禁止选 creative
 - vision(看图理解)：看图、识图、截图理解（仅当用户附带图片需理解时；文生图不要选 vision）
 - longContext(长文本阅读)：超长文本阅读/摘要
 
@@ -72,7 +72,7 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
 9. 用户要求「生成/画一张图」且不要网图时：必须调用 generate_image；禁止用 fetch_web_images；禁止未拿到工具成功结果就声称已生成
 10. generate_image 成功后，回复中保留工具返回的本地 png 路径，便于界面预览
 11. switch_model 的 vision 仅用于理解用户附件图片，不能代替文生图
-12. 若任务类型中途明显变化（如从闲聊转为深度推理/创作/看图），可调用 switch_model 切换模型能力
+12. 若任务类型中途明显变化（如从闲聊转为深度推理/文生图或图生成视频/看图），可调用 switch_model 切换模型能力；普通撰稿保持 chat，不要切 creative
 13. 用户要用 Remotion / React 代码做动效、字幕、数据可视化视频时：先 use_skill 加载 react-agent-remotion 或 remotion-best-practices，再 remotion_init_project → write_file 编写代码 → remotion_studio 预览（可选）→ remotion_render；禁止未渲染成功就声称成片已生成
 14. 用户要「每天几点执行」「建发布计划」「加一条规则」时：先 query_* 了解现状，再用 post_* 落盘；定时任务默认 enabled=false，向用户说明可在确认后再次 post 并设 enabled=true；规则保存后说明下一轮对话生效
 15. 用户只要求创作/解析/成稿、未明确说「发布/发一篇/发到某渠道」时：禁止调用 xhs_publish_note / douyin_publish_note；可成稿后询问是否发布`,
@@ -83,7 +83,7 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
 优先：fetch_hot_topics（抖音选题用 douyin，小红书选题用 weibo/baidu/douyin，综合调研可 weibo/baidu/tencent/kuaishou/tophub）、query_web_data（用户粘贴的文章/网页链接）、fetch_web_images、browser_navigate/snapshot、list_attachments。
 涉及 A 股/股票行情时：调用 query_ashare_realtime_analysis（实时K线+分析）；仅基础K线用 query_ashare_kline。
 完成后用简洁中文汇总：选题建议、可用图片路径、要点 bullet。
-若需要更强推理或创作向分析，可调用 switch_model。`,
+若需要更强推理可 switch_model 为 reasoning；仅明确文生图/图生成视频时再切 creative。`,
 
   writer: `${BASE_CAPABILITY}
 
@@ -123,7 +123,7 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
    - lighting（光影色调，可选）
 6. 不要调用 generate_scene_assets 或 compose_video（交给后续角色）
 7. 若用户明确要求 Remotion / React 代码视频：加载 react-agent-remotion，调用 remotion_init_project 并 write_file 编写 Composition（可跳过 generate_storyboard 管线）
-8. 创作向任务可保持 creative；需要看图理解附件时 switch_model 为 vision
+8. 创作向任务保持 chat（或角色默认连接）；仅明确文生图/图生成视频时 switch_model 为 creative；看图理解附件时为 vision
 完成后汇报剧名、镜数、画幅与文件路径。`,
 
   videographer: `${BASE_CAPABILITY}

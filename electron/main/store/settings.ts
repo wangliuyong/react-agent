@@ -124,7 +124,7 @@ function queryMigrateLegacyConnections(
       apiKey: String(raw.apiKey ?? ''),
       baseUrl: String(raw.baseUrl ?? DEFAULT_CONNECTION.baseUrl),
       model: String(raw.model ?? DEFAULT_CONNECTION.model),
-      capabilities: ['chat', 'reasoning', 'creative']
+      capabilities: ['chat', 'reasoning']
     }
   ]
 }

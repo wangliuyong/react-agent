@@ -137,7 +137,7 @@ export interface CustomModelProvider {
   modelsUrl?: string
 }
 
-/** 模型能力标签：助手按任务自动选型时使用 */
+/** 模型能力标签：助手按任务自动选型时使用。creative = 文生图/图生成视频 */
 export type ModelCapability = 'chat' | 'reasoning' | 'vision' | 'longContext' | 'creative'
 
 /**
@@ -339,9 +339,10 @@ export function queryBuildDefaultConnections(seed?: {
         apiKey,
         baseUrl,
         model: 'deepseek-v4-flash',
-        capabilities: ['creative', 'chat']
+        // 撰稿/编剧走角色映射；creative 能力仅留给文生图/图生成视频连接
+        capabilities: ['chat']
       },
-      // 媒体（万相/TTS）仍走百炼 HTTP；仅标 vision，勿带 chat，避免能力路由误选为对话模型
+      // 媒体（万相/TTS）；creative 供明确文生图/图生成视频时选型
       {
         id: DEFAULT_CONNECTION_IDS.media,
         label: '媒体生成（百炼 · 万相/TTS）',
@@ -349,7 +350,7 @@ export function queryBuildDefaultConnections(seed?: {
         apiKey: '',
         baseUrl: DASHSCOPE_COMPAT_BASE,
         model: 'qwen-plus',
-        capabilities: ['vision']
+        capabilities: ['vision', 'creative']
       }
     ]
   }
@@ -391,9 +392,10 @@ export function queryBuildDefaultConnections(seed?: {
         apiKey,
         baseUrl,
         model: 'openai/gpt-4o',
-        capabilities: ['creative', 'chat', 'vision']
+        // 撰稿/编剧走角色映射；creative 能力仅留给文生图/图生成视频连接
+        capabilities: ['chat', 'vision']
       },
-      // 媒体（万相/TTS）仍走百炼 HTTP；仅标 vision，勿带 chat，避免能力路由误选为对话模型
+      // 媒体（万相/TTS）；creative 供明确文生图/图生成视频时选型
       {
         id: DEFAULT_CONNECTION_IDS.media,
         label: '媒体生成（百炼 · 万相/TTS）',
@@ -401,7 +403,7 @@ export function queryBuildDefaultConnections(seed?: {
         apiKey: '',
         baseUrl: DASHSCOPE_COMPAT_BASE,
         model: 'qwen-plus',
-        capabilities: ['vision']
+        capabilities: ['vision', 'creative']
       }
     ]
   }
@@ -442,7 +444,8 @@ export function queryBuildDefaultConnections(seed?: {
       apiKey,
       baseUrl: baseUrl || DASHSCOPE_COMPAT_BASE,
       model: 'qwen-plus',
-      capabilities: ['creative', 'chat']
+      // 撰稿/编剧走角色映射；creative 能力仅留给文生图/图生成视频连接
+      capabilities: ['chat']
     },
     {
       id: DEFAULT_CONNECTION_IDS.media,
@@ -451,8 +454,8 @@ export function queryBuildDefaultConnections(seed?: {
       apiKey,
       baseUrl: baseUrl || DASHSCOPE_COMPAT_BASE,
       model: 'qwen-plus',
-      // 仅 vision：勿带 chat，否则能力路由可能把对话打到媒体连接
-      capabilities: ['vision']
+      // vision + creative：识图与明确文生图/图生成视频；勿带 chat，避免对话误选
+      capabilities: ['vision', 'creative']
     }
   ]
 }

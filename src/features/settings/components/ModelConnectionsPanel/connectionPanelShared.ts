@@ -11,7 +11,7 @@ export const CAPABILITY_OPTIONS: { value: ModelCapability; label: string }[] = [
   { value: 'reasoning', label: '推理' },
   { value: 'vision', label: '视觉' },
   { value: 'longContext', label: '长上下文' },
-  { value: 'creative', label: '创作' }
+  { value: 'creative', label: '文生图/图生视频' }
 ]
 
 /**
