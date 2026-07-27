@@ -111,7 +111,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
     id: 'tpl_hot_topics_weibo_baidu',
     title: '今日热点：微博优先，多来源回退',
     description:
-      '先用 fetch_hot_topics 拉微博热搜；失败（hotTopicsOk≠1）则回退百度；整理摘要并确认。其他来源（douyin/kuaishou/tencent/xhs）可在画布中复制工具节点并改 source。',
+      '先用 fetch_hot_topics 拉微博热搜；失败（hotTopicsOk≠1）则回退百度；整理摘要并确认。其他来源（douyin/kuaishou/tencent/tophub）可在画布中复制工具节点并改 source。',
     templateKind: 'generic',
     nodes: [
       { id: 'tpl_ht_start', type: 'start', title: '开始' },

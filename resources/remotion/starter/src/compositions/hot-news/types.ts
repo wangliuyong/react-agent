@@ -17,6 +17,10 @@ export interface HotNewsProps {
   headline: string
   /** 副文案 / 导语 */
   summary: string
+  /** 中部条带左侧红色角标，如「芯片」「财经」 */
+  hotTopicName?: string
+  /** 底部 LIVE 条滚动的快讯文案（每条一句） */
+  tickerLines?: string[]
   items: HotNewsItem[]
   /** 主强调色，默认新闻红 */
   accentColor?: string

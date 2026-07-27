@@ -14,7 +14,7 @@ import {
   type RemotionVideoSort
 } from '../../utils/query-remotion-video-list'
 import { queryRemotionTemplatePreview } from '../../templates/template-preview-registry'
-import { RemotionTemplatePreviewPanel } from '../RemotionTemplatePreviewPanel/RemotionTemplatePreviewPanel'
+import { RemotionVideoTemplateDrawer } from '../RemotionVideoTemplateDrawer/RemotionVideoTemplateDrawer'
 import {
   FeaturePageShell,
   FeaturePageHeader,
@@ -89,7 +89,7 @@ export function RemotionVideoPage(): React.ReactElement {
   const [category, setCategory] = useState<RemotionVideoCategory | 'all'>('all')
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<RemotionVideoSort>('updated_desc')
-  const [previewProject, setPreviewProject] = useState<RemotionVideoProject | null>(null)
+  const [drawerProject, setDrawerProject] = useState<RemotionVideoProject | null>(null)
 
   const filtered = useMemo(() => {
     const byCategory = queryRemotionVideosByCategory(REMOTION_VIDEO_SEED_PROJECTS, category)
@@ -99,7 +99,7 @@ export function RemotionVideoPage(): React.ReactElement {
 
   const handleOpenProject = (project: RemotionVideoProject): void => {
     if (queryRemotionTemplatePreview(project.compositionId)) {
-      setPreviewProject(project)
+      setDrawerProject(project)
       return
     }
     message.info(`「${project.title}」编辑器即将接入，当前为列表预览`)
@@ -161,12 +161,6 @@ export function RemotionVideoPage(): React.ReactElement {
       </FeaturePageToolbar>
 
       <FeatureScrollBody>
-        {previewProject ? (
-          <RemotionTemplatePreviewPanel
-            project={previewProject}
-            onClose={() => setPreviewProject(null)}
-          />
-        ) : null}
         {filtered.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -190,6 +184,12 @@ export function RemotionVideoPage(): React.ReactElement {
           </div>
         )}
       </FeatureScrollBody>
+
+      <RemotionVideoTemplateDrawer
+        open={Boolean(drawerProject)}
+        project={drawerProject}
+        onClose={() => setDrawerProject(null)}
+      />
     </FeaturePageShell>
   )
 }

@@ -37,3 +37,8 @@
     0 16px 48px color-mix(in srgb, var(--db-primary) 12%, transparent);
   background: #0a0a0f;
 }
+
+/** 弹窗内预览时给更大可视区域 */
+.stageModal {
+  max-height: min(78vh, 820px);
+}

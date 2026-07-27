@@ -1,0 +1,87 @@
+.drawer :global(.ant-drawer-body) {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--db-primary) 3%, var(--db-bg-content)) 0%,
+    var(--db-bg-content) 120px
+  );
+}
+
+.body {
+  flex: 1;
+  overflow: auto;
+  padding: 20px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lead {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--db-text-secondary);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.formGridFull {
+  grid-column: 1 / -1;
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--db-text-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.hint {
+  display: block;
+  margin: 0;
+  font-size: 13px;
+}
+
+.jsonPreview {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 11px;
+  line-height: 1.5;
+  /* max-height: 160px; */
+  overflow: auto;
+  border-radius: var(--db-radius-md);
+  background: rgba(0, 0, 0, 0.04);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawerTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}

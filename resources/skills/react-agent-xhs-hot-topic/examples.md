@@ -22,7 +22,7 @@
 **典型工具序列：**
 
 1. `update_task_list` — 创建上述清单
-2. `fetch_hot_topics({ "source": "xhs", "maxCount": 20 })` — 拉热点；失败则试 `weibo`、`baidu`、`douyin`
+2. `fetch_hot_topics({ "source": "weibo", "maxCount": 20 })` — 拉热点；失败则试 `baidu`、`douyin`、`tencent`
 3. `browser_navigate` — 打开选定话题的新闻详情页
 4. `browser_snapshot` — 阅读正文，提炼观点
 5. `update_task_list` — 第 1 项 `done`，第 2 项 `running`

@@ -3,7 +3,7 @@ name: xhs-hot-topic
 description: >-
   热点话题搜索 → 内容创作 → 网页抓配图 → 小红书图文发布的端到端 Agent 工作流。
   在用户要求「找热点/热搜发小红书」「从新闻网页抓配图发布」时使用。
-  热点调研优先 fetch_hot_topics（含 xhs/weibo/baidu/douyin/kuaishou/tencent）。
+  热点调研优先 fetch_hot_topics（weibo/baidu/douyin/kuaishou/tencent/tophub）。
 ---
 
 # 热点话题 → 小红书发布
@@ -31,14 +31,14 @@ description: >-
 
 | source | 平台 | 适用场景 |
 |--------|------|----------|
-| `xhs` | 小红书 | 发小红书笔记（首选） |
-| `douyin` | 抖音 | 发抖音图文 |
-| `weibo` | 微博 | 综合热搜、舆论热点 |
+| `weibo` | 微博 | 发小红书选题（首选）、综合热搜 |
 | `baidu` | 百度 | 综合热搜 |
+| `douyin` | 抖音 | 发抖音图文 |
 | `kuaishou` | 快手 | 短视频平台热点 |
 | `tencent` | 腾讯新闻 | 资讯类选题 |
+| `tophub` | 今日热榜 | 多平台聚合 |
 
-示例：`fetch_hot_topics({ "source": "xhs", "maxCount": 20 })`
+示例：`fetch_hot_topics({ "source": "weibo", "maxCount": 20 })`
 
 若工具返回 `hotTopicsOk≠1`，按上表换 `source` 重试；仍失败再用 `browser_navigate` 打开对应热榜页补读。
 

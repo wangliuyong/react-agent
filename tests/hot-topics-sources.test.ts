@@ -1,6 +1,5 @@
 /**
  * 热点多来源：校验工具参数枚举，并对抖音/快手/腾讯公开接口做连通性抽样。
- * 小红书无稳定公开 API，仅断言工具声明了 xhs（实际拉取走浏览器兜底）。
  */
 import { describe, expect, it, vi } from 'vitest'
 import type { ToolContext } from '../electron/main/agent/tools/types'
@@ -28,13 +27,14 @@ function queryMockToolCtx(): ToolContext {
 }
 
 describe('fetch_hot_topics 多来源', () => {
-  it('source 枚举包含抖音/快手/小红书/腾讯', () => {
+  it('source 枚举包含抖音/快手/腾讯等来源', () => {
     const props = fetchHotTopicsTool.parameters.properties as
       | Record<string, { enum?: string[] }>
       | undefined
     expect(props?.source?.enum).toEqual(
-      expect.arrayContaining(['douyin', 'kuaishou', 'xhs', 'tencent', 'weibo', 'baidu', 'tophub'])
+      expect.arrayContaining(['douyin', 'kuaishou', 'tencent', 'weibo', 'baidu', 'tophub'])
     )
+    expect(props?.source?.enum).not.toContain('xhs')
   })
 
   it(

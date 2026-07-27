@@ -7,7 +7,7 @@ import type { RemotionVideoProject } from '../types'
 export const REMOTION_VIDEO_SEED_PROJECTS: RemotionVideoProject[] = [
   {
     id: 'rv-song-aurora',
-    title: '极光律动 · MV 竖版',
+    title: '极光律动',
     description: '歌词逐行高亮 + 频谱条，适配 9:16 短视频分发',
     category: 'song',
     status: 'ready',
@@ -29,7 +29,7 @@ export const REMOTION_VIDEO_SEED_PROJECTS: RemotionVideoProject[] = [
   },
   {
     id: 'rv-news-hot',
-    title: '热点新闻 · 横版联播',
+    title: '热点新闻',
     description: '片头闪屏、主标题导语、分条轮播与底部滚动字幕，内置 Remotion 模板',
     category: 'news',
     status: 'ready',
@@ -51,7 +51,7 @@ export const REMOTION_VIDEO_SEED_PROJECTS: RemotionVideoProject[] = [
   },
   {
     id: 'rv-news-brief',
-    title: '突发简讯竖屏',
+    title: '突发简讯',
     description: '热点新闻竖版：大字报标题 + LIVE 滚动带',
     category: 'news',
     status: 'ready',

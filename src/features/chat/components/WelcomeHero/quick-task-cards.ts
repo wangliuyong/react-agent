@@ -61,7 +61,7 @@ export const QUICK_TASK_CARDS: QuickCard[] = [
     title: '发一条小红书',
     desc: '从来源网页抓取配图，生成标题正文并发布（本地上传可选）',
     prompt:
-      '帮我发一条小红书，内容关于今日热点。请先 fetch_hot_topics（source 优先 xhs 或 weibo）选题，再找相关新闻来源页，用 fetch_web_images 抓取配图，再发布；标题不超过20字。我本地上传图片为可选补充。'
+      '帮我发一条小红书，内容关于今日热点。请先 fetch_hot_topics（source 优先 weibo 或 baidu）选题，再找相关新闻来源页，用 fetch_web_images 抓取配图，再发布；标题不超过20字。我本地上传图片为可选补充。'
   },
   {
     title: 'AI 热点速览',
@@ -115,7 +115,7 @@ export const QUICK_TASK_CARDS: QuickCard[] = [
     title: '热搜改小红书笔记',
     desc: '拉取今日热点→抓配图→生成标题正文并发布',
     prompt:
-      '请先用 fetch_hot_topics 获取今日热点（source 优先 xhs，失败再试 weibo/baidu/douyin），选一条适合小红书的话题；再找相关新闻页用 fetch_web_images 抓配图，最后调用 xhs_publish_note 发布，标题不超过20字。'
+      '请先用 fetch_hot_topics 获取今日热点（source 优先 weibo，失败再试 baidu/douyin/tencent），选一条适合小红书的话题；再找相关新闻页用 fetch_web_images 抓配图，最后调用 xhs_publish_note 发布，标题不超过20字。'
   },
   {
     title: '热搜改抖音图文',

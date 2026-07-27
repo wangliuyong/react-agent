@@ -164,15 +164,17 @@ const HotNewsHero: React.FC<{
 /** 分条快讯轮播 */
 const HotNewsItemStrip: React.FC<{
   items: HotNewsProps['items']
+  hotTopicName?: string
   accentColor: string
   compact?: boolean
-}> = ({ items, accentColor, compact }) => {
+}> = ({ items, hotTopicName, accentColor, compact }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const slotFrames = Math.floor(fps * 3.2)
   const index = Math.min(items.length - 1, Math.floor(frame / slotFrames))
   const local = frame - index * slotFrames
   const item = items[index] ?? items[0]
+  const topicLabel = (hotTopicName?.trim() || item?.tag || '热点').slice(0, 8)
 
   const enter = spring({
     frame: local,
@@ -212,7 +214,7 @@ const HotNewsItemStrip: React.FC<{
           letterSpacing: '0.06em'
         }}
       >
-        {item.tag}
+        {topicLabel}
       </div>
       <div
         style={{
@@ -295,11 +297,20 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
     headline,
     summary,
     items,
+    hotTopicName,
+    tickerLines,
     accentColor = '#e63946'
   } = props
 
   const { width, height } = useVideoConfig()
   const compact = height > width
+
+  const topicLabel =
+    hotTopicName?.trim() || items[0]?.tag?.trim() || '热点'
+  const scrollLines =
+    tickerLines?.filter((line) => line.trim()).length
+      ? tickerLines.filter((line) => line.trim())
+      : items.map((item) => item.title).filter(Boolean)
 
   return (
     <AbsoluteFill style={{ fontFamily: UI_FONT }}>
@@ -322,10 +333,19 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
           accentColor={accentColor}
           compact={compact}
         />
-        <HotNewsItemStrip items={items} accentColor={accentColor} compact={compact} />
+        <HotNewsItemStrip
+          items={items}
+          hotTopicName={topicLabel}
+          accentColor={accentColor}
+          compact={compact}
+        />
       </Sequence>
 
-      <HotNewsTicker items={items} accentColor={accentColor} compact={compact} />
+      <HotNewsTicker
+        tickerLines={scrollLines}
+        accentColor={accentColor}
+        compact={compact}
+      />
     </AbsoluteFill>
   )
 }

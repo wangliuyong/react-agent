@@ -2,7 +2,7 @@
 
 ## 示例：fetch_hot_topics 多平台热点
 
-`fetch_hot_topics` 参数 `source`：`weibo` | `baidu` | `douyin` | `kuaishou` | `xhs` | `tencent`。
+`fetch_hot_topics` 参数 `source`：`weibo` | `baidu` | `douyin` | `kuaishou` | `tencent` | `tophub`。
 
 ```json
 { "source": "douyin", "maxCount": 20 }

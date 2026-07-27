@@ -1,0 +1,8 @@
+.modal :global(.ant-modal-content) {
+  overflow: hidden;
+  border-radius: var(--db-radius-lg);
+}
+
+.modal :global(.ant-modal-header) {
+  margin-bottom: 0;
+}

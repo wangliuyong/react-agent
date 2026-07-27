@@ -1,25 +1,27 @@
 import React from 'react'
 import { useCurrentFrame, useVideoConfig } from 'remotion'
-import type { HotNewsItem } from './types'
 
 const TICKER_FONT =
   '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif'
 
+const TICKER_GAP = '　　　　'
+
 /**
- * 底部滚动字幕带。
- * 为什么用手算 translateX：热点新闻场景需要连续滚动，比逐帧切换更有「联播」感。
+ * 底部 LIVE 滚动快讯带。
+ * 文案来自 tickerLines；无则回退 items 标题。双份拼接实现无缝循环。
  */
 export const HotNewsTicker: React.FC<{
-  items: HotNewsItem[]
+  tickerLines: string[]
   accentColor: string
   compact?: boolean
-}> = ({ items, accentColor, compact = false }) => {
+}> = ({ tickerLines, accentColor, compact = false }) => {
   const frame = useCurrentFrame()
   const { fps, width } = useVideoConfig()
 
-  const label = items.map((item) => `【${item.tag}】${item.title}`).join('　　　')
-  const pxPerSecond = compact ? 140 : 180
-  const offset = (frame / fps) * pxPerSecond
+  const scrollText = tickerLines.filter(Boolean).join(TICKER_GAP)
+  const pxPerSecond = compact ? 120 : 160
+  const cycleWidth = Math.max(scrollText.length * (compact ? 14 : 18), width)
+  const offset = ((frame / fps) * pxPerSecond) % cycleWidth
   const barHeight = compact ? 56 : 72
 
   return (
@@ -32,42 +34,58 @@ export const HotNewsTicker: React.FC<{
         height: barHeight,
         display: 'flex',
         alignItems: 'center',
-        borderTop: `2px solid color-mix(in srgb, ${accentColor} 65%, transparent)`,
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.82) 100%)',
-        overflow: 'hidden'
+        borderTop: `2px solid color-mix(in srgb, ${accentColor} 70%, transparent)`,
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.88) 100%)',
+        overflow: 'hidden',
+        boxShadow: '0 -8px 24px rgba(0,0,0,0.35)'
       }}
     >
       <div
         style={{
           flexShrink: 0,
-          padding: `0 ${compact ? 16 : 24}px`,
+          minWidth: compact ? 72 : 88,
+          padding: `0 ${compact ? 14 : 20}px`,
           height: '100%',
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'center',
           fontFamily: TICKER_FONT,
-          fontSize: compact ? 18 : 22,
+          fontSize: compact ? 16 : 20,
           fontWeight: 800,
-          letterSpacing: '0.12em',
+          letterSpacing: '0.14em',
           color: '#fff',
-          background: accentColor,
-          textTransform: 'uppercase'
+          background: `linear-gradient(180deg, ${accentColor} 0%, color-mix(in srgb, ${accentColor} 75%, #000) 100%)`,
+          boxShadow: `4px 0 16px color-mix(in srgb, ${accentColor} 40%, transparent)`
         }}
       >
         LIVE
       </div>
-      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+      <div
+        style={{
+          flex: 1,
+          overflow: 'hidden',
+          position: 'relative',
+          height: '100%',
+          maskImage: 'linear-gradient(90deg, transparent 0%, black 8%, black 92%, transparent 100%)'
+        }}
+      >
         <div
           style={{
             position: 'absolute',
+            top: '50%',
+            left: 0,
             whiteSpace: 'nowrap',
             fontFamily: TICKER_FONT,
             fontSize: compact ? 20 : 26,
             fontWeight: 500,
-            color: 'rgba(255,255,255,0.92)',
-            transform: `translateX(${width - offset}px)`
+            color: 'rgba(255,255,255,0.94)',
+            transform: `translate(${-offset}px, -50%)`,
+            paddingLeft: 16
           }}
         >
-          {label}　　　{label}
+          {scrollText}
+          {TICKER_GAP}
+          {scrollText}
         </div>
       </div>
     </div>

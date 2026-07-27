@@ -10,7 +10,6 @@ export type HotTopicSource =
   | 'baidu'
   | 'douyin'
   | 'kuaishou'
-  | 'xhs'
   | 'tencent'
   | 'tophub'
 
@@ -38,11 +37,6 @@ const HOT_SOURCE_META: Record<
     label: '快手热点',
     pageUrl: 'https://www.kuaishou.com/?isHome=1',
     noise: /登录|热点|快手|热榜|推荐|关注/
-  },
-  xhs: {
-    label: '小红书热点',
-    pageUrl: 'https://www.xiaohongshu.com/explore',
-    noise: /登录|注册|小红书|发现|关注|消息|我|热门|推荐|笔记/
   },
   tencent: {
     label: '腾讯新闻热点',
@@ -293,15 +287,12 @@ async function queryTophubHotTopicsApi(): Promise<string[]> {
   return queryRequireHotItems(queryParseTophubHtmlTitles(html))
 }
 
-/**
- * 无头浏览器兜底：打开对应榜单/发现页，抽取可见热点标题。
- * 小红书无稳定公开热榜 API（需签名），因此以浏览器 DOM 为主路径。
- */
+/** 无头浏览器兜底：打开对应榜单页，抽取可见热点标题。 */
 async function queryHotTopicsViaBrowser(source: HotTopicSource): Promise<string[]> {
   const meta = HOT_SOURCE_META[source]
   const browser = getBrowserService()
   await browser.navigate(meta.pageUrl, 'headless')
-  await browser.wait({ ms: source === 'xhs' || source === 'tophub' ? 3500 : 2000 }, 'headless')
+  await browser.wait({ ms: source === 'tophub' ? 3500 : 2000 }, 'headless')
 
   if (source === 'tophub') {
     const page = browser.getPage('headless')
@@ -312,37 +303,6 @@ async function queryHotTopicsViaBrowser(source: HotTopicSource): Promise<string[
           for (const el of Array.from(document.querySelectorAll('a[itemid]'))) {
             const text = (el.textContent || '').replace(/\s+/g, ' ').trim()
             if (text.length >= 2 && text.length <= 120) out.push(text)
-          }
-          return out
-        })
-        .catch(() => [] as string[])
-      try {
-        return queryRequireHotItems(domTitles)
-      } catch {
-        // 继续走通用纯文本抽取
-      }
-    }
-  }
-
-  if (source === 'xhs') {
-    const page = browser.getPage('headless')
-    if (page) {
-      const domTitles = await page
-        .evaluate(() => {
-          const selectors = [
-            'a.title',
-            '[class*="title"] span',
-            '[class*="footer"] a',
-            'section .title',
-            'a[href*="/explore/"]',
-            'a[href*="/search_result"]'
-          ]
-          const out: string[] = []
-          for (const sel of selectors) {
-            for (const el of Array.from(document.querySelectorAll(sel))) {
-              const text = (el.textContent || '').replace(/\s+/g, ' ').trim()
-              if (text.length >= 4 && text.length <= 60) out.push(text)
-            }
           }
           return out
         })
@@ -374,9 +334,6 @@ function queryApiFetchers(source: HotTopicSource): Array<() => Promise<string[]>
       return [queryDouyinHotTopicsApi]
     case 'kuaishou':
       return [queryKuaishouHotTopicsApi]
-    case 'xhs':
-      // 无可用公开 API：空列表 → queryWithFallback 直接走 browserScraper
-      return []
     case 'tencent':
       return [queryTencentHotTopicsApi]
     case 'tophub':
@@ -396,9 +353,8 @@ export const fetchHotTopicsTool: AgentTool = {
   name: 'fetch_hot_topics',
   description:
     '获取今日热点榜单。source 支持 weibo（微博）、baidu（百度）、douyin（抖音）、' +
-    'kuaishou（快手）、xhs（小红书）、tencent（腾讯新闻）、tophub（今日热榜榜中榜）。' +
+    'kuaishou（快手）、tencent（腾讯新闻）、tophub（今日热榜榜中榜）。' +
     '优先调用公开 API；API 失败时自动用无头浏览器后台抓取（不弹窗）。' +
-    '小红书公开接口不稳定时会直接走浏览器。' +
     '成功时写入 context.hotTopicsOk=1 与 hotTopics 文本；失败时 hotTopicsOk=0。',
   permission: 'safe',
   parameters: {
@@ -408,7 +364,7 @@ export const fetchHotTopicsTool: AgentTool = {
         type: 'string',
         enum: HOT_SOURCE_LIST,
         description:
-          '热点来源：weibo | baidu | douyin | kuaishou | xhs | tencent | tophub'
+          '热点来源：weibo | baidu | douyin | kuaishou | tencent | tophub'
       },
       maxCount: {
         type: 'number',

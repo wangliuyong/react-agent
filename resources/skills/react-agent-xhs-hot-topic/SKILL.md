@@ -3,7 +3,7 @@ name: react-agent-xhs-hot-topic
 description: >-
   热点话题搜索 → 内容创作 → 网页抓配图 → 小红书图文发布的端到端 Agent 工作流。
   在用户要求「找热点/热搜发小红书」「从新闻网页抓配图发布」「帮我发一条小红书内容关于…」
-  且需先调研热点时使用。热点优先 fetch_hot_topics（xhs/weibo/baidu/douyin/kuaishou/tencent）。
+  且需先调研热点时使用。热点优先 fetch_hot_topics（weibo/baidu/douyin/kuaishou/tencent/tophub）。
 ---
 
 # 热点话题 → 小红书发布
@@ -35,15 +35,15 @@ description: >-
 
 | source | 平台 | 说明 |
 |--------|------|------|
-| `xhs` | 小红书 | 发小红书时首选 |
-| `douyin` | 抖音 | 发抖音图文时首选 |
-| `weibo` | 微博 | 综合热搜 |
+| `weibo` | 微博 | 发小红书选题时首选 |
 | `baidu` | 百度 | 综合热搜 |
+| `douyin` | 抖音 | 发抖音图文时首选 |
 | `kuaishou` | 快手 | 短视频热点 |
 | `tencent` | 腾讯新闻 | 资讯热点 |
+| `tophub` | 今日热榜 | 多平台聚合 |
 
 ```json
-{ "source": "xhs", "maxCount": 20 }
+{ "source": "weibo", "maxCount": 20 }
 ```
 
 `hotTopicsOk=1` 时从 `hotTopics` 文本选题；失败则换 `source` 重试。全部失败再走浏览器：
@@ -122,7 +122,7 @@ browser_navigate → browser_snapshot → 阅读榜单
 
 | 情况 | 处理 |
 |------|------|
-| 热搜 API 失败 | 换 `fetch_hot_topics` 的 `source`（weibo/baidu/douyin/tencent/kuaishou/xhs）重试 |
+| 热搜 API 失败 | 换 `fetch_hot_topics` 的 `source`（weibo/baidu/douyin/tencent/kuaishou/tophub）重试 |
 | 热搜页结构变化 | `browser_snapshot` 排查，换来源或换 selector 文案 |
 | 配图下载失败 | 换 `imageUrls` 直链或换来源页重试 `fetch_web_images` |
 | 创作台 DOM 改版 | `browser_snapshot` + `browser_*` 原子工具补操作 |

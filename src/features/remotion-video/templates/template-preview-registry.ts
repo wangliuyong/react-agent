@@ -18,6 +18,17 @@ export interface RemotionTemplatePlayerConfig {
   defaultProps: HotNewsProps
 }
 
+/** 热点新闻模板可选画幅 */
+export type RemotionVideoAspectRatio = '16:9' | '9:16'
+
+export const REMOTION_VIDEO_ASPECT_RATIO_OPTIONS: {
+  value: RemotionVideoAspectRatio
+  label: string
+}[] = [
+  { value: '16:9', label: '横版 16:9' },
+  { value: '9:16', label: '竖版 9:16' }
+]
+
 const HOT_NEWS_WIDE: RemotionTemplatePlayerConfig = {
   compositionId: 'HotNews',
   label: '热点新闻 · 横版',
@@ -46,6 +57,23 @@ const TEMPLATE_BY_COMPOSITION_ID: Record<string, RemotionTemplatePlayerConfig> =
   NewsTickerWide: HOT_NEWS_WIDE,
   HotNewsVertical: HOT_NEWS_VERTICAL,
   NewsFlashVertical: HOT_NEWS_VERTICAL
+}
+
+/** 按画幅获取预览 / 导出配置 */
+export function queryHotNewsPlayerConfigByAspect(
+  ratio: RemotionVideoAspectRatio
+): RemotionTemplatePlayerConfig {
+  return ratio === '9:16' ? HOT_NEWS_VERTICAL : HOT_NEWS_WIDE
+}
+
+/** 列表卡片 compositionId → 默认画幅 */
+export function queryAspectRatioFromCompositionId(
+  compositionId: string
+): RemotionVideoAspectRatio {
+  if (compositionId === 'HotNewsVertical' || compositionId === 'NewsFlashVertical') {
+    return '9:16'
+  }
+  return '16:9'
 }
 
 /** 列表项是否支持内置 Player 预览 */
