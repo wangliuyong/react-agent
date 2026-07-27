@@ -74,7 +74,7 @@ function queryAspectRatio(shot: StoryboardShot): '9:16' | '16:9' | '1:1' | '4:3'
   if (raw === '9:16' || raw === '16:9' || raw === '1:1' || raw === '4:3' || raw === '3:4') {
     return raw
   }
-  return '9:16'
+  return '16:9'
 }
 
 /** 将剧本正文落盘，供后续分镜/成片引用 */
@@ -352,7 +352,7 @@ export const generateSceneAssetsTool: AgentTool = {
 
     return queryEncodeWorkflowCtxResult(
       `场景素材处理完成（关键帧 ${imageOk}/${doc.shots.length}，视频 ${videoOk}/${doc.shots.length}，旁白 ${voiceOk}/${voiceTotal}）\n` +
-        notes.join('\n'),
+      notes.join('\n'),
       {
         sceneAssetsOk: sceneAssetPaths.length > 0 ? '1' : '0',
         sceneAssetPaths: JSON.stringify(sceneAssetPaths),
