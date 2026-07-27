@@ -205,10 +205,10 @@ export function EditRoleTaskModal({
         </div>
       )}
     >
-      <span className={styles.roleBadge}>
+      {/* <span className={styles.roleBadge}>
         <RobotOutlined />
         {roleLabel}
-      </span>
+      </span> */}
       <p className={styles.lead}>{roleDescription}</p>
       <Form form={form} layout="vertical" className={styles.form}>
         <Form.Item
@@ -277,27 +277,31 @@ export function EditRoleTaskModal({
             >
               <Switch />
             </Form.Item>
-            <Form.Item
-              label="工具白名单"
-              name="toolNames"
-              extra={
-                toolInjectAll
-                  ? '当前为全量注入，名单仅作参考；关闭上方开关后生效。'
-                  : '勾选该角色可调用的工具；保存后随「保存连接」写入本机。'
-              }
-            >
-              <Select
-                mode="multiple"
-                allowClear
-                showSearch
-                loading={toolsLoading}
-                disabled={Boolean(toolInjectAll)}
-                placeholder="选择工具"
-                options={mergedToolOptions}
-                optionFilterProp="label"
-                maxTagCount="responsive"
-              />
-            </Form.Item>
+            {
+
+              toolInjectAll ? null : <Form.Item
+                label="工具白名单"
+                name="toolNames"
+                extra={
+                  toolInjectAll
+                    ? '当前为全量注入，名单仅作参考；关闭上方开关后生效。'
+                    : '勾选该角色可调用的工具；保存后随「保存连接」写入本机。'
+                }
+              >
+                <Select
+                  mode="multiple"
+                  allowClear
+                  showSearch
+                  loading={toolsLoading}
+                  disabled={Boolean(toolInjectAll)}
+                  placeholder="选择工具"
+                  options={mergedToolOptions}
+                  optionFilterProp="label"
+                  maxTagCount="responsive"
+                />
+              </Form.Item>
+            }
+
           </>
         ) : null}
       </Form>
