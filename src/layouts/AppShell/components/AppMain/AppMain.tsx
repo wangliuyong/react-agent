@@ -36,6 +36,9 @@ const WorkflowsPage = lazy(() =>
     default: m.WorkflowsPage
   }))
 )
+const WorkbenchPage = lazy(() =>
+  import('@/features/workbench').then((m) => ({ default: m.WorkbenchPage }))
+)
 
 interface AppMainProps {
   view: AppView
@@ -61,6 +64,7 @@ export function AppMain({ view }: AppMainProps): React.ReactElement {
         <Suspense fallback={<PageFallback />}>
           {view === 'chat' && <ChatPage />}
           {view === 'business' && <BusinessPanel />}
+          {view === 'workbench' && <WorkbenchPage />}
           {view === 'publish' && <PublishWorkbench />}
           {view === 'schedule' && <SchedulePage />}
           {view === 'settings' && <SettingsPage />}

@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 
-/** 主内容区视图：聊天 / 业务系统 / 发布工作台 / 设置 / 技能 / 规则 / 定时 / 流程 */
+/** 主内容区视图：聊天 / 业务系统 / 工作台 / 发布 / 设置 / 技能 / 规则 / 定时 / 流程 */
 export type AppView =
   | 'chat'
   | 'business'
+  | 'workbench'
   | 'publish'
   | 'settings'
   | 'skills'
@@ -17,6 +18,7 @@ const SETTINGS_TAB_STORAGE_KEY = 'lingxi:settings-tab'
 const APP_VIEWS: AppView[] = [
   'chat',
   'business',
+  'workbench',
   'publish',
   'settings',
   'skills',

@@ -2,6 +2,7 @@ import type { NavItem } from '../types'
 
 /** 侧边栏主导航静态配置（图标与路由 key 一一对应） */
 export const NAV_ITEMS: NavItem[] = [
+  { key: 'workbench', label: '工作台', icon: <DashboardOutlined /> },
   { key: 'skills', label: '技能市场', icon: <ThunderboltOutlined /> },
   { key: 'rules', label: '规则', icon: <UnorderedListOutlined /> },
   { key: 'workflows', label: '流程', icon: <AppstoreOutlined /> },
