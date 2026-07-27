@@ -242,6 +242,8 @@ export function buildStepReactGraph(params: {
   stepPrompt?: string
   attachmentPaths?: string[]
   capabilityBox?: CapabilityBox
+  /** 子 Agent / 工作流步骤使用的模型角色映射 */
+  modelRole?: ModelRoleKey
   onModelResolved?: BuildChatGraphParams['onModelResolved']
 }) {
   const {
@@ -251,6 +253,7 @@ export function buildStepReactGraph(params: {
     toolWhitelist,
     stepPrompt = '',
     attachmentPaths = [],
+    modelRole = 'general',
     onModelResolved
   } = params
 
@@ -270,7 +273,7 @@ export function buildStepReactGraph(params: {
   }
 
   const conn = queryResolveModelConnection(settings, {
-    role: 'general',
+    role: modelRole,
     capability: capabilityBox.current || undefined
   })
   if (capabilityBox.current) {
@@ -283,7 +286,7 @@ export function buildStepReactGraph(params: {
 
   const factory = createCapabilityRoutedModel(
     settings,
-    'general',
+    modelRole,
     () => capabilityBox.current
   )
   const tools = adaptAgentTools(queryToolsByWhitelist(toolWhitelist), { ctx: toolCtx })

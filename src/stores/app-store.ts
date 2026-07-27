@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-/** 主内容区视图：聊天 / 业务系统 / 发布工作台 / 设置 / 技能 / 规则 / 渠道 / 定时 / 流程 */
+/** 主内容区视图：聊天 / 业务系统 / 发布工作台 / 设置 / 技能 / 规则 / 定时 / 流程 */
 export type AppView =
   | 'chat'
   | 'business'
@@ -8,11 +8,11 @@ export type AppView =
   | 'settings'
   | 'skills'
   | 'rules'
-  | 'channels'
   | 'schedule'
   | 'workflows'
 
 const VIEW_STORAGE_KEY = 'lingxi:app-view'
+const SETTINGS_TAB_STORAGE_KEY = 'lingxi:settings-tab'
 
 const APP_VIEWS: AppView[] = [
   'chat',
@@ -21,7 +21,6 @@ const APP_VIEWS: AppView[] = [
   'settings',
   'skills',
   'rules',
-  'channels',
   'schedule',
   'workflows'
 ]
@@ -30,6 +29,15 @@ const APP_VIEWS: AppView[] = [
 function queryPersistedView(): AppView {
   try {
     const raw = localStorage.getItem(VIEW_STORAGE_KEY)
+    // 渠道已并入设置 Tab；兼容旧版持久化的独立「渠道」视图
+    if (raw === 'channels') {
+      try {
+        localStorage.setItem(SETTINGS_TAB_STORAGE_KEY, 'channels')
+      } catch {
+        /* 忽略 */
+      }
+      return 'settings'
+    }
     if (raw && APP_VIEWS.includes(raw as AppView)) {
       return raw as AppView
     }

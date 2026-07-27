@@ -1,7 +1,99 @@
-/* 渠道页 — 工具栏 / 详情 / 品牌色；列表卡片统一使用 entity-card */
+/* 设置页「渠道」Tab — 内嵌面板 + 详情/抽屉；列表卡片使用 entity-card */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  animation: cardIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.panelIntro {
+  min-width: 0;
+  flex: 1;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.panelTitle {
+  margin: 0 !important;
+  color: var(--db-text) !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+}
+
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 21px;
+  padding: 0 8px;
+  border-radius: var(--db-radius-pill);
+  background: var(--db-primary);
+  color: var(--db-on-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.panelDesc {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.panelActions {
+  flex-shrink: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.listScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+  padding-bottom: 8px;
+}
+
+.listScroll :global(.ant-spin-nested-loading),
+.listScroll :global(.ant-spin-container) {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
 
 .searchInput {
-  width: 200px;
+  width: min(220px, 42vw);
 }
 
 .empty {

@@ -28,9 +28,6 @@ const SettingsPage = lazy(() =>
 const SkillsPage = lazy(() =>
   import('@/features/skills/components/SkillsPage').then((m) => ({ default: m.SkillsPage }))
 )
-const ChannelsPage = lazy(() =>
-  import('@/features/channels/components/ChannelsPage').then((m) => ({ default: m.ChannelsPage }))
-)
 const RulesPage = lazy(() =>
   import('@/features/rules/components/RulesPage').then((m) => ({ default: m.RulesPage }))
 )
@@ -68,7 +65,6 @@ export function AppMain({ view }: AppMainProps): React.ReactElement {
           {view === 'schedule' && <SchedulePage />}
           {view === 'settings' && <SettingsPage />}
           {view === 'skills' && <SkillsPage />}
-          {view === 'channels' && <ChannelsPage />}
           {view === 'rules' && <RulesPage />}
           {view === 'workflows' && <WorkflowsPage />}
           {placeholderNav?.placeholder && (

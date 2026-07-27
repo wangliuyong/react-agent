@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
-import { ChannelStatusPanel } from '../ChannelStatusPanel'
+import { ChannelsPanel } from '@/features/channels'
 import { ModelApiPanel } from '../ModelApiPanel'
 import { ModelConnectionsPanel } from '../ModelConnectionsPanel'
 import { ToolsPanel } from '../ToolsPanel'
@@ -17,6 +17,8 @@ import styles from './SettingsPage.module.css'
 
 const { Text } = Typography
 
+const SETTINGS_TAB_STORAGE_KEY = 'lingxi:settings-tab'
+
 /** 设置分类 Tab — 对齐技能市场 Segmented 信息架构 */
 type SettingsTab = 'model' | 'connections' | 'app' | 'channels' | 'tools' | 'assets'
 
@@ -24,16 +26,41 @@ const SETTINGS_TAB_OPTIONS: { label: string; value: SettingsTab }[] = [
   { label: '模型与 API', value: 'model' },
   { label: '多模型连接', value: 'connections' },
   { label: '应用与启动', value: 'app' },
-  { label: '渠道状态', value: 'channels' },
+  { label: '渠道', value: 'channels' },
   { label: '工具', value: 'tools' },
   { label: '资产', value: 'assets' }
 ]
+
+function queryInitialSettingsTab(): SettingsTab {
+  try {
+    const saved = localStorage.getItem(SETTINGS_TAB_STORAGE_KEY)
+    if (saved && SETTINGS_TAB_OPTIONS.some((item) => item.value === saved)) {
+      return saved as SettingsTab
+    }
+  } catch {
+    /* 隐私模式等 */
+  }
+  return 'model'
+}
+
+function postPersistSettingsTab(tab: SettingsTab): void {
+  try {
+    localStorage.setItem(SETTINGS_TAB_STORAGE_KEY, tab)
+  } catch {
+    /* 忽略 */
+  }
+}
 
 export function SettingsPage(): React.ReactElement {
   const settings = useSettingsStore((s) => s.settings)
   const loaded = useSettingsStore((s) => s.loaded)
   const postSettings = useSettingsStore((s) => s.postSettings)
-  const [tab, setTab] = useState<SettingsTab>('model')
+  const [tab, setTab] = useState<SettingsTab>(queryInitialSettingsTab)
+
+  const handleTabChange = (next: SettingsTab): void => {
+    setTab(next)
+    postPersistSettingsTab(next)
+  }
 
   const connectionCount = settings.connections?.length ?? 0
   const providerCount =
@@ -45,11 +72,13 @@ export function SettingsPage(): React.ReactElement {
         ? `${connectionCount || 1} 条连接`
         : tab === 'app'
           ? '本机启动偏好'
+          : tab === 'channels'
+          ? '发布与通知渠道'
           : tab === 'tools'
             ? 'Agent 工具注册表'
             : tab === 'assets'
               ? 'Agent 产出文件'
-              : '发布与通知渠道'
+              : ''
 
   return (
     <FeaturePageShell>
@@ -58,7 +87,7 @@ export function SettingsPage(): React.ReactElement {
         title="设置"
         badge="偏好中心"
         badgeVariant="muted"
-        description="配置模型服务、运行参数，并管理本机渠道登录状态"
+        description="配置模型服务、运行参数，并管理发布与通知渠道"
         extra={
           <div className={styles.localBadge}>
             <CheckCircleOutlined />
@@ -70,7 +99,7 @@ export function SettingsPage(): React.ReactElement {
       <FeaturePageToolbar>
         <Segmented
           value={tab}
-          onChange={(v) => setTab(v as SettingsTab)}
+          onChange={(v) => handleTabChange(v as SettingsTab)}
           options={SETTINGS_TAB_OPTIONS}
         />
         <div className={shellStyles.toolbarRight}>
@@ -78,7 +107,7 @@ export function SettingsPage(): React.ReactElement {
         </div>
       </FeaturePageToolbar>
 
-      <FeatureScrollBody locked={tab === 'tools' || tab === 'assets'}>
+      <FeatureScrollBody locked={tab === 'tools' || tab === 'assets' || tab === 'channels'}>
         {tab === 'model' ? <ModelApiPanel key="model" /> : null}
 
         {tab === 'connections' ? (
@@ -149,7 +178,7 @@ export function SettingsPage(): React.ReactElement {
           </div>
         ) : null}
 
-        {tab === 'channels' ? <ChannelStatusPanel key="channels" /> : null}
+        {tab === 'channels' ? <ChannelsPanel key="channels" /> : null}
 
         {tab === 'tools' ? <ToolsPanel key="tools" /> : null}
 

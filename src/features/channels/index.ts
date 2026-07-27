@@ -6,3 +6,4 @@ export {
   queryEnabledNotifyChannelsFromStore
 } from './hooks/useChannelsStore'
 export * from './types'
+export { ChannelsPanel } from './components/ChannelsPanel'

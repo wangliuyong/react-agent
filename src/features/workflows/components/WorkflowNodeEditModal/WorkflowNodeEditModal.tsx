@@ -1056,7 +1056,7 @@ export function WorkflowNodeEditModal({
                   <Select
                     placeholder="选择已启用的通知渠道"
                     options={notifyChannelOptions}
-                    notFoundContent="请先在渠道页配置并启用通知渠道"
+                    notFoundContent="请先在设置 → 渠道中配置并启用通知渠道"
                   />
                 </Form.Item>
                 <Form.Item
@@ -1087,7 +1087,7 @@ export function WorkflowNodeEditModal({
                   <Form.Item
                     name="imageKey"
                     label="image_key"
-                    tooltip="飞书图片上传 API 返回的 key；可留空以使用渠道页默认配置"
+                    tooltip="飞书图片上传 API 返回的 key；可留空以使用设置 → 渠道中的默认配置"
                   >
                     <Input placeholder="img_xxx 或留空使用渠道配置" />
                   </Form.Item>
@@ -1096,7 +1096,7 @@ export function WorkflowNodeEditModal({
                   <Form.Item
                     name="shareChatId"
                     label="share_chat_id"
-                    tooltip="群 ID；可留空以使用渠道页默认配置"
+                    tooltip="群 ID；可留空以使用设置 → 渠道中的默认配置"
                   >
                     <Input placeholder="oc_xxx 或留空使用渠道配置" />
                   </Form.Item>

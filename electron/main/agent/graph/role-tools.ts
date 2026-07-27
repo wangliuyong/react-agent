@@ -189,6 +189,33 @@ export function queryToolsByWhitelist(whitelist?: string[]): AgentTool[] {
 }
 
 /**
+ * 子 Agent 工具集：白名单 / 黑名单叠加，并可强制排除 task 以防嵌套派发。
+ */
+export function queryToolsForSubagent(params: {
+  allowlist?: string[] | null
+  denylist?: string[]
+  forceDenyTask?: boolean
+}): AgentTool[] {
+  const { allowlist, denylist, forceDenyTask } = params
+  let tools: AgentTool[]
+  if (allowlist === null || allowlist === undefined) {
+    tools = getAllTools()
+  } else if (allowlist.length === 0) {
+    tools = []
+  } else {
+    tools = queryToolsByWhitelist(allowlist)
+  }
+  if (denylist?.length) {
+    const deny = new Set(denylist)
+    tools = tools.filter((t) => !deny.has(t.name))
+  }
+  if (forceDenyTask) {
+    tools = tools.filter((t) => t.name !== 'task')
+  }
+  return tools
+}
+
+/**
  * 各角色当前注入的工具名（设置页「工具」Tab / 角色卡片）。
  * general 默认全量；supervisor 始终为空。
  */

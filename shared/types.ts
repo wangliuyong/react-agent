@@ -1309,6 +1309,36 @@ export interface TaskItem {
 /** 会话来源类型：决定侧边栏历史列表图标与归类 */
 export type SessionType = 'chat' | 'publish' | 'schedule' | 'workflow'
 
+/** 子 Agent 上下文模式：隔离仅任务说明；fork 继承父会话消息 */
+export type SubagentMode = 'isolated' | 'fork'
+
+export type SubagentRunStatus = 'running' | 'done' | 'failed' | 'aborted'
+
+/** 子 Agent 单次运行元数据（挂在父 Session 上，供 UI 展示） */
+export interface SubagentRunMeta {
+  runId: string
+  parentSessionId: string
+  agentType: string
+  mode: SubagentMode
+  description: string
+  status: SubagentRunStatus
+  startedAt: number
+  finishedAt?: number
+  summary?: string
+}
+
+/** 子 Agent 类型定义（内置管线角色或 custom_*） */
+export interface SubagentDefinition {
+  id: string
+  name: string
+  systemPrompt: string
+  /** null = 全部工具；数组 = 白名单；缺省由角色默认决定 */
+  toolAllowlist?: string[] | null
+  toolDenylist?: string[]
+  maxTurns?: number
+  modelRole?: ModelRoleKey
+}
+
 export interface Session {
   id: string
   title: string
@@ -1316,6 +1346,8 @@ export interface Session {
   tasks: TaskItem[]
   /** 会话类型；旧数据缺省时由 querySessionType 推断 */
   type?: SessionType
+  /** 子 Agent 运行记录（仅父会话） */
+  subagentRuns?: SubagentRunMeta[]
   /** 累计估算 token（展示用） */
   tokenUsed: number
   createdAt: number
@@ -1536,6 +1568,23 @@ export type AgentEvent =
       sessionId: string
       toolName: string
       progress: ToolProgressPayload
+    }
+  /** 子 Agent 工具调用进度（不写父 session messages） */
+  | {
+      type: 'subagent_tool'
+      sessionId: string
+      runId: string
+      toolName: string
+      phase: 'start' | 'result'
+      result?: string
+    }
+  | { type: 'subagent_start'; sessionId: string; run: SubagentRunMeta; prompt: string }
+  | {
+      type: 'subagent_done'
+      sessionId: string
+      runId: string
+      summary: string
+      status: SubagentRunStatus
     }
 
 export interface BrowserStatus {

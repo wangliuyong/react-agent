@@ -434,7 +434,7 @@ function TaskEditModal({
         <Form.Item
           label="完成后通知"
           name="notifyChannels"
-          extra="任务成功后自动将执行结果转为飞书富文本推送；需在渠道页配置飞书 Webhook"
+          extra="任务成功后自动将执行结果转为飞书富文本推送；需在设置 → 渠道中配置飞书 Webhook"
         >
           <Select
             mode="multiple"

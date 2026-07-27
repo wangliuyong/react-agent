@@ -24,17 +24,11 @@ import {
   isValidChannelId,
   slugifyChannelId
 } from '../../types'
-import styles from './ChannelsPage.module.css'
-import {
-  FeaturePageShell,
-  FeaturePageHeader,
-  FeaturePageToolbar,
-  FeatureScrollBody,
-  shellStyles
-} from '@/components/page-shell'
+import styles from './ChannelsPanel.module.css'
+import { shellStyles } from '@/components/page-shell'
 import cardStyles from '@/components/entity-card'
 
-const { Text } = Typography
+const { Text, Title } = Typography
 
 /** 飞书通知类型展示名 */
 const FEISHU_MSG_TYPE_LABELS: Record<FeishuNotifyMsgType, string> = {
@@ -122,8 +116,8 @@ function notifyFooterLabel(channel: PublishChannelMeta): string {
   return isNotifyChannelConfigured(channel) ? '已配置' : '未配置'
 }
 
-/** 渠道管理：对齐技能市场 — Segmented 分发布/通知 + 卡片浏览 */
-export function ChannelsPage(): React.ReactElement {
+/** 设置页「渠道」：发布/通知渠道配置、登录态与 Webhook（内嵌于设置，无独立顶栏壳） */
+export function ChannelsPanel(): React.ReactElement {
   const channels = useChannelsStore((s) => s.channels)
   const channelsLoading = useChannelsStore((s) => s.loading)
   const hydrate = useChannelsStore((s) => s.hydrate)
@@ -442,45 +436,51 @@ export function ChannelsPage(): React.ReactElement {
     }
   }
 
-  return (
-    <FeaturePageShell>
-      <FeaturePageHeader
-        icon={<ApiOutlined />}
-        title="渠道"
-        badge={channels.length}
-        description={
-          kindTab === 'publish'
-            ? `发布 · 已接入 ${enabledCount} · 已登录 ${loggedInCount}；共用本机浏览器 Profile`
-            : `通知 · 已接入 ${enabledCount} · 已配置 ${configuredNotifyCount}；Webhook 仅存本机`
-        }
-        extra={
-          <Space wrap>
-            <Popconfirm
-              title="初始化内置渠道？"
-              description="将恢复小红书、抖音、视频号、飞书等为默认配置，自定义渠道不受影响。"
-              onConfirm={() => void handleInitBuiltin()}
-              okText="初始化"
-              cancelText="取消"
-            >
-              <Button loading={initializing}>初始化内置</Button>
-            </Popconfirm>
-            {kindTab === 'publish' ? (
-              <Button
-                icon={<ReloadOutlined />}
-                loading={checking}
-                onClick={() => void refreshStatuses()}
-              >
-                检测登录态
-              </Button>
-            ) : null}
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              新增
-            </Button>
-          </Space>
-        }
-      />
+  const kindSummary =
+    kindTab === 'publish'
+      ? `发布 · 已接入 ${enabledCount} · 已登录 ${loggedInCount}；共用本机浏览器 Profile`
+      : `通知 · 已接入 ${enabledCount} · 已配置 ${configuredNotifyCount}；Webhook 仅存本机`
 
-      <FeaturePageToolbar>
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div className={styles.panelIntro}>
+          <div className={styles.titleRow}>
+            <Title level={5} className={styles.panelTitle}>
+              发布与通知渠道
+            </Title>
+            <span className={styles.countBadge}>{channels.length}</span>
+          </div>
+          <Text type="secondary" className={styles.panelDesc}>
+            {kindSummary}
+          </Text>
+        </div>
+        <Space wrap className={styles.panelActions}>
+          <Popconfirm
+            title="初始化内置渠道？"
+            description="将恢复小红书、抖音、视频号、飞书等为默认配置，自定义渠道不受影响。"
+            onConfirm={() => void handleInitBuiltin()}
+            okText="初始化"
+            cancelText="取消"
+          >
+            <Button loading={initializing}>初始化内置</Button>
+          </Popconfirm>
+          {kindTab === 'publish' ? (
+            <Button
+              icon={<ReloadOutlined />}
+              loading={checking}
+              onClick={() => void refreshStatuses()}
+            >
+              检测登录态
+            </Button>
+          ) : null}
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新增
+          </Button>
+        </Space>
+      </div>
+
+      <div className={styles.toolbar}>
         <Segmented
           value={kindTab}
           onChange={(v) => {
@@ -502,7 +502,7 @@ export function ChannelsPage(): React.ReactElement {
             { label: '预留', value: 'reserved' }
           ]}
         />
-        <div className={shellStyles.toolbarRight}>
+        <div className={styles.toolbarRight}>
           <span className={shellStyles.resultCount}>{filtered.length} 项</span>
           <Input
             allowClear
@@ -513,9 +513,9 @@ export function ChannelsPage(): React.ReactElement {
             className={styles.searchInput}
           />
         </div>
-      </FeaturePageToolbar>
+      </div>
 
-      <FeatureScrollBody>
+      <div className={styles.listScroll}>
         <Spin spinning={(channelsLoading || checking) && channels.length === 0}>
           {filtered.length === 0 ? (
             <Empty
@@ -637,7 +637,7 @@ export function ChannelsPage(): React.ReactElement {
             </p>
           </aside>
         )}
-      </FeatureScrollBody>
+      </div>
 
       <Modal
         title={detailChannel?.label ?? '渠道详情'}
@@ -899,7 +899,7 @@ export function ChannelsPage(): React.ReactElement {
               <Input placeholder={formIsNotify ? '例如 飞书运营群' : '例如 B站'} />
             </Form.Item>
             <Form.Item name="description" label="简介">
-              <Input.TextArea rows={2} placeholder="渠道页展示的说明" />
+              <Input.TextArea rows={2} placeholder="在设置渠道 Tab 中展示的说明" />
             </Form.Item>
             <Form.Item name="enabled" label="已接入" valuePropName="checked">
               <Switch checkedChildren="是" unCheckedChildren="否" />
@@ -1039,6 +1039,6 @@ export function ChannelsPage(): React.ReactElement {
           </Form>
         </Spin>
       </Drawer>
-    </FeaturePageShell>
+    </section>
   )
 }

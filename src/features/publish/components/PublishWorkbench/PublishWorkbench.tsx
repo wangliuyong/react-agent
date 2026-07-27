@@ -186,7 +186,7 @@ function PlanEditModal({
         <Form.Item
           label="计划结束通知"
           name="notifyChannels"
-          extra="全部子任务结束后汇总通知；需在渠道页配置飞书 Webhook 后可选"
+          extra="全部子任务结束后汇总通知；需在设置 → 渠道中配置飞书 Webhook 后可选"
         >
           <Select
             mode="multiple"

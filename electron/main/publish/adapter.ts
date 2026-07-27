@@ -52,7 +52,7 @@ function querySdkPlaceholder(channelId: PublishChannelAdapterKey): PublishAdapte
     async publish() {
       return (
         `${label} 官方 SDK 发布尚未接入。` +
-        '请在渠道页开启「拟人操作」以使用浏览器发布，或配置 SDK 凭证后重试。'
+        '请在设置 → 渠道中开启「拟人操作」以使用浏览器发布，或配置 SDK 凭证后重试。'
       )
     }
   }

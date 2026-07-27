@@ -280,7 +280,7 @@ export function registerIpcHandlers(): void {
     return postNotifyMessage({
       channelId: id,
       title: '灵犀通知测试',
-      content: '这是一条来自渠道页的测试消息。',
+      content: '这是一条来自设置 → 渠道的测试消息。',
       msgType: 'text'
     })
   })

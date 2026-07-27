@@ -84,7 +84,7 @@ export async function postNotifyMessage(args: {
 
   const webhookUrl = meta.notifyConfig?.webhookUrl?.trim()
   if (!webhookUrl) {
-    return { ok: false, error: `${meta.label} Webhook 未配置，请先在渠道页填写并保存` }
+    return { ok: false, error: `${meta.label} Webhook 未配置，请先在设置 → 渠道中填写并保存` }
   }
 
   const channelDefault = meta.notifyConfig?.feishuMsgType
@@ -183,7 +183,7 @@ export async function postNotifyMessage(args: {
         if (!imageKey) {
           return {
             ok: false,
-            error: '图片消息缺少 image_key：请在渠道页配置，或在通知参数中传入 imageKey',
+            error: '图片消息缺少 image_key：请在设置 → 渠道中配置，或在通知参数中传入 imageKey',
             request
           }
         }
@@ -196,7 +196,7 @@ export async function postNotifyMessage(args: {
         if (!shareChatId) {
           return {
             ok: false,
-            error: '群名片缺少 share_chat_id：请在渠道页配置，或在通知参数中传入 shareChatId',
+            error: '群名片缺少 share_chat_id：请在设置 → 渠道中配置，或在通知参数中传入 shareChatId',
             request
           }
         }
