@@ -3,6 +3,7 @@ import {
   queryModelCategory,
   queryModelLabel,
   queryModelOptionDisplayLabel,
+  queryResolveModelForProvider,
   type ToolProgressPayload,
   type UserChoiceOption
 } from '@shared/types'
@@ -94,14 +95,26 @@ export function ChatInput({
     ]
   )
 
-  /** 切换模型并给出 Toast 反馈 */
+  /** 切换模型并给出 Toast 反馈；非法 model 会回退到供应商默认并校正默认连接 */
   const handleModelChange = async (model: string): Promise<void> => {
     const next = model.trim()
     if (!next || next === settings.model) return
+    const resolved = queryResolveModelForProvider(
+      settings.provider,
+      next,
+      settings.providerModelCatalog,
+      settings.customProviders ?? []
+    )
     setModelSwitching(true)
     try {
-      await postSettings({ model: next })
-      message.success(`已切换至 ${queryModelLabel(next)}`)
+      await postSettings({ model: resolved })
+      if (resolved !== next) {
+        message.warning(
+          `「${next}」与当前供应商 API 不兼容，已切换为 ${queryModelLabel(resolved)}`
+        )
+      } else {
+        message.success(`已切换至 ${queryModelLabel(resolved)}`)
+      }
     } finally {
       setModelSwitching(false)
     }

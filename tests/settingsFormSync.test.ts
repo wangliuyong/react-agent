@@ -30,6 +30,8 @@ const SAVED_SETTINGS: AppSettings = {
   defaultConnectionId: DEFAULT_CONNECTION_ID,
   roleModelMap: {},
   rolePromptOverrides: {},
+  roleToolWhitelistOverrides: {},
+  customAgentRoles: [],
   fullAccess: true,
   thinkingEnabled: false,
   maxTurns: 28,

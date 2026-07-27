@@ -1,4 +1,5 @@
 import {
+  queryAlignConnectionsToActiveProvider,
   queryAllProviderOptions,
   queryProviderCredentialsFromSettings,
   queryProviderOption,
@@ -225,20 +226,34 @@ export function queryModelApiSavePatch(params: {
     savedActive,
     activeMeta
   )
+  const connections = queryApplyProviderDraftsToConnections(
+    settings.connections ?? [],
+    drafts,
+    customProviders
+  )
+  const aligned = queryAlignConnectionsToActiveProvider({
+    connections,
+    activeProvider,
+    activeCreds: {
+      apiKey: activeDraft.apiKey,
+      baseUrl: activeDraft.baseUrl,
+      model: activeDraft.model
+    },
+    defaultConnectionId: settings.defaultConnectionId,
+    catalog: params.providerModelCatalog,
+    customProviders
+  })
   return {
     provider: activeProvider,
     apiKey: activeDraft.apiKey,
     baseUrl: activeDraft.baseUrl,
-    model: activeDraft.model,
+    model: aligned.model,
     maxTurns,
     fullAccess,
     thinkingEnabled,
     customProviders,
     providerModelCatalog: params.providerModelCatalog,
-    connections: queryApplyProviderDraftsToConnections(
-      settings.connections ?? [],
-      drafts,
-      customProviders
-    )
+    connections: aligned.connections,
+    defaultConnectionId: aligned.defaultConnectionId
   }
 }

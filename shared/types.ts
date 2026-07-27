@@ -1205,6 +1205,209 @@ export function queryModelLabel(model: string): string {
 }
 
 /**
+ * 聊天向内置连接模板（不含媒体）。
+ * 切换「当前选用」供应商时，这些连接应跟 endpoint 对齐，避免 Claude 模型打到 DeepSeek。
+ */
+const CHAT_TEMPLATE_CONNECTION_IDS = new Set<string>([
+  DEFAULT_CONNECTION_IDS.default,
+  DEFAULT_CONNECTION_IDS.fast,
+  DEFAULT_CONNECTION_IDS.reason,
+  DEFAULT_CONNECTION_IDS.creative
+])
+
+/**
+ * 校验 model id 是否属于当前供应商的 endpoint。
+ * - 本机目录 / 静态列表命中 → 允许
+ * - OpenAI 兼容与自定义供应商 → 不强制白名单
+ * - Ofox 无目录时 → 允许 provider/model 前缀格式
+ * - DeepSeek / 百炼 → 严格限制，防止聚合网关模型 id 串到官方 API
+ */
+export function queryIsModelAllowedForProvider(
+  provider: ModelProvider,
+  modelId: string,
+  catalog?: ProviderModelCatalog
+): boolean {
+  const id = modelId.trim()
+  if (!id) return false
+  if (provider === 'openai_compatible' || queryIsCustomModelProvider(provider)) {
+    return true
+  }
+
+  const fromCatalog = queryChatModelOptionsFromCatalog(provider, catalog)
+  if (fromCatalog.some((m) => m.value === id)) return true
+  if (queryModelOptions(provider).some((m) => m.value === id)) return true
+
+  const catalogRecords = queryProviderModelCatalogForProvider(catalog, provider)
+  if (catalogRecords.length > 0) return false
+
+  if (provider === 'deepseek') {
+    return !id.includes('/') && /^deepseek-/.test(id)
+  }
+  if (provider === 'dashscope') {
+    return !id.includes('/')
+  }
+  if (provider === 'ofox') return id.includes('/')
+  return false
+}
+
+/**
+ * 解析供应商可用的 model；非法时回退到供应商默认模型。
+ */
+export function queryResolveModelForProvider(
+  provider: ModelProvider,
+  preferred: string,
+  catalog?: ProviderModelCatalog,
+  customProviders: CustomModelProvider[] = []
+): string {
+  const id = preferred.trim()
+  if (queryIsModelAllowedForProvider(provider, id, catalog)) return id
+  return queryProviderOption(provider, customProviders).defaultModel
+}
+
+export interface AlignConnectionsToActiveProviderParams {
+  connections: ModelConnection[]
+  activeProvider: ModelProvider
+  activeCreds: Pick<AppSettings, 'apiKey' | 'baseUrl' | 'model'>
+  defaultConnectionId: string
+  catalog?: ProviderModelCatalog
+  customProviders?: CustomModelProvider[]
+}
+
+/**
+ * 将默认聊天连接校正到「当前选用」供应商。
+ * 为什么：顶层 provider 与 connections 默认行不一致时，聊天下拉选 Ofox 模型仍会打到 DeepSeek。
+ */
+export function queryAlignConnectionsToActiveProvider(
+  params: AlignConnectionsToActiveProviderParams
+): {
+  connections: ModelConnection[]
+  defaultConnectionId: string
+  model: string
+} {
+  const customProviders = params.customProviders ?? []
+  const activeProvider = params.activeProvider
+  const meta = queryProviderOption(activeProvider, customProviders)
+  const apiKey = params.activeCreds.apiKey
+  const baseUrl = params.activeCreds.baseUrl.trim() || meta.defaultBaseUrl
+  const model = queryResolveModelForProvider(
+    activeProvider,
+    params.activeCreds.model,
+    params.catalog,
+    customProviders
+  )
+
+  const templates = queryBuildDefaultConnections({
+    apiKey,
+    provider: activeProvider,
+    baseUrl
+  })
+  const templateById = new Map(templates.map((t) => [t.id, t]))
+
+  let connections = params.connections.map((conn) => {
+    if (!CHAT_TEMPLATE_CONNECTION_IDS.has(conn.id)) return conn
+    const template = templateById.get(conn.id)
+    if (!template) return conn
+    const nextModel =
+      conn.id === DEFAULT_CONNECTION_IDS.default
+        ? model
+        : queryResolveModelForProvider(
+            activeProvider,
+            // 已同供应商则尽量保留原 model；跨供应商则用模板默认
+            conn.provider === activeProvider ? conn.model : template.model,
+            params.catalog,
+            customProviders
+          )
+    return {
+      ...conn,
+      provider: activeProvider,
+      apiKey,
+      baseUrl,
+      model: nextModel,
+      capabilities: template.capabilities?.length ? template.capabilities : conn.capabilities
+    }
+  })
+
+  let defaultConnectionId = params.defaultConnectionId
+  const defaultConn = connections.find((c) => c.id === defaultConnectionId)
+  if (!defaultConn || defaultConn.provider !== activeProvider) {
+    const preferred =
+      connections.find((c) => c.id === DEFAULT_CONNECTION_IDS.default) ??
+      connections.find((c) => c.provider === activeProvider)
+    if (preferred?.provider === activeProvider) {
+      defaultConnectionId = preferred.id
+    } else {
+      const id = `cred-${activeProvider}`
+      const existingIdx = connections.findIndex((c) => c.id === id)
+      const row: ModelConnection = {
+        id,
+        label: `${meta.label}（凭证）`,
+        provider: activeProvider,
+        apiKey,
+        baseUrl,
+        model,
+        capabilities: ['chat']
+      }
+      if (existingIdx >= 0) connections[existingIdx] = { ...connections[existingIdx], ...row }
+      else connections = [...connections, row]
+      defaultConnectionId = id
+    }
+  }
+
+  return { connections, defaultConnectionId, model }
+}
+
+/**
+ * 聊天栏仅更新 model（或顶层凭证）时，写回与当前选用供应商一致的连接行。
+ * 会校验 model 是否属于当前 endpoint，并校正脏的默认连接 provider。
+ */
+export function querySyncTopLevelModelToConnections(
+  current: AppSettings,
+  partial: Partial<
+    Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl' | 'model' | 'providerModelCatalog'>
+  >
+): {
+  connections: ModelConnection[]
+  defaultConnectionId: string
+  model: string
+  provider: ModelProvider
+} {
+  const customProviders = current.customProviders ?? []
+  const catalog = partial.providerModelCatalog ?? current.providerModelCatalog
+  const activeProvider = partial.provider ?? current.provider
+  const aligned = queryAlignConnectionsToActiveProvider({
+    connections: current.connections.map((c) => ({ ...c })),
+    activeProvider,
+    activeCreds: {
+      apiKey: partial.apiKey ?? current.apiKey,
+      baseUrl: partial.baseUrl ?? current.baseUrl,
+      model: partial.model ?? current.model
+    },
+    defaultConnectionId: current.defaultConnectionId,
+    catalog,
+    customProviders
+  })
+
+  // 仅改 model 时：同供应商兄弟连接保留各自 model，只更新默认连接与顶层
+  const connections = aligned.connections.map((conn) => {
+    if (conn.id !== aligned.defaultConnectionId) return conn
+    return {
+      ...conn,
+      provider: activeProvider,
+      apiKey: partial.apiKey ?? current.apiKey ?? conn.apiKey,
+      baseUrl: (partial.baseUrl ?? current.baseUrl ?? conn.baseUrl).trim() || conn.baseUrl,
+      model: aligned.model
+    }
+  })
+
+  return {
+    connections,
+    defaultConnectionId: aligned.defaultConnectionId,
+    model: aligned.model,
+    provider: activeProvider
+  }
+}
+
+/**
  * 从 settings 解析应使用的模型连接。
  * 优先级：purpose 映射 → defaultConnectionId → connections[0] → 旧单模型字段。
  */

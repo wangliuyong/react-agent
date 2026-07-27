@@ -10,6 +10,7 @@ import {
   queryProviderOption,
   querySeedDefaultConnections,
   querySyncConnectionsProviderCredentials,
+  querySyncTopLevelModelToConnections,
   type AppSettings,
   type CustomModelProvider,
   type ModelCapability,
@@ -280,7 +281,7 @@ export function postSettings(partial: Partial<AppSettings>): AppSettings {
     }
   }
 
-  // 若只改了顶层 apiKey/model，同步回写默认连接
+  // 若只改了顶层 provider / 凭证 / model，校正默认连接与错位的内置聊天连接
   if (
     (partial.apiKey != null ||
       partial.baseUrl != null ||
@@ -288,41 +289,12 @@ export function postSettings(partial: Partial<AppSettings>): AppSettings {
       partial.provider != null) &&
     !partial.connections
   ) {
-    const connections = current.connections.map((c) => ({ ...c }))
-    const idx = connections.findIndex((c) => c.id === current.defaultConnectionId)
-    const target = idx >= 0 ? idx : 0
-    const primary = connections[target]
-    if (primary) {
-      const prevKey = primary.apiKey
-      const nextProvider = partial.provider ?? primary.provider
-      const nextKey = partial.apiKey ?? primary.apiKey
-      const nextBase = partial.baseUrl ?? primary.baseUrl
-      connections[target] = {
-        ...primary,
-        provider: nextProvider,
-        apiKey: nextKey,
-        baseUrl: nextBase,
-        model: partial.model ?? primary.model
-      }
-
-      // 默认套装里同供应商的空 Key / 旧 Key 兄弟连接一并更新，免得到处重填
-      if (partial.apiKey != null || partial.baseUrl != null || partial.provider != null) {
-        for (let i = 0; i < connections.length; i++) {
-          if (i === target) continue
-          const row = connections[i]
-          const sameProvider = row.provider === nextProvider
-          const shareableKey = !row.apiKey.trim() || row.apiKey === prevKey
-          if (sameProvider && shareableKey) {
-            connections[i] = {
-              ...row,
-              apiKey: nextKey,
-              baseUrl: partial.baseUrl != null ? nextBase : row.baseUrl,
-              provider: nextProvider
-            }
-          }
-        }
-      }
-      nextPartial.connections = connections
+    const synced = querySyncTopLevelModelToConnections(current, partial)
+    nextPartial.model = synced.model
+    nextPartial.connections = synced.connections
+    nextPartial.defaultConnectionId = synced.defaultConnectionId
+    if (partial.provider != null) {
+      nextPartial.provider = synced.provider
     }
   }
   const next = normalizeSettings(nextPartial)
