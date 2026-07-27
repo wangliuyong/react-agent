@@ -261,11 +261,10 @@ export function ProviderModelsMaintenanceDrawer({
     setEditorOpen(true)
   }
 
-  /** 从兜底 / 平台列表一键登记到本机目录 */
+  /** 从兜底 / 平台列表一键登记到本机目录；留在当前 Tab，便于连续登记 */
   const postAdoptToManual = (row: CatalogTableRow): void => {
     if (registeredModelIds.has(row.modelId)) {
       message.info('该模型已在本机登记')
-      setActiveTab('manual')
       return
     }
     const next: ProviderModelRecord = {
@@ -279,7 +278,6 @@ export function ProviderModelsMaintenanceDrawer({
     }
     onChange([...records, next])
     message.success(`已登记「${row.displayName}」到本机`)
-    setActiveTab('manual')
   }
 
   const handleDelete = (record: ProviderModelRecord): void => {
