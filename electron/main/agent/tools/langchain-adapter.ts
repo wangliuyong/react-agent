@@ -5,6 +5,8 @@ import type { AgentTool, ToolContext, ToolPermission } from './types'
 import { compactToolResult } from '../token-budget'
 import { queryIsAgentUserCancelledError } from '../agent-user-cancelled'
 import { queryIsUserCancelIntent } from '../choice-resolver'
+import { queryFormatAgentErrorMessage } from '../query-format-agent-error'
+import { querySettings } from '../../store/settings'
 
 /**
  * 发布类工具自带登录/发布确认（工具内 emitAwaitUser），
@@ -67,7 +69,17 @@ export function adaptAgentTools(
           if (isGraphInterrupt(err)) throw err
           // 用户取消敏感操作：终止整轮 Agent，勿把取消当作 tool 结果交给模型
           if (queryIsAgentUserCancelledError(err)) throw err
-          return `工具执行失败: ${err instanceof Error ? err.message : String(err)}`
+          const raw = err instanceof Error ? err.message : String(err)
+          const settings = querySettings()
+          return queryFormatAgentErrorMessage(
+            `工具执行失败: ${raw}`,
+            {
+              toolName: agentTool.name,
+              roleId: ctx.activeRole,
+              agentName: ctx.agentName
+            },
+            settings
+          )
         }
       },
       {

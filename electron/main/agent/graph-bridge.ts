@@ -23,6 +23,7 @@ import type {
   AgentRoleName,
   ChatMessage,
   ModelCapability,
+  ModelRoleKey,
   Session,
   TaskItem,
   UserChoiceOption
@@ -49,6 +50,10 @@ import {
   type UserContinueResult
 } from './choice-resolver'
 import { queryIsAgentUserCancelledError } from './agent-user-cancelled'
+import {
+  queryFormatAgentErrorMessage,
+  queryLastToolNameFromMessages
+} from './query-format-agent-error'
 import {
   postCancelRemotionRenderSession,
   postStopRemotionStudios
@@ -150,6 +155,75 @@ export function emitAgentEvent(event: AgentEvent): void {
     win.webContents.send('event:agent', event)
   }
   handleScheduleAgentDone(event)
+}
+
+/**
+ * 推送带工具 / 角色 / Agent / 连接上下文的错误事件。
+ */
+function postEmitAgentError(
+  sessionId: string,
+  rawMessage: string,
+  ctx?: {
+    toolName?: string | null
+    roleId?: string | null
+    agentName?: string | null
+    capability?: ModelCapability | '' | null
+    messages?: BaseMessage[]
+  }
+): void {
+  const settings = querySettings()
+  const toolName =
+    ctx?.toolName?.trim() ||
+    (ctx?.messages ? queryLastToolNameFromMessages(ctx.messages) : undefined)
+  const roleId = ctx?.roleId?.trim() || undefined
+  const capability =
+    ctx?.capability === 'chat' ||
+    ctx?.capability === 'reasoning' ||
+    ctx?.capability === 'vision' ||
+    ctx?.capability === 'longContext' ||
+    ctx?.capability === 'creative'
+      ? ctx.capability
+      : undefined
+  let connectionLabel: string | undefined
+  let provider: string | undefined
+  let model: string | undefined
+  try {
+    const conn = queryResolveModelConnection(settings, {
+      role: roleId as ModelRoleKey | undefined,
+      capability
+    })
+    connectionLabel = conn.label
+    provider = conn.provider
+    model = conn.model
+  } catch {
+    // 设置异常时仍推送原始错误
+  }
+  const message = queryFormatAgentErrorMessage(
+    rawMessage,
+    {
+      toolName,
+      roleId,
+      agentName: ctx?.agentName,
+      connectionLabel,
+      provider,
+      model
+    },
+    settings
+  )
+
+  // 落盘到会话并推送 message，保证聊天时间线可见、刷新后仍在
+  const session = querySession(sessionId)
+  if (session) {
+    const errorMsg = appendMessage(session, {
+      role: 'assistant',
+      content: message,
+      errorMeta: { title: '执行失败' }
+    })
+    persistSession(session)
+    emitAgentEvent({ type: 'message', sessionId, message: errorMsg })
+  }
+
+  emitAgentEvent({ type: 'error', sessionId, message })
 }
 
 /** 通知渲染进程：本次任务/流程已新建独立会话（每次执行一条新对话） */
@@ -357,6 +431,8 @@ function buildToolContext(
     fullAccess,
     attachmentPaths,
     signal,
+    activeRole: 'supervisor',
+    agentName: 'supervisor',
     emitAwaitUser: async (reason, choices?, options?) => {
       return waitForGraphUserContinue(sessionId, {
         reason,
@@ -643,7 +719,11 @@ export async function runLangGraphChat(params: {
     })
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
-    emitAgentEvent({ type: 'error', sessionId, message })
+    postEmitAgentError(sessionId, message, {
+      roleId: toolCtx.activeRole ?? 'supervisor',
+      agentName: toolCtx.agentName ?? 'supervisor',
+      capability: toolCtx.queryActiveCapability?.()
+    })
     emitAgentEvent({ type: 'done', sessionId, reason: 'error' })
     abortMap.delete(sessionId)
     return
@@ -699,6 +779,9 @@ export async function runLangGraphChat(params: {
     activeCapability: ''
   }
 
+  /** 最近一次图状态消息，供失败时提取工具名 */
+  let lastGraphMessages: BaseMessage[] = hasCheckpoint ? checkpointMessages : [...prior, human]
+
   try {
     // interrupt → 等人 → Command resume 可循环多次
     // eslint-disable-next-line no-constant-condition
@@ -734,6 +817,7 @@ export async function runLangGraphChat(params: {
           }
           if (state && typeof state === 'object' && 'messages' in state) {
             const s = state as { messages: BaseMessage[]; activeAgent?: AgentRoleName }
+            lastGraphMessages = s.messages
             synced = await syncNewMessagesToSession(sessionId, synced, s.messages)
             if (s.activeAgent) {
               emitAgentEvent({ type: 'agent_role', sessionId, role: s.activeAgent })
@@ -775,11 +859,13 @@ export async function runLangGraphChat(params: {
         snap.values && typeof snap.values === 'object' && 'messages' in snap.values
           ? ((snap.values as { messages: BaseMessage[] }).messages ?? [])
           : []
+      if (finalMessages.length) lastGraphMessages = finalMessages
       if (queryHasDanglingToolCalls(finalMessages)) {
-        emitAgentEvent({
-          type: 'error',
-          sessionId,
-          message: '工具调用未完成（可能登录确认被中断），请重试本轮'
+        postEmitAgentError(sessionId, '工具调用未完成（可能登录确认被中断），请重试本轮', {
+          roleId: toolCtx.activeRole,
+          agentName: toolCtx.agentName,
+          capability: toolCtx.queryActiveCapability?.(),
+          messages: finalMessages
         })
         emitAgentEvent({ type: 'done', sessionId, reason: 'error' })
         return
@@ -797,11 +883,21 @@ export async function runLangGraphChat(params: {
     }
     const message = e instanceof Error ? e.message : String(e)
     if (/recursion/i.test(message)) {
-      emitAgentEvent({ type: 'error', sessionId, message: '达到最大工具轮次' })
+      postEmitAgentError(sessionId, '达到最大工具轮次', {
+        roleId: toolCtx.activeRole,
+        agentName: toolCtx.agentName,
+        capability: toolCtx.queryActiveCapability?.(),
+        messages: lastGraphMessages
+      })
       emitAgentEvent({ type: 'done', sessionId, reason: 'max_turns' })
       return
     }
-    emitAgentEvent({ type: 'error', sessionId, message })
+    postEmitAgentError(sessionId, message, {
+      roleId: toolCtx.activeRole,
+      agentName: toolCtx.agentName,
+      capability: toolCtx.queryActiveCapability?.(),
+      messages: lastGraphMessages
+    })
     emitAgentEvent({ type: 'done', sessionId, reason: 'error' })
   } finally {
     abortMap.delete(sessionId)
@@ -877,7 +973,11 @@ export async function runLangGraphStep(params: {
     })
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
-    emitAgentEvent({ type: 'error', sessionId, message })
+    postEmitAgentError(sessionId, message, {
+      roleId: toolCtx.activeRole ?? 'general',
+      agentName: toolCtx.agentName ?? 'workflow_step_agent',
+      capability: toolCtx.queryActiveCapability?.()
+    })
     return 'error'
   }
 
@@ -896,6 +996,7 @@ export async function runLangGraphStep(params: {
 
   let synced = 0
   let input: { messages: BaseMessage[] } | Command = { messages: [human] }
+  let lastStepMessages: BaseMessage[] = [human]
 
   try {
     // eslint-disable-next-line no-constant-condition
@@ -916,11 +1017,9 @@ export async function runLangGraphStep(params: {
             break
           }
           if (state && typeof state === 'object' && 'messages' in state) {
-            synced = await syncNewMessagesToSession(
-              sessionId,
-              synced,
-              (state as { messages: BaseMessage[] }).messages
-            )
+            const messages = (state as { messages: BaseMessage[] }).messages
+            lastStepMessages = messages
+            synced = await syncNewMessagesToSession(sessionId, synced, messages)
           }
         }
         if (resumeCommand) {
@@ -951,12 +1050,18 @@ export async function runLangGraphStep(params: {
         snap.values && typeof snap.values === 'object' && 'messages' in snap.values
           ? ((snap.values as { messages: BaseMessage[] }).messages ?? [])
           : []
+      if (finalMessages.length) lastStepMessages = finalMessages
       if (queryHasDanglingToolCalls(finalMessages)) {
-        emitAgentEvent({
-          type: 'error',
+        postEmitAgentError(
           sessionId,
-          message: '发布工具调用未完成（常见于抖音登录等待被当作步骤结束）。请重新执行该发布步骤。'
-        })
+          '发布工具调用未完成（常见于抖音登录等待被当作步骤结束）。请重新执行该发布步骤。',
+          {
+            roleId: toolCtx.activeRole,
+            agentName: toolCtx.agentName,
+            capability: toolCtx.queryActiveCapability?.(),
+            messages: finalMessages
+          }
+        )
         return 'error'
       }
       await queryWaitThinkingSettled(sessionId)
@@ -967,7 +1072,12 @@ export async function runLangGraphStep(params: {
     if (controller.signal.aborted || queryIsAgentUserCancelledError(e)) return 'aborted'
     const message = e instanceof Error ? e.message : String(e)
     if (/recursion/i.test(message)) return 'max_turns'
-    emitAgentEvent({ type: 'error', sessionId, message })
+    postEmitAgentError(sessionId, message, {
+      roleId: toolCtx.activeRole,
+      agentName: toolCtx.agentName,
+      capability: toolCtx.queryActiveCapability?.(),
+      messages: lastStepMessages
+    })
     return 'error'
   }
 }

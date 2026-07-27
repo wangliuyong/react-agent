@@ -68,6 +68,13 @@
   box-shadow: none;
 }
 
+/* Agent 错误卡片：与普通叙述区分，限制最大宽度便于阅读 */
+.errorCard {
+  width: 100%;
+  max-width: 560px;
+  padding: 2px 0;
+}
+
 /* 流式时仅左侧呼吸线，不抬升为卡片 */
 .assistantCardStreaming {
   position: relative;

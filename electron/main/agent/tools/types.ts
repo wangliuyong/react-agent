@@ -35,6 +35,14 @@ export interface ToolContext {
    * 由 graph-bridge 注入；工作流直连 tool 节点可选注入。
    */
   postAbortAgent?: () => void
+  /**
+   * 当前管线角色 id（如 researcher）；进入角色节点时写入，供工具报错带上下文。
+   */
+  activeRole?: string
+  /**
+   * 当前子图 / Agent 名称（如 role_researcher）；进入角色节点时写入。
+   */
+  agentName?: string
 }
 
 export interface AgentTool {

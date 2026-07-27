@@ -92,6 +92,10 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     }
     postResolveForRole(role, capabilityBox.current)
 
+    // 报错上下文：工具失败 / LLM 失败时带上角色与 Agent 名
+    toolCtx.activeRole = role
+    toolCtx.agentName = `role_${role}`
+
     const tools = adaptAgentTools(
       queryToolsForRole(
         role,
@@ -125,6 +129,8 @@ export function buildChatGraph(params: BuildChatGraphParams) {
   }
 
   async function supervisorNode(state: AgentGraphState): Promise<Partial<AgentGraphState>> {
+    toolCtx.activeRole = 'supervisor'
+    toolCtx.agentName = 'supervisor'
     const llm = withSessionTokenUsage(createChatModel(settings, 'supervisor'), toolCtx.sessionId)
     const latestUserMessage = queryLatestHumanMessage(state.messages)
     const reply = await llm.invoke(
@@ -283,6 +289,10 @@ export function buildStepReactGraph(params: {
       connectionLabel: conn.label
     })
   }
+
+  // 步骤 / 工作流 Agent：写入报错上下文
+  toolCtx.activeRole = modelRole
+  toolCtx.agentName = 'workflow_step_agent'
 
   const factory = createCapabilityRoutedModel(
     settings,

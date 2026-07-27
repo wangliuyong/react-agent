@@ -103,13 +103,131 @@ describe('queryParseSupervisorRoute', () => {
 })
 
 describe('queryResolveModelConnection', () => {
-  it('显式 capability 优先于 roleModelMap', () => {
+  it('角色连接不具备 capability 时，优先同供应商升级而非跨供应商', () => {
     const settings = queryTestSettings()
     const conn = queryResolveModelConnection(settings, {
       role: 'researcher',
       capability: 'creative'
     })
+    // researcher 映射 reason（无 creative）→ 同供应商 creative
     expect(conn.id).toBe(DEFAULT_CONNECTION_IDS.creative)
+    expect(conn.provider).toBe('dashscope')
+  })
+
+  it('DeepSeek 角色不会被列表前部的百炼文生图连接抢走', () => {
+    const deepseekConns = queryBuildDefaultConnections({
+      apiKey: 'sk-ds',
+      provider: 'deepseek'
+    })
+    const settings = queryTestSettings({
+      provider: 'deepseek',
+      apiKey: 'sk-ds',
+      baseUrl: 'https://api.deepseek.com',
+      model: 'deepseek-v4-flash',
+      connections: [
+        {
+          id: 'conn-t2i',
+          label: '文生图',
+          provider: 'dashscope',
+          apiKey: 'sk-aliyun',
+          baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+          model: 'qwen-plus',
+          capabilities: ['chat', 'creative', 'vision']
+        },
+        ...deepseekConns
+      ],
+      defaultConnectionId: DEFAULT_CONNECTION_IDS.default,
+      roleModelMap: {
+        researcher: DEFAULT_CONNECTION_IDS.default
+      }
+    })
+    const conn = queryResolveModelConnection(settings, {
+      role: 'researcher',
+      capability: 'creative'
+    })
+    expect(conn.provider).toBe('deepseek')
+    expect(conn.id).toBe(DEFAULT_CONNECTION_IDS.creative)
+  })
+
+  it('DeepSeek 角色无同供应商 creative 时，坚持角色连接，不跨到图生成视频', () => {
+    // 复现：调研员绑定「默认 (DeepSeek)」，Supervisor 给出 creative，
+    // 列表里只有 dashscope「图生成视频」带 creative → 不得抢走角色配置
+    const settings = queryTestSettings({
+      provider: 'deepseek',
+      apiKey: 'sk-ds',
+      baseUrl: 'https://api.deepseek.com',
+      model: 'deepseek-v4-flash',
+      connections: [
+        {
+          id: 'conn-img2video',
+          label: '图生成视频',
+          provider: 'dashscope',
+          apiKey: 'sk-aliyun',
+          baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+          model: 'qwen-plus',
+          capabilities: ['creative', 'chat', 'vision']
+        },
+        {
+          id: DEFAULT_CONNECTION_IDS.default,
+          label: '默认 (DeepSeek) 文本处理',
+          provider: 'deepseek',
+          apiKey: 'sk-ds',
+          baseUrl: 'https://api.deepseek.com',
+          model: 'deepseek-v4-flash',
+          capabilities: ['chat']
+        }
+      ],
+      defaultConnectionId: DEFAULT_CONNECTION_IDS.default,
+      roleModelMap: {
+        researcher: DEFAULT_CONNECTION_IDS.default
+      }
+    })
+    const conn = queryResolveModelConnection(settings, {
+      role: 'researcher',
+      capability: 'creative'
+    })
+    expect(conn.provider).toBe('deepseek')
+    expect(conn.id).toBe(DEFAULT_CONNECTION_IDS.default)
+    expect(conn.label).toBe('默认 (DeepSeek) 文本处理')
+  })
+
+  it('vision 能力仍允许 DeepSeek 角色跨到百炼媒体连接', () => {
+    const settings = queryTestSettings({
+      provider: 'deepseek',
+      apiKey: 'sk-ds',
+      baseUrl: 'https://api.deepseek.com',
+      model: 'deepseek-v4-flash',
+      connections: [
+        {
+          id: DEFAULT_CONNECTION_IDS.default,
+          label: '默认 (DeepSeek) 文本处理',
+          provider: 'deepseek',
+          apiKey: 'sk-ds',
+          baseUrl: 'https://api.deepseek.com',
+          model: 'deepseek-v4-flash',
+          capabilities: ['chat']
+        },
+        {
+          id: DEFAULT_CONNECTION_IDS.media,
+          label: '媒体生成（百炼 · 万相/TTS）',
+          provider: 'dashscope',
+          apiKey: 'sk-aliyun',
+          baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+          model: 'qwen-plus',
+          capabilities: ['vision']
+        }
+      ],
+      defaultConnectionId: DEFAULT_CONNECTION_IDS.default,
+      roleModelMap: {
+        researcher: DEFAULT_CONNECTION_IDS.default
+      }
+    })
+    const conn = queryResolveModelConnection(settings, {
+      role: 'researcher',
+      capability: 'vision'
+    })
+    expect(conn.provider).toBe('dashscope')
+    expect(conn.id).toBe(DEFAULT_CONNECTION_IDS.media)
   })
 
   it('无 capability 时走 roleModelMap', () => {

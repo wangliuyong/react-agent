@@ -341,7 +341,7 @@ export function queryBuildDefaultConnections(seed?: {
         model: 'deepseek-v4-flash',
         capabilities: ['creative', 'chat']
       },
-      // 媒体（万相/TTS）仍走百炼 HTTP，单独留一条空 Key 连接便于用户补填
+      // 媒体（万相/TTS）仍走百炼 HTTP；仅标 vision，勿带 chat，避免能力路由误选为对话模型
       {
         id: DEFAULT_CONNECTION_IDS.media,
         label: '媒体生成（百炼 · 万相/TTS）',
@@ -349,7 +349,7 @@ export function queryBuildDefaultConnections(seed?: {
         apiKey: '',
         baseUrl: DASHSCOPE_COMPAT_BASE,
         model: 'qwen-plus',
-        capabilities: ['vision', 'chat']
+        capabilities: ['vision']
       }
     ]
   }
@@ -393,7 +393,7 @@ export function queryBuildDefaultConnections(seed?: {
         model: 'openai/gpt-4o',
         capabilities: ['creative', 'chat', 'vision']
       },
-      // 媒体（万相/TTS）仍走百炼 HTTP，单独留一条空 Key 连接便于用户补填
+      // 媒体（万相/TTS）仍走百炼 HTTP；仅标 vision，勿带 chat，避免能力路由误选为对话模型
       {
         id: DEFAULT_CONNECTION_IDS.media,
         label: '媒体生成（百炼 · 万相/TTS）',
@@ -401,7 +401,7 @@ export function queryBuildDefaultConnections(seed?: {
         apiKey: '',
         baseUrl: DASHSCOPE_COMPAT_BASE,
         model: 'qwen-plus',
-        capabilities: ['vision', 'chat']
+        capabilities: ['vision']
       }
     ]
   }
@@ -451,7 +451,8 @@ export function queryBuildDefaultConnections(seed?: {
       apiKey,
       baseUrl: baseUrl || DASHSCOPE_COMPAT_BASE,
       model: 'qwen-plus',
-      capabilities: ['vision', 'chat']
+      // 仅 vision：勿带 chat，否则能力路由可能把对话打到媒体连接
+      capabilities: ['vision']
     }
   ]
 }
@@ -1495,8 +1496,13 @@ export function queryModelConnectionByCapability(
   capability: ModelCapability
 ): ModelConnection {
   const connections = settings.connections ?? []
+  // 默认连接已具备该能力时优先，避免列表靠前的媒体/凭证连接抢走通用 chat
+  const preferred = queryModelConnection(settings, 'default')
+  if (preferred.capabilities?.includes(capability) && preferred.apiKey.trim()) {
+    return preferred
+  }
   const hit = connections.find((c) => c.capabilities?.includes(capability) && c.apiKey.trim())
-  return hit ?? queryModelConnection(settings, 'default')
+  return hit ?? preferred
 }
 
 /**
@@ -1651,6 +1657,12 @@ export interface ChatMessage {
    * 工作流 Agent 步骤注入的内部 prompt 等过程信息不应对终端用户展示。
    */
   hidden?: boolean
+  /**
+   * Agent 执行失败元数据；有值时聊天时间线渲染为错误卡片（刷新后仍可见）。
+   */
+  errorMeta?: {
+    title?: string
+  }
   createdAt: number
 }
 

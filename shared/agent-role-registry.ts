@@ -220,6 +220,7 @@ export function queryAgentRoleLabel(
   role: string,
   settings?: Pick<AppSettings, 'customAgentRoles'>
 ): string {
+  if (role === 'supervisor') return '调度器'
   const card = queryRoleTaskCardMetaList(settings ?? { customAgentRoles: [] }).find(
     (c) => c.value === role
   )

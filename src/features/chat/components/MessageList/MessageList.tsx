@@ -17,6 +17,7 @@ import { TypingIndicator } from '../TypingIndicator'
 import { ToolCallGroup } from './ToolCallGroup'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolProgressBar } from '../ToolProgressBar/ToolProgressBar'
+import { AppErrorNotice } from '@/components/AppErrorNotice/AppErrorNotice'
 import { queryShouldShowToolProgress, queryToolProgressTitle } from '../../utils/queryToolProgressDisplay'
 import styles from './MessageList.module.css'
 
@@ -182,9 +183,19 @@ export function MessageList({
               <div className={`${styles.row} ${styles.rowAssistant}`}>
                 <span className={styles.label}>灵犀</span>
                 {showNarrative ? (
-                  <div className={styles.assistantCard}>
-                    <AssistantBody content={narrative} />
-                  </div>
+                  m.errorMeta ? (
+                    <div className={styles.errorCard}>
+                      <AppErrorNotice
+                        title={m.errorMeta.title?.trim() || '执行失败'}
+                        content={narrative}
+                        embedded
+                      />
+                    </div>
+                  ) : (
+                    <div className={styles.assistantCard}>
+                      <AssistantBody content={narrative} />
+                    </div>
+                  )
                 ) : null}
                 {showHoistedStock ? (
                   <div className={styles.assistantCard}>

@@ -1,0 +1,243 @@
+/**
+ * 错误通知卡片 — 故障仪表盘风格。
+ * 左轨危险色 + 浅珊瑚底，上下文以 chip 呈现，便于扫读长报错。
+ */
+
+/* 覆盖 antd Notification 默认白底与内边距，让自定义卡片完整露出来 */
+.noticeShell {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  width: auto !important;
+  max-width: min(440px, calc(100vw - 32px)) !important;
+}
+
+.noticeShell :global(.ant-notification-notice-message) {
+  display: none !important;
+  margin: 0 !important;
+}
+
+.noticeShell :global(.ant-notification-notice-description) {
+  margin: 0 !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.noticeShell :global(.ant-notification-notice-with-icon .ant-notification-notice-description),
+.noticeShell :global(.ant-notification-notice-with-icon .ant-notification-notice-message) {
+  margin-inline-start: 0 !important;
+}
+
+.noticeShell :global(.ant-notification-notice-icon) {
+  display: none !important;
+}
+
+.noticeShell :global(.ant-notification-notice-close) {
+  display: none !important;
+}
+
+.card {
+  --fault: #e11d48;
+  --fault-deep: #9f1239;
+  --fault-soft: rgba(225, 29, 72, 0.08);
+  --fault-ring: rgba(225, 29, 72, 0.22);
+  --ink: #1c1f23;
+  --muted: #86909c;
+  --panel: #fffafb;
+  --line: rgba(28, 31, 35, 0.06);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: 4px 1fr;
+  width: min(420px, calc(100vw - 48px));
+  overflow: hidden;
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(225, 29, 72, 0.1), transparent 55%),
+    linear-gradient(165deg, #ffffff 0%, var(--panel) 100%);
+  box-shadow:
+    0 18px 48px rgba(28, 31, 35, 0.14),
+    0 4px 14px rgba(225, 29, 72, 0.08),
+    0 0 0 1px rgba(225, 29, 72, 0.12);
+  animation: faultIn 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/** 嵌入聊天时间线：占满助手列宽，阴影略收 */
+.embedded {
+  width: 100%;
+  max-width: 560px;
+  box-shadow:
+    0 8px 24px rgba(28, 31, 35, 0.08),
+    0 2px 8px rgba(225, 29, 72, 0.06),
+    0 0 0 1px rgba(225, 29, 72, 0.1);
+}
+
+.rail {
+  background: linear-gradient(180deg, var(--fault) 0%, var(--fault-deep) 100%);
+  box-shadow: 0 0 18px rgba(225, 29, 72, 0.45);
+}
+
+.body {
+  padding: 14px 14px 14px 12px;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.iconWrap {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--fault-soft);
+  box-shadow: inset 0 0 0 1px var(--fault-ring);
+}
+
+.icon {
+  font-size: 16px;
+  color: var(--fault);
+}
+
+.heading {
+  flex: 1;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.eyebrow {
+  margin: 0 0 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--fault);
+  font-family:
+    'SF Mono',
+    'JetBrains Mono',
+    'Menlo',
+    ui-monospace,
+    monospace;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px 0 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+  position: absolute;
+  right: 16px;
+  top: 16px;
+}
+
+.close:hover {
+  background: rgba(28, 31, 35, 0.06);
+  color: var(--ink);
+}
+
+.close:active {
+  transform: scale(0.94);
+}
+
+.summary {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(28, 31, 35, 0.035);
+  border: 1px solid var(--line);
+  color: #3c4248;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-word;
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow: auto;
+  padding-top: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  max-width: 100%;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgba(225, 29, 72, 0.14);
+  box-shadow: 0 1px 2px rgba(28, 31, 35, 0.04);
+}
+
+.chipLabel {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--fault-deep);
+  text-transform: uppercase;
+}
+
+.chipValue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink);
+  font-family:
+    'SF Mono',
+    'JetBrains Mono',
+    'Menlo',
+    ui-monospace,
+    monospace;
+}
+
+@keyframes faultIn {
+  from {
+    opacity: 0;
+    transform: translate3d(12px, -8px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+}

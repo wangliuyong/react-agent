@@ -114,7 +114,7 @@ const HotNewsHero: React.FC<{
         position: 'absolute',
         left: compact ? 32 : 72,
         right: compact ? 32 : 72,
-        top: compact ? '28%' : '32%',
+        top: compact ? '160px' : '200px',
         maxWidth: compact ? '100%' : '78%'
       }}
     >
@@ -167,10 +167,16 @@ const HotNewsItemStrip: React.FC<{
   hotTopicName?: string
   accentColor: string
   compact?: boolean
-}> = ({ items, hotTopicName, accentColor, compact }) => {
+  /** 主内容段时长（帧），用于均分每条新闻的展示时间 */
+  mainDurationInFrames: number
+}> = ({ items, hotTopicName, accentColor, compact, mainDurationInFrames }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  const slotFrames = Math.floor(fps * 3.2)
+  const count = Math.max(1, items.length)
+  const slotFrames = Math.max(
+    Math.floor(fps * 2),
+    Math.floor((mainDurationInFrames - fps) / count)
+  )
   const index = Math.min(items.length - 1, Math.floor(frame / slotFrames))
   const local = frame - index * slotFrames
   const item = items[index] ?? items[0]
@@ -302,8 +308,16 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
     accentColor = '#e63946'
   } = props
 
-  const { width, height } = useVideoConfig()
+  const { width, height, durationInFrames, fps } = useVideoConfig()
   const compact = height > width
+
+  /** 片头约占 12%，与主段略重叠；主段占满剩余时长 */
+  const stingDurationInFrames = Math.min(
+    90,
+    Math.max(45, Math.round(durationInFrames * 0.12))
+  )
+  const mainFrom = Math.max(0, Math.round(stingDurationInFrames * 0.85))
+  const mainDurationInFrames = Math.max(fps * 3, durationInFrames - mainFrom)
 
   const topicLabel =
     hotTopicName?.trim() || items[0]?.tag?.trim() || '热点'
@@ -316,11 +330,11 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
     <AbsoluteFill style={{ fontFamily: UI_FONT }}>
       <HotNewsBackground accentColor={accentColor} />
 
-      <Sequence from={0} durationInFrames={75}>
+      <Sequence from={0} durationInFrames={stingDurationInFrames}>
         <HotNewsSting accentColor={accentColor} />
       </Sequence>
 
-      <Sequence from={60} durationInFrames={540}>
+      <Sequence from={mainFrom} durationInFrames={mainDurationInFrames}>
         <HotNewsTopBar
           brandName={brandName}
           dateLabel={dateLabel}
@@ -338,6 +352,7 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
           hotTopicName={topicLabel}
           accentColor={accentColor}
           compact={compact}
+          mainDurationInFrames={mainDurationInFrames}
         />
       </Sequence>
 

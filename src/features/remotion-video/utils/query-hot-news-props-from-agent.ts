@@ -4,6 +4,10 @@ import type { RemotionVideoCategory } from '../types'
 import { postCreateSession } from '@/features/chat/api'
 import { postAgentChat } from '@/features/chat/api'
 import { querySession } from '@/features/chat/api'
+import {
+  DEFAULT_HOT_NEWS_DURATION_SEC,
+  queryHotNewsContentBudget
+} from './query-hot-news-content-budget'
 
 const HOT_NEWS_JSON_SCHEMA = `{
   "brandName": "string",
@@ -31,7 +35,10 @@ function queryJsonObjectFromText(text: string): Record<string, unknown> | null {
   }
 }
 
-function queryNormalizeHotNewsProps(raw: Record<string, unknown>): HotNewsProps | null {
+function queryNormalizeHotNewsProps(
+  raw: Record<string, unknown>,
+  budget: ReturnType<typeof queryHotNewsContentBudget>
+): HotNewsProps | null {
   const brandName = String(raw.brandName ?? '').trim()
   const dateLabel = String(raw.dateLabel ?? '').trim()
   const headline = String(raw.headline ?? '').trim()
@@ -54,20 +61,20 @@ function queryNormalizeHotNewsProps(raw: Record<string, unknown>): HotNewsProps 
   const tickerRaw = raw.tickerLines
   let tickerLines = Array.isArray(tickerRaw)
     ? tickerRaw
-        .map((line) => String(line ?? '').trim())
-        .filter(Boolean)
-        .slice(0, 12)
+      .map((line) => String(line ?? '').trim())
+      .filter(Boolean)
+      .slice(0, budget.maxTickerLines)
     : undefined
   /** 用户未手填快讯时，Agent 应生成 tickerLines；仍缺失则用 items 标题兜底 */
   if (!tickerLines?.length) {
-    tickerLines = items.map((item) => item.title).filter(Boolean).slice(0, 8)
+    tickerLines = items.map((item) => item.title).filter(Boolean).slice(0, budget.maxTickerLines)
   }
   return {
     brandName,
     dateLabel: dateLabel || new Date().toLocaleDateString('zh-CN'),
     headline,
     summary,
-    items: items.slice(0, 6),
+    items: items.slice(0, budget.maxItems),
     ...(hotTopicName ? { hotTopicName } : {}),
     tickerLines,
     ...(accentColor ? { accentColor } : {})
@@ -83,6 +90,8 @@ export interface QueryHotNewsPropsFromAgentInput {
   hotTopicName?: string
   /** 用户已填的滚动快讯（每行一条） */
   tickerLinesText?: string
+  /** 成片时长（秒），决定 Agent 生成多少条内容 */
+  durationSec?: number
 }
 
 /**
@@ -93,6 +102,8 @@ export async function queryHotNewsPropsFromAgent(
   input: QueryHotNewsPropsFromAgentInput
 ): Promise<HotNewsProps> {
   const session = await postCreateSession('chat')
+  const durationSec = input.durationSec ?? DEFAULT_HOT_NEWS_DURATION_SEC
+  const budget = queryHotNewsContentBudget(durationSec)
   const sourceHint =
     input.hotSource === 'all'
       ? '热点来源：全部（可先 fetch_hot_topics 多源综合，或根据用户文案提炼）'
@@ -103,19 +114,20 @@ export async function queryHotNewsPropsFromAgent(
     `模板 compositionId：${input.compositionId}`,
     sourceHint,
     `视频分类：${input.newsCategory}`,
+    `成片时长：约 ${budget.durationSec} 秒（请按此时长控制内容体量，勿超出下列上限）`,
     input.hotTopicName?.trim()
       ? `用户指定热点名称（hotTopicName）：${input.hotTopicName.trim()}，JSON 中必须使用该值。`
       : '请根据内容生成 hotTopicName（2-6 字）。',
     input.tickerLinesText?.trim()
       ? `用户已指定底部滚动快讯（tickerLines，必须使用以下内容，每行一条）：\n${input.tickerLinesText.trim()}`
-      : '用户未填写 LIVE 滚动快讯：你必须根据 headline、summary、items 自动生成 tickerLines（3-6 条，每条 12-28 字，适合底部滚动字幕）。',
+      : `用户未填写 LIVE 滚动快讯：你必须根据 headline、summary、items 自动生成 tickerLines（${budget.minTickerLines}-${budget.maxTickerLines} 条，每条 12-28 字，适合底部滚动字幕）。`,
     '用户素材或要求：',
     input.userBrief.trim() || '（用户未填写，请根据当前热点生成一版合理快讯）',
     '',
     '输出字段 schema：',
     HOT_NEWS_JSON_SCHEMA,
     '',
-    '规则：headline 不超过 40 字；summary 80 字内；items 3-5 条；tag 2-4 字；tickerLines 必填 3-6 条。',
+    `规则：headline 不超过 ${budget.headlineMaxChars} 字；summary 不超过 ${budget.summaryMaxChars} 字；items 共 ${budget.minItems}-${budget.maxItems} 条；tag 2-8 字；tickerLines 必填 ${budget.minTickerLines}-${budget.maxTickerLines} 条。`,
     '只回复一个 JSON 对象。'
   ].join('\n')
 
@@ -131,7 +143,7 @@ export async function queryHotNewsPropsFromAgent(
       .find((m) => m.role === 'assistant' && m.content.trim())
     if (assistant) {
       const parsed = queryJsonObjectFromText(assistant.content)
-      const props = parsed ? queryNormalizeHotNewsProps(parsed) : null
+      const props = parsed ? queryNormalizeHotNewsProps(parsed, budget) : null
       if (props) {
         return queryApplyUserTickerOverride(props, input.tickerLinesText)
       }

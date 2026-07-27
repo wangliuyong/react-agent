@@ -31,6 +31,10 @@ import { queryRecursionLimit } from '../graph/react-subgraph'
 import { sanitizeMessagesForModel, trimMessagesToCharBudget } from '../token-budget'
 import type { ToolContext } from '../tools/types'
 import type { AgentEvent } from '../../../../shared/types'
+import {
+  queryFormatAgentErrorMessage,
+  queryLastToolNameFromMessages
+} from '../query-format-agent-error'
 
 /**
  * 延迟加载 graph-bridge，避免与 tools → task-tool → runner 形成循环依赖。
@@ -324,6 +328,8 @@ async function runSubagentJob(params: Required<
     fullAccess: true,
     attachmentPaths,
     signal: parentSignal,
+    activeRole: def.modelRole ?? def.id,
+    agentName: def.name,
     emitAwaitUser: async (reason, choices) => {
       return waitForGraphUserContinue(parentSessionId, { reason, choices })
     },
@@ -361,9 +367,17 @@ async function runSubagentJob(params: Required<
       modelRole: def.modelRole ?? 'general'
     })
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e)
+    const raw = e instanceof Error ? e.message : String(e)
+    const message = queryFormatAgentErrorMessage(
+      raw,
+      {
+        roleId: def.modelRole ?? def.id,
+        agentName: def.name
+      },
+      settings
+    )
     finish('failed', message)
-    throw e
+    throw new Error(message)
   }
 
   const threadId = `${parentSessionId}:sub:${runId}`
@@ -484,13 +498,24 @@ async function runSubagentJob(params: Required<
       finish('aborted', '用户已中止')
       throw new Error('用户已中止')
     }
-    const message = e instanceof Error ? e.message : String(e)
-    if (/recursion/i.test(message)) {
-      const summary = `${querySubagentSummary(lastMessages)}\n\n（达到最大工具轮次）`
+    const raw = e instanceof Error ? e.message : String(e)
+    const settings = querySettings()
+    const errorCtx = {
+      toolName: queryLastToolNameFromMessages(lastMessages),
+      roleId: toolCtx.activeRole,
+      agentName: toolCtx.agentName
+    }
+    if (/recursion/i.test(raw)) {
+      const summary = queryFormatAgentErrorMessage(
+        `${querySubagentSummary(lastMessages)}\n\n（达到最大工具轮次）`,
+        errorCtx,
+        settings
+      )
       finish('failed', summary)
       return summary
     }
+    const message = queryFormatAgentErrorMessage(raw, errorCtx, settings)
     finish('failed', message)
-    throw e
+    throw new Error(message)
   }
 }

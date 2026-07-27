@@ -36,6 +36,7 @@ import { queryShouldIgnoreAgentStreamForSession } from '../utils/queryShouldIgno
 import { queryShouldMarkExternalRunRunning } from '../utils/queryShouldMarkExternalRunRunning'
 import { useAppStore } from '@/stores/app-store'
 import { appMessage } from '@/lib/app-message'
+import { postAppErrorNotification } from '@/lib/app-notification'
 
 /** 与 done 事件对齐：清除当前会话的 Agent 执行态 UI */
 function buildActiveSessionExecutionIdlePatch(): Partial<SessionState> {
@@ -1133,47 +1134,34 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
       if (event.type === 'error') {
         const errText = event.message?.trim() || 'Agent 执行失败'
-        // 错误必须可见：此前仅清 running，用户会看到「发了消息却完全没响应」
+        // Toast 可手动关闭；聊天记录由主进程在 error 前推送的 message（含 errorMeta）写入
         if (event.sessionId === activeId) {
-          appMessage.error(errText)
+          postAppErrorNotification(errText, 'Agent 执行失败')
         }
-        set((state) => {
-          const errorMsg: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: `⚠️ ${errText}`,
-            createdAt: Date.now()
-          }
-          return {
-            sessions: patchSession(state.sessions, event.sessionId, (session) => ({
-              ...session,
-              messages: [...session.messages, errorMsg],
-              updatedAt: Date.now()
-            })),
-            runningSessionIds: withoutRunningSession(state.runningSessionIds, event.sessionId),
-            pendingAwaitReasons: withoutPendingAwaitReason(
-              state.pendingAwaitReasons,
-              event.sessionId
-            ),
-            pendingAwaitChoices: withoutPendingAwaitChoices(
-              state.pendingAwaitChoices,
-              event.sessionId
-            ),
-            ...(event.sessionId === activeId
-              ? {
-                  running: false,
-                  awaitUserReason: null,
-                  awaitUserChoices: null,
-                  streamingText: '',
-                  thinkingText: '',
-                  activeToolName: null,
-                  activeToolArgs: null,
-                  activeToolProgress: null,
-                  activeModelLabel: null
-                }
-              : {})
-          }
-        })
+        set((state) => ({
+          runningSessionIds: withoutRunningSession(state.runningSessionIds, event.sessionId),
+          pendingAwaitReasons: withoutPendingAwaitReason(
+            state.pendingAwaitReasons,
+            event.sessionId
+          ),
+          pendingAwaitChoices: withoutPendingAwaitChoices(
+            state.pendingAwaitChoices,
+            event.sessionId
+          ),
+          ...(event.sessionId === activeId
+            ? {
+                running: false,
+                awaitUserReason: null,
+                awaitUserChoices: null,
+                streamingText: '',
+                thinkingText: '',
+                activeToolName: null,
+                activeToolArgs: null,
+                activeToolProgress: null,
+                activeModelLabel: null
+              }
+            : {})
+        }))
         return
       }
     })

@@ -71,22 +71,49 @@ export interface ResolveModelConnectionOptions {
 
 /**
  * 解析应使用的模型连接。
- * 优先级：显式 capability → roleModelMap[role] → defaultConnectionId。
+ * 优先级：
+ * 1. 有 role 时：角色映射连接若已具备该 capability（或无 capability）→ 用角色连接
+ * 2. 角色连接不具备该 capability 时：优先同供应商具备该能力的连接
+ *    （避免 DeepSeek 角色被升级到列表靠前的百炼「文生图」连接）
+ * 3. 仅 vision 再全表按 capability 选型（文本角色无识图时改走媒体连接）
+ *    creative / reasoning 等文本能力不得跨供应商抢走角色配置
+ * 4. 回退角色映射 / defaultConnectionId
  */
 export function queryResolveModelConnection(
   settings: AppSettings,
   opts: ResolveModelConnectionOptions = {}
 ): ModelConnection {
+  if (opts.role) {
+    const byRole = queryModelConnection(settings, opts.role)
+    if (!opts.capability) return byRole
+    // 角色连接已具备该能力：坚持角色映射，避免媒体连接抢聊
+    if (byRole.apiKey.trim() && byRole.capabilities?.includes(opts.capability)) {
+      return byRole
+    }
+    // 能力升级：优先同供应商（如 DeepSeek 默认 → DeepSeek 创作），勿跨到百炼媒体
+    const sameProvider = (settings.connections ?? []).find(
+      (c) =>
+        c.provider === byRole.provider &&
+        c.capabilities?.includes(opts.capability!) &&
+        c.apiKey.trim()
+    )
+    if (sameProvider) return sameProvider
+
+    // 仅 vision 允许跨供应商（DeepSeek 文本角色 → 百炼媒体）
+    // 否则 Supervisor 的 creative 会把调研员打到「图生成视频 · dashscope」
+    if (opts.capability === 'vision') {
+      const byCap = queryModelConnectionByCapability(settings, opts.capability)
+      if (byCap.capabilities?.includes(opts.capability) && byCap.apiKey.trim()) {
+        return byCap
+      }
+    }
+    return byRole
+  }
   if (opts.capability) {
     const byCap = queryModelConnectionByCapability(settings, opts.capability)
-    // queryModelConnectionByCapability 无匹配时已回退 default；若命中的连接确实带该能力则采用
     if (byCap.capabilities?.includes(opts.capability) && byCap.apiKey.trim()) {
       return byCap
     }
-    // 无带 Key 的能力连接时，继续走角色映射，避免误用空 Key 媒体连接
-  }
-  if (opts.role) {
-    return queryModelConnection(settings, opts.role)
   }
   return queryModelConnection(settings, 'default')
 }

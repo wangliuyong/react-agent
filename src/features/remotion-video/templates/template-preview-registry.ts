@@ -5,6 +5,10 @@ import {
   HOT_NEWS_WIDE_DEFAULT_PROPS
 } from '@remotion-starter/compositions/hot-news/default-props'
 import { HotNewsComposition } from '@remotion-starter/compositions/hot-news/HotNewsComposition'
+import {
+  DEFAULT_HOT_NEWS_DURATION_SEC,
+  queryHotNewsDurationInFrames
+} from '../utils/query-hot-news-content-budget'
 
 /** 可在应用内 Player 预览的 Composition 配置 */
 export interface RemotionTemplatePlayerConfig {
@@ -59,11 +63,16 @@ const TEMPLATE_BY_COMPOSITION_ID: Record<string, RemotionTemplatePlayerConfig> =
   NewsFlashVertical: HOT_NEWS_VERTICAL
 }
 
-/** 按画幅获取预览 / 导出配置 */
+/** 按画幅 + 时长获取预览 / 导出配置 */
 export function queryHotNewsPlayerConfigByAspect(
-  ratio: RemotionVideoAspectRatio
+  ratio: RemotionVideoAspectRatio,
+  durationSec: number = DEFAULT_HOT_NEWS_DURATION_SEC
 ): RemotionTemplatePlayerConfig {
-  return ratio === '9:16' ? HOT_NEWS_VERTICAL : HOT_NEWS_WIDE
+  const base = ratio === '9:16' ? HOT_NEWS_VERTICAL : HOT_NEWS_WIDE
+  return {
+    ...base,
+    durationInFrames: queryHotNewsDurationInFrames(durationSec, base.fps)
+  }
 }
 
 /** 列表卡片 compositionId → 默认画幅 */

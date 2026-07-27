@@ -10,6 +10,11 @@ import {
   type RemotionVideoAspectRatio
 } from '../../templates/template-preview-registry'
 import { queryHotNewsPropsFromAgent } from '../../utils/query-hot-news-props-from-agent'
+import {
+  DEFAULT_HOT_NEWS_DURATION_SEC,
+  HOT_NEWS_DURATION_MAX_SEC,
+  HOT_NEWS_DURATION_MIN_SEC
+} from '../../utils/query-hot-news-content-budget'
 import { queryMergedHotNewsProps } from '../../utils/query-merged-hot-news-props'
 import { postExportHotNewsVideo } from '../../utils/post-export-hot-news-video'
 import { RemotionTemplatePreviewModal } from '../RemotionTemplatePreviewModal/RemotionTemplatePreviewModal'
@@ -34,9 +39,10 @@ export function RemotionVideoTemplateDrawer({
     : false
 
   const [aspectRatio, setAspectRatio] = useState<RemotionVideoAspectRatio>('16:9')
+  const [durationSec, setDurationSec] = useState(DEFAULT_HOT_NEWS_DURATION_SEC)
   const playerConfig = useMemo(
-    () => queryHotNewsPlayerConfigByAspect(aspectRatio),
-    [aspectRatio]
+    () => queryHotNewsPlayerConfigByAspect(aspectRatio, durationSec),
+    [aspectRatio, durationSec]
   )
 
   const [userBrief, setUserBrief] = useState('')
@@ -59,6 +65,7 @@ export function RemotionVideoTemplateDrawer({
     setAspectRatio(
       project ? queryAspectRatioFromCompositionId(project.compositionId) : '16:9'
     )
+    setDurationSec(DEFAULT_HOT_NEWS_DURATION_SEC)
     setPreviewProps(null)
     setPreviewModalOpen(false)
   }, [open, project?.id, project?.category])
@@ -88,7 +95,8 @@ export function RemotionVideoTemplateDrawer({
         newsCategory: videoCategory,
         compositionId: playerConfig.compositionId,
         hotTopicName,
-        tickerLinesText
+        tickerLinesText,
+        durationSec
       })
       setPreviewProps(props)
       if (!tickerLinesText.trim() && props.tickerLines?.length) {
@@ -115,7 +123,8 @@ export function RemotionVideoTemplateDrawer({
           newsCategory: videoCategory,
           compositionId: playerConfig.compositionId,
           hotTopicName,
-          tickerLinesText
+          tickerLinesText,
+          durationSec
         })
         props = queryMergedHotNewsProps(raw, { hotTopicName, tickerLinesText })
         if (!tickerLinesText.trim() && props.tickerLines?.length) {
@@ -175,68 +184,81 @@ export function RemotionVideoTemplateDrawer({
         <div className={styles.body}>
           <p className={styles.lead}>{project.description}</p>
 
-          <div className={styles.formGrid}>
-            <div>
-              <span className={styles.label}>视频比例</span>
-              <Select
-                value={aspectRatio}
-                onChange={setAspectRatio}
-                options={REMOTION_VIDEO_ASPECT_RATIO_OPTIONS}
-                style={{ width: '100%' }}
-              />
+          <Form layout="vertical" className={styles.form}>
+            {/* 较短控件四列排放，长文本单独占满一行 */}
+            <div className={styles.formShortGrid}>
+              <Form.Item label="视频比例">
+                <Select
+                  value={aspectRatio}
+                  onChange={setAspectRatio}
+                  options={REMOTION_VIDEO_ASPECT_RATIO_OPTIONS}
+                />
+              </Form.Item>
+              <Form.Item
+                label="视频时长（秒）"
+                extra={`${HOT_NEWS_DURATION_MIN_SEC}-${HOT_NEWS_DURATION_MAX_SEC} 秒`}
+              >
+                <InputNumber
+                  value={durationSec}
+                  min={HOT_NEWS_DURATION_MIN_SEC}
+                  max={HOT_NEWS_DURATION_MAX_SEC}
+                  step={1}
+                  style={{ width: '100%' }}
+                  onChange={(value) => {
+                    if (value == null || Number.isNaN(value)) return
+                    setDurationSec(
+                      Math.min(
+                        HOT_NEWS_DURATION_MAX_SEC,
+                        Math.max(HOT_NEWS_DURATION_MIN_SEC, Math.round(value))
+                      )
+                    )
+                  }}
+                />
+              </Form.Item>
+              <Form.Item label="热点来源">
+                <Select
+                  value={hotSource}
+                  onChange={setHotSource}
+                  options={HOT_TOPIC_SOURCE_OPTIONS}
+                  placeholder="综合全部来源"
+                />
+              </Form.Item>
+              <Form.Item label="视频分类">
+                <Select
+                  value={videoCategory}
+                  onChange={setVideoCategory}
+                  options={categoryOptions}
+                />
+              </Form.Item>
+              <Form.Item label="热点名称" extra="画面中部红色角标">
+                <Input
+                  value={hotTopicName}
+                  onChange={(e) => setHotTopicName(e.target.value)}
+                  placeholder="如：芯片、财经"
+                  maxLength={8}
+                  allowClear
+                  showCount
+                />
+              </Form.Item>
             </div>
-            <div>
-              <span className={styles.label}>热点来源</span>
-              <Select
-                value={hotSource}
-                onChange={setHotSource}
-                options={HOT_TOPIC_SOURCE_OPTIONS}
-                style={{ width: '100%' }}
-                placeholder="不选则综合全部来源"
-              />
-            </div>
-            <div>
-              <span className={styles.label}>视频分类</span>
-              <Select
-                value={videoCategory}
-                onChange={setVideoCategory}
-                options={categoryOptions}
-                style={{ width: '100%' }}
-              />
-            </div>
-            <div>
-              <span className={styles.label}>热点名称</span>
-              <Input
-                value={hotTopicName}
-                onChange={(e) => setHotTopicName(e.target.value)}
-                placeholder="如：芯片、财经（显示在画面中部红色角标）"
-                maxLength={8}
-                allowClear
-              />
-            </div>
-            <div className={styles.formGridFull}>
-              <span className={styles.label}>LIVE 滚动快讯</span>
+            <Form.Item
+              label="内容要求 / 素材"
+              extra="可粘贴新闻要点、口播稿；留空则由 Agent 按所选来源自动选题。"
+              className={styles.formFull}
+            >
               <Input.TextArea
-                value={tickerLinesText}
-                onChange={(e) => setTickerLinesText(e.target.value)}
-                placeholder="每行一条；留空时由 Agent 在「生成并预览」时根据正文自动生成"
-                autoSize={{ minRows: 3, maxRows: 8 }}
-              />
-            </div>
-            <div className={styles.formGridFull}>
-              <span className={styles.label}>内容要求 / 素材</span>
-              <Input.TextArea
+                className={styles.promptArea}
                 value={userBrief}
                 onChange={(e) => setUserBrief(e.target.value)}
-                placeholder="可粘贴新闻要点、口播稿，或描述想突出的热点角度；留空则由 Agent 按所选来源自动选题"
+                placeholder="描述想突出的热点角度，或粘贴素材文案"
                 autoSize={{ minRows: 4, maxRows: 8 }}
               />
-            </div>
-          </div>
+            </Form.Item>
+          </Form>
 
           <div className={styles.actions}>
             <Button icon={<EyeOutlined />} onClick={handleRefreshPreviewOnly}>
-              应用并预览
+              预览模版
             </Button>
             <Button
               type="primary"
@@ -266,7 +288,7 @@ export function RemotionVideoTemplateDrawer({
             <pre className={styles.jsonPreview}>{JSON.stringify(displayProps, null, 2)}</pre>
           ) : (
             <Text type="secondary" className={styles.hint}>
-              点击「应用并预览」或「生成并预览」后，将在弹窗中播放视频
+              点击「预览模版」或「生成并预览」后，将在弹窗中播放视频
             </Text>
           )}
         </div>
