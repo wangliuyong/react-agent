@@ -116,6 +116,26 @@ function queryOptionToTableRow(option: ModelOption): CatalogTableRow {
   }
 }
 
+/** 平台拉取列表本地检索：匹配编码、展示名、类型与说明（不区分大小写） */
+function queryFilterCatalogRows(
+  rows: CatalogTableRow[],
+  keyword: string
+): CatalogTableRow[] {
+  const needle = keyword.trim().toLowerCase()
+  if (!needle) return rows
+  return rows.filter((row) => {
+    const haystack = [
+      row.modelId,
+      row.displayName,
+      row.category,
+      row.description ?? ''
+    ]
+      .join(' ')
+      .toLowerCase()
+    return haystack.includes(needle)
+  })
+}
+
 /** ProviderModelRecord → 表格行 */
 function queryRecordToTableRow(record: ProviderModelRecord): CatalogTableRow {
   return {
@@ -159,6 +179,8 @@ export function ProviderModelsMaintenanceDrawer({
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [platformRefreshToken, setPlatformRefreshToken] = useState(0)
+  /** 平台拉取 Tab 本地过滤关键词（不触发重新请求） */
+  const [platformSearch, setPlatformSearch] = useState('')
   const tableHostRef = useRef<HTMLDivElement>(null)
   const [tableScrollY, setTableScrollY] = useState(320)
 
@@ -192,6 +214,7 @@ export function ProviderModelsMaintenanceDrawer({
       setEditorOpen(false)
       setEditingId(null)
       setActiveTab('manual')
+      setPlatformSearch('')
     }
   }, [open])
 
@@ -215,6 +238,11 @@ export function ProviderModelsMaintenanceDrawer({
     return remoteModels.map(queryOptionToTableRow)
   }, [remoteModels])
 
+  const filteredPlatformRows = useMemo(
+    () => queryFilterCatalogRows(platformRows, platformSearch),
+    [platformRows, platformSearch]
+  )
+
   const registeredModelIds = useMemo(
     () => new Set(records.map((item) => item.modelId)),
     [records]
@@ -235,6 +263,8 @@ export function ProviderModelsMaintenanceDrawer({
     records.length,
     fallbackRows.length,
     platformRows.length,
+    filteredPlatformRows.length,
+    platformSearch,
     platformLoading,
     syncTableScrollHeight
   ])
@@ -567,19 +597,36 @@ export function ProviderModelsMaintenanceDrawer({
                       {/* <CloudDownloadOutlined /> */}
                       <span>
                         {canFetchPlatform
-                          ? '来自供应商 OpenAI 兼容 /models；可刷新，可将未登记项一键写入本机。'
+                          ? '登记喜爱的模型'
                           : '请先在供应商卡片配置完整 API Key，再拉取平台列表。'}
                       </span>
                     </span>
 
-                    <Button
-                      icon={<ReloadOutlined />}
-                      loading={platformLoading}
-                      disabled={!canFetchPlatform}
-                      onClick={() => setPlatformRefreshToken((n) => n + 1)}
-                    >
-                      刷新
-                    </Button>
+                    <div className={styles.paneHintActions}>
+                      {platformRows.length > 0 ? (
+                        <>
+                          <Input
+                            allowClear
+                            prefix={<SearchOutlined />}
+                            placeholder="检索编码、名称、类型或说明…"
+                            value={platformSearch}
+                            onChange={(e) => setPlatformSearch(e.target.value)}
+                            className={styles.platformSearch}
+                          />
+                          <Text type="secondary" className={styles.platformSearchMeta}>
+                            {filteredPlatformRows.length} / {platformRows.length}
+                          </Text>
+                        </>
+                      ) : null}
+                      <Button
+                        icon={<ReloadOutlined />}
+                        loading={platformLoading}
+                        disabled={!canFetchPlatform}
+                        onClick={() => setPlatformRefreshToken((n) => n + 1)}
+                      >
+                        刷新
+                      </Button>
+                    </div>
                   </div>
                   {platformError ? (
                     <div className={styles.errorBanner}>{platformError}</div>
@@ -592,27 +639,36 @@ export function ProviderModelsMaintenanceDrawer({
                       </div>
                     ) : (
                       renderTable(
-                        platformRows,
+                        filteredPlatformRows,
                         readonlyColumns,
-                        <>
-                          <CloudDownloadOutlined
-                            style={{ fontSize: 28, marginBottom: 8, opacity: 0.35 }}
-                          />
-                          <div>
-                            {canFetchPlatform
-                              ? '暂无平台模型，可点击右上角刷新'
-                              : '未配置 API Key，无法拉取'}
-                          </div>
-                          {canFetchPlatform ? (
-                            <Button
-                              type="link"
-                              loading={platformLoading}
-                              onClick={() => setPlatformRefreshToken((n) => n + 1)}
-                            >
-                              立即拉取
-                            </Button>
-                          ) : null}
-                        </>
+                        platformRows.length > 0 && platformSearch.trim() ? (
+                          <>
+                            <SearchOutlined
+                              style={{ fontSize: 28, marginBottom: 8, opacity: 0.35 }}
+                            />
+                            <div>无匹配模型，请调整检索关键词</div>
+                          </>
+                        ) : (
+                          <>
+                            <CloudDownloadOutlined
+                              style={{ fontSize: 28, marginBottom: 8, opacity: 0.35 }}
+                            />
+                            <div>
+                              {canFetchPlatform
+                                ? '暂无平台模型，可点击右上角刷新'
+                                : '未配置 API Key，无法拉取'}
+                            </div>
+                            {canFetchPlatform ? (
+                              <Button
+                                type="link"
+                                loading={platformLoading}
+                                onClick={() => setPlatformRefreshToken((n) => n + 1)}
+                              >
+                                立即拉取
+                              </Button>
+                            ) : null}
+                          </>
+                        )
                       )
                     )}
                   </div>

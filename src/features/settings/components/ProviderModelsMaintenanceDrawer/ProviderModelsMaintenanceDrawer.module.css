@@ -162,10 +162,40 @@
   line-height: 1.5;
 }
 
+.paneHint > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.paneHintActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .paneHint :global(.anticon) {
   margin-top: 2px;
   color: var(--db-primary);
   flex-shrink: 0;
+}
+
+/* 平台拉取：说明栏内、刷新按钮左侧 */
+.platformSearch {
+  width: min(240px, 36vw);
+  min-width: 160px;
+}
+
+.platformSearch :global(.ant-input-affix-wrapper) {
+  background: var(--db-bg-content);
+  border-color: var(--db-border-light);
+}
+
+.platformSearchMeta {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .errorBanner {
