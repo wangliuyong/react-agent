@@ -1,15 +1,16 @@
 /**
  * 子 Agent 类型目录：内置管线角色 + 用户自定义 custom_* 角色。
+ * 放在 agent/subagent 下，避免 store 反向依赖 agent/graph。
  */
-import { queryCustomAgentRole, queryIsCustomAgentRoleId } from '../../../shared/agent-role-registry'
+import { queryCustomAgentRole, queryIsCustomAgentRoleId } from '../../../../shared/agent-role-registry'
 import type {
   BuiltinAgentRoleName,
   ModelRoleKey,
   SubagentDefinition
-} from '../../../shared/types'
-import { buildRoleSystemPrompt } from '../agent/graph/prompts'
-import { queryDefaultRoleToolWhitelist } from '../agent/graph/role-tools'
-import { querySettings } from './settings'
+} from '../../../../shared/types'
+import { buildRoleSystemPrompt } from '../graph/prompts'
+import { queryDefaultRoleToolWhitelist } from '../graph/role-tools'
+import { querySettings } from '../../store/settings'
 
 type BuiltinSubagentRole = Exclude<BuiltinAgentRoleName, 'supervisor'>
 

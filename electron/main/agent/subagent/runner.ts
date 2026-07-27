@@ -22,7 +22,7 @@ import type {
   SubagentRunMeta,
   TaskItem
 } from '../../../../shared/types'
-import { querySubagentDefinition } from '../../store/agents'
+import { querySubagentDefinition } from './definitions'
 import { querySettings } from '../../store/settings'
 import { querySession, postSession } from '../../store/sessions'
 import { buildStepReactGraph } from '../graph/chat-graph'
