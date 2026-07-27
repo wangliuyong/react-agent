@@ -1,5 +1,7 @@
 import {
   queryChatModelOptionsFromCatalog,
+  queryGeneralChatModelConnection,
+  queryGeneralChatModelId,
   queryModelCategory,
   queryModelLabel,
   queryModelOptionDisplayLabel,
@@ -66,6 +68,16 @@ export function ChatInput({
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
 
+  /** 主聊天实际调用的默认连接（可能与顶层 settings.model 不同步） */
+  const generalChatConnection = useMemo(
+    () => queryGeneralChatModelConnection(settings),
+    [settings]
+  )
+  const activeChatModelId = useMemo(() => queryGeneralChatModelId(settings), [settings])
+  const providerMismatch =
+    generalChatConnection.provider !== settings.provider &&
+    Boolean(generalChatConnection.apiKey.trim())
+
   /** 参考样式：以 120k 为展示上限 */
   const tokenDisplayMax = 200_000
   const tokenDisplayUsed = Math.round(tokenUsed / 1000)
@@ -98,7 +110,7 @@ export function ChatInput({
   /** 切换模型并给出 Toast 反馈；非法 model 会回退到供应商默认并校正默认连接 */
   const handleModelChange = async (model: string): Promise<void> => {
     const next = model.trim()
-    if (!next || next === settings.model) return
+    if (!next || next === activeChatModelId) return
     const resolved = queryResolveModelForProvider(
       settings.provider,
       next,
@@ -126,14 +138,32 @@ export function ChatInput({
       settings.provider,
       settings.providerModelCatalog
     )
-    return catalogOptions.map((m) => ({
+    const options = catalogOptions.map((m) => ({
       value: m.value,
       label: queryModelOptionDisplayLabel(m),
       searchText: [m.label, m.value, m.category || queryModelCategory(m.value), m.description]
         .filter(Boolean)
         .join(' ')
     }))
-  }, [settings.provider, settings.providerModelCatalog])
+    // 默认连接上的 model 可能尚未登记到目录，仍须在下拉中展示为当前选中项
+    if (
+      activeChatModelId &&
+      !options.some((item) => item.value === activeChatModelId) &&
+      !providerMismatch
+    ) {
+      options.unshift({
+        value: activeChatModelId,
+        label: queryModelLabel(activeChatModelId),
+        searchText: activeChatModelId
+      })
+    }
+    return options
+  }, [
+    settings.provider,
+    settings.providerModelCatalog,
+    activeChatModelId,
+    providerMismatch
+  ])
 
   const awaitingUser = Boolean(awaitUserReason)
 
@@ -279,9 +309,11 @@ export function ChatInput({
                 title={
                   running
                     ? '任务运行中，请结束后再切换模型'
-                    : modelSelectOptions.length === 0
-                      ? '请先在设置 → 模型与 API → 管理模型 中登记模型'
-                      : '仅显示当前供应商本机登记的模型，可搜索筛选'
+                    : providerMismatch
+                      ? `当前选用供应商与默认对话连接不一致，实际调用 ${generalChatConnection.model}（${generalChatConnection.label}）。请在设置中保存「模型与 API」或调整多模型连接。`
+                      : modelSelectOptions.length === 0
+                        ? '请先在设置 → 模型与 API → 管理模型 中登记模型'
+                        : '展示默认对话连接正在使用的模型；列表为当前供应商本机登记项'
                 }
               >
                 <Select
@@ -289,9 +321,9 @@ export function ChatInput({
                   size="small"
                   className={styles.modelSelect}
                   classNames={{ popup: { root: styles.modelSelectPopup } }}
-                  disabled={inputDisabled || running}
+                  disabled={inputDisabled || running || providerMismatch}
                   loading={modelSwitching}
-                  value={settings.model}
+                  value={providerMismatch ? generalChatConnection.model : activeChatModelId}
                   options={modelSelectOptions}
                   listHeight={MODEL_SELECT_LIST_HEIGHT}
                   popupMatchSelectWidth={320}

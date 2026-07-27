@@ -226,13 +226,8 @@ export function queryModelApiSavePatch(params: {
     savedActive,
     activeMeta
   )
-  const connections = queryApplyProviderDraftsToConnections(
-    settings.connections ?? [],
-    drafts,
-    customProviders
-  )
   const aligned = queryAlignConnectionsToActiveProvider({
-    connections,
+    connections: settings.connections ?? [],
     activeProvider,
     activeCreds: {
       apiKey: activeDraft.apiKey,
@@ -243,6 +238,12 @@ export function queryModelApiSavePatch(params: {
     catalog: params.providerModelCatalog,
     customProviders
   })
+  // 为什么：须在对齐内置连接之后再写回各供应商草稿，否则对齐会把旧 provider 行改成新 provider 并冲掉 Key
+  const connections = queryApplyProviderDraftsToConnections(
+    aligned.connections,
+    drafts,
+    customProviders
+  )
   return {
     provider: activeProvider,
     apiKey: activeDraft.apiKey,
@@ -253,7 +254,7 @@ export function queryModelApiSavePatch(params: {
     thinkingEnabled,
     customProviders,
     providerModelCatalog: params.providerModelCatalog,
-    connections: aligned.connections,
+    connections,
     defaultConnectionId: aligned.defaultConnectionId
   }
 }

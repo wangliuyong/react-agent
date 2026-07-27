@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react'
 import {
   queryAllProviderOptions,
+  queryGeneralChatModelConnection,
   queryIsCustomModelProvider,
+  queryProviderCredentialsFromSettings,
   queryProviderModelCatalogForProvider,
   queryRemoveCustomProvider,
   type CustomModelProvider,
@@ -62,6 +64,12 @@ export function ModelApiPanel(): React.ReactElement {
   const providerOptions = useMemo(
     () => queryAllProviderOptions(customProviders),
     [customProviders]
+  )
+
+  /** 主聊天实际走的多模型默认连接，用于「当前选用」卡片展示对话模型 */
+  const generalChatConnection = useMemo(
+    () => queryGeneralChatModelConnection(settings),
+    [settings]
   )
 
   useEffect(() => {
@@ -291,6 +299,15 @@ export function ModelApiPanel(): React.ReactElement {
                         onClick={() => {
                           activeProviderDirtyRef.current = true
                           setActiveProvider(option.value)
+                          // 草稿被清空时从已保存连接/凭证行恢复，避免切换「当前选用」后误显示未配置
+                          setProviderDrafts((prev) => {
+                            if (prev[option.value]?.apiKey?.trim()) return prev
+                            const saved = queryProviderCredentialsFromSettings(
+                              settings,
+                              option.value
+                            )
+                            return { ...prev, [option.value]: saved }
+                          })
                         }}
                       />
                     </Tooltip>
@@ -346,13 +363,22 @@ export function ModelApiPanel(): React.ReactElement {
                 </div>
                 <div className={cardStyles.metaRow}>
                   <Text type="secondary" className={cardStyles.metaLabel}>
-                    默认模型
+                    {isActive && generalChatConnection.provider === option.value
+                      ? '对话模型'
+                      : '默认模型'}
                   </Text>
                   <Text
                     className={cardStyles.metaValue}
-                    ellipsis={{ tooltip: draft.model || option.defaultModel }}
+                    ellipsis={{
+                      tooltip:
+                        isActive && generalChatConnection.provider === option.value
+                          ? generalChatConnection.model
+                          : draft.model || option.defaultModel
+                    }}
                   >
-                    {draft.model || option.defaultModel}
+                    {isActive && generalChatConnection.provider === option.value
+                      ? generalChatConnection.model || draft.model || option.defaultModel
+                      : draft.model || option.defaultModel}
                   </Text>
                 </div>
               </div>

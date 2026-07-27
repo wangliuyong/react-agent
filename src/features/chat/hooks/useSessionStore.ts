@@ -1,14 +1,15 @@
 import { create } from 'zustand'
 import { pauseRunningTasks, queryHasRunningTasks } from '@shared/pause-running-tasks'
-import type {
-  AgentContinuePayload,
-  AgentEvent,
-  ChatMessage,
-  Session,
-  SessionType,
-  TaskItem,
-  ToolProgressPayload,
-  UserChoiceOption
+import {
+  queryModelSwitchDisplayLabel,
+  type AgentContinuePayload,
+  type AgentEvent,
+  type ChatMessage,
+  type Session,
+  type SessionType,
+  type TaskItem,
+  type ToolProgressPayload,
+  type UserChoiceOption
 } from '@shared/types'
 import { queryLatestWorkflowRunBySession } from '@/features/business/api'
 import { postResumeWorkflow } from '@/features/workflows/api'
@@ -824,7 +825,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         const activeId = get().activeSessionId
         if (event.sessionId === activeId) {
           set({
-            activeModelLabel: event.connectionLabel || event.model
+            activeModelLabel: queryModelSwitchDisplayLabel(
+              event.connectionLabel,
+              event.model
+            )
           })
         }
         return

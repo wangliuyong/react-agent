@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_CONNECTION_IDS,
   MODEL_PROVIDER_OPTIONS,
   queryBuildDefaultConnections,
   queryChatModelOptionsFromCatalog,
+  queryGeneralChatModelId,
   queryModelOptions,
-  queryProviderOption
+  queryModelSwitchDisplayLabel,
+  queryProviderOption,
+  type AppSettings
 } from '../shared/types'
 
 describe('模型供应商配置', () => {
@@ -95,5 +99,31 @@ describe('模型供应商配置', () => {
       'deepseek-v4-flash'
     ])
     expect(queryChatModelOptionsFromCatalog('ofox', catalog)).toEqual([])
+  })
+})
+
+describe('queryGeneralChatModelId / queryModelSwitchDisplayLabel', () => {
+  it('顶层 model 与默认连接错位时以连接为准', () => {
+    const connections = queryBuildDefaultConnections({
+      apiKey: 'sk-deepseek',
+      provider: 'deepseek',
+      baseUrl: 'https://api.deepseek.com'
+    })
+    const settings = {
+      provider: 'ofox',
+      model: 'anthropic/claude-opus-4.5',
+      connections,
+      defaultConnectionId: DEFAULT_CONNECTION_IDS.default
+    } as AppSettings
+    expect(queryGeneralChatModelId(settings)).toBe('deepseek-v4-flash')
+  })
+
+  it('model_switch 文案附带可读模型名', () => {
+    expect(queryModelSwitchDisplayLabel('默认', 'deepseek-v4-flash')).toBe(
+      '默认 · DeepSeek V4 Flash'
+    )
+    expect(queryModelSwitchDisplayLabel('调研推理（Qwen Max）', 'qwen-max')).toBe(
+      '调研推理（Qwen Max）'
+    )
   })
 })

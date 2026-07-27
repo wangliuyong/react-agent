@@ -1307,13 +1307,30 @@ export function queryAlignConnectionsToActiveProvider(
     if (!CHAT_TEMPLATE_CONNECTION_IDS.has(conn.id)) return conn
     const template = templateById.get(conn.id)
     if (!template) return conn
+    // 已是当前选用供应商的内置连接：只校正 model，保留原 apiKey/baseUrl，避免切供应商时冲掉其他 Key
+    if (conn.provider === activeProvider) {
+      const nextModel =
+        conn.id === DEFAULT_CONNECTION_IDS.default
+          ? model
+          : queryResolveModelForProvider(
+              activeProvider,
+              conn.model,
+              params.catalog,
+              customProviders
+            )
+      return {
+        ...conn,
+        model: nextModel,
+        baseUrl: conn.baseUrl.trim() || baseUrl,
+        capabilities: template.capabilities?.length ? template.capabilities : conn.capabilities
+      }
+    }
     const nextModel =
       conn.id === DEFAULT_CONNECTION_IDS.default
         ? model
         : queryResolveModelForProvider(
             activeProvider,
-            // 已同供应商则尽量保留原 model；跨供应商则用模板默认
-            conn.provider === activeProvider ? conn.model : template.model,
+            template.model,
             params.catalog,
             customProviders
           )
@@ -1439,6 +1456,37 @@ export function queryModelConnection(
   const byDefault = connections.find((c) => c.id === defaultId)
   if (byDefault) return byDefault
   return connections[0]
+}
+
+/**
+ * 主聊天链路将使用的模型连接（与主进程 queryResolveModelConnection role=general 一致）。
+ * 为什么：顶层 settings.model 可与 defaultConnection 错位，UI 必须以连接为准展示「正在使用」的模型。
+ */
+export function queryGeneralChatModelConnection(settings: AppSettings): ModelConnection {
+  return queryModelConnection(settings, 'general')
+}
+
+/** 聊天输入框 / 设置页「当前选用」卡片应展示的 model id */
+export function queryGeneralChatModelId(settings: AppSettings): string {
+  const fromConnection = queryGeneralChatModelConnection(settings).model.trim()
+  if (fromConnection) return fromConnection
+  return settings.model.trim()
+}
+
+/**
+ * model_switch 事件在状态栏的展示文案：连接名 + 可读模型名，避免只显示「默认」而看不出实际 model。
+ */
+export function queryModelSwitchDisplayLabel(
+  connectionLabel: string,
+  model: string
+): string {
+  const label = connectionLabel.trim()
+  const modelId = model.trim()
+  if (!modelId) return label
+  const modelName = queryModelLabel(modelId)
+  if (!label) return modelName
+  if (label.includes(modelName) || label.includes(modelId)) return label
+  return `${label} · ${modelName}`
 }
 
 /** 按能力标签挑选连接；无匹配则回退 queryModelConnection */
