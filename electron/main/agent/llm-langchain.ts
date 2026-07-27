@@ -50,7 +50,7 @@ export function queryChatModelConfig(
 }
 
 /**
- * 创建对接百炼 / DeepSeek / OpenAI 兼容 API 的 LangChain 聊天模型。
+ * 创建对接百炼 / DeepSeek / OfoxAI / OpenAI 兼容 API 的 LangChain 聊天模型。
  * @param purpose 角色或媒体任务键，用于 roleModelMap 选型
  * @param capability 任务能力标签；有值时优先按 capabilities 选连接
  */

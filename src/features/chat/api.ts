@@ -80,7 +80,7 @@ export async function queryAshareKlineRefresh(
   return window.api.queryAshareKlineRefresh(req)
 }
 
-/** 从当前供应商平台拉取可用模型（百炼 / DeepSeek 等 OpenAI 兼容 /models） */
+/** 从当前供应商平台拉取可用模型（百炼 / DeepSeek / OfoxAI 等 OpenAI 兼容 /models） */
 export async function queryProviderModels(
   override?: Partial<Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'>>
 ): Promise<ModelOption[]> {

@@ -28,7 +28,12 @@ function queryNormalizeProvider(
   baseUrl: string,
   customProviders: CustomModelProvider[]
 ): ModelProvider {
-  if (raw === 'deepseek' || raw === 'dashscope' || raw === 'openai_compatible') {
+  if (
+    raw === 'deepseek' ||
+    raw === 'dashscope' ||
+    raw === 'ofox' ||
+    raw === 'openai_compatible'
+  ) {
     return raw
   }
   const id = String(raw ?? '').trim()
@@ -36,6 +41,7 @@ function queryNormalizeProvider(
     return id as ModelProvider
   }
   if (String(baseUrl).includes('api.deepseek.com')) return 'deepseek'
+  if (String(baseUrl).includes('api.ofox.io')) return 'ofox'
   return DEFAULT_SETTINGS.provider
 }
 
@@ -107,7 +113,12 @@ function queryMigrateLegacyConnections(
     {
       ...DEFAULT_CONNECTION,
       id: DEFAULT_CONNECTION_ID,
-      label: provider === 'deepseek' ? '默认（DeepSeek）' : '默认（阿里云百炼）',
+      label:
+        provider === 'deepseek'
+          ? '默认（DeepSeek）'
+          : provider === 'ofox'
+            ? '默认（OfoxAI）'
+            : '默认（阿里云百炼）',
       provider,
       apiKey: String(raw.apiKey ?? ''),
       baseUrl: String(raw.baseUrl ?? DEFAULT_CONNECTION.baseUrl),
@@ -250,6 +261,11 @@ export function postSettings(partial: Partial<AppSettings>): AppSettings {
       connections: partial.connections
     })
     nextPartial.connections = synced
+    // 模型与 API 面板会同时提交 connections 与顶层 provider/apiKey，显式保留避免归一化时被默认连接推断覆盖
+    if (partial.provider != null) nextPartial.provider = partial.provider
+    if (partial.apiKey != null) nextPartial.apiKey = partial.apiKey
+    if (partial.baseUrl != null) nextPartial.baseUrl = partial.baseUrl
+    if (partial.model != null) nextPartial.model = partial.model
     const defaultId =
       String(partial.defaultConnectionId ?? current.defaultConnectionId).trim() ||
       synced[0]?.id ||

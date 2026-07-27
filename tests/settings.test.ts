@@ -34,6 +34,34 @@ describe('模型设置归一化', () => {
     ).toBe('deepseek')
   })
 
+  it('保留显式选择的 OfoxAI 供应商', () => {
+    expect(
+      normalizeSettings({
+        provider: 'ofox',
+        apiKey: 'sk-ofox',
+        baseUrl: 'https://api.ofox.io/v1',
+        model: 'openai/gpt-4o'
+      })
+    ).toEqual(
+      expect.objectContaining({
+        provider: 'ofox',
+        apiKey: 'sk-ofox',
+        baseUrl: 'https://api.ofox.io/v1',
+        model: 'openai/gpt-4o'
+      })
+    )
+  })
+
+  it('从 OfoxAI Base URL 推断供应商', () => {
+    expect(
+      normalizeSettings({
+        apiKey: 'sk-ofox',
+        baseUrl: 'https://api.ofox.io/v1',
+        model: 'openai/gpt-4o-mini'
+      }).provider
+    ).toBe('ofox')
+  })
+
   it('缺省 launchAtLogin 时默认为 false', () => {
     expect(
       normalizeSettings({

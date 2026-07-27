@@ -12,6 +12,17 @@ export interface ProviderModelListItem {
   id?: string
   object?: string
   owned_by?: string
+  /** OfoxAI 模型广场 GET /v1/models 返回的展示名 */
+  name?: string
+  /** OfoxAI 模型广场返回的说明文案 */
+  description?: string
+  /** OfoxAI：可用 API 端点，用于区分对话 / 视频 / 图像等 */
+  supported_endpoints?: string[]
+  architecture?: {
+    modality?: string
+    input_modalities?: string[]
+    output_modalities?: string[]
+  }
 }
 
 /** OpenAI 兼容 /models 响应 */
@@ -45,6 +56,18 @@ export function queryNormalizeDashscopeCompatBaseUrl(baseUrl: string): string {
   const fallback = queryProviderOption('dashscope').defaultBaseUrl
   if (!trimmed) return fallback
   if (trimmed.endsWith('/compatible-mode')) return `${trimmed}/v1`
+  return trimmed
+}
+
+/**
+ * 规范化 OfoxAI OpenAI 兼容 Base URL。
+ * 为什么：用户常只填 https://api.ofox.io，需补齐 /v1 才能命中 /models。
+ */
+export function queryNormalizeOfoxCompatBaseUrl(baseUrl: string): string {
+  const trimmed = baseUrl.trim().replace(/\/+$/, '')
+  const fallback = queryProviderOption('ofox').defaultBaseUrl
+  if (!trimmed) return fallback
+  if (trimmed === 'https://api.ofox.io') return fallback
   return trimmed
 }
 
@@ -103,7 +126,44 @@ export function queryResolveProviderModelsCredentials(
     baseUrl = queryNormalizeDashscopeCompatBaseUrl(baseUrl)
   }
 
+  if (provider === 'ofox') {
+    baseUrl = queryNormalizeOfoxCompatBaseUrl(baseUrl)
+  }
+
   return { provider, apiKey, baseUrl, customProviders: saved.customProviders ?? [] }
+}
+
+/** 截断平台返回的长说明，避免下拉项过长 */
+function queryTruncateProviderModelDescription(text: string, maxLength = 120): string {
+  const trimmed = text.trim()
+  if (trimmed.length <= maxLength) return trimmed
+  return `${trimmed.slice(0, maxLength - 1)}…`
+}
+
+/**
+ * OfoxAI 模型广场中仅保留 Agent 可用的对话类端点。
+ * 视频 / 图像等生成模型走专用 API，不应出现在聊天模型下拉里。
+ */
+export function queryOfoxModelSupportsAgentChat(item: ProviderModelListItem): boolean {
+  const endpoints = item.supported_endpoints
+  if (!Array.isArray(endpoints) || endpoints.length === 0) return true
+  return endpoints.some(
+    (endpoint) =>
+      endpoint === '/v1/chat/completions' ||
+      endpoint === '/v1/responses' ||
+      endpoint === '/v1/messages'
+  )
+}
+
+/** 从 Ofox architecture.modality 推断下拉类型文案 */
+function queryCategoryFromOfoxArchitecture(item: ProviderModelListItem): string | undefined {
+  const modality = item.architecture?.modality?.trim().toLowerCase()
+  if (!modality) return undefined
+  if (modality.includes('video')) return '视频生成'
+  if (modality.includes('->image') || modality.endsWith('image')) return '文生图'
+  if (modality.includes('embedding')) return '向量嵌入'
+  if (/audio|speech|tts|asr/.test(modality)) return '语音'
+  return undefined
 }
 
 /**
@@ -121,6 +181,7 @@ export function queryModelOptionsFromListResponse(
     const id = item.id!.trim()
     if (seen.has(id)) continue
     seen.add(id)
+    if (provider === 'ofox' && !queryOfoxModelSupportsAgentChat(item)) continue
     uniqueItems.push(item)
   }
 
@@ -130,13 +191,22 @@ export function queryModelOptionsFromListResponse(
   return uniqueItems.map((item) => {
     const id = item.id!.trim()
     const known = staticByValue.get(id)
-    const category = queryModelCategory(id)
+    const platformName = item.name?.trim()
+    const platformDescription = item.description?.trim()
+    const category =
+      queryCategoryFromOfoxArchitecture(item) ?? queryModelCategory(id)
     const ownedBy = item.owned_by?.trim()
     return {
       provider,
       value: id,
-      label: known?.label ?? id,
-      description: known?.description ?? (ownedBy ? `来源 ${ownedBy}` : undefined),
+      label: known?.label ?? platformName ?? id,
+      description:
+        known?.description ??
+        (platformDescription
+          ? queryTruncateProviderModelDescription(platformDescription)
+          : ownedBy
+            ? `来源 ${ownedBy}`
+            : undefined),
       category
     }
   })
@@ -285,7 +355,7 @@ async function queryFetchProviderModelsWithFallback(
 
 /**
  * 从当前供应商 OpenAI 兼容接口拉取可用模型。
- * 百炼 / DeepSeek / 兼容网关均支持 GET {baseUrl}/models。
+ * 百炼 / DeepSeek / OfoxAI / 兼容网关均支持 GET {baseUrl}/models。
  */
 export async function queryProviderModels(
   settings: Pick<AppSettings, 'provider' | 'apiKey' | 'baseUrl'> & {

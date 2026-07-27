@@ -1,14 +1,12 @@
 import {
-  MODEL_OPTIONS,
+  queryChatModelOptionsFromCatalog,
   queryModelCategory,
   queryModelLabel,
   queryModelOptionDisplayLabel,
-  type ModelOption,
   type ToolProgressPayload,
   type UserChoiceOption
 } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
-import { useProviderModels } from '@/features/settings/hooks/useProviderModels'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
 import { TypingIndicator } from '../TypingIndicator'
 import { postSelectImages } from '../../api'
@@ -43,33 +41,6 @@ interface ChatInputProps {
   onContinue: (userInput?: string, choiceId?: string) => void
 }
 
-/**
- * 合并平台列表与内置全量模型，按 value 去重。
- * 为什么：聊天切换模型不应被当前供应商静态列表卡住，平台返回优先展示。
- */
-function queryMergedModelOptions(
-  remoteModels: ModelOption[] | null,
-  currentModel: string
-): ModelOption[] {
-  const seen = new Set<string>()
-  const merged: ModelOption[] = []
-  for (const m of [...(remoteModels ?? []), ...MODEL_OPTIONS]) {
-    const id = m.value.trim()
-    if (!id || seen.has(id)) continue
-    seen.add(id)
-    merged.push(m)
-  }
-  if (currentModel.trim() && !seen.has(currentModel.trim())) {
-    merged.unshift({
-      provider: 'openai_compatible',
-      value: currentModel,
-      label: currentModel,
-      category: queryModelCategory(currentModel)
-    })
-  }
-  return merged
-}
-
 /** 底部输入条：附件 / 完全访问 / 模型 / 发送 */
 export function ChatInput({
   disabled,
@@ -91,22 +62,8 @@ export function ChatInput({
   const [text, setText] = useState('')
   const [paths, setPaths] = useState<string[]>([])
   const [modelSwitching, setModelSwitching] = useState(false)
-  /** 搜索关键字：用于把未在列表中的模型 id 临时加入可选项 */
-  const [modelSearch, setModelSearch] = useState('')
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
-
-  /**
-   * 与设置页共用拉取逻辑；凭证不变只拉一次。
-   * 为什么：流式输出会频繁重渲染，不能把 /models 绑在渲染周期上。
-   */
-  const { remoteModels, loading: modelsLoading } = useProviderModels({
-    enabled: true,
-    provider: settings.provider,
-    apiKey: settings.apiKey,
-    baseUrl: settings.baseUrl,
-    customProviders: settings.customProviders
-  })
 
   /** 参考样式：以 120k 为展示上限 */
   const tokenDisplayMax = 200_000
@@ -145,36 +102,25 @@ export function ChatInput({
     try {
       await postSettings({ model: next })
       message.success(`已切换至 ${queryModelLabel(next)}`)
-      setModelSearch('')
     } finally {
       setModelSwitching(false)
     }
   }
 
-  /**
-   * 可搜索选项：平台列表 ∪ 内置全量模型 ∪ 当前搜索关键字（自定义 id）。
-   * 不受当前供应商过滤限制，便于网关挂载任意模型。
-   */
+  /** 仅当前选用供应商在本机登记的模型（设置 → 模型与 API → 管理模型） */
   const modelSelectOptions = useMemo(() => {
-    const merged = queryMergedModelOptions(remoteModels, settings.model)
-    const options = merged.map((m) => ({
+    const catalogOptions = queryChatModelOptionsFromCatalog(
+      settings.provider,
+      settings.providerModelCatalog
+    )
+    return catalogOptions.map((m) => ({
       value: m.value,
       label: queryModelOptionDisplayLabel(m),
-      // 供 filterOption 检索：名称 / id / 类型 / 说明
       searchText: [m.label, m.value, m.category || queryModelCategory(m.value), m.description]
         .filter(Boolean)
         .join(' ')
     }))
-    const q = modelSearch.trim()
-    if (q && !options.some((o) => o.value === q)) {
-      options.unshift({
-        value: q,
-        label: `${q}（自定义）`,
-        searchText: q
-      })
-    }
-    return options
-  }, [remoteModels, settings.model, modelSearch])
+  }, [settings.provider, settings.providerModelCatalog])
 
   const awaitingUser = Boolean(awaitUserReason)
 
@@ -320,7 +266,9 @@ export function ChatInput({
                 title={
                   running
                     ? '任务运行中，请结束后再切换模型'
-                    : '搜索或选择模型，也可直接输入模型 id'
+                    : modelSelectOptions.length === 0
+                      ? '请先在设置 → 模型与 API → 管理模型 中登记模型'
+                      : '仅显示当前供应商本机登记的模型，可搜索筛选'
                 }
               >
                 <Select
@@ -329,22 +277,20 @@ export function ChatInput({
                   className={styles.modelSelect}
                   classNames={{ popup: { root: styles.modelSelectPopup } }}
                   disabled={inputDisabled || running}
-                  loading={modelSwitching || modelsLoading}
+                  loading={modelSwitching}
                   value={settings.model}
                   options={modelSelectOptions}
                   listHeight={MODEL_SELECT_LIST_HEIGHT}
                   popupMatchSelectWidth={320}
-                  placeholder="搜索模型"
+                  placeholder={
+                    modelSelectOptions.length === 0 ? '暂无登记模型' : '搜索模型'
+                  }
                   optionFilterProp="searchText"
                   filterOption={(input, option) => {
                     const hay = String(option?.searchText ?? option?.label ?? '').toLowerCase()
                     return hay.includes(input.trim().toLowerCase())
                   }}
-                  onSearch={setModelSearch}
                   onChange={(v) => void handleModelChange(String(v))}
-                  onOpenChange={(open) => {
-                    if (!open) setModelSearch('')
-                  }}
                   suffixIcon={<DownOutlined className={styles.modelChevron} />}
                 />
               </Tooltip>

@@ -114,7 +114,7 @@ export const IpcChannels = {
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 
 /** 应用设置（本地 JSON 缓存） */
-export type BuiltInModelProvider = 'dashscope' | 'deepseek' | 'openai_compatible'
+export type BuiltInModelProvider = 'dashscope' | 'deepseek' | 'ofox' | 'openai_compatible'
 /** 用户自定义 OpenAI 兼容供应商，持久化 id 以 custom: 前缀区分内置项 */
 export type CustomModelProviderId = `custom:${string}`
 export type ModelProvider = BuiltInModelProvider | CustomModelProviderId
@@ -278,6 +278,8 @@ export const DEFAULT_CONNECTION_IDS = {
 } as const
 
 const DASHSCOPE_COMPAT_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+/** OfoxAI OpenAI 兼容网关；模型 id 使用 provider/model-name 格式 */
+const OFOX_COMPAT_BASE = 'https://api.ofox.io/v1'
 
 /**
  * 按种子凭证生成一套默认多模型连接。
@@ -295,9 +297,11 @@ export function queryBuildDefaultConnections(seed?: {
     seed?.baseUrl?.trim() ||
     (provider === 'deepseek'
       ? 'https://api.deepseek.com'
-      : provider === 'openai_compatible'
-        ? 'https://api.openai.com/v1'
-        : DASHSCOPE_COMPAT_BASE)
+      : provider === 'ofox'
+        ? OFOX_COMPAT_BASE
+        : provider === 'openai_compatible'
+          ? 'https://api.openai.com/v1'
+          : DASHSCOPE_COMPAT_BASE)
 
   if (provider === 'deepseek') {
     return [
@@ -336,6 +340,58 @@ export function queryBuildDefaultConnections(seed?: {
         baseUrl,
         model: 'deepseek-v4-flash',
         capabilities: ['creative', 'chat']
+      },
+      // 媒体（万相/TTS）仍走百炼 HTTP，单独留一条空 Key 连接便于用户补填
+      {
+        id: DEFAULT_CONNECTION_IDS.media,
+        label: '媒体生成（百炼 · 万相/TTS）',
+        provider: 'dashscope',
+        apiKey: '',
+        baseUrl: DASHSCOPE_COMPAT_BASE,
+        model: 'qwen-plus',
+        capabilities: ['vision', 'chat']
+      }
+    ]
+  }
+
+  // OfoxAI：统一网关，模型 id 形如 openai/gpt-4o、anthropic/claude-sonnet-4.6
+  if (provider === 'ofox') {
+    return [
+      {
+        id: DEFAULT_CONNECTION_IDS.default,
+        label: '通用对话（GPT-4o Mini）',
+        provider: 'ofox',
+        apiKey,
+        baseUrl,
+        model: 'openai/gpt-4o-mini',
+        capabilities: ['chat']
+      },
+      {
+        id: DEFAULT_CONNECTION_IDS.fast,
+        label: '路由调度（GPT-4o Mini）',
+        provider: 'ofox',
+        apiKey,
+        baseUrl,
+        model: 'openai/gpt-4o-mini',
+        capabilities: ['chat']
+      },
+      {
+        id: DEFAULT_CONNECTION_IDS.reason,
+        label: '调研推理（Claude Sonnet）',
+        provider: 'ofox',
+        apiKey,
+        baseUrl,
+        model: 'anthropic/claude-sonnet-4.6',
+        capabilities: ['reasoning', 'chat', 'longContext']
+      },
+      {
+        id: DEFAULT_CONNECTION_IDS.creative,
+        label: '创作编剧（GPT-4o）',
+        provider: 'ofox',
+        apiKey,
+        baseUrl,
+        model: 'openai/gpt-4o',
+        capabilities: ['creative', 'chat', 'vision']
       },
       // 媒体（万相/TTS）仍走百炼 HTTP，单独留一条空 Key 连接便于用户补填
       {
@@ -712,6 +768,20 @@ export function queryMergeModelOptionLists(...lists: ModelOption[][]): ModelOpti
   return Array.from(map.values())
 }
 
+/**
+ * 聊天输入框模型下拉：仅当前选用供应商的本机登记目录。
+ * 不合并平台 /models 与静态全量 MODEL_OPTIONS，与设置页「管理模型」一致。
+ */
+export function queryChatModelOptionsFromCatalog(
+  provider: ModelProvider,
+  catalog: ProviderModelCatalog | undefined
+): ModelOption[] {
+  return queryModelOptionsFromProviderRecords(
+    provider,
+    queryProviderModelCatalogForProvider(catalog, provider)
+  )
+}
+
 /** 解析某供应商的完整可选模型（静态 + 手动目录 + 可选远程列表） */
 export function queryResolvedModelOptionsForProvider(
   provider: ModelProvider,
@@ -753,6 +823,16 @@ export const MODEL_PROVIDER_OPTIONS: ModelProviderOption[] = [
     defaultBaseUrl: 'https://api.deepseek.com',
     /** 与平台当前推荐一致；拉取 /models 失败时也用此默认 */
     defaultModel: 'deepseek-v4-flash'
+  },
+  {
+    value: 'ofox',
+    label: 'OfoxAI',
+    apiKeyLabel: 'API Key',
+    /** OpenAI 兼容协议：https://api.ofox.io/v1；目录与 https://ofox.io/zh/models 一致 */
+    defaultBaseUrl: OFOX_COMPAT_BASE,
+    /** 拉取 /models 失败时的兜底；模型 id 需带 provider 前缀 */
+    defaultModel: 'openai/gpt-4o-mini',
+    modelsUrl: `${OFOX_COMPAT_BASE}/models`
   },
   {
     value: 'openai_compatible',
@@ -847,6 +927,10 @@ export function queryModelCategory(modelId: string): string {
   if (/(max|plus|pro|chat)/.test(id) || /^qwen/.test(id) || /^deepseek/.test(id)) {
     return '文本对话'
   }
+  // OfoxAI 等聚合网关：模型 id 形如 openai/gpt-4o、anthropic/claude-sonnet-4.6
+  if (/(^|\/)(gpt-|o1|o3|o4|claude|gemini)/.test(id)) {
+    return '文本对话'
+  }
   return '通用模型'
 }
 
@@ -921,6 +1005,28 @@ export const MODEL_OPTIONS: ModelOption[] = [
     label: 'DeepSeek V4 Pro',
     description: '更强推理能力'
   },
+  /**
+   * OfoxAI 静态兜底（拉取 /models 失败时使用）。
+   * 模型命名：provider/model-name，见 https://ofox.io/zh/docs/integrations/openai-sdk
+   */
+  {
+    provider: 'ofox',
+    value: 'openai/gpt-4o-mini',
+    label: 'GPT-4o Mini',
+    description: '高速低成本，推荐默认'
+  },
+  {
+    provider: 'ofox',
+    value: 'openai/gpt-4o',
+    label: 'GPT-4o',
+    description: '均衡多模态'
+  },
+  {
+    provider: 'ofox',
+    value: 'anthropic/claude-sonnet-4.6',
+    label: 'Claude Sonnet 4.6',
+    description: '强推理与长上下文'
+  },
   // 阿里云百炼中的 DeepSeek 模型
   { provider: 'dashscope', value: 'deepseek-v4-flash', label: 'deepseek-v4-flash' },
   { provider: 'dashscope', value: 'deepseek-v4-pro', label: 'deepseek-v4-pro' },
@@ -976,7 +1082,12 @@ export const MODEL_OPTIONS: ModelOption[] = [
 
 /** 判断是否为内置供应商 */
 export function queryIsBuiltInProvider(provider: ModelProvider): provider is BuiltInModelProvider {
-  return provider === 'dashscope' || provider === 'deepseek' || provider === 'openai_compatible'
+  return (
+    provider === 'dashscope' ||
+    provider === 'deepseek' ||
+    provider === 'ofox' ||
+    provider === 'openai_compatible'
+  )
 }
 
 /** 生成新的自定义供应商 id */

@@ -56,6 +56,8 @@ export function ModelApiPanel(): React.ReactElement {
   const skipSyncRef = useRef(false)
   /** 用户已切换「当前选用」但未保存时，避免 settings 更新把选用状态冲回 */
   const activeProviderDirtyRef = useRef(false)
+  /** 凭证草稿有未保存修改时，避免其他面板的 postSettings 把草稿冲掉 */
+  const providerDraftsDirtyRef = useRef(false)
 
   const providerOptions = useMemo(
     () => queryAllProviderOptions(customProviders),
@@ -72,7 +74,9 @@ export function ModelApiPanel(): React.ReactElement {
     setActiveProvider((prev) =>
       activeProviderDirtyRef.current ? prev : settings.provider
     )
-    setProviderDrafts(queryInitialProviderDrafts(settings))
+    if (!providerDraftsDirtyRef.current) {
+      setProviderDrafts(queryInitialProviderDrafts(settings))
+    }
     setMaxTurns(settings.maxTurns)
     setFullAccess(settings.fullAccess)
     setThinkingEnabled(settings.thinkingEnabled)
@@ -82,9 +86,14 @@ export function ModelApiPanel(): React.ReactElement {
 
   const handleSave = async (): Promise<void> => {
     const activeDraft = providerDrafts[activeProvider]
-    if (!activeDraft?.apiKey?.trim()) {
-      message.warning('当前选用供应商需配置 API Key')
+    const activeHasKey = Boolean(activeDraft?.apiKey?.trim())
+    const anyProviderHasKey = Object.values(providerDrafts).some((d) => d?.apiKey?.trim())
+    if (!activeHasKey && !anyProviderHasKey) {
+      message.warning('请至少为一个供应商配置 API Key')
       return
+    }
+    if (!activeHasKey) {
+      message.warning('当前选用供应商尚未配置 API Key，对话将不可用，已保存其他供应商凭证')
     }
     setSaving(true)
     try {
@@ -101,6 +110,7 @@ export function ModelApiPanel(): React.ReactElement {
         })
       )
       activeProviderDirtyRef.current = false
+      providerDraftsDirtyRef.current = false
       message.success('设置已保存')
     } catch (err) {
       message.error(err instanceof Error ? err.message : '保存失败')
@@ -121,6 +131,7 @@ export function ModelApiPanel(): React.ReactElement {
         model: provider.defaultModel
       }
     }))
+    providerDraftsDirtyRef.current = true
     skipSyncRef.current = true
     try {
       await postSettings({ customProviders: nextProviders })
@@ -201,10 +212,14 @@ export function ModelApiPanel(): React.ReactElement {
       <div className={styles.toolbar}>
         <div className={styles.toolbarText}>
           <Title level={5} className={styles.title}>
-            模型与 API
+            模型与API
           </Title>
           <Text type="secondary" className={styles.desc}>
-            内置百炼 / DeepSeek，也可添加自定义 OpenAI 兼容网关；点击卡片编辑凭证
+            内置百炼 / DeepSeek / OfoxAI，也可添加自定义 OpenAI 兼容网关；Ofox 模型与
+            <a href="https://ofox.io/zh/models" target="_blank" rel="noreferrer">
+              模型广场
+            </a>
+            同步；点击卡片编辑凭证
           </Text>
         </div>
         <Space wrap>
@@ -273,7 +288,10 @@ export function ModelApiPanel(): React.ReactElement {
                         className={cardStyles.actionBtn}
                         icon={<StarOutlined />}
                         aria-label={`将 ${option.label} 设为当前选用`}
-                        onClick={() => setActiveProvider(option.value)}
+                        onClick={() => {
+                          activeProviderDirtyRef.current = true
+                          setActiveProvider(option.value)
+                        }}
                       />
                     </Tooltip>
                   ) : null}
@@ -435,6 +453,7 @@ export function ModelApiPanel(): React.ReactElement {
         onCancel={() => setEditingProvider(null)}
         onSubmit={(values) => {
           if (!editingProvider) return
+          providerDraftsDirtyRef.current = true
           setProviderDrafts((prev) => ({
             ...prev,
             [editingProvider]: values
@@ -462,8 +481,8 @@ export function ModelApiPanel(): React.ReactElement {
         baseUrl={
           modelsManagingProvider
             ? (providerDrafts[modelsManagingProvider]?.baseUrl ||
-                modelsManagingMeta?.defaultBaseUrl ||
-                '')
+              modelsManagingMeta?.defaultBaseUrl ||
+              '')
             : ''
         }
         customProviders={customProviders}

@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { queryAllProviderOptions } from '@shared/types'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
 import { ChannelsPanel } from '@/features/channels'
 import { ModelApiPanel } from '../ModelApiPanel'
@@ -23,7 +24,7 @@ const SETTINGS_TAB_STORAGE_KEY = 'lingxi:settings-tab'
 type SettingsTab = 'model' | 'connections' | 'app' | 'channels' | 'tools' | 'assets'
 
 const SETTINGS_TAB_OPTIONS: { label: string; value: SettingsTab }[] = [
-  { label: '模型与 API', value: 'model' },
+  { label: '模型与API', value: 'model' },
   { label: '多模型连接', value: 'connections' },
   { label: '应用与启动', value: 'app' },
   { label: '渠道', value: 'channels' },
@@ -63,8 +64,7 @@ export function SettingsPage(): React.ReactElement {
   }
 
   const connectionCount = settings.connections?.length ?? 0
-  const providerCount =
-    3 + (settings.customProviders?.length ?? 0)
+  const providerCount = queryAllProviderOptions(settings.customProviders ?? []).length
   const tabHint =
     tab === 'model'
       ? `${providerCount} 个供应商`
@@ -73,12 +73,12 @@ export function SettingsPage(): React.ReactElement {
         : tab === 'app'
           ? '本机启动偏好'
           : tab === 'channels'
-          ? '发布与通知渠道'
-          : tab === 'tools'
-            ? 'Agent 工具注册表'
-            : tab === 'assets'
-              ? 'Agent 产出文件'
-              : ''
+            ? '发布与通知渠道'
+            : tab === 'tools'
+              ? 'Agent 工具注册表'
+              : tab === 'assets'
+                ? 'Agent 产出文件'
+                : ''
 
   return (
     <FeaturePageShell>

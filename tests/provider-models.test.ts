@@ -4,6 +4,8 @@ import {
   queryModelsEndpoint,
   queryModelOptionsFromListResponse,
   queryNormalizeDashscopeCompatBaseUrl,
+  queryNormalizeOfoxCompatBaseUrl,
+  queryOfoxModelSupportsAgentChat,
   queryProviderModels,
   queryResolveProviderModelsCredentials
 } from '../electron/main/store/provider-models'
@@ -42,6 +44,111 @@ describe('从平台拉取模型列表', () => {
     expect(queryNormalizeDashscopeCompatBaseUrl('')).toBe(
       'https://dashscope.aliyuncs.com/compatible-mode/v1'
     )
+  })
+
+  it('OfoxAI Base URL 缺 /v1 时自动补齐', () => {
+    expect(queryNormalizeOfoxCompatBaseUrl('https://api.ofox.io')).toBe(
+      'https://api.ofox.io/v1'
+    )
+    expect(queryNormalizeOfoxCompatBaseUrl('')).toBe('https://api.ofox.io/v1')
+  })
+
+  it('OfoxAI 仅保留支持对话端点的模型', () => {
+    expect(
+      queryOfoxModelSupportsAgentChat({
+        id: 'openai/gpt-4o-mini',
+        supported_endpoints: ['/v1/chat/completions']
+      })
+    ).toBe(true)
+    expect(
+      queryOfoxModelSupportsAgentChat({
+        id: 'alibaba/happyhorse-1.0',
+        supported_endpoints: ['/v1/videos']
+      })
+    ).toBe(false)
+  })
+
+  it('OfoxAI /models 响应使用 name 与 description，并过滤视频模型', () => {
+    expect(
+      queryModelOptionsFromListResponse('ofox', {
+        data: [
+          {
+            id: 'openai/gpt-4o-mini',
+            object: 'model',
+            name: 'OpenAI: GPT-4o Mini',
+            description: 'Fast and affordable flagship model',
+            supported_endpoints: ['/v1/chat/completions']
+          },
+          {
+            id: 'anthropic/claude-sonnet-4.6',
+            object: 'model',
+            name: 'Anthropic: Claude Sonnet 4.6',
+            description: 'Sonnet 4.6 is Anthropic most capable Sonnet-class model yet',
+            supported_endpoints: ['/v1/chat/completions', '/v1/responses']
+          },
+          {
+            id: 'alibaba/happyhorse-1.0',
+            object: 'model',
+            name: 'HappyHorse 1.0',
+            supported_endpoints: ['/v1/videos'],
+            architecture: { modality: 'text+image+video->video' }
+          }
+        ]
+      })
+    ).toEqual([
+      {
+        provider: 'ofox',
+        value: 'openai/gpt-4o-mini',
+        label: 'GPT-4o Mini',
+        description: '高速低成本，推荐默认',
+        category: '文本对话'
+      },
+      {
+        provider: 'ofox',
+        value: 'anthropic/claude-sonnet-4.6',
+        label: 'Claude Sonnet 4.6',
+        description: '强推理与长上下文',
+        category: '文本对话'
+      }
+    ])
+  })
+
+  it('OfoxAI 走 GET /v1/models 拉取模型广场列表', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        object: 'list',
+        data: [
+          {
+            id: 'openai/gpt-4o-mini',
+            object: 'model',
+            name: 'OpenAI: GPT-4o Mini',
+            supported_endpoints: ['/v1/chat/completions']
+          }
+        ]
+      })
+    })
+
+    const models = await queryProviderModels(
+      {
+        provider: 'ofox',
+        apiKey: 'sk-ofox-test',
+        baseUrl: 'https://api.ofox.io/v1'
+      },
+      fetchMock as unknown as typeof fetch
+    )
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.ofox.io/v1/models',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-ofox-test'
+        })
+      })
+    )
+    expect(models.map((m) => m.value)).toEqual(['openai/gpt-4o-mini'])
+    expect(models[0]?.label).toBe('GPT-4o Mini')
   })
 
   it('百炼候选端点包含国内 / 国际 / Coding Plan', () => {
