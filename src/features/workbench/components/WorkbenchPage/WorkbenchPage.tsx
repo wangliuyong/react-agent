@@ -80,7 +80,13 @@ const QUICK_ENTRIES: QuickEntry[] = [
     icon: <ThunderboltOutlined />,
     tone: 'neutral'
   },
-
+  {
+    key: 'remotion-video',
+    title: 'Remotion 视频生产',
+    description: '模板化成片、分类管理与批量渲染',
+    icon: <VideoCameraOutlined />,
+    tone: 'neutral'
+  }
 ]
 
 const CHART_DAYS = 7
@@ -255,7 +261,7 @@ export function WorkbenchPage(): React.ReactElement {
           </div>
         </section>
 
-        <section className={styles.section} aria-label="运行信息">
+        {/* <section className={styles.section} aria-label="运行信息">
           <div className={styles.sectionHead}>
             <h2 className={styles.sectionTitle}>运行信息</h2>
             <Text type="secondary" className={styles.sectionDesc}>
@@ -284,7 +290,7 @@ export function WorkbenchPage(): React.ReactElement {
           </div>
 
 
-        </section>
+        </section> */}
 
 
 

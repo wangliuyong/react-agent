@@ -39,6 +39,9 @@ const WorkflowsPage = lazy(() =>
 const WorkbenchPage = lazy(() =>
   import('@/features/workbench').then((m) => ({ default: m.WorkbenchPage }))
 )
+const RemotionVideoPage = lazy(() =>
+  import('@/features/remotion-video').then((m) => ({ default: m.RemotionVideoPage }))
+)
 
 interface AppMainProps {
   view: AppView
@@ -71,6 +74,7 @@ export function AppMain({ view }: AppMainProps): React.ReactElement {
           {view === 'skills' && <SkillsPage />}
           {view === 'rules' && <RulesPage />}
           {view === 'workflows' && <WorkflowsPage />}
+          {view === 'remotion-video' && <RemotionVideoPage />}
           {placeholderNav?.placeholder && (
             <PlaceholderView icon={placeholderNav.icon} label={placeholderNav.label} />
           )}
