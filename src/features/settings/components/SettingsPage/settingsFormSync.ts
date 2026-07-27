@@ -111,23 +111,91 @@ export function queryInitialProviderDrafts(settings: AppSettings): ProviderFormD
   return drafts
 }
 
-/** 将各供应商草稿同步回多模型连接中同 provider 的连接行 */
+type ProviderCredentialDefaults = Pick<
+  ReturnType<typeof queryProviderOption>,
+  'defaultBaseUrl' | 'defaultModel'
+>
+
+/**
+ * 合并供应商草稿与本机已保存凭证。
+ * 为什么：仅改运行参数点保存时，草稿里可能仍是空 Key，不能覆盖磁盘上已有密钥。
+ */
+export function queryMergeProviderDraftWithSaved(
+  draft: ProviderFormDraft | undefined,
+  saved: ProviderFormDraft,
+  defaults: ProviderCredentialDefaults
+): ProviderFormDraft {
+  const base = draft ?? saved
+  return {
+    apiKey: base.apiKey.trim() ? base.apiKey : saved.apiKey,
+    baseUrl: (base.baseUrl || saved.baseUrl || defaults.defaultBaseUrl).trim(),
+    model: (base.model || saved.model || defaults.defaultModel).trim()
+  }
+}
+
+/** 为仅有凭证、尚无业务连接行的供应商补一条连接，供多供应商 Key 持久化 */
+function queryProviderCredentialConnectionId(provider: ModelProvider): string {
+  return `cred-${provider}`
+}
+
+/**
+ * 将各供应商草稿同步回多模型连接中同 provider 的连接行；
+ * 若该供应商在 connections 中不存在，则追加一条仅用于保存凭证的连接。
+ */
 export function queryApplyProviderDraftsToConnections(
   connections: ModelConnection[],
   drafts: ProviderFormDraftMap,
   customProviders: CustomModelProvider[]
 ): ModelConnection[] {
-  return connections.map((conn) => {
+  let next = connections.map((conn) => {
     const draft = drafts[conn.provider]
     if (!draft) return conn
     const meta = queryProviderOption(conn.provider, customProviders)
+    const merged = queryMergeProviderDraftWithSaved(
+      draft,
+      {
+        apiKey: conn.apiKey,
+        baseUrl: conn.baseUrl,
+        model: conn.model
+      },
+      meta
+    )
     return {
       ...conn,
-      apiKey: draft.apiKey.trim() ? draft.apiKey : conn.apiKey,
-      baseUrl: (draft.baseUrl || conn.baseUrl || meta.defaultBaseUrl).trim(),
-      model: (draft.model || conn.model || meta.defaultModel).trim()
+      apiKey: merged.apiKey,
+      baseUrl: merged.baseUrl || meta.defaultBaseUrl,
+      model: merged.model || meta.defaultModel
     }
   })
+
+  for (const option of queryAllProviderOptions(customProviders)) {
+    const draft = drafts[option.value]
+    if (!draft?.apiKey.trim()) continue
+    if (next.some((conn) => conn.provider === option.value)) continue
+    const merged = queryMergeProviderDraftWithSaved(
+      draft,
+      {
+        apiKey: '',
+        baseUrl: option.defaultBaseUrl,
+        model: option.defaultModel
+      },
+      option
+    )
+    next = [
+      ...next,
+      {
+        id: queryProviderCredentialConnectionId(option.value),
+        label: `${option.label}（凭证）`,
+        provider: option.value,
+        apiKey: merged.apiKey,
+        baseUrl: merged.baseUrl || option.defaultBaseUrl,
+        model: merged.model || option.defaultModel,
+        capabilities: ['chat']
+      }
+    ]
+  }
+
+  return next
 }
 
 /** 模型与 API 面板一次性保存：当前选用供应商写顶层，其余凭证写回连接 */
@@ -150,8 +218,13 @@ export function queryModelApiSavePatch(params: {
     thinkingEnabled,
     customProviders
   } = params
-  const activeDraft =
-    drafts[activeProvider] ?? queryProviderCredentialsFromSettings(settings, activeProvider)
+  const activeMeta = queryProviderOption(activeProvider, customProviders)
+  const savedActive = queryProviderCredentialsFromSettings(settings, activeProvider)
+  const activeDraft = queryMergeProviderDraftWithSaved(
+    drafts[activeProvider],
+    savedActive,
+    activeMeta
+  )
   return {
     provider: activeProvider,
     apiKey: activeDraft.apiKey,
