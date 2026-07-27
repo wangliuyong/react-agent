@@ -17,6 +17,27 @@ export interface StepPauseOptions {
   max?: number
 }
 
+/** 全局最短等待（毫秒），杜绝 0 延时与毫秒级连点 */
+export const HUMAN_MIN_PAUSE_MS = 300
+
+/**
+ * 正态分布近似（Box-Muller）随机延时。
+ * @param baseSeconds 中心等待秒数
+ * @param spreadSeconds 上下浮动幅度（约 1σ）
+ */
+export function queryGaussianDelayMs(baseSeconds: number, spreadSeconds: number): number {
+  const u1 = Math.random()
+  const u2 = Math.random()
+  const z = Math.sqrt(-2 * Math.log(Math.max(u1, 1e-6))) * Math.cos(2 * Math.PI * u2)
+  const seconds = baseSeconds + z * spreadSeconds
+  return Math.max(HUMAN_MIN_PAUSE_MS, Math.round(seconds * 1000))
+}
+
+/** 高斯随机等待（秒级参数） */
+export async function humanGaussianPause(baseSeconds: number, spreadSeconds: number): Promise<void> {
+  await sleep(queryGaussianDelayMs(baseSeconds, spreadSeconds))
+}
+
 /**
  * 自动化步骤间随机停顿（2～10 秒），打破固定间隔的机器特征。
  * 用于发布等关键步骤之间。
@@ -25,6 +46,17 @@ export async function humanStepPause(opts?: StepPauseOptions): Promise<void> {
   const min = opts?.min ?? 2000
   const max = opts?.max ?? 10_000
   await sleep(rand(min, max))
+}
+
+/**
+ * 步骤间高斯停顿：以 (min+max)/2 为中心，spread 约为区间半宽的 1/3。
+ */
+export async function humanGaussianStepPause(opts?: StepPauseOptions): Promise<void> {
+  const min = opts?.min ?? 2000
+  const max = opts?.max ?? 10_000
+  const base = (min + max) / 2 / 1000
+  const spread = (max - min) / 2 / 1000 / 3
+  await humanGaussianPause(base, Math.max(spread, 0.15))
 }
 
 /** 短停顿：表单字段切换、小操作之间 */
@@ -136,6 +168,50 @@ export async function humanBezierScroll(
 
   void accumulated
   await sleep(rand(600, 2200))
+}
+
+export interface XhsHomeBrowseOptions {
+  /** 滚动次数区间，默认 2～5 */
+  scrollTimesMin?: number
+  scrollTimesMax?: number
+}
+
+/**
+ * 进入小红书后「闲逛」：随机上下滚动，最后回到顶部，打散直奔发布页的单链路特征。
+ */
+export async function humanXhsHomeBrowse(page: Page, opts?: XhsHomeBrowseOptions): Promise<void> {
+  const timesMin = opts?.scrollTimesMin ?? 2
+  const timesMax = opts?.scrollTimesMax ?? 5
+  const times = Math.floor(rand(timesMin, timesMax + 1))
+
+  for (let i = 0; i < times; i++) {
+    const direction = Math.random() < 0.72 ? 'down' : 'up'
+    await humanBezierScroll(page, {
+      direction,
+      distance: rand(300, 900) * (direction === 'up' ? -1 : 1)
+    })
+    await humanGaussianPause(rand(0.8, 1.6), 0.35)
+  }
+
+  await page.evaluate(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  })
+  await humanGaussianPause(0.6, 0.2)
+}
+
+/**
+ * 填写完正文后的轻量二次滚动（约 2 次）。
+ */
+export async function humanXhsAfterFillBrowse(page: Page): Promise<void> {
+  for (let i = 0; i < 2; i++) {
+    await humanBezierScroll(page, {
+      direction: Math.random() < 0.65 ? 'down' : 'up',
+      distance: rand(180, 420) * (Math.random() < 0.65 ? 1 : -1)
+    })
+    await humanGaussianPause(0.5, 0.2)
+  }
 }
 
 /**

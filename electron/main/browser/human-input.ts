@@ -1,5 +1,6 @@
 import type { Locator, Page } from 'playwright'
-import { humanBezierMoveTo, rand, sleep } from './human-behavior'
+import { humanBezierMoveTo, humanGaussianPause, rand, sleep } from './human-behavior'
+import { queryHumanTypeDelayMs } from './xhs-content-rewrite'
 
 /**
  * 拟人鼠标/键盘：贝塞尔移动轨迹 + 真实 click/type，避免 locator.fill / 瞬时 click。
@@ -87,8 +88,9 @@ export async function humanTypeInto(
   opts?: { clear?: boolean; delayMin?: number; delayMax?: number }
 ): Promise<void> {
   const clear = opts?.clear !== false
-  const delayMin = opts?.delayMin ?? 35
-  const delayMax = opts?.delayMax ?? 95
+  const useLegacyDelay = opts?.delayMin != null || opts?.delayMax != null
+  const delayMin = opts?.delayMin ?? 60
+  const delayMax = opts?.delayMax ?? 80
 
   await humanClickLocator(page, locator)
 
@@ -103,11 +105,12 @@ export async function humanTypeInto(
     await sleep(rand(60, 140))
   }
 
-  // 分段输入，偶尔短暂停顿，模拟打字节奏
+  // 逐字键盘输入（禁止 fill/整段粘贴），每字高斯微停顿
   for (const ch of text) {
-    await page.keyboard.type(ch, { delay: rand(delayMin, delayMax) })
+    const perCharDelay = useLegacyDelay ? rand(delayMin, delayMax) : queryHumanTypeDelayMs()
+    await page.keyboard.type(ch, { delay: perCharDelay })
     if (ch === '\n' || ch === '，' || ch === '。' || ch === '、') {
-      await sleep(rand(80, 220))
+      await humanGaussianPause(0.12, 0.05)
     }
   }
   await sleep(rand(100, 250))

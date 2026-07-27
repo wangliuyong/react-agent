@@ -14,7 +14,9 @@ description: >-
 |------|------|
 | `electron/main/agent/tools/xhs-tools.ts` | `fetch_web_images`、`xhs_publish_note` 工具定义 |
 | `electron/main/browser/xhs-publish.ts` | 发布流程编排（拟人操作） |
-| `electron/main/browser/fetch-web-images.ts` | 从网页/直链下载配图 |
+| `electron/main/browser/xhs-content-rewrite.ts` | 离线同义词 / 口语化改写 |
+| `electron/main/store/xhs-behavior-guard.ts` | 时段、频次、无人值守拦截 |
+| `electron/main/browser/browser-stealth.ts` | 有头随机分辨率、webdriver/cdc_ 抹除、chrome 对象补齐 |
 | `src/features/publish/` | 发布工作台 UI + 计划串行执行 |
 | `src/features/publish/types.ts` | `buildSubTaskPrompt` 生成 Agent 指令 |
 
@@ -28,18 +30,14 @@ description: >-
 
 ## 发布流程（xhs-publish.ts）
 
-1. Agent 判断类型并传 `publishType`（image / video / article / audio）
-2. 打开官方菜单入口（勿用 `source=image`）：
-   - 图文 https://creator.xiaohongshu.com/publish/publish?from=menu&target=image
-   - 视频 …&target=video
-   - 长文 …&target=article
-   - 播客 …&target=audio
-3. 检测登录 → 未登录 `emitAwaitUser` 等人扫码
-4. 按类型上传素材 / 进入编辑器，再拟人填标题与正文
-5. 分段滚到底部发布栏 → 底栏停留约 3.5～9 秒（`dwellBeforeXhsPublish`）→ 再点发布
-6. `autoPublish=false` 时只填好停在待发布
-7. `fullAccess=false` 时正式发布前再次 `emitAwaitUser`
-8. 全程 `updateTasks` 更新任务清单
+1. `xhs-behavior-guard`：发布时段（8:00～23:00，0:00～6:00 禁止）、日/周上限、禁止 `[定时]`/`[流程]` 会话拟人发文
+2. `xhs-tools`：本地 `queryRewriteXhsPublishCopy` 后再截断字数
+3. 打开小红书首页 → 随机滚动闲逛 → 再进创作台对应 `target`
+4. 检测登录 → 未登录 `emitAwaitUser` 等人扫码
+5. 图文逐张上传（张间高斯等待，全部完成后额外静置）
+6. 逐字输入标题/正文 → 二次轻量滚动
+7. 滚到底部发布栏 → `dwellBeforeXhsPublish` → 发布
+8. 结束缓冲后 **关闭有头浏览器**（`autoPublish=false` 保留窗口供人工点发布）
 
 **DOM 改版**：优先 `humanClickText` 多文案 fallback；实在不行 `browser_snapshot` + 原子工具。
 **拟人**：禁止瞬间滚到底后立刻点发布；与抖音一致需「滚到底 → 停留确认 → 再发布」。

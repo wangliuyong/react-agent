@@ -4,6 +4,12 @@ import { getMainWindow } from '../window'
 import type { BrowserStatus } from '../../../shared/types'
 import { isProfileLockError, releaseBrowserProfileLock } from './profile-lock'
 import { humanClickLocator, humanClickText, humanTypeInto, humanUploadFiles } from './human-input'
+import {
+  CHROMIUM_STEALTH_IGNORE_DEFAULT_ARGS,
+  CHROMIUM_STEALTH_LAUNCH_ARGS,
+  postApplyBrowserStealthScripts,
+  queryRandomHeadedViewport
+} from './browser-stealth'
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
@@ -48,16 +54,21 @@ class BrowserContextSlot {
         releaseBrowserProfileLock(this.profileDir)
         await sleep(attempt === 1 ? 200 : 600)
 
+        const viewport =
+          this.mode === 'headed'
+            ? queryRandomHeadedViewport()
+            : { width: 1280, height: 800 }
+
         this.context = await chromium.launchPersistentContext(this.profileDir, {
           headless: this.mode === 'headless',
-          viewport: { width: 1280, height: 800 },
+          viewport,
           locale: 'zh-CN',
-          args: [
-            '--disable-blink-features=AutomationControlled',
-            '--no-first-run',
-            '--no-default-browser-check'
-          ]
+          timezoneId: 'Asia/Shanghai',
+          ignoreDefaultArgs: [...CHROMIUM_STEALTH_IGNORE_DEFAULT_ARGS],
+          args: [...CHROMIUM_STEALTH_LAUNCH_ARGS]
         })
+
+        await postApplyBrowserStealthScripts(this.context)
 
         const pages = this.context.pages()
         this.page = pages[0] ?? (await this.context.newPage())

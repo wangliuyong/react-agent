@@ -1,5 +1,6 @@
 import type { AgentTool } from './types'
 import { fetchWebImages } from '../../browser/fetch-web-images'
+import { queryRewriteXhsPublishCopy } from '../../browser/xhs-content-rewrite'
 import { queryClampXhsPublishText } from '../../browser/xhs-content-limits'
 import { publishXhsNote } from '../../browser/xhs-publish'
 import { queryInferXhsPublishType } from '../../browser/xhs-dom'
@@ -72,6 +73,8 @@ export const xhsPublishNoteTool: AgentTool = {
     '工具会自动打开对应官方链接：' +
     '?from=menu&target=image|video|article|audio，再填充标题正文。' +
     '渠道「拟人操作」开启时走浏览器拟人流程；关闭时走 SDK 占位。' +
+    '拟人发布仅支持用户在场手动触发的一次性会话，禁止定时任务/流程无人值守托管。' +
+    '发布前会自动做本地同义词与口语化改写；建议人工通读微调 1～2 处后再发。' +
     '图文配图优先 imagePaths（通常来自 fetch_web_images）。未登录会暂停等人扫码。',
   permission: 'dangerous',
   parameters: {
@@ -196,12 +199,19 @@ export const xhsPublishNoteTool: AgentTool = {
       )
     }
 
-    // 入口统一按平台上限截断，避免拟人/SDK 任一路径因超限无法发布
+    // 离线改写 → 再按平台上限截断
+    const rewritten = queryRewriteXhsPublishCopy(
+      String(args.title ?? ''),
+      String(args.content ?? '')
+    )
     const clamped = queryClampXhsPublishText({
-      title: String(args.title ?? ''),
-      content: String(args.content ?? ''),
+      title: rewritten.title,
+      content: rewritten.content,
       publishType
     })
+    const rewriteNote = rewritten.rewritten
+      ? '已对标题/正文做本地防检测改写（同义词+口语化），建议人工再微调。'
+      : ''
 
     if (!humanized) {
       return queryPublishAdapter('xhs', false).publish({
@@ -213,7 +223,7 @@ export const xhsPublishNoteTool: AgentTool = {
       })
     }
 
-    return publishXhsNote({
+    const result = await publishXhsNote({
       title: clamped.title,
       content: clamped.content,
       imagePaths,
@@ -222,12 +232,14 @@ export const xhsPublishNoteTool: AgentTool = {
       publishType,
       autoPublish: args.autoPublish !== false,
       fullAccess: ctx.fullAccess,
+      sessionId: ctx.sessionId,
       emitAwaitUser: async (reason) => {
         await ctx.emitAwaitUser(reason)
       },
       updateTasks: ctx.updateTasks,
       signal: ctx.signal
     })
+    return rewriteNote ? `${rewriteNote}\n${result}` : result
   }
 }
 

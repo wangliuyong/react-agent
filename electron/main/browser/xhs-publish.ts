@@ -7,7 +7,7 @@ import {
   queryXhsOffPeakPublishWarning
 } from '../store/xhs-behavior-guard'
 import { getBrowserService } from './service'
-import { humanMicroPause, humanStepPause } from './human-behavior'
+import { humanGaussianPause, humanGaussianStepPause, humanMicroPause, humanXhsAfterFillBrowse, humanXhsHomeBrowse } from './human-behavior'
 import {
   humanTypeBySelectors,
   humanTypeInto
@@ -49,6 +49,8 @@ export interface PublishXhsParams {
   autoPublish: boolean
   fullAccess: boolean
   emitAwaitUser: (reason: string) => Promise<void>
+  /** 用于识别定时/流程无人值守会话 */
+  sessionId?: string
   updateTasks: (
     updater: (
       tasks: Array<{ id: string; title: string; status: 'pending' | 'running' | 'done' | 'failed' | 'skipped' }>
@@ -86,7 +88,8 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     fullAccess,
     emitAwaitUser,
     updateTasks,
-    signal
+    signal,
+    sessionId
   } = params
 
   const publishType = queryInferXhsPublishType({
@@ -100,10 +103,17 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   const publishUrl = queryBuildXhsPublishUrl(publishType)
 
   // 作息与发布频次（深夜 0-6 点硬阻断，日/周上限硬阻断）
-  assertXhsBehaviorAllowed('publish')
+  assertXhsBehaviorAllowed('publish', sessionId)
   const offPeakWarn = queryXhsOffPeakPublishWarning()
 
   const setTasks = (items: TaskItem[]) => updateTasks(() => items)
+
+  const browser = getBrowserService()
+
+  const teardownBrowser = async (): Promise<void> => {
+    await humanGaussianPause(2.5, 0.8)
+    await browser.closeHeaded()
+  }
 
   const mediaStepTitle =
     publishType === 'image'
@@ -121,14 +131,19 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     { id: '3', title: '填写标题正文并发布', status: 'pending' }
   ])
 
-  const browser = getBrowserService()
   const page = await browser.ensureStarted()
   assertNotAborted(signal)
 
-  // 按类型直达官方菜单入口（from=menu&target=*）
+  // 先打开首页闲逛，再进入创作发布页（打散直奔发布的机器链路）
+  await browser.navigate('https://www.xiaohongshu.com/explore')
+  await page.waitForLoadState('domcontentloaded').catch(() => undefined)
+  await humanGaussianStepPause({ min: 2500, max: 5500 })
+  await humanXhsHomeBrowse(page)
+  assertNotAborted(signal)
+
   await browser.navigate(publishUrl)
   await page.waitForLoadState('domcontentloaded').catch(() => undefined)
-  await humanStepPause({ min: 2000, max: 5000 })
+  await humanGaussianStepPause({ min: 2000, max: 5000 })
   assertNotAborted(signal)
 
   setTasks([
@@ -145,7 +160,7 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     )
     assertNotAborted(signal)
     await browser.navigate(publishUrl)
-    await humanStepPause({ min: 2000, max: 4500 })
+    await humanGaussianStepPause({ min: 2000, max: 4500 })
   }
 
   setTasks([
@@ -161,23 +176,35 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   let mediaSummary = ''
   if (publishType === 'image') {
     const prep = await prepareImagePublish(page, imagePaths)
-    if (prep.error) return prep.error
+    if (prep.error) {
+      await teardownBrowser()
+      return prep.error
+    }
     mediaSummary = prep.summary
   } else if (publishType === 'video') {
     const prep = await prepareVideoPublish(page, videoPaths)
-    if (prep.error) return prep.error
+    if (prep.error) {
+      await teardownBrowser()
+      return prep.error
+    }
     mediaSummary = prep.summary
   } else if (publishType === 'audio') {
     const prep = await prepareAudioPublish(page, audioPaths)
-    if (prep.error) return prep.error
+    if (prep.error) {
+      await teardownBrowser()
+      return prep.error
+    }
     mediaSummary = prep.summary
   } else {
     const prep = await prepareArticlePublish(page)
-    if (prep.error) return prep.error
+    if (prep.error) {
+      await teardownBrowser()
+      return prep.error
+    }
     mediaSummary = prep.summary
   }
 
-  await humanStepPause({ min: 1500, max: 4000 })
+  await humanGaussianStepPause({ min: 1500, max: 4000 })
   assertNotAborted(signal)
 
   // —— 按平台字数上限截断后再填写（避免超限导致无法发布） ——
@@ -200,17 +227,16 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
       '[class*="title"] textarea',
       'input[placeholder*="填写标题"]'
     ],
-    titleText,
-    { delayMin: 45, delayMax: 130 }
+    titleText
   )
   if (!titleFilled) {
     const editable = page.locator('[contenteditable="true"]').first()
     if (await editable.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await humanTypeInto(page, editable, titleText, { delayMin: 45, delayMax: 130 })
+      await humanTypeInto(page, editable, titleText)
     }
   }
 
-  await humanStepPause({ min: 1500, max: 4000 })
+  await humanGaussianStepPause({ min: 1500, max: 4000 })
 
   const bodyFilled = await humanTypeBySelectors(
     page,
@@ -222,10 +248,10 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
       'textarea[placeholder*="说说"]',
       '[class*="editor"] [contenteditable="true"]'
     ],
-    contentText,
-    { delayMin: 40, delayMax: 120 }
+    contentText
   )
   if (!bodyFilled) {
+    await teardownBrowser()
     return (
       `${mediaSummary}已打开「${typeLabel}」页（${publishUrl}），但未能自动定位标题/正文输入框。` +
       `${clampNote}` +
@@ -234,7 +260,8 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
     )
   }
 
-  await humanStepPause({ min: 2500, max: 6000 })
+  await humanXhsAfterFillBrowse(page)
+  await humanGaussianStepPause({ min: 2500, max: 6000 })
 
   setTasks([
     { id: '0', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },
@@ -279,17 +306,17 @@ export async function publishXhsNote(params: PublishXhsParams): Promise<string> 
   }
 
   if (!published) {
+    await teardownBrowser()
     return (
       `未能触发「发布」（创作台使用 closed Shadow DOM 的 xhs-publish-btn）。` +
       `类型「${typeLabel}」内容应已填好，请在右侧浏览器手动点击底部红色「发布」按钮。`
     )
   }
 
-  await humanStepPause({ min: 2500, max: 5000 })
+  await humanGaussianStepPause({ min: 2500, max: 5000 })
   postRecordXhsBehavior('publish')
 
-  // 发布已触发：关闭有头浏览器，避免窗口长期占用与 profile 锁残留
-  await browser.closeHeaded()
+  await teardownBrowser()
 
   setTasks([
     { id: '0', title: `打开小红书创作平台（${typeLabel}）`, status: 'done' },

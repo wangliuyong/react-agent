@@ -2,6 +2,7 @@ import type { Page } from 'playwright'
 import {
   humanBezierMoveTo,
   humanBezierScroll,
+  humanGaussianPause,
   humanMicroPause,
   humanStepPause,
   rand,
@@ -616,14 +617,14 @@ export async function uploadXhsImages(page: Page, imagePaths: string[]): Promise
     const input = page.locator(selector).first()
     await input.waitFor({ state: 'attached', timeout: 15_000 })
     await input.setInputFiles(imagePaths[i])
-    await humanStepPause({ min: i === 0 ? 1200 : 900, max: i === 0 ? 2800 : 2200 })
-    // 等待预览数量达到 i+1
+    await humanGaussianPause(2.35, 0.85)
     await page
       .locator('.img-preview-area .pr')
       .nth(i)
       .waitFor({ state: 'attached', timeout: 60_000 })
       .catch(() => sleep(2000))
   }
+  await humanGaussianPause(3, 0.4)
 }
 
 /**
