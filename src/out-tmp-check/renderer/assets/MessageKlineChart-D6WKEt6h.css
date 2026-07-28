@@ -1,0 +1,94 @@
+._wrap_kjfli_1 {
+  margin-top: 12px;
+}
+
+._toolbar_kjfli_5 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+._tabs_kjfli_14 {
+  flex: 1;
+  min-width: 0;
+}
+
+._liveTag_kjfli_19 {
+  margin: 0;
+}
+
+._listItem_kjfli_23{
+  padding-left: 0!important;
+}
+
+._liveActions_kjfli_27 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-bottom: 14px;
+}
+
+._chartMeta_kjfli_35 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+._chartMetaTitle_kjfli_45 {
+  font-weight: 500;
+  color: var(--db-text-primary, rgba(0, 0, 0, 0.88));
+}
+
+._chartMetaQuoteUp_kjfli_50 {
+  color: #ef5350;
+}
+
+._chartMetaQuoteDown_kjfli_54 {
+  color: #26a69a;
+}
+
+._chart_kjfli_35 {
+  width: 100%;
+  height: 340px;
+  min-height: 240px;
+  border: 1px solid var(--db-border-subtle, rgba(0, 0, 0, 0.08));
+  border-radius: 8px;
+  background: var(--db-bg-elevated, #fff);
+}
+
+._analysis_kjfli_67 {
+  margin-top: 10px;
+}
+
+._signalRow_kjfli_71 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+._prediction_kjfli_78 {
+  margin-top: 4px;
+  color: var(--db-text-secondary, rgba(0, 0, 0, 0.65));
+  font-size: 12px;
+}
+
+._disclaimer_kjfli_84 {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--db-text-tertiary, rgba(0, 0, 0, 0.45));
+}
+
+@media (max-width: 640px) {
+  ._chart_kjfli_35 {
+    height: 280px;
+  }
+}

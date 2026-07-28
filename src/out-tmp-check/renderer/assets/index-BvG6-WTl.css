@@ -1,0 +1,735 @@
+._form_16mof_1 {
+  margin-bottom: 0;
+}
+
+._item_16mof_5 {
+  margin-bottom: 14px !important;
+}
+
+._item_16mof_5:last-child {
+  margin-bottom: 0 !important;
+}
+
+._form_16mof_1 .ant-form-item-label > label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--db-text-secondary);
+  height: auto;
+}
+
+._form_16mof_1 .ant-form-item-extra {
+  font-size: 12px;
+  margin-top: 4px;
+}
+/* 流程详情弹窗 — 结构对齐技能市场 detailModal */
+
+._detailModal_1t4cp_3 .ant-modal-body {
+  padding-top: 8px;
+}
+
+._detailModal_1t4cp_3 .ant-modal-footer {
+  padding: 12px 24px;
+  border-top: 1px solid var(--db-border-light);
+}
+
+._detailBody_1t4cp_12 {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+._detailHeader_1t4cp_18 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--db-border-light);
+}
+
+._detailId_1t4cp_28 {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--db-hover);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+._detailTags_1t4cp_38 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+._description_1t4cp_45 {
+  position: relative;
+  padding: 14px 16px 14px 18px;
+  margin: 0;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid var(--db-primary-border);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--db-text);
+}
+
+._description_1t4cp_45::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--db-primary);
+}
+
+._sectionLabel_1t4cp_68 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--db-text-secondary);
+}
+
+._sectionLabel_1t4cp_68::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--db-border-light);
+}
+
+._canvasEntry_1t4cp_85 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--db-radius-md);
+  border: 1px solid var(--db-primary-border);
+  background: var(--db-bg-content);
+}
+
+._canvasEntryIcon_1t4cp_95 {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--db-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+._canvasEntryMain_1t4cp_108 {
+  min-width: 0;
+  flex: 1;
+}
+
+._canvasEntryTitle_1t4cp_113 {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--db-text);
+}
+
+._canvasEntryDesc_1t4cp_119 {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+  line-height: 1.45;
+}
+
+._footer_1t4cp_126 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+/* 画布节点 — 仅标题，气质对齐技能市场卡片的克制层级 */
+
+._node_14lf3_3 {
+  min-width: 60px;
+  max-width: 110px;
+  padding: 5px 7px;
+  border-radius: calc(var(--db-radius-md) / 2);
+  border: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+  box-shadow: 0 1px 5px rgba(28, 31, 35, 0.05);
+  cursor: grab;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+
+._node_14lf3_3:active {
+  cursor: grabbing;
+}
+
+._node_14lf3_3:hover {
+  border-color: var(--db-primary-border-active);
+  box-shadow: 0 2px 8px var(--db-primary-shadow);
+}
+
+._selected_14lf3_28 {
+  border-color: var(--db-primary);
+  box-shadow: 0 0 0 2px var(--db-primary-muted), 0 2px 10px var(--db-primary-shadow);
+  transform: translateY(-0.5px);
+}
+
+._agent_14lf3_34 {
+  border-left: 1.5px solid var(--db-primary);
+}
+
+._tool_14lf3_38 {
+  border-left: 1.5px solid var(--db-wf-node-teal);
+}
+
+._await_user_14lf3_42 {
+  border-left: 1.5px solid var(--db-warning);
+}
+
+._notify_14lf3_46 {
+  border-left: 1.5px solid var(--db-wf-node-indigo);
+}
+
+._toast_14lf3_50 {
+  border-left: 1.5px solid var(--db-wf-node-amber);
+}
+
+._input_14lf3_54 {
+  border-left: 1.5px solid var(--db-wf-node-sky);
+}
+
+._output_14lf3_58 {
+  border-left: 1.5px solid var(--db-wf-node-purple);
+}
+
+._body_14lf3_62 {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+._title_14lf3_69 {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  font-size: 6.5px;
+  font-weight: 650;
+  color: var(--db-text);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+._statusMark_14lf3_83 {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 6px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* 执行中：呼吸高亮 */
+._status_running_14lf3_97 {
+  border-color: var(--db-primary);
+  box-shadow: 0 0 0 1.5px var(--db-primary-muted);
+  animation: _wfNodePulse_14lf3_1 1.2s ease-in-out infinite;
+}
+
+._status_running_14lf3_97 ._statusMark_14lf3_83 {
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+}
+
+._statusSpinner_14lf3_108 {
+  font-size: 6px;
+  color: var(--db-primary);
+}
+
+/* 成功终态 */
+._status_done_14lf3_114 {
+  border-color: var(--db-wf-node-success);
+  background: color-mix(in srgb, var(--db-wf-node-success) 8%, var(--db-bg-content));
+}
+
+._status_done_14lf3_114 ._statusMark_14lf3_83 {
+  background: var(--db-wf-node-success);
+  color: var(--db-on-primary);
+}
+
+/* 失败终态 */
+._status_failed_14lf3_125 {
+  border-color: var(--db-wf-node-danger);
+  background: color-mix(in srgb, var(--db-wf-node-danger) 8%, var(--db-bg-content));
+}
+
+._status_failed_14lf3_125 ._statusMark_14lf3_83 {
+  background: var(--db-wf-node-danger);
+  color: var(--db-on-primary);
+}
+
+/* 跳过 */
+._status_skipped_14lf3_136 {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+._status_skipped_14lf3_136 ._statusMark_14lf3_83 {
+  background: var(--db-border-light);
+  color: var(--db-text-secondary);
+}
+
+@keyframes _wfNodePulse_14lf3_1 {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1.5px var(--db-primary-muted);
+  }
+  50% {
+    box-shadow: 0 0 0 3px var(--db-primary-muted);
+  }
+}
+
+._handle_14lf3_156 {
+  width: 4.5px !important;
+  height: 4.5px !important;
+  background: var(--db-primary) !important;
+  border: 1px solid var(--db-bg-content) !important;
+}
+._node_vxh26_1 {
+  min-width: 52px;
+  max-width: 90px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+  box-shadow: 0 1px 5px rgba(28, 31, 35, 0.05);
+  text-align: center;
+  cursor: grab;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+._node_vxh26_1:active {
+  cursor: grabbing;
+}
+
+._start_vxh26_21 {
+  border-color: var(--db-primary-border-active);
+  background: var(--db-primary-muted);
+}
+
+._end_vxh26_26 {
+  border-color: var(--db-border);
+  background: var(--db-hover);
+}
+
+._selected_vxh26_31 {
+  border-color: var(--db-primary);
+  box-shadow: 0 0 0 2px var(--db-primary-muted), 0 2px 10px var(--db-primary-shadow);
+}
+
+._selected_vxh26_31._start_vxh26_21 {
+  background: var(--db-primary-soft);
+}
+
+._selected_vxh26_31._end_vxh26_26 {
+  background: var(--db-active);
+}
+
+._title_vxh26_44 {
+  display: block;
+  font-size: 6.5px;
+  font-weight: 650;
+  color: var(--db-text);
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+
+._handle_vxh26_53 {
+  width: 4.5px !important;
+  height: 4.5px !important;
+  background: var(--db-primary) !important;
+  border: 1px solid var(--db-bg-content) !important;
+}
+
+._end_vxh26_26 ._handle_vxh26_53 {
+  background: var(--db-text-secondary) !important;
+}
+._wrap_fj3kl_1 {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 420px;
+  flex: 1;
+  height: 100%;
+}
+
+._errorBar_fj3kl_12 {
+  font-size: 12px;
+  color: var(--db-danger);
+  background: rgba(245, 63, 63, 0.08);
+  border: 1px solid rgba(245, 63, 63, 0.2);
+  border-radius: var(--db-radius-sm);
+  padding: 6px 10px;
+}
+
+._canvas_fj3kl_21 {
+  flex: 1;
+  min-height: 420px;
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-lg);
+  overflow: hidden;
+  background: var(--db-bg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+._canvas_fj3kl_21 .react-flow__controls {
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-md);
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(28, 31, 35, 0.06);
+}
+
+._canvas_fj3kl_21 .react-flow__controls-button {
+  background: var(--db-bg-content);
+  border-color: var(--db-border-light);
+  fill: var(--db-text);
+  width: 28px;
+  height: 28px;
+}
+
+._canvas_fj3kl_21 .react-flow__controls-button:hover {
+  background: var(--db-hover);
+}
+
+._canvas_fj3kl_21 .react-flow__edge-path {
+  stroke-linecap: round;
+  transition:
+    stroke 0.15s ease,
+    stroke-width 0.15s ease,
+    filter 0.15s ease;
+}
+
+/* 连线默认 / 条件色 — 不用内联 stroke，便于选中态覆盖 */
+._canvas_fj3kl_21 .react-flow__edge.wf-edge-default .react-flow__edge-path {
+  stroke: var(--db-primary);
+  stroke-dasharray: 4 3;
+}
+
+._canvas_fj3kl_21 .react-flow__edge.wf-edge-conditional .react-flow__edge-path {
+  stroke: var(--db-warning);
+  stroke-dasharray: 6 3;
+}
+
+/* 执行中：入边流动高亮（配合 React Flow animated） */
+._canvas_fj3kl_21 .react-flow__edge.wf-edge-executing .react-flow__edge-path {
+  stroke: var(--db-primary) !important;
+  stroke-width: 2 !important;
+  filter: drop-shadow(0 0 5px var(--db-primary-glow));
+}
+
+._canvas_fj3kl_21 .react-flow__edge.wf-edge-executing.wf-edge-conditional .react-flow__edge-path {
+  stroke: var(--db-warning) !important;
+  filter: drop-shadow(0 0 5px rgba(255, 125, 0, 0.45));
+}
+
+._canvas_fj3kl_21 .react-flow__edge.wf-edge-executing marker path {
+  fill: var(--db-primary) !important;
+  stroke: var(--db-primary) !important;
+}
+
+._canvas_fj3kl_21 .react-flow__edge.wf-edge-executing.wf-edge-conditional marker path {
+  fill: var(--db-warning) !important;
+  stroke: var(--db-warning) !important;
+}
+
+/* 选中连线：统一高亮主色 + 略粗 + 柔光 */
+._canvas_fj3kl_21 .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--db-primary) !important;
+  stroke-width: 2 !important;
+  filter: drop-shadow(0 0 4px var(--db-primary-glow));
+}
+
+._canvas_fj3kl_21 .react-flow__edge.selected .react-flow__edge-text {
+  fill: var(--db-primary) !important;
+  font-weight: 650;
+}
+
+._canvas_fj3kl_21 .react-flow__edge.selected marker path {
+  fill: var(--db-primary) !important;
+  stroke: var(--db-primary) !important;
+}
+
+/* 选中节点时连线桩放大、加深 */
+._canvas_fj3kl_21 .react-flow__node.selected .react-flow__handle {
+  width: 6px !important;
+  height: 6px !important;
+  background: var(--db-primary) !important;
+  box-shadow: 0 0 0 2px var(--db-primary-muted);
+}
+/* 流程画布抽屉 — 结构与气质对齐技能市场详情弹窗 */
+
+._drawer_1cumc_3 .ant-drawer-content {
+  background: var(--db-bg);
+}
+
+._drawer_1cumc_3 .ant-drawer-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+._titleRow_1cumc_13 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+._drawerTitle_1cumc_20 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--db-text);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+._countBadge_1cumc_29 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--db-radius-pill);
+  background: var(--db-primary);
+  color: var(--db-on-primary);
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+._detailBody_1cumc_44 {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px 24px;
+  overflow: hidden;
+}
+
+._detailBody_1cumc_44::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 45% at 0% 0%, var(--db-primary-muted), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, var(--db-primary-subtle), transparent 55%);
+  opacity: 0.55;
+}
+
+._detailHeader_1cumc_67 {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--db-border-light);
+  flex-shrink: 0;
+}
+
+._headerMeta_1cumc_80 {
+  min-width: 0;
+  flex: 1;
+}
+
+._detailId_1cumc_85 {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--db-hover);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+._detailTags_1cumc_95 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+._nameTag_1cumc_103 {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+._description_1cumc_109 {
+  position: relative;
+  z-index: 1;
+  padding: 14px 16px 14px 18px;
+  margin: 0;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid var(--db-primary-border);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--db-text);
+  flex-shrink: 0;
+}
+
+._description_1cumc_109::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--db-primary);
+}
+
+._canvasPanel_1cumc_134 {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--db-radius-md);
+  border: 1px solid var(--db-primary-border);
+  background: var(--db-bg-content);
+  overflow: hidden;
+}
+
+._canvasPanelHead_1cumc_147 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--db-border-light);
+  flex-shrink: 0;
+}
+
+._canvasPanelIcon_1cumc_156 {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--db-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+._canvasPanelText_1cumc_169 {
+  min-width: 0;
+  flex: 1;
+}
+
+._canvasPanelTitle_1cumc_174 {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--db-text);
+}
+
+._canvasPanelDesc_1cumc_180 {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+  line-height: 1.45;
+}
+
+._canvasPanelActions_1cumc_187 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+._fullscreenBtn_1cumc_195 {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--db-text-secondary);
+  border-radius: var(--db-radius-md);
+}
+
+._fullscreenBtn_1cumc_195:hover {
+  color: var(--db-text) !important;
+  background: var(--db-hover) !important;
+}
+
+._canvasPanel_1cumc_134:fullscreen {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  border: none;
+  background: var(--db-bg-content);
+}
+
+._drawerBody_1cumc_216 {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  overflow: hidden;
+  background: var(--db-bg);
+}
+/* 流程页 — 工具栏；列表卡片统一使用 entity-card */
+
+._searchInput_nuau4_3 {
+  width: 200px;
+}
+
+._sortSelect_nuau4_7 {
+  width: 130px;
+}
+
+._empty_nuau4_11 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}

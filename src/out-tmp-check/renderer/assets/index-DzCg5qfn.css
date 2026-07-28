@@ -1,0 +1,111 @@
+/* 规则页 — 工具栏与弹窗；列表卡片统一使用 entity-card */
+
+._searchInput_1gneb_3 {
+  width: 200px;
+}
+
+._empty_1gneb_7 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+._cardDisabled_1gneb_16 {
+  opacity: 0.78;
+}
+
+._detailModal_1gneb_20 .ant-modal-body {
+  padding-top: 8px;
+}
+
+._detailBody_1gneb_24 {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+._detailHeader_1gneb_30 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--db-border-light);
+}
+
+._detailId_1gneb_40 {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--db-hover);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+._detailTags_1gneb_50 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+._injectToggle_1gneb_57 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--db-radius-md);
+  background: var(--db-bg);
+  border: 1px solid var(--db-border-light);
+}
+
+._injectLabel_1gneb_67 {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+  white-space: nowrap;
+}
+
+._description_1gneb_73 {
+  position: relative;
+  padding: 14px 16px 14px 18px;
+  margin: 0;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid var(--db-primary-border);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--db-text);
+}
+
+._description_1gneb_73::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--db-primary);
+}
+
+._sectionLabel_1gneb_96 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--db-text-secondary);
+}
+
+._sectionLabel_1gneb_96::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--db-border-light);
+}

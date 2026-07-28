@@ -1,0 +1,35 @@
+._wrap_ngrj0_1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+._btn_ngrj0_8 {
+  padding-inline: 4px;
+  height: auto;
+  font-size: 12px;
+}
+
+._wrapIconOnly_ngrj0_14 {
+  gap: 2px;
+}
+
+._iconBtn_ngrj0_18 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--db-radius-sm);
+  color: var(--db-text-secondary);
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+._iconBtn_ngrj0_18:hover {
+  color: var(--db-primary) !important;
+  background: color-mix(in srgb, var(--db-primary) 10%, transparent) !important;
+}

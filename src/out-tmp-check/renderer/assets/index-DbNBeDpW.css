@@ -1,0 +1,66 @@
+._grid_1a0mc_1 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+._chartCard_1a0mc_7 {
+  background: var(--db-bg-content);
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-lg);
+  padding: 16px 16px 8px;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  animation: _chartIn_1a0mc_1 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+._wide_1a0mc_18 {
+  grid-column: 1 / -1;
+  min-height: 300px;
+}
+
+._chartHeader_1a0mc_23 {
+  margin-bottom: 8px;
+}
+
+._chartTitle_1a0mc_27 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--db-text);
+  letter-spacing: 0.01em;
+}
+
+._chartSubtitle_1a0mc_35 {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+._chartCanvas_1a0mc_41 {
+  flex: 1;
+  min-height: 220px;
+  width: 100%;
+}
+
+@keyframes _chartIn_1a0mc_1 {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 960px) {
+  ._grid_1a0mc_1 {
+    grid-template-columns: 1fr;
+  }
+
+  ._wide_1a0mc_18 {
+    grid-column: auto;
+  }
+}

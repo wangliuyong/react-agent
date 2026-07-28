@@ -1,0 +1,150 @@
+/* 发布工作台 — 工具栏与详情；列表卡片统一使用 entity-card */
+
+._searchInput_1rebw_3 {
+  width: 200px;
+}
+
+._empty_1rebw_7 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+._detailModal_1rebw_16 .ant-modal-body {
+  padding-top: 8px;
+}
+
+._detailBody_1rebw_20 {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+._detailHeader_1rebw_26 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--db-border-light);
+}
+
+._detailId_1rebw_36 {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--db-hover);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+._detailTags_1rebw_46 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+._description_1rebw_53 {
+  position: relative;
+  padding: 14px 16px 14px 18px;
+  margin: 0;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid var(--db-primary-border);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--db-text);
+}
+
+._description_1rebw_53::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--db-primary);
+}
+
+._sectionLabel_1rebw_76 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--db-text-secondary);
+}
+
+._sectionLabel_1rebw_76::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--db-border-light);
+}
+
+._subList_1rebw_93 {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+._subCard_1rebw_99 {
+  display: flex;
+  gap: 14px;
+  background: var(--db-bg);
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-lg);
+  padding: 14px 16px;
+  transition: border-color 0.15s ease;
+}
+
+._subCard_1rebw_99:hover {
+  border-color: var(--db-primary-border);
+}
+
+._subIndex_1rebw_113 {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--db-primary-soft);
+  color: var(--db-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+._subBody_1rebw_127 {
+  flex: 1;
+  min-width: 0;
+}
+
+._subTitleRow_1rebw_132 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+._subTitle_1rebw_132 {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--db-text);
+}
+
+._subPrompt_1rebw_145 {
+  margin: 8px 0 0 !important;
+  white-space: pre-wrap;
+  color: var(--db-text-secondary) !important;
+  font-size: 13px !important;
+}

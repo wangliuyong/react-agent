@@ -3,7 +3,7 @@
  * 所有写操作均校验路径落在白名单根目录内，防止越权删除。
  */
 import { readdirSync, statSync, unlinkSync, rmSync, existsSync, readFileSync } from 'fs'
-import { join, resolve, relative, sep } from 'path'
+import { basename, dirname, join, resolve, relative, sep } from 'path'
 import type {
   AgentAssetKind,
   AgentAssetMutationResult,
@@ -13,6 +13,19 @@ import type {
 } from '../../../shared/agent-assets'
 import { queryAgentAssetKind } from '../../../shared/agent-assets'
 import { getArtifactsDir, getVideosDir } from './paths'
+
+/** 扫描时跳过的目录：依赖、缓存、版本库等非用户产出 */
+const SKIP_DIR_NAMES = new Set([
+  'node_modules',
+  '.git',
+  '.cache',
+  '.turbo',
+  '.next',
+  'dist',
+  'build',
+  'coverage',
+  '__pycache__'
+])
 
 /** 允许管理的根目录（绝对路径，已 normalize） */
 function queryAllowedRoots(): string[] {
@@ -40,7 +53,16 @@ function queryZoneFromPath(absPath: string, artifactsRoot: string, videosRoot: s
   return 'videos/other'
 }
 
-/** 递归扫描目录下的所有文件 */
+/** videos/remotion 根目录：其子项为各会话工程，只应收录成片而非源码树 */
+function queryIsRemotionProjectsRoot(dir: string): boolean {
+  return basename(dir) === 'remotion' && basename(dirname(dir)) === 'videos'
+}
+
+/**
+ * 递归扫描目录下的用户产出文件。
+ * - 跳过 node_modules / .cache 等噪音目录
+ * - remotion 会话工程仅收录 out/ 与 public/，避免把数百个 tsx 源文件当资产
+ */
 function walkFiles(dir: string, out: string[]): void {
   if (!existsSync(dir)) return
   let entries: string[]
@@ -49,7 +71,12 @@ function walkFiles(dir: string, out: string[]): void {
   } catch {
     return
   }
+
+  const remotionRoot = queryIsRemotionProjectsRoot(dir)
+
   for (const name of entries) {
+    if (SKIP_DIR_NAMES.has(name)) continue
+
     const full = join(dir, name)
     let st
     try {
@@ -57,7 +84,14 @@ function walkFiles(dir: string, out: string[]): void {
     } catch {
       continue
     }
+
     if (st.isDirectory()) {
+      // remotion/<sessionId>：只走成片与公开资源，跳过 src、配置与构建缓存
+      if (remotionRoot) {
+        walkFiles(join(full, 'out'), out)
+        walkFiles(join(full, 'public'), out)
+        continue
+      }
       walkFiles(full, out)
     } else if (st.isFile()) {
       out.push(full)

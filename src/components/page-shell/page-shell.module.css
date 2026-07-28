@@ -156,6 +156,16 @@
   overflow: hidden;
 }
 
+/*
+ * locked 时外层不再滚动：内层必须固定为可视高度，
+ * 否则 min-height:100% 会随内容撑高，子面板 overflow:auto 永远不触发，内容被裁切。
+ */
+.bodyLocked .bodyInner {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .bodyInner {
   box-sizing: border-box;
   min-height: 100%;

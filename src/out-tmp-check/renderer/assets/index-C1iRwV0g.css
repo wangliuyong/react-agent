@@ -1,0 +1,287 @@
+/* 技能页 — 工具栏与弹窗；列表卡片统一使用 entity-card */
+
+._searchInput_18hwx_3 {
+  width: 200px;
+}
+
+._sortSelect_18hwx_7 {
+  width: 130px;
+}
+
+._empty_18hwx_11 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+._loading_18hwx_20 {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 0;
+}
+
+/* ── 新建 / 编辑抽屉（气质对齐技能市场与流程画布抽屉） ── */
+._editDrawer_18hwx_28 .ant-drawer-content {
+  background: var(--db-bg);
+}
+
+._editDrawer_18hwx_28 .ant-drawer-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+._editDrawer_18hwx_28 .ant-drawer-title {
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--db-text);
+  letter-spacing: -0.01em;
+}
+
+._editDrawer_18hwx_28 .ant-drawer-body {
+  padding: 20px 24px 24px;
+}
+
+._editDrawer_18hwx_28 .ant-drawer-footer {
+  padding: 12px 24px;
+  border-top: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+._editDrawerFooter_18hwx_55 {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── 详情弹窗 ── */
+._detailModal_18hwx_62 .ant-modal-body {
+  padding-top: 8px;
+}
+
+._detailBody_18hwx_66 {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+._detailHeader_18hwx_72 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--db-border-light);
+}
+
+._detailId_18hwx_82 {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--db-hover);
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+._detailTags_18hwx_92 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* 技能目录路径：可点击打开访达 / 资源管理器 */
+._dirPathRow_18hwx_100 {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-md);
+  background: var(--db-bg);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+._dirPathRow_18hwx_100:hover {
+  border-color: var(--db-primary-border);
+  background: var(--db-primary-muted);
+}
+
+._dirPathIcon_18hwx_122 {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--db-primary);
+  font-size: 14px;
+}
+
+._dirPathText_18hwx_129 {
+  flex: 1;
+  min-width: 0;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--db-text-secondary);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+._injectToggle_18hwx_140 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--db-radius-md);
+  background: var(--db-bg);
+  border: 1px solid var(--db-border-light);
+}
+
+._injectLabel_18hwx_150 {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+  white-space: nowrap;
+}
+
+._description_18hwx_156 {
+  position: relative;
+  padding: 14px 16px 14px 18px;
+  margin: 0 !important;
+  border-radius: var(--db-radius-md);
+  background: var(--db-primary-muted);
+  border: 1px solid var(--db-primary-border);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--db-text);
+}
+
+._description_18hwx_156::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--db-primary);
+}
+
+._markdown_18hwx_179 {
+  max-width: 100%;
+}
+
+._sectionLabel_18hwx_183 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--db-text-secondary);
+}
+
+._sectionLabel_18hwx_183::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--db-border-light);
+}
+
+._examples_18hwx_200 {
+  margin-top: 8px;
+}
+
+/* ── 模板 / 导入弹窗 ── */
+._templateList_18hwx_205 {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 480px;
+  overflow: auto;
+}
+
+._templateCard_18hwx_213 {
+  border-radius: var(--db-radius-md) !important;
+  border: 1px solid var(--db-border) !important;
+}
+
+._templateCardHeader_18hwx_218 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+._templateId_18hwx_226 {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+._templateDesc_18hwx_231 {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--db-text-secondary);
+}
+
+._importPreview_18hwx_237 {
+  border-radius: var(--db-radius-md) !important;
+  background: var(--db-primary-muted) !important;
+  border: 1px solid var(--db-primary-border-md) !important;
+}
+
+._importPreviewDesc_18hwx_243 {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--db-text-secondary);
+}
+
+._importReasoning_18hwx_249 {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+._modalHint_18hwx_255 {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--db-text-secondary);
+}
+
+._modalHint_18hwx_255 code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--db-hover);
+  font-size: 12px;
+}
+
+._importModalBody_18hwx_269 {
+  min-height: 200px;
+}
+
+._importJsonList_18hwx_273 {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--db-text-secondary);
+}
+
+._importJsonList_18hwx_273 code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--db-hover);
+  font-size: 11px;
+  color: var(--db-text);
+}

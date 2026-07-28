@@ -1,0 +1,305 @@
+/* 工作台 — 信息密度适中的控制台布局，延续豆包蓝品牌与卡片动效 */
+
+._shell_11fhn_3 {
+  --wb-grid: color-mix(in srgb, var(--db-primary) 6%, transparent);
+}
+
+._headerExtra_11fhn_7 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+._refreshHint_11fhn_14 {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+._runtimeStrip_11fhn_19 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+._runtimeCard_11fhn_26 {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: var(--db-radius-lg);
+  border: 1px solid var(--db-border-light);
+  background:
+    linear-gradient(145deg, var(--db-bg-content) 0%, color-mix(in srgb, var(--db-primary-muted) 40%, var(--db-bg-content)) 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  animation: _wbCardIn_11fhn_1 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--card-index, 0) * 40ms);
+  overflow: hidden;
+}
+
+._runtimeCard_11fhn_26::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--wb-grid) 1px, transparent 1px);
+  background-size: 14px 14px;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+._runtimeIcon_11fhn_51 {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+._runtimeBody_11fhn_66 {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+._runtimeLabel_11fhn_75 {
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+._runtimeValue_11fhn_80 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--db-text);
+  letter-spacing: -0.02em;
+}
+
+._runtimeHint_11fhn_87 {
+  font-size: 11px !important;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+._section_11fhn_96 {
+  margin-bottom: 28px;
+}
+
+._sectionHead_11fhn_100 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-bottom: 14px;
+}
+
+._sectionTitle_11fhn_108 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--db-text);
+}
+
+._sectionDesc_11fhn_115 {
+  font-size: 12px;
+}
+
+._entryGrid_11fhn_119 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+._entryCard_11fhn_125 {
+  position: relative;
+  text-align: left;
+  padding: 16px;
+  border-radius: var(--db-radius-lg);
+  border: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+  animation: _wbCardIn_11fhn_1 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--card-index, 0) * 28ms);
+}
+
+._entryCard_11fhn_125:not([data-disabled]):hover {
+  transform: translateY(-2px);
+  border-color: var(--db-primary-border-active);
+  box-shadow: 0 8px 24px var(--db-primary-shadow);
+}
+
+._entryCard_11fhn_125[data-tone='primary'] ._entryIcon_11fhn_147 {
+  background: var(--db-primary-muted);
+  color: var(--db-primary);
+}
+
+._entryCard_11fhn_125[data-tone='neutral'] ._entryIcon_11fhn_147 {
+  background: var(--db-hover);
+  color: var(--db-text);
+}
+
+._entryCard_11fhn_125[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.72;
+  background: var(--db-bg-subtle);
+}
+
+._entryIcon_11fhn_147 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 17px;
+  margin-bottom: 10px;
+}
+
+._entryTitle_11fhn_174 {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--db-text);
+  margin-bottom: 4px;
+}
+
+._entryDesc_11fhn_182 {
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--db-text-secondary);
+}
+
+._soonTag_11fhn_189 {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  margin: 0;
+  font-size: 11px;
+  border: none;
+  background: var(--db-hover);
+  color: var(--db-text-secondary);
+}
+
+._split_11fhn_200 {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 20px;
+  margin-bottom: 8px;
+}
+
+._modelPanel_11fhn_207 {
+  padding: 16px 18px;
+  border-radius: var(--db-radius-lg);
+  border: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+}
+
+._modelGrid_11fhn_214 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin: 0;
+}
+
+._modelRow_11fhn_221 {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+._modelRow_11fhn_221 dt {
+  margin: 0;
+  font-size: 11px;
+  color: var(--db-text-secondary);
+}
+
+._modelRow_11fhn_221 dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--db-text);
+  word-break: break-all;
+}
+
+._modelLink_11fhn_241 {
+  margin-top: 12px;
+  padding-left: 0;
+}
+
+._envList_11fhn_246 {
+  list-style: none;
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: var(--db-radius-lg);
+  border: 1px solid var(--db-border-light);
+  background: var(--db-bg-content);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+._envList_11fhn_246 li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--db-text-secondary);
+}
+
+._envList_11fhn_246 code {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--db-text);
+  background: var(--db-hover);
+  padding: 6px 8px;
+  border-radius: 8px;
+  word-break: break-all;
+}
+
+@keyframes _wbCardIn_11fhn_1 {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1100px) {
+  ._runtimeStrip_11fhn_19 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  ._split_11fhn_200 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  ._runtimeStrip_11fhn_19 {
+    grid-template-columns: 1fr;
+  }
+
+  ._modelGrid_11fhn_214 {
+    grid-template-columns: 1fr;
+  }
+}
