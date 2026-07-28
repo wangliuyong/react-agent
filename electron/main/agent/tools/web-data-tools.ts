@@ -1,10 +1,22 @@
 /**
  * 通用链接/网页内容获取：API（HTTP）优先，失败再无头浏览器抓取正文。
  * 面向用户粘贴的文章链接（掘金、知乎、微信公众号、CSDN 等）做站点适配与正文清洗。
+ * 可选按需提取 image/video/audio；downloadMedia=true 时落盘到 artifacts。
  */
 import { queryHttp } from '../../net/http-client'
 import { queryWithFallback } from '../../net/data-source'
 import { getBrowserService } from '../../browser/service'
+import {
+  postDownloadPageMedia,
+  queryAttachMediaNetworkSniffer,
+  queryExtractMediaFromHtml,
+  queryExtractMediaInPage,
+  queryFormatMediaSection,
+  queryNormalizeMaxMediaCount,
+  queryNormalizeMediaTypes,
+  type PageMediaItem,
+  type PageMediaKind
+} from '../../browser/query-page-media'
 import { queryEncodeWorkflowCtxResult } from './hot-topics'
 import type { AgentTool } from './types'
 
@@ -25,6 +37,14 @@ export interface LinkContentSnapshot {
   author?: string
   /** 可选：摘要（og:description 等） */
   description?: string
+  /** 可选：按需提取的媒体清单 */
+  media?: PageMediaItem[]
+}
+
+/** 媒体提取选项（空 kinds = 不提取） */
+interface MediaExtractOptions {
+  kinds: PageMediaKind[]
+  maxCount: number
 }
 
 /** 站点正文选择器配置：匹配 hostname 后优先用这些 CSS */
@@ -209,7 +229,7 @@ function queryTruncate(text: string, max = MAX_CONTENT_CHARS): string {
   return `${text.slice(0, max)}\n…[已截断，原文共约 ${text.length} 字]`
 }
 
-/** 格式化为 Agent 可读长文本 */
+/** 格式化为 Agent 可读长文本（含可选媒体区块） */
 function queryFormatLinkContent(snap: LinkContentSnapshot, sourceLabel: string): string {
   const lines = [
     `【链接内容】${snap.title || '（无标题）'}`,
@@ -220,6 +240,8 @@ function queryFormatLinkContent(snap: LinkContentSnapshot, sourceLabel: string):
     '—— 正文 ——',
     snap.content,
     '',
+    snap.media ? queryFormatMediaSection(snap.media) : '',
+    snap.media ? '' : '',
     `（来源：${sourceLabel}）`
   ]
   return lines.filter((l) => l !== '').join('\n')
@@ -228,8 +250,12 @@ function queryFormatLinkContent(snap: LinkContentSnapshot, sourceLabel: string):
 /**
  * HTTP 拉取并解析正文。
  * JSON API 原样截断返回；HTML 走 meta + 站点选择器 + 全文去标签兜底。
+ * 若 mediaOpts.kinds 非空，从同一份 HTML 静态提取媒体。
  */
-async function queryWebDataViaHttp(url: string): Promise<LinkContentSnapshot> {
+async function queryWebDataViaHttp(
+  url: string,
+  mediaOpts?: MediaExtractOptions
+): Promise<LinkContentSnapshot> {
   const res = await queryHttp(url, {
     timeoutMs: 20_000,
     retries: 1,
@@ -242,7 +268,7 @@ async function queryWebDataViaHttp(url: string): Promise<LinkContentSnapshot> {
   const text = await res.text()
   if (!text.trim()) throw new Error('HTTP 响应体为空')
 
-  // 公开 JSON API：直接当正文
+  // 公开 JSON API：直接当正文（通常无 HTML 媒体标签）
   if (contentType.includes('application/json') || /^\s*[\[{]/.test(text.trim())) {
     const body = queryTruncate(text.trim())
     if (body.length < 2) throw new Error('JSON 响应过短')
@@ -271,7 +297,17 @@ async function queryWebDataViaHttp(url: string): Promise<LinkContentSnapshot> {
     throw new Error('HTTP 提取正文过短，改用浏览器兜底')
   }
 
-  return { title, url, content, author, description }
+  const media =
+    mediaOpts && mediaOpts.kinds.length > 0
+      ? queryExtractMediaFromHtml(text, url, mediaOpts.kinds, mediaOpts.maxCount)
+      : undefined
+
+  // 请求了媒体但静态 HTML 为空：触发浏览器兜底（SPA/音乐站常见）
+  if (mediaOpts && mediaOpts.kinds.length > 0 && (!media || media.length === 0)) {
+    throw new Error('HTTP 未发现请求的媒体资源，改用浏览器兜底')
+  }
+
+  return { title, url, content, author, description, media }
 }
 
 /**
@@ -328,47 +364,73 @@ async function queryExtractInPage(
   )
 }
 
-/** 无头浏览器抓取（SPA / 反爬站点兜底，不弹窗） */
-async function queryWebDataViaBrowser(url: string): Promise<LinkContentSnapshot> {
+/** 无头浏览器抓取（SPA / 反爬站点兜底，不弹窗）；同页按需提取媒体 + 网络嗅探 */
+async function queryWebDataViaBrowser(
+  url: string,
+  mediaOpts?: MediaExtractOptions
+): Promise<LinkContentSnapshot> {
   const browser = getBrowserService()
   const profile = querySiteProfile(url)
   const waitMs = profile?.waitMs ?? 1800
   const selectors = [...(profile?.selectors ?? []), ...GENERIC_CONTENT_SELECTORS]
 
-  await browser.navigate(url, 'headless')
-  await browser.wait({ ms: waitMs }, 'headless')
-
+  // 先确保无头页就绪，再挂嗅探，最后导航（捕获 SPA 动态媒体请求）
+  await browser.ensureStarted('headless')
   const page = browser.getPage('headless')
   if (!page) throw new Error('无头浏览器页面不可用')
 
-  // 若有站点首要选择器，短超时等待出现（失败不抛，继续全文提取）
-  const primary = profile?.selectors?.[0]
-  if (primary) {
-    await page
-      .locator(primary)
-      .first()
-      .waitFor({ state: 'visible', timeout: 4_000 })
-      .catch(() => undefined)
-  }
+  const sniffer =
+    mediaOpts && mediaOpts.kinds.length > 0
+      ? queryAttachMediaNetworkSniffer(page, mediaOpts.kinds)
+      : null
 
-  const extracted = await queryExtractInPage(page, selectors)
-  const content = queryTruncate((extracted.content || '').trim())
-  if (content.length < MIN_CONTENT_CHARS) {
-    throw new Error('无头浏览器未提取到足够正文（可能需登录或页面受限）')
-  }
+  try {
+    await browser.navigate(url, 'headless')
+    await browser.wait({ ms: waitMs }, 'headless')
 
-  return {
-    title: extracted.title,
-    url,
-    content,
-    author: extracted.author || undefined,
-    description: extracted.description || undefined
+    // 若有站点首要选择器，短超时等待出现（失败不抛，继续全文提取）
+    const primary = profile?.selectors?.[0]
+    if (primary) {
+      await page
+        .locator(primary)
+        .first()
+        .waitFor({ state: 'visible', timeout: 4_000 })
+        .catch(() => undefined)
+    }
+
+    const extracted = await queryExtractInPage(page, selectors)
+    const content = queryTruncate((extracted.content || '').trim())
+    if (content.length < MIN_CONTENT_CHARS) {
+      throw new Error('无头浏览器未提取到足够正文（可能需登录或页面受限）')
+    }
+
+    let media: PageMediaItem[] | undefined
+    if (mediaOpts && mediaOpts.kinds.length > 0) {
+      media = await queryExtractMediaInPage(
+        page,
+        mediaOpts.kinds,
+        mediaOpts.maxCount,
+        sniffer?.getItems() ?? []
+      )
+    }
+
+    return {
+      title: extracted.title,
+      url,
+      content,
+      author: extracted.author || undefined,
+      description: extracted.description || undefined,
+      media
+    }
+  } finally {
+    sniffer?.dispose()
   }
 }
 
 /**
  * 从用户粘贴的链接 / 任意公开 URL 获取正文。
  * 优先 HTTP；失败再用无头浏览器（不弹窗）。
+ * 传入 mediaTypes 时按需提取图片/视频/音频；downloadMedia=true 时下载到本地。
  */
 export const queryWebDataTool: AgentTool = {
   name: 'query_web_data',
@@ -376,7 +438,9 @@ export const queryWebDataTool: AgentTool = {
     '根据用户粘贴或提供的 URL 获取网页正文（标题、摘要、正文）。' +
     '适用于掘金、知乎专栏/问答、微信公众号、CSDN、简书、博客、GitHub README 及一般网站；' +
     '优先 HTTP 解析，失败则无头浏览器后台抓取（不弹窗）。' +
-    '热点榜单请用 fetch_hot_topics；天气用 query_weather；仅要配图用 fetch_web_images。',
+    '可选 mediaTypes=[image|video|audio] 按需提取页面媒体清单；HTTP 抽不到媒体时自动无头浏览器兜底并嗅探网络请求；' +
+    'downloadMedia=true 时下载到 artifacts（单文件上限 50MB）。' +
+    '热点榜单请用 fetch_hot_topics；天气用 query_weather；仅发布配图仍可用 fetch_web_images。',
   permission: 'safe',
   parameters: {
     type: 'object',
@@ -393,6 +457,22 @@ export const queryWebDataTool: AgentTool = {
       maxLength: {
         type: 'number',
         description: `正文最大字符数，默认 ${MAX_CONTENT_CHARS}，上限 ${MAX_CONTENT_CHARS}`
+      },
+      mediaTypes: {
+        type: 'array',
+        items: { type: 'string', enum: ['image', 'video', 'audio'] },
+        description:
+          '按需提取的媒体类型子集；未传或空数组则不提取媒体（默认）。' +
+          '例：["video","audio"] 只列视频与音频 URL'
+      },
+      downloadMedia: {
+        type: 'boolean',
+        description:
+          '为 true 且已提取到媒体时，下载到 artifacts/web-media/ 并回填 localPath（默认 false，只列 URL）'
+      },
+      maxMediaCount: {
+        type: 'number',
+        description: '媒体条数上限（各类型合计），默认 8，上限 20'
       }
     },
     required: ['url']
@@ -413,20 +493,27 @@ export const queryWebDataTool: AgentTool = {
       MAX_CONTENT_CHARS,
       Math.max(1_000, Number(args.maxLength ?? MAX_CONTENT_CHARS) || MAX_CONTENT_CHARS)
     )
+    const mediaKinds = queryNormalizeMediaTypes(args.mediaTypes)
+    const maxMediaCount = queryNormalizeMaxMediaCount(args.maxMediaCount)
+    const downloadMedia = Boolean(args.downloadMedia)
+    const mediaOpts: MediaExtractOptions | undefined =
+      mediaKinds.length > 0 ? { kinds: mediaKinds, maxCount: maxMediaCount } : undefined
+
+    const sourceLabel = (source: 'api' | 'browser'): string =>
+      source === 'browser' ? `无头浏览器兜底 · ${url}` : `HTTP · ${url}`
 
     const result = await queryWithFallback({
-      apiFetchers: preferBrowser ? [] : [() => queryWebDataViaHttp(url)],
-      browserScraper: () => queryWebDataViaBrowser(url),
+      apiFetchers: preferBrowser
+        ? []
+        : [() => queryWebDataViaHttp(url, mediaOpts)],
+      browserScraper: () => queryWebDataViaBrowser(url, mediaOpts),
       failLabel: '链接内容获取失败',
       formatSuccess: (data, source) => {
         const clipped: LinkContentSnapshot = {
           ...data,
           content: queryTruncate(data.content, maxLength)
         }
-        return queryFormatLinkContent(
-          clipped,
-          source === 'browser' ? `无头浏览器兜底 · ${url}` : `HTTP · ${url}`
-        )
+        return queryFormatLinkContent(clipped, sourceLabel(source))
       }
     })
 
@@ -436,17 +523,42 @@ export const queryWebDataTool: AgentTool = {
         webData: '',
         webDataUrl: url,
         webDataTitle: '',
-        webDataSource: result.source
+        webDataSource: result.source,
+        webDataMedia: '[]'
       })
     }
 
-    const snap = result.data
-    return queryEncodeWorkflowCtxResult(result.message, {
+    let snap: LinkContentSnapshot = {
+      ...result.data,
+      content: queryTruncate(result.data.content, maxLength)
+    }
+
+    // 按需下载：失败单条记 note，不拖垮整次工具
+    if (downloadMedia && snap.media && snap.media.length > 0) {
+      const dl = await postDownloadPageMedia(snap.media, url)
+      snap = { ...snap, media: dl.items }
+    }
+
+    const message = queryFormatLinkContent(
+      snap,
+      sourceLabel(result.source === 'browser' ? 'browser' : 'api')
+    )
+
+    return queryEncodeWorkflowCtxResult(message, {
       webDataOk: '1',
-      webData: result.message,
+      webData: message,
       webDataUrl: url,
       webDataTitle: snap.title,
-      webDataSource: result.source
+      webDataSource: result.source,
+      webDataMedia: JSON.stringify(
+        (snap.media ?? []).map((m) => ({
+          kind: m.kind,
+          url: m.url,
+          title: m.title ?? '',
+          localPath: m.localPath ?? '',
+          downloadNote: m.downloadNote ?? ''
+        }))
+      )
     })
   }
 }

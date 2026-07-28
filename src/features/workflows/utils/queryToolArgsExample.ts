@@ -54,7 +54,10 @@ const TOOL_ARGS_EXAMPLES: Record<string, Record<string, unknown>> = {
   },
   query_web_data: {
     url: 'https://example.com',
-    preferBrowser: false
+    preferBrowser: false,
+    mediaTypes: ['image', 'video', 'audio'],
+    downloadMedia: false,
+    maxMediaCount: 8
   },
   generate_script: {
     title: '{{summary}}',
@@ -156,7 +159,8 @@ const TOOL_CONTEXT_OUTPUT_EXAMPLES: Record<string, Record<string, unknown>> = {
     webData: '…正文…',
     webDataUrl: 'https://example.com',
     webDataTitle: '…',
-    webDataSource: 'api'
+    webDataSource: 'api',
+    webDataMedia: '[{"kind":"video","url":"https://…","localPath":""}]'
   },
   generate_script: {
     scriptOk: '1',

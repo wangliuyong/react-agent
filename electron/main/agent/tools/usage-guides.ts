@@ -133,6 +133,8 @@ const USAGE_GUIDE_OVERRIDES: Record<string, string> = {
 
 用户粘贴了网页链接（掘金、知乎、公众号、CSDN、博客、GitHub 等），需要**阅读 / 总结 / 基于原文创作**时，先调用本工具拉取标题与正文，再作答。不要凭 URL 臆造内容。
 
+需要页面里的图片 / 视频 / 音频时，传 \`mediaTypes\` 按需提取清单；要落盘再设 \`downloadMedia: true\`。仅发布配图仍可用 \`fetch_web_images\`。
+
 ## 如何调用
 
 \`\`\`json
@@ -145,6 +147,26 @@ const USAGE_GUIDE_OVERRIDES: Record<string, string> = {
 { "url": "https://zhuanlan.zhihu.com/p/xxxxxxxxxxxx", "preferBrowser": true }
 \`\`\`
 
+按需提取视频与音频（只列 URL，不下载）：
+
+\`\`\`json
+{
+  "url": "https://example.com/post",
+  "mediaTypes": ["video", "audio"],
+  "maxMediaCount": 8
+}
+\`\`\`
+
+提取并下载到本地：
+
+\`\`\`json
+{
+  "url": "https://example.com/post",
+  "mediaTypes": ["image", "video", "audio"],
+  "downloadMedia": true
+}
+\`\`\`
+
 ## 参数说明
 
 | 参数 | 必填 | 说明 |
@@ -152,15 +174,20 @@ const USAGE_GUIDE_OVERRIDES: Record<string, string> = {
 | \`url\` | 是 | http/https 链接 |
 | \`preferBrowser\` | 否 | \`true\` 时跳过 HTTP，直接无头浏览器 |
 | \`maxLength\` | 否 | 正文最大字符数（默认约 20000） |
+| \`mediaTypes\` | 否 | \`image\` / \`video\` / \`audio\` 子集；未传则不提取媒体 |
+| \`downloadMedia\` | 否 | \`true\` 时下载到 artifacts（默认 false，只列 URL；单文件上限 50MB） |
+| \`maxMediaCount\` | 否 | 媒体条数上限（合计，默认 8，上限 20） |
 
 ## 返回内容
 
-含标题、URL、可选作者/摘要与正文；并写入工作流上下文 \`webDataOk\` / \`webData\` / \`webDataUrl\` / \`webDataTitle\`。
+含标题、URL、可选作者/摘要与正文；若请求了媒体则附「媒体资源」清单（URL，及可选 localPath）。
+并写入工作流上下文 \`webDataOk\` / \`webData\` / \`webDataUrl\` / \`webDataTitle\` / \`webDataMedia\`。
 
 ## 注意
 
 - 需登录才能看的页面可能失败，应如实告知用户。
-- 热点榜单用 \`fetch_hot_topics\`；只要配图用 \`fetch_web_images\`。`,
+- 传了 \`mediaTypes\` 但 HTTP 抽不到媒体时，会自动改用无头浏览器并嗅探网络请求（SPA/音乐站）。
+- 热点榜单用 \`fetch_hot_topics\`；只要发布配图用 \`fetch_web_images\`。`,
 
   query_weather: `## 如何调用
 
