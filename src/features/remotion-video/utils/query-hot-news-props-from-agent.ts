@@ -101,7 +101,7 @@ export async function queryHotNewsPropsFromAgent(
       `全局 secondsPerItem（${budget.minSecondsPerItem}-${budget.maxSecondsPerItem} 秒）。` +
       '用户若明确说了「每条几秒 / 播几条 / 节奏快慢」，必须优先服从；否则按：详情越长秒数越大、总条数×秒数≈主段时长。',
     '3) 对选中的每条标题，必须再查具体信息后再写 detail：',
-    '   - 优先：browser_navigate 打开百度/必应/新闻站搜索该标题，或打开相关报道页，再用 browser_snapshot 阅读要点；',
+    '   - 优先：web_search 搜索该标题（工具内部先 Bing，失败自动改百度），再按需 query_web_data 打开结果链接读正文；',
     '   - 若已有明确文章 URL：用 query_web_data 拉取正文；',
     '   - 禁止仅把 title 改写一句当作 detail；detail 需包含事件背景、关键主体或进展等可核验信息。',
     `4) 每条 detail 控制在 ${budget.detailMinChars}-${budget.detailMaxChars} 字（2-4 句，适合大屏播报）。`,

@@ -78,4 +78,95 @@ describe('聊天媒体路径提取（含 Application Support 空格与中文冒�
     expect(embedded).not.toMatch(/\| 图1 \|/)
     expect(queryInlinedImageSrcs(embedded).has(APP_SUPPORT_PNG)).toBe(true)
   })
+
+  it('配图预览仅有「图N」标签时，按序号预判填入上下文本地路径', () => {
+    const text = [
+      '### 配图预览',
+      '| 图片 | 内容 |',
+      '| --- | --- |',
+      '| 图1 | 新华社来源标识 |',
+      '| 图2-3 | 齐达内个人照/发布会场景 |'
+    ].join('\n')
+    const contextRefs = extractMessageImages(
+      `${APP_SUPPORT_PNG}\n${APP_SUPPORT_PNG_2}\n/Users/wly/tmp/third.png`
+    )
+    expect(contextRefs).toHaveLength(3)
+
+    const embedded = queryEmbedImagesInDisplayText(text, contextRefs)
+    expect(embedded).toContain(`| ![图1](${APP_SUPPORT_PNG}) | 新华社来源标识 |`)
+    expect(embedded).toContain(
+      `| ![图2](${APP_SUPPORT_PNG_2}) ![图3](/Users/wly/tmp/third.png) | 齐达内个人照/发布会场景 |`
+    )
+    expect(embedded).not.toMatch(/\| 图1 \|/)
+  })
+
+  it('解析图号标签索引', async () => {
+    const { queryParseFigureLabelIndexes } = await import(
+      '../src/features/chat/utils/message-images'
+    )
+    expect(queryParseFigureLabelIndexes('图1')).toEqual([1])
+    expect(queryParseFigureLabelIndexes('图2-3')).toEqual([2, 3])
+    expect(queryParseFigureLabelIndexes('图4～6')).toEqual([4, 5, 6])
+    expect(queryParseFigureLabelIndexes('内容')).toEqual([])
+  })
+
+  it('从会话工具结果与 imagePaths 参数收集本地图路径', async () => {
+    const {
+      queryCollectSessionImagePaths,
+      queryImagePathsFromToolArgs
+    } = await import('../src/features/chat/utils/query-session-image-paths')
+    expect(
+      queryImagePathsFromToolArgs({
+        imagePaths: [APP_SUPPORT_PNG, '配图路径', APP_SUPPORT_PNG_2]
+      })
+    ).toEqual([APP_SUPPORT_PNG, APP_SUPPORT_PNG_2])
+
+    const paths = queryCollectSessionImagePaths([
+      {
+        id: 't1',
+        role: 'tool',
+        content: `已保存：\n${APP_SUPPORT_PNG}`,
+        createdAt: 1
+      },
+      {
+        id: 'a1',
+        role: 'assistant',
+        content: '准备发布',
+        createdAt: 2,
+        toolCalls: [
+          {
+            id: 'c1',
+            name: 'douyin_publish_note',
+            args: { imagePaths: [APP_SUPPORT_PNG_2] }
+          }
+        ]
+      },
+      {
+        id: 'a2',
+        role: 'assistant',
+        content: '### 配图预览\n| 图1 | x |',
+        createdAt: 3
+      }
+    ] as never, { beforeMessageId: 'a2' })
+    expect(paths).toEqual([APP_SUPPORT_PNG, APP_SUPPORT_PNG_2])
+  })
+
+  it('不把 https://cdn/a.jpg 误判为本地 //cdn/a.jpg', () => {
+    const text = `配图\n1. ${APP_SUPPORT_PNG}\n   ← https://cdn.example.com/a.jpg`
+    const images = extractMessageImages(text)
+    expect(images.map((i) => i.src)).toEqual([APP_SUPPORT_PNG])
+    expect(images.every((i) => i.kind === 'local')).toBe(true)
+  })
+
+  it('解码 workflow_ctx 后仍能提取本地图与音频', () => {
+    const inner =
+      `—— 媒体资源 ——\n1. [image]\n   本地路径：![x](${APP_SUPPORT_PNG})\n` +
+      `2. [audio]\n   本地路径：${APP_SUPPORT_MP4.replace('.mp4', '.mp3')}`
+    const audioPath = APP_SUPPORT_MP4.replace('.mp4', '.mp3')
+    const wrapped = `@@workflow_ctx@@${JSON.stringify({ message: inner, patch: {} })}`
+    const images = extractMessageImages(wrapped)
+    const { audio } = extractMessageMedia(wrapped)
+    expect(images.map((i) => i.src)).toEqual([APP_SUPPORT_PNG])
+    expect(audio.map((a) => a.src)).toEqual([audioPath])
+  })
 })

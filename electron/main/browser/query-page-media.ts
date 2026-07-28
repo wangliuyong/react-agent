@@ -760,7 +760,16 @@ export function queryFormatMediaSection(items: PageMediaItem[]): string {
   const lines = ['—— 媒体资源 ——']
   items.forEach((m, i) => {
     const title = m.title ? ` 「${m.title}」` : ''
-    const local = m.localPath ? `\n   本地: ${m.localPath}` : ''
+    // 本地路径用「本地路径：」+ 绝对路径，便于聊天提取并预览
+    let local = ''
+    if (m.localPath) {
+      if (m.kind === 'image') {
+        const name = m.localPath.replace(/\\/g, '/').split('/').pop() || 'image'
+        local = `\n   本地路径：![${name}](${m.localPath})`
+      } else {
+        local = `\n   本地路径：${m.localPath}`
+      }
+    }
     const note = m.downloadNote ? `\n   下载: ${m.downloadNote}` : ''
     lines.push(`${i + 1}. [${m.kind}]${title}\n   URL: ${m.url}${local}${note}`)
   })

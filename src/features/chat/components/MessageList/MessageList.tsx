@@ -19,6 +19,7 @@ import { ThinkingBlock } from './ThinkingBlock'
 import { ToolProgressBar } from '../ToolProgressBar/ToolProgressBar'
 import { AppErrorNotice } from '@/components/AppErrorNotice/AppErrorNotice'
 import { queryShouldShowToolProgress, queryToolProgressTitle } from '../../utils/queryToolProgressDisplay'
+import { queryCollectSessionImagePaths } from '../../utils/query-session-image-paths'
 import styles from './MessageList.module.css'
 
 const { Text } = Typography
@@ -94,6 +95,8 @@ export function MessageList({
     ...statusInput,
     afterToolGroup
   })
+  /** 全会话已出现的本地配图，供正文「图N」预览表按序号预判路径 */
+  const sessionImagePaths = queryCollectSessionImagePaths(displayMessages)
 
   /**
    * pending 展示条件：
@@ -193,7 +196,12 @@ export function MessageList({
                     </div>
                   ) : (
                     <div className={styles.assistantCard}>
-                      <AssistantBody content={narrative} />
+                      <AssistantBody
+                        content={narrative}
+                        contextImagePaths={queryCollectSessionImagePaths(displayMessages, {
+                          beforeMessageId: m.id
+                        })}
+                      />
                     </div>
                   )
                 ) : null}
@@ -242,7 +250,11 @@ export function MessageList({
         <div className={`${styles.row} ${styles.rowAssistant}`}>
           <span className={styles.label}>灵犀</span>
           <div className={`${styles.assistantCard} ${styles.assistantCardStreaming}`}>
-            <AssistantBody content={displayStreamingText} streaming />
+            <AssistantBody
+              content={displayStreamingText}
+              streaming
+              contextImagePaths={sessionImagePaths}
+            />
           </div>
         </div>
       ) : null}
@@ -275,15 +287,24 @@ export function MessageList({
 
 function AssistantBody({
   content,
-  streaming = false
+  streaming = false,
+  contextImagePaths
 }: {
   content: string
   streaming?: boolean
+  /** 会话内先前工具/正文出现的本地图，用于「图N」预览表预判路径 */
+  contextImagePaths?: string[]
 }): React.ReactElement {
   if (!content && streaming) {
     return <TypingIndicator label="正在思考…" />
   }
   if (!content) return <Text type="secondary">…</Text>
 
-  return <MessageRichContent content={content} streaming={streaming} />
+  return (
+    <MessageRichContent
+      content={content}
+      previewContextPaths={contextImagePaths}
+      streaming={streaming}
+    />
+  )
 }

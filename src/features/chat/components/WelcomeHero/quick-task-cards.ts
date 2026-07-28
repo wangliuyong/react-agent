@@ -177,10 +177,10 @@ export const QUICK_TASK_CARDS: QuickCard[] = [
       '请用 query_web_data 调研「2026 年大模型 Agent 桌面助手」趋势，整理 5 条要点与来源链接，并用 write_file 保存为 artifacts/ai-agent-trends.md。'
   },
   {
-    title: '浏览器搜索并摘录',
-    desc: '打开搜索引擎，输入关键词并提取结果摘要',
+    title: '网络搜索并摘录',
+    desc: '优先 Bing 搜索关键词，失败自动改百度',
     prompt:
-      '请打开智能体浏览器访问 Bing，搜索「Remotion React 视频教程」，用 browser_snapshot 读取前 5 条结果标题与摘要。'
+      '请用 web_search 搜索「Remotion React 视频教程」，整理前 5 条结果的标题、链接与摘要（工具内部优先 Bing，失败会改百度）。'
   },
   {
     title: '看图理解附件',

@@ -1,5 +1,6 @@
 /**
  * 用户确认与多方案选择工具：暂停执行，等待用户从聊天框选择或输入后继续。
+ * 完全访问模式下不暂停：返回方案列表，由模型自行择优连续执行。
  */
 import type { AgentTool } from './types'
 
@@ -13,9 +14,9 @@ interface PlanChoiceArg {
 export const presentPlanChoicesTool: AgentTool = {
   name: 'present_plan_choices',
   description:
-    '当存在 2 个及以上可行路径时，必须先调用本工具列出方案并暂停，等待用户从聊天框选择或输入说明后再继续。' +
-    '禁止在未经用户确认的情况下擅自替用户决定方案。' +
-    '返回 JSON：selected（用户选中的方案 id/label）与 userInput（补充说明）。',
+    '当存在 2 个及以上可行路径、且当前非完全访问时，调用本工具列出方案并暂停，等待用户从聊天框选择或输入说明后再继续。' +
+    '完全访问、自动发布任务、自动流程执行时禁止调用本工具暂停；应自行择优并连续执行。' +
+    '返回 JSON：selected（用户选中的方案 id/label）与 userInput（补充说明）；完全访问时返回 skipped=true 与 choices。',
   permission: 'safe',
   parameters: {
     type: 'object',
@@ -47,17 +48,16 @@ export const presentPlanChoicesTool: AgentTool = {
   async execute(args, ctx) {
     const reason = String(args.reason ?? '').trim()
     const rawChoices = Array.isArray(args.choices) ? args.choices : []
-    const choices: PlanChoiceArg[] = rawChoices
-      .map((item) => {
-        if (!item || typeof item !== 'object') return null
-        const row = item as Record<string, unknown>
-        const id = String(row.id ?? '').trim()
-        const label = String(row.label ?? '').trim()
-        if (!id || !label) return null
-        const description = row.description != null ? String(row.description).trim() : undefined
-        return { id, label, description: description || undefined }
-      })
-      .filter((c): c is PlanChoiceArg => c != null)
+    const choices: PlanChoiceArg[] = []
+    for (const item of rawChoices) {
+      if (!item || typeof item !== 'object') continue
+      const row = item as Record<string, unknown>
+      const id = String(row.id ?? '').trim()
+      const label = String(row.label ?? '').trim()
+      if (!id || !label) continue
+      const description = row.description != null ? String(row.description).trim() : undefined
+      choices.push({ id, label, description: description || undefined })
+    }
 
     if (!reason) {
       return JSON.stringify({ ok: false, message: 'reason 不能为空' })
@@ -67,6 +67,21 @@ export const presentPlanChoicesTool: AgentTool = {
     }
     if (choices.length > 5) {
       return JSON.stringify({ ok: false, message: '方案最多 5 个' })
+    }
+
+    // 完全访问 / 自动任务与流程：不暂停，交由模型自行择优连续执行
+    if (ctx.fullAccess) {
+      return JSON.stringify({
+        ok: true,
+        skipped: true,
+        reason,
+        choices,
+        selected: null,
+        userInput: null,
+        hint:
+          '当前为完全访问模式（或自动发布/流程执行）。请自行选择最合适方案并继续执行，' +
+          '不要再次调用 present_plan_choices，也不要等待用户确认。'
+      })
     }
 
     const result = await ctx.emitAwaitUser(reason, choices)

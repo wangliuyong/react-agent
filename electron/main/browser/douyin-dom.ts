@@ -7,7 +7,7 @@ import {
   rand,
   sleep
 } from './human-behavior'
-import { humanClickAt, humanClickLocator, humanClickText } from './human-input'
+import { humanClickLocator, humanDropLocalFiles } from './human-input'
 
 /** 抖音创作者中心 - 内容上传页 */
 export const DOUYIN_PUBLISH_URL =
@@ -132,36 +132,31 @@ export function queryVerifyDouyinFilledDraft(params: {
  * 关闭常见引导/遮罩层，避免挡住上传区与发布按钮。
  * 抖音改版频繁，此处只做轻量清理，失败不阻断流程。
  *
- * 注意：禁止在左上角盲点——创作者中心 Logo /「首页」导航就在该区域，
- * 误点会直接离开上传页，导致填好的文案丢失。
+ * 严禁：
+ * - 左上角盲点（Logo /「首页」）
+ * - 任意 Esc（图文编辑态按 Esc 会退出草稿并回到创作者首页/上传落地页）
+ * - 内容区盲点（可能点到侧栏或可导航卡片）
+ * 只做 CSS 隐藏高 z-index 遮罩，绝不模拟点击/按键。
  */
 export async function removeDouyinOverlay(page: Page): Promise<void> {
-  const hadOverlay = await page.evaluate(() => {
-    let hidden = 0
+  await page.evaluate(() => {
     document
       .querySelectorAll('[class*="guide"], [class*="mask"], [class*="modal"], [class*="popover"]')
       .forEach((el) => {
         const style = window.getComputedStyle(el)
-        if (style.position === 'fixed' && style.zIndex && Number(style.zIndex) > 1000) {
-          ;(el as HTMLElement).style.display = 'none'
-          hidden += 1
-        }
+        const z = Number(style.zIndex)
+        // 仅处理明确盖住全屏的浮层，避免误伤侧栏/编辑器内部节点
+        if (style.position !== 'fixed' && style.position !== 'absolute') return
+        if (!Number.isFinite(z) || z < 1000) return
+        const rect = el.getBoundingClientRect()
+        const coversViewport =
+          rect.width >= window.innerWidth * 0.5 && rect.height >= window.innerHeight * 0.4
+        if (!coversViewport) return
+        ;(el as HTMLElement).style.pointerEvents = 'none'
+        ;(el as HTMLElement).style.display = 'none'
       })
-    return hidden > 0
   })
-
-  // 仅在检测到遮罩时：Esc 关闭，必要时点内容区中部（避开侧栏与顶栏 Logo/首页）
-  if (hadOverlay) {
-    await page.keyboard.press('Escape').catch(() => undefined)
-    await sleep(120)
-    const vp = page.viewportSize() ?? { width: 1280, height: 800 }
-    await humanClickAt(
-      page,
-      vp.width * rand(0.35, 0.62),
-      vp.height * rand(0.35, 0.55)
-    )
-  }
-  await sleep(150)
+  await sleep(120)
 }
 
 /** 当前是否仍停留在抖音创作者「上传/发布」相关页 */
@@ -178,6 +173,23 @@ export function queryIsDouyinPublishUrl(url: string): boolean {
   }
 }
 
+/** 是否为创作者「首页」类地址（误触后常见落点） */
+export function queryIsDouyinCreatorHomeUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    if (!/creator\.douyin\.com/i.test(u.hostname)) return false
+    const path = u.pathname.replace(/\/+$/, '') || '/'
+    return (
+      path === '/' ||
+      path === '/creator-micro' ||
+      /\/creator-micro\/home$/i.test(path) ||
+      /\/home$/i.test(path)
+    )
+  } catch {
+    return /creator\.douyin\.com\/(creator-micro\/)?home?/i.test(url)
+  }
+}
+
 /**
  * 确认仍停留在抖音发布/上传页。
  * 填文案后若已离开，不得自动 goto（会丢掉已填草稿），由调用方中止并提示。
@@ -189,19 +201,127 @@ export async function ensureDouyinPublishPage(page: Page): Promise<boolean> {
 }
 
 /**
+ * 填完文案后锁定页面：拦截回首页/侧栏导航点击，并拦截 history 跳到 home。
+ * 返回解锁函数；发布流程结束或失败时务必调用。
+ */
+export async function lockDouyinPublishStay(page: Page): Promise<() => Promise<void>> {
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      __raDouyinLockInstalled?: boolean
+      __raDouyinLockCleanup?: () => void
+    }
+    if (w.__raDouyinLockInstalled) return
+    w.__raDouyinLockInstalled = true
+
+    const isForbiddenNavTarget = (el: EventTarget | null): boolean => {
+      if (!el || !(el instanceof Element)) return false
+      const hit = (el.closest('a,button,[role="link"],[role="button"],[class*="menu"],[class*="nav"]') ??
+        el) as HTMLElement
+      const text = (hit.innerText || hit.textContent || '').replace(/\s+/g, ' ').trim()
+      if (/^首页$|^主页$|^Home$/i.test(text)) return true
+      const href = (hit.closest('a')?.getAttribute('href') || hit.getAttribute('href') || '').trim()
+      if (/\/home\b|creator-micro\/?(\?|#|$)/i.test(href)) return true
+      if (hit.closest('a[class*="logo"], [class*="logo"] a, a[href="/"], a[href="/creator-micro"]')) {
+        return true
+      }
+      // 左侧窄栏导航（约 0～220px）：禁止离开发布编辑态
+      const rect = hit.getBoundingClientRect()
+      if (rect.right <= 220 && rect.width > 0 && rect.height > 0) {
+        if (/首页|内容管理|互动|数据|成长|资金|直播|小店/.test(text)) return true
+      }
+      return false
+    }
+
+    const onClick = (e: Event) => {
+      if (!isForbiddenNavTarget(e.target)) return
+      e.preventDefault()
+      e.stopPropagation()
+      ;(e as MouseEvent).stopImmediatePropagation?.()
+      console.warn('[douyin-lock] blocked navigation click')
+    }
+
+    document.addEventListener('click', onClick, true)
+    document.addEventListener('auxclick', onClick, true)
+
+    const origPush = history.pushState.bind(history)
+    const origReplace = history.replaceState.bind(history)
+    const blockUrl = (url: unknown): boolean => {
+      const s = String(url ?? '')
+      if (!s) return false
+      return /\/home\b/i.test(s) || /creator-micro\/?(\?|#|$)/i.test(s)
+    }
+    history.pushState = ((data: unknown, unused: string, url?: string | URL | null) => {
+      if (blockUrl(url)) {
+        console.warn('[douyin-lock] blocked pushState', url)
+        return
+      }
+      return origPush(data, unused, url as string | URL | null | undefined)
+    }) as History['pushState']
+    history.replaceState = ((data: unknown, unused: string, url?: string | URL | null) => {
+      if (blockUrl(url)) {
+        console.warn('[douyin-lock] blocked replaceState', url)
+        return
+      }
+      return origReplace(data, unused, url as string | URL | null | undefined)
+    }) as History['replaceState']
+
+    w.__raDouyinLockCleanup = () => {
+      document.removeEventListener('click', onClick, true)
+      document.removeEventListener('auxclick', onClick, true)
+      history.pushState = origPush
+      history.replaceState = origReplace
+      w.__raDouyinLockInstalled = false
+      w.__raDouyinLockCleanup = undefined
+    }
+  })
+
+  const onFrameNavigated = async (): Promise<void> => {
+    try {
+      const url = page.url()
+      if (queryIsDouyinPublishUrl(url)) return
+      // 仅对「首页」强制返回；发布成功跳到内容管理等其它页不干预
+      if (!queryIsDouyinCreatorHomeUrl(url)) return
+      console.warn('[douyin-lock] navigated to creator home after fill, goBack:', url)
+      await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => undefined)
+    } catch {
+      // ignore
+    }
+  }
+  page.on('framenavigated', onFrameNavigated)
+
+  return async () => {
+    page.off('framenavigated', onFrameNavigated)
+    await page
+      .evaluate(() => {
+        const w = window as unknown as { __raDouyinLockCleanup?: () => void }
+        w.__raDouyinLockCleanup?.()
+      })
+      .catch(() => undefined)
+  }
+}
+
+/**
  * 切换到「发布图文」模式（上传页默认可能是视频）。
- * 文案 fallback：图文 / 发布图文 / 图片。
+ * 仅精确匹配 TAB 文案，避免模糊匹配「图片」点到其它入口。
  */
 export async function clickDouyinImageTab(page: Page, timeoutMs = 15_000): Promise<boolean> {
-  const texts = ['发布图文', '图文', '图片']
+  const texts = ['发布图文', '图文']
   const deadline = Date.now() + timeoutMs
 
   while (Date.now() < deadline) {
     for (const text of texts) {
-      const clicked = await humanClickText(page, [text], { timeoutPer: 1200 })
-      if (clicked) {
-        await sleep(800)
-        return true
+      try {
+        const loc = page.getByText(text, { exact: true }).first()
+        if (await loc.isVisible({ timeout: 1200 }).catch(() => false)) {
+          const box = await loc.boundingBox().catch(() => null)
+          // TAB 一般在主内容区上半部，排除左侧导航
+          if (box && box.x < 200) continue
+          await humanClickLocator(page, loc)
+          await sleep(800)
+          return true
+        }
+      } catch {
+        // next
       }
     }
     await removeDouyinOverlay(page)
@@ -211,50 +331,191 @@ export async function clickDouyinImageTab(page: Page, timeoutMs = 15_000): Promi
 }
 
 /**
+ * 从页面文案解析「已添加 N 张图片」数量（创作者中心图文编辑态常见文案）。
+ * 纯函数，供预览计数与单测使用。
+ */
+export function queryParseDouyinAddedImageCount(text: string): number {
+  const m = String(text ?? '').match(/已添加\s*(\d+)\s*张/)
+  if (!m) return 0
+  const n = Number(m[1])
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+/**
+ * 定位抖音图文「拖入图片」投放区。
+ * 优先匹配文案提示区域，再回退到带 upload/drag 类名的容器。
+ */
+export async function queryDouyinImageDropTarget(page: Page) {
+  const byClass = page
+    .locator(
+      '[class*="upload-drag"], [class*="drag-area"], [class*="upload-dragger"], [class*="container-drag"]'
+    )
+    .filter({ hasText: /上传|拖入|图片/ })
+    .first()
+  if (await byClass.isVisible({ timeout: 800 }).catch(() => false)) return byClass
+
+  const dropHint = page
+    .getByText(/直接将图片文件拖入此区域|将图片文件拖入此区域|拖入此区域/)
+    .first()
+  if (await dropHint.isVisible({ timeout: 900 }).catch(() => false)) {
+    // 文案节点偏小：上溯到含 file input 或 upload/drag 类名的容器
+    const ancestor = dropHint.locator(
+      'xpath=ancestor::div[.//input[@type="file"] or contains(@class,"upload") or contains(@class,"drag") or contains(@class,"drop")][1]'
+    )
+    if ((await ancestor.count().catch(() => 0)) > 0) return ancestor
+    // 再退一步：包含该文案的较大 div
+    const block = page.locator('div').filter({ hasText: /拖入此区域/ }).first()
+    if (await block.isVisible({ timeout: 500 }).catch(() => false)) return block
+    return dropHint
+  }
+
+  const uploadBlock = page
+    .locator('[class*="upload"]')
+    .filter({ hasText: /点击上传|上传图文|拖入/ })
+    .first()
+  if (await uploadBlock.isVisible({ timeout: 600 }).catch(() => false)) return uploadBlock
+
+  const fileInput = page.locator('input[type="file"]').first()
+  if ((await fileInput.count().catch(() => 0)) > 0) {
+    return fileInput.locator(
+      'xpath=ancestor::div[contains(@class,"upload") or contains(@class,"drag")][1]'
+    )
+  }
+  return null
+}
+
+/**
+ * 点击会弹出系统文件框的入口时，必须先等 filechooser 再 setFiles。
+ * 裸点「添加/上传」会打开 OS 对话框并卡住自动化（Playwright 无法操作原生框）。
+ */
+async function postUploadDouyinFilesViaChooser(
+  page: Page,
+  paths: string[],
+  triggerTexts: string[]
+): Promise<boolean> {
+  let trigger = null as ReturnType<Page['getByText']> | null
+  for (const text of triggerTexts) {
+    const loc = page.getByText(text, { exact: false }).first()
+    if (await loc.isVisible({ timeout: 1200 }).catch(() => false)) {
+      trigger = loc
+      break
+    }
+  }
+  if (!trigger) return false
+
+  const chooserPromise = page.waitForEvent('filechooser', { timeout: 12_000 })
+  await humanClickLocator(page, trigger)
+  const chooser = await chooserPromise
+  await chooser.setFiles(paths)
+  return true
+}
+
+/**
  * 上传图文配图。
- * 抖音首张上传后 file input 常会从 DOM 移除并进入编辑态；
- * 因此优先一次性 setInputFiles(全部路径)，避免第二张起 waitFor 超时假失败。
+ * 优先「拖入投放区」（与创作者中心「将图片文件拖入此区域」一致）；
+ * 失败再回退 setInputFiles / filechooser。首张后补图同理。
  */
 export async function uploadDouyinImages(page: Page, imagePaths: string[]): Promise<void> {
   if (!imagePaths.length) return
 
-  const fileInput = page.locator('input[type="file"]').first()
-  await fileInput.waitFor({ state: 'attached', timeout: 15_000 })
+  const needed = imagePaths.length
 
-  // 一次传入多张（input 通常带 multiple），与创作者中心行为一致
+  // 1) 优先拖入：模拟用户把本地图片拖进上传区
   try {
-    await fileInput.setInputFiles(imagePaths)
-    await sleep(2000)
-    if (await queryDouyinImagePreviewCount(page) > 0) return
-  } catch {
-    // 回退逐张
+    const dropTarget = await queryDouyinImageDropTarget(page)
+    if (dropTarget) {
+      await humanDropLocalFiles(page, dropTarget, imagePaths)
+      await sleep(2000)
+      const count = await queryDouyinImagePreviewCount(page)
+      if (count >= needed) return
+      if (count > 0) {
+        const remaining = imagePaths.slice(count)
+        if (!remaining.length) return
+        const again = await queryDouyinImageDropTarget(page)
+        if (again) {
+          await humanDropLocalFiles(page, again, remaining)
+          await sleep(1500)
+          if ((await queryDouyinImagePreviewCount(page)) >= needed) return
+        }
+        const ok = await postUploadDouyinFilesViaChooser(page, remaining, [
+          '继续添加',
+          '添加图片',
+          '添加'
+        ])
+        await sleep(1500)
+        if (ok || (await queryDouyinImagePreviewCount(page)) > 0) return
+      }
+    }
+  } catch (err) {
+    console.warn('[douyin-upload] 拖入失败，回退 setInputFiles:', err)
   }
 
-  let uploaded = 0
-  for (let i = 0; i < imagePaths.length; i++) {
-    let input = page.locator('input[type="file"]').first()
+  const fileInput = page.locator('input[type="file"]').first()
+  const hasInput = await fileInput.waitFor({ state: 'attached', timeout: 8_000 }).then(
+    () => true,
+    () => false
+  )
+
+  // 2) 回退：一次 setInputFiles（input 通常带 multiple）
+  if (hasInput) {
+    try {
+      await fileInput.setInputFiles(imagePaths)
+      await sleep(2000)
+      const count = await queryDouyinImagePreviewCount(page)
+      if (count >= needed) return
+      if (count > 0) {
+        const remaining = imagePaths.slice(count)
+        if (!remaining.length) return
+        const ok = await postUploadDouyinFilesViaChooser(page, remaining, [
+          '继续添加',
+          '添加图片',
+          '添加'
+        ])
+        await sleep(1500)
+        if (ok || (await queryDouyinImagePreviewCount(page)) > 0) return
+      }
+    } catch {
+      // 回退逐张
+    }
+  }
+
+  let uploaded = await queryDouyinImagePreviewCount(page)
+  for (let i = uploaded; i < imagePaths.length; i++) {
+    const dropTarget = await queryDouyinImageDropTarget(page)
+    if (dropTarget) {
+      try {
+        await humanDropLocalFiles(page, dropTarget, [imagePaths[i]])
+        uploaded += 1
+        await sleep(i === 0 ? 1800 : 1200)
+        continue
+      } catch {
+        // fall through
+      }
+    }
+
+    const input = page.locator('input[type="file"]').first()
     const attached = await input.waitFor({ state: 'attached', timeout: 4000 }).then(
       () => true,
       () => false
     )
-    if (!attached) {
-      // 编辑态需点「添加」才出现新的 file input
-      await humanClickText(page, ['添加', '继续添加', '上传'], { timeoutPer: 1500 })
-      await sleep(600)
-      input = page.locator('input[type="file"]').first()
-      const ok = await input.waitFor({ state: 'attached', timeout: 8_000 }).then(
-        () => true,
-        () => false
-      )
+    if (attached) {
+      await input.setInputFiles(imagePaths[i])
+    } else {
+      // 编辑态：点「添加」会弹系统文件框 → 必须用 filechooser.setFiles
+      const ok = await postUploadDouyinFilesViaChooser(page, [imagePaths[i]], [
+        '继续添加',
+        '添加图片',
+        '添加',
+        '上传图片',
+        '上传'
+      ])
       if (!ok) {
         if (uploaded > 0 || (await queryDouyinImagePreviewCount(page)) > 0) {
-          // 已有预览：视为上传成功，留给后续补图手动处理
           return
         }
-        throw new Error('未找到可用于继续上传的文件选择控件')
+        throw new Error('未找到可用于继续上传的拖放区域或文件选择控件')
       }
     }
-    await input.setInputFiles(imagePaths[i])
     uploaded += 1
     await sleep(i === 0 ? 1800 : 1200)
   }
@@ -278,6 +539,16 @@ export async function queryDouyinImagePreviewCount(page: Page): Promise<number> 
       // next
     }
   }
+
+  // 创作者中心编辑态常见「已添加1张图片」，DOM img 选择器偶发匹配不到
+  try {
+    const bodyText = await page.locator('body').innerText({ timeout: 2000 })
+    const fromLabel = queryParseDouyinAddedImageCount(bodyText)
+    if (fromLabel > max) max = fromLabel
+  } catch {
+    // ignore
+  }
+
   return max
 }
 
@@ -348,38 +619,24 @@ export async function queryDouyinFilledDraft(page: Page): Promise<DouyinFilledDr
 }
 
 /**
- * 填写完成后拟人「通读一遍」：轻微上下扫视标题/描述区，再停顿确认。
- * 不改变输入内容，只模拟人类检查动作。
+ * 填写完成后拟人「通读一遍」：只在主内容区轻停，不点、不按 Esc、不靠近顶栏/侧栏。
  */
 export async function humanReviewDouyinFilledContent(page: Page): Promise<void> {
   const vp = page.viewportSize() ?? { width: 1280, height: 800 }
 
-  // 先移到标题附近，像在核对标题字数
+  // 鼠标停在标题/描述主栏（避开左侧导航与顶部 Logo）
   await humanBezierMoveTo(page, {
-    x: rand(vp.width * 0.25, vp.width * 0.7),
-    y: rand(vp.height * 0.22, vp.height * 0.42)
+    x: rand(vp.width * 0.42, vp.width * 0.78),
+    y: rand(vp.height * 0.38, vp.height * 0.62)
   })
-  await humanGaussianPause(0.6, 0.25)
+  await humanGaussianPause(0.5, 0.2)
 
-  // 轻扫描述区：先下再略回，避免一眼到底栏
+  // 只向下轻扫找底栏，避免上滚把顶栏 Logo 送进误触区
   await humanBezierScroll(page, {
     direction: 'down',
-    distance: rand(160, 360)
+    distance: rand(120, 280)
   })
-  await humanGaussianPause(0.45, 0.2)
-  if (Math.random() < 0.7) {
-    await humanBezierScroll(page, {
-      direction: 'up',
-      distance: rand(60, 140)
-    })
-  }
-
-  await humanBezierMoveTo(page, {
-    x: rand(vp.width * 0.3, vp.width * 0.75),
-    y: rand(vp.height * 0.4, vp.height * 0.65)
-  })
-  // 通读停留约 2～5 秒
-  await humanStepPause({ min: 2000, max: 5000 })
+  await humanStepPause({ min: 1200, max: 2800 })
 }
 
 /**
@@ -421,37 +678,7 @@ async function queryDouyinPublishButtonVisible(page: Page): Promise<boolean> {
   return false
 }
 
-/** 发布页缩放下限（50%），再小可读性与点击命中都会变差 */
-export const DOUYIN_PUBLISH_MIN_ZOOM = 0.5
-
-/**
- * 滚动仍找不到发布按钮时的缩放阶梯：从 90% 每次降 10%，最低到 minZoom。
- * 纯函数，便于单测。
- */
-export function queryDouyinPublishZoomSteps(minZoom = DOUYIN_PUBLISH_MIN_ZOOM): number[] {
-  const floor = Math.max(0.1, Math.min(1, minZoom))
-  const steps: number[] = []
-  // 从略小于 100% 开始：0.9 → 0.8 → … → floor
-  for (let z = 0.9; z >= floor - 1e-9; z = Math.round((z - 0.1) * 10) / 10) {
-    steps.push(Number(z.toFixed(1)))
-  }
-  return steps
-}
-
-/**
- * 用 CSS zoom 缩小创作者页，让底栏发布按钮更容易进入视口。
- * Chromium/Electron 支持 documentElement.style.zoom。
- */
-export async function postApplyDouyinPageZoom(page: Page, zoom: number): Promise<void> {
-  const clamped = Math.max(DOUYIN_PUBLISH_MIN_ZOOM, Math.min(1, zoom))
-  await page.evaluate((z) => {
-    const root = document.documentElement as HTMLElement
-    root.style.zoom = String(z)
-  }, clamped)
-  await sleep(rand(200, 400))
-}
-
-/** 强制把主滚动容器滚到绝对底部（缩放后需再调一次） */
+/** 强制把主滚动容器滚到绝对底部 */
 async function postForceDouyinPageBottom(page: Page): Promise<void> {
   await page.evaluate(() => {
     const forceBottom = (el: Element | Document): void => {
@@ -474,7 +701,7 @@ async function postForceDouyinPageBottom(page: Page): Promise<void> {
 
 /**
  * 「发布 / 暂存离开」在创作者图文页最底部操作栏。
- * 先分段下滚；仍找不到则逐步缩小页面（最低 50%），再滚到底找发布按钮。
+ * 分段拟人下滚直到发布按钮进入可视区；不缩放页面，避免浏览器内容区视觉变小。
  */
 export async function scrollDouyinPublishFooterIntoView(page: Page): Promise<void> {
   const maxRounds = 8
@@ -508,35 +735,6 @@ export async function scrollDouyinPublishFooterIntoView(page: Page): Promise<voi
   // 仍不可见时再轻推一下，避免卡在半屏
   if (!(await queryDouyinPublishButtonVisible(page))) {
     await humanBezierScroll(page, { direction: 'down', distance: rand(180, 360) })
-  }
-
-  // 滚动仍找不到：逐步缩放页面（90%→…→50%），每次缩完再滚底检查
-  if (!(await queryDouyinPublishButtonVisible(page))) {
-    for (const zoom of queryDouyinPublishZoomSteps()) {
-      console.warn(`[douyin-dom] 未找到发布按钮，缩小页面至 ${Math.round(zoom * 100)}%`)
-      await postApplyDouyinPageZoom(page, zoom)
-      await postForceDouyinPageBottom(page)
-
-      for (const text of ['暂存离开', '立即发布', '发布']) {
-        try {
-          const el = page.getByText(text, { exact: true }).last()
-          if (await el.isVisible({ timeout: 600 }).catch(() => false)) {
-            await el.scrollIntoViewIfNeeded().catch(() => undefined)
-            break
-          }
-        } catch {
-          // next
-        }
-      }
-
-      if (await queryDouyinPublishButtonVisible(page)) break
-
-      await humanBezierScroll(page, {
-        direction: 'down',
-        distance: rand(200, 420)
-      })
-      if (await queryDouyinPublishButtonVisible(page)) break
-    }
   }
 }
 

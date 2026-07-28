@@ -72,8 +72,10 @@ export const douyinPublishNoteTool: AgentTool = {
       }
     }
 
+    // 本地附件可能含音视频；图文发布只取图片后缀，避免触发「不支持的文件格式」
     if (!imagePaths.length && ctx.attachmentPaths.length) {
-      imagePaths = [...ctx.attachmentPaths]
+      const imageExt = /\.(jpe?g|png|webp|gif|bmp|avif|heic|heif|tiff?)$/i
+      imagePaths = ctx.attachmentPaths.filter((p) => imageExt.test(p))
     }
 
     if (!imagePaths.length) {

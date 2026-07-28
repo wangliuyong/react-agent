@@ -1,3 +1,5 @@
+import { queryDecodeWorkflowCtxMessage } from './workflow-ctx'
+
 /** 消息内识别出的图片引用 */
 export interface MessageImageRef {
   /** 去重用 key */
@@ -12,9 +14,9 @@ const IMAGE_EXT_PATTERN = '(?:jpg|jpeg|png|webp|gif|bmp|svg)'
 
 /**
  * 路径前允许空白、中英文冒号/逗号、反引号。
- * 为什么：工具常返回「图片路径：/Users/...」；若只匹配空白，中文冒号后路径无法提取，聊天无法预览。
+ * `(?!//)`：避免把 `https://cdn/...jpg` 里的 `//cdn/...jpg` 误判为本地绝对路径。
  */
-const PATH_PREFIX = '(?:^|[\\s\\n：:,，`])'
+const PATH_PREFIX = '(?:^|[\\s\\n：:,，`])(?!\\/\\/)'
 
 /** Unix / macOS 绝对路径（支持 Application Support 等含空格路径） */
 const UNIX_PATH_RE = new RegExp(
@@ -42,8 +44,10 @@ function basename(path: string): string {
   return parts[parts.length - 1] || path
 }
 
+/** 真实本地绝对路径；拒绝协议相对 URL（//cdn/...） */
 function isLocalPath(src: string): boolean {
-  return src.startsWith('/') || /^[A-Za-z]:\\/.test(src)
+  if (!src || src.startsWith('//')) return false
+  return src.startsWith('/') || /^[A-Za-z]:[\\/]/.test(src)
 }
 
 function isRemoteImageUrl(src: string): boolean {
@@ -69,11 +73,13 @@ function addRef(refs: MessageImageRef[], seen: Set<string>, src: string): void {
 
 /**
  * 从消息正文与用户附件路径中提取可预览的图片列表。
+ * 会先解码 @@workflow_ctx@@，与音视频/HTML 提取保持一致。
  */
 export function extractMessageImages(
   content: string,
   attachmentPaths?: string[]
 ): MessageImageRef[] {
+  const decoded = queryDecodeWorkflowCtxMessage(content)
   const refs: MessageImageRef[] = []
   const seen = new Set<string>()
 
@@ -82,7 +88,7 @@ export function extractMessageImages(
   }
 
   // [附件] 块内的路径行
-  const attachMatch = content.match(/\n\[附件\]\n([\s\S]*)$/)
+  const attachMatch = decoded.match(/\n\[附件\]\n([\s\S]*)$/)
   if (attachMatch) {
     for (const line of attachMatch[1].split('\n')) {
       addRef(refs, seen, line.trim())
@@ -91,23 +97,23 @@ export function extractMessageImages(
 
   let mdMatch: RegExpExecArray | null
   MD_IMAGE_RE.lastIndex = 0
-  while ((mdMatch = MD_IMAGE_RE.exec(content)) !== null) {
+  while ((mdMatch = MD_IMAGE_RE.exec(decoded)) !== null) {
     addRef(refs, seen, mdMatch[1])
   }
 
   let m: RegExpExecArray | null
   REMOTE_IMAGE_RE.lastIndex = 0
-  while ((m = REMOTE_IMAGE_RE.exec(content)) !== null) {
+  while ((m = REMOTE_IMAGE_RE.exec(decoded)) !== null) {
     addRef(refs, seen, m[1])
   }
 
   UNIX_PATH_RE.lastIndex = 0
-  while ((m = UNIX_PATH_RE.exec(content)) !== null) {
+  while ((m = UNIX_PATH_RE.exec(decoded)) !== null) {
     addRef(refs, seen, m[1])
   }
 
   WIN_PATH_RE.lastIndex = 0
-  while ((m = WIN_PATH_RE.exec(content)) !== null) {
+  while ((m = WIN_PATH_RE.exec(decoded)) !== null) {
     addRef(refs, seen, m[1])
   }
 
@@ -162,7 +168,8 @@ function queryEmbedPathInTableRow(text: string, ref: MessageImageRef): string | 
 
 /**
  * 将已识别本地图片嵌入为 Markdown 图片语法，供正文内联预览。
- * - 表格：预览列放缩略图，路径列保留短名
+ * - 表格（路径列）：预览列放缩略图，路径列保留短名
+ * - 表格（仅「图N」标签）：按序号预判填入上下文本地路径，便于查看
  * - 其它：裸路径 / 反引号路径 → `![label](src)`
  * 远程 Markdown 图片原样保留；[附件] 块仍剥离（由画廊展示）。
  */
@@ -190,10 +197,62 @@ export function queryEmbedImagesInDisplayText(
     text = text.replace(new RegExp(`[\\\`']?${escaped}[\\\`']?`, 'g'), `![${ref.label}](${ref.src})`)
   }
 
+  // 配图预览表常见「图1 / 图2-3」无路径：用上下文 refs 按序号补缩略图
+  text = queryFillFigureLabelPreview(text, refs)
+
   // 路径已变成图片后，清掉空的「图片路径：」标签
   text = text.replace(/(?:本地|图片)?路径[：:]\s*(?=!\[)/g, '')
   text = text.replace(/(?:本地|图片)?路径[：:]\s*$/gm, '')
   return text.replace(/\n{3,}/g, '\n\n').trim()
+}
+
+/**
+ * 解析「图1」「图2-3」标签，得到 1-based 下标列表（含区间）。
+ */
+export function queryParseFigureLabelIndexes(label: string): number[] {
+  const m = String(label ?? '')
+    .trim()
+    .match(/^图\s*(\d+)(?:\s*[-–—~～到至]\s*(\d+))?$/u)
+  if (!m) return []
+  const start = Number(m[1])
+  const end = m[2] != null ? Number(m[2]) : start
+  if (!Number.isFinite(start) || start < 1) return []
+  if (!Number.isFinite(end) || end < start) return [start]
+  const indexes: number[] = []
+  for (let i = start; i <= end; i++) indexes.push(i)
+  return indexes
+}
+
+/**
+ * 表格「图片/预览」列只有图号、没有路径时：按序号把本地 refs 填成 Markdown 图。
+ * 用于发布失败后的「配图预览」等场景，让用户能直接查看对应本地文件。
+ */
+export function queryFillFigureLabelPreview(
+  text: string,
+  refs: MessageImageRef[]
+): string {
+  const localRefs = refs.filter((r) => r.kind === 'local')
+  if (!localRefs.length) return text
+
+  return text.replace(
+    /^(\|\s*)([^|\n]+?)(\s*\|\s*)([^|\n]*)(\s*\|?\s*)$/gm,
+    (full, pipeStart: string, previewCell: string, midPipe: string, contentCell: string, tail: string) => {
+      const label = String(previewCell).trim()
+      // 已是 markdown 图片或非图号标签则跳过
+      if (label.includes('![') || label.includes('/')) return full
+      const indexes = queryParseFigureLabelIndexes(label)
+      if (!indexes.length) return full
+
+      const parts: string[] = []
+      for (const idx of indexes) {
+        const ref = localRefs[idx - 1]
+        if (!ref) continue
+        parts.push(`![图${idx}](${ref.src})`)
+      }
+      if (!parts.length) return full
+      return `${pipeStart}${parts.join(' ')}${midPipe}${contentCell}${tail}`
+    }
+  )
 }
 
 /** 展示正文里已内联的图片 src（用于画廊去重，避免表格缩略图与底部画廊重复） */

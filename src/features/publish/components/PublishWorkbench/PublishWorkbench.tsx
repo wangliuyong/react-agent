@@ -165,7 +165,7 @@ function PlanEditModal({
               ]
               : undefined
           }
-          extra="可多选；运行时按选择顺序串行执行，子流程之间会暂停确认"
+          extra="可多选；运行时按选择顺序串行自动执行；仅当子流程含「等待确认」节点时才会暂停"
         >
           <Select
             mode="multiple"
@@ -796,7 +796,7 @@ export function PublishWorkbench(): React.ReactElement {
             </Form.Item>
             <Form.Item
               label="自动发布"
-              extra="开启后填好内容会自动点发布；关闭则停在待发布。未登录时仍会暂停等人扫码；流程画布上的「等待确认」节点仍会暂停。"
+              extra="开启后填好内容会自动点发布；关闭则停在待发布。未登录时仍会暂停等人扫码。自动发布/流程按序连续执行，仅流程画布「等待确认」节点会暂停。"
             >
               <Switch
                 checked={subModal.draft.autoPublish !== false}

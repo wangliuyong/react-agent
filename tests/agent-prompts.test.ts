@@ -38,6 +38,14 @@ describe('角色提示词 Token 预算', () => {
     expect(prompt).toContain('use_skill')
     expect(prompt).toContain('思考推理过程')
     expect(prompt).toContain('适用于全部模型输出')
+    expect(prompt).toContain('执行模式：需确认')
+  })
+
+  it('完全访问模式注入连续执行约束', () => {
+    const prompt = buildRoleSystemPrompt('general', undefined, { fullAccess: true })
+
+    expect(prompt).toContain('执行模式：完全访问')
+    expect(prompt).toContain('禁止调用 present_plan_choices')
   })
 
   it('用户角色设定追加到内置说明之后', () => {

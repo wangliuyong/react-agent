@@ -1,4 +1,7 @@
 import { queryEmbedImagesInDisplayText, type MessageImageRef } from './message-images'
+import { queryDecodeWorkflowCtxMessage } from './workflow-ctx'
+
+export { queryDecodeWorkflowCtxMessage } from './workflow-ctx'
 
 /** 消息内识别出的音视频引用（图片仍走 message-images.ts） */
 export interface MessageMediaRef {
@@ -11,8 +14,8 @@ export interface MessageMediaRef {
 const AUDIO_EXT_PATTERN = '(?:wav|mp3|m4a|aac|ogg)'
 const VIDEO_EXT_PATTERN = '(?:mp4|mov|webm|mkv)'
 
-/** Unix / macOS 绝对路径（允许中文冒号、逗号、反引号后直接跟路径） */
-const PATH_PREFIX = '(?:^|[\\s\\n：:,，`])'
+/** Unix / macOS 绝对路径（允许中文冒号、逗号、反引号后直接跟路径；拒绝 https:// 误匹配） */
+const PATH_PREFIX = '(?:^|[\\s\\n：:,，`])(?!\\/\\/)'
 
 const UNIX_AUDIO_RE = new RegExp(
   `${PATH_PREFIX}((?:/[^\\n"'<>|\`]+?)\\.(?:${AUDIO_EXT_PATTERN})(?:\\?[^\\s\\n"'<>|\`]*)?)`,
@@ -33,15 +36,14 @@ const WIN_VIDEO_RE = new RegExp(
   'gim'
 )
 
-const WORKFLOW_CTX_PREFIX = '@@workflow_ctx@@'
-
 function basename(path: string): string {
   const parts = path.replace(/\\/g, '/').split('/')
   return parts[parts.length - 1] || path
 }
 
 function isLocalPath(src: string): boolean {
-  return src.startsWith('/') || /^[A-Za-z]:\\/.test(src)
+  if (!src || src.startsWith('//')) return false
+  return src.startsWith('/') || /^[A-Za-z]:[\\/]/.test(src)
 }
 
 function addRef(
@@ -87,21 +89,6 @@ function scanPaths(
   WIN_VIDEO_RE.lastIndex = 0
   while ((m = WIN_VIDEO_RE.exec(content)) !== null) {
     addRef(refs, seen, m[1], 'video')
-  }
-}
-
-/**
- * 解码 @@workflow_ctx@@ 前缀，与主进程 tool-result 逻辑对齐。
- */
-export function queryDecodeWorkflowCtxMessage(content: string): string {
-  if (!content.startsWith(WORKFLOW_CTX_PREFIX)) return content
-  try {
-    const parsed = JSON.parse(content.slice(WORKFLOW_CTX_PREFIX.length)) as {
-      message?: unknown
-    }
-    return parsed.message != null ? String(parsed.message) : content
-  } catch {
-    return content
   }
 }
 

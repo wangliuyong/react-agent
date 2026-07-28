@@ -1,3 +1,4 @@
+import { screen } from 'electron'
 import { chromium, type BrowserContext, type Page } from 'playwright'
 import { getBrowserProfileDir, getHeadlessBrowserProfileDir } from '../store/paths'
 import { getMainWindow } from '../window'
@@ -8,8 +9,22 @@ import {
   CHROMIUM_STEALTH_IGNORE_DEFAULT_ARGS,
   CHROMIUM_STEALTH_LAUNCH_ARGS,
   postApplyBrowserStealthScripts,
-  queryRandomHeadedViewport
+  postResetHeadedWindowPlacementIfTooSmall,
+  type HeadedWorkArea
 } from './browser-stealth'
+
+/** 读取主屏工作区；失败时回退常见 MacBook 逻辑分辨率 */
+function queryPrimaryWorkArea(): HeadedWorkArea {
+  try {
+    const wa = screen.getPrimaryDisplay().workArea
+    if (wa.width > 0 && wa.height > 0) {
+      return { x: wa.x, y: wa.y, width: wa.width, height: wa.height }
+    }
+  } catch {
+    // screen 未就绪
+  }
+  return { x: 0, y: 25, width: 1440, height: 875 }
+}
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
@@ -54,14 +69,20 @@ class BrowserContextSlot {
         releaseBrowserProfileLock(this.profileDir)
         await sleep(attempt === 1 ? 200 : 600)
 
-        const viewport =
-          this.mode === 'headed'
-            ? queryRandomHeadedViewport()
-            : { width: 1280, height: 800 }
+        // 有头：运行期不改窗（viewport:null）；仅启动前校正 profile 里异常小的 window_placement
+        if (this.mode === 'headed') {
+          const reset = postResetHeadedWindowPlacementIfTooSmall(
+            this.profileDir,
+            queryPrimaryWorkArea()
+          )
+          if (reset) {
+            console.info('[browser:headed] reset abnormally small window_placement before launch')
+          }
+        }
 
         this.context = await chromium.launchPersistentContext(this.profileDir, {
           headless: this.mode === 'headless',
-          viewport,
+          viewport: this.mode === 'headed' ? null : { width: 1280, height: 800 },
           locale: 'zh-CN',
           timezoneId: 'Asia/Shanghai',
           ignoreDefaultArgs: [...CHROMIUM_STEALTH_IGNORE_DEFAULT_ARGS],

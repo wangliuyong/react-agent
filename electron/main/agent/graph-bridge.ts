@@ -982,7 +982,10 @@ export async function runLangGraphStep(params: {
     agent = buildStepReactGraph({
       settings,
       toolCtx,
-      systemPrompt: buildRoleSystemPrompt('general'),
+      systemPrompt: buildRoleSystemPrompt('general', undefined, {
+        ...settings,
+        fullAccess: true
+      }),
       toolWhitelist,
       stepPrompt: prompt,
       attachmentPaths,

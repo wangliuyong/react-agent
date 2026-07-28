@@ -261,7 +261,7 @@ export interface AppSettings {
   roleToolWhitelistOverrides: RoleToolWhitelistOverrides
   /** 用户新增的自定义聊天角色（内置角色不可删） */
   customAgentRoles: CustomAgentRole[]
-  /** 完全访问：跳过部分敏感确认（发布前仍建议确认） */
+  /** 完全访问：跳过敏感确认与方案选择；自动发布/流程连续执行（确认节点、扫码、渲染除外） */
   fullAccess: boolean
   /** DeepSeek 等模型的 thinking/推理过程输出开关（影响 reasoning_content 注入） */
   thinkingEnabled: boolean

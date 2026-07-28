@@ -316,8 +316,8 @@ export function ChatInput({
                   <Tooltip
                     title={
                       settings.fullAccess
-                        ? '完全访问模式：将跳过部分敏感确认'
-                        : '需确认模式：敏感操作前会暂停确认'
+                        ? '完全访问：跳过敏感确认与方案选择；自动发布/流程连续执行（确认节点、扫码、渲染除外）'
+                        : '需确认模式：敏感操作与多方案选择前会暂停确认'
                     }
                   >
                     <span className={styles.dot} data-on={settings.fullAccess} />

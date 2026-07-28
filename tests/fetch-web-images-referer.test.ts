@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   queryImageDownloadReferer,
+  queryIsFetchSafeImageExt,
   queryPreferHttpsImageUrl
 } from '../electron/main/browser/fetch-web-images'
 
@@ -20,6 +21,18 @@ describe('queryImageDownloadReferer', () => {
   it('小红书 CDN 使用 xiaohongshu Referer', () => {
     const url = 'https://sns-img-qc.xhscdn.com/abc.jpg'
     expect(queryImageDownloadReferer(url)).toBe('https://www.xiaohongshu.com/')
+  })
+})
+
+describe('queryIsFetchSafeImageExt', () => {
+  it('仅 jpg/jpeg/png/webp 视为安全格式', () => {
+    expect(queryIsFetchSafeImageExt('.jpg')).toBe(true)
+    expect(queryIsFetchSafeImageExt('.jpeg')).toBe(true)
+    expect(queryIsFetchSafeImageExt('.png')).toBe(true)
+    expect(queryIsFetchSafeImageExt('.webp')).toBe(true)
+    expect(queryIsFetchSafeImageExt('/tmp/a.gif')).toBe(false)
+    expect(queryIsFetchSafeImageExt('/tmp/a.bmp')).toBe(false)
+    expect(queryIsFetchSafeImageExt('/tmp/a.avif')).toBe(false)
   })
 })
 

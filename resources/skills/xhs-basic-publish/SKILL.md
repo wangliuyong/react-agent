@@ -27,7 +27,7 @@ description: >-
 
 ### 1. 搜索新闻
 
-`browser_navigate` 打开搜索引擎或新闻站，搜索用户主题，`browser_snapshot` 阅读并选定来源页。
+优先 `web_search`（内部先 Bing，失败改百度）搜索用户主题，再对有价值的结果链接用 `query_web_data` 读正文；必要时才 `browser_navigate` + `browser_snapshot`。
 
 ### 2. 撰写内容
 

@@ -7,7 +7,7 @@
 ## 工具序列
 
 1. `update_task_list`
-2. `browser_navigate` — 搜索 A 股收盘新闻
+2. `web_search` — 搜索 A 股收盘新闻（Bing→百度）
 3. `browser_snapshot` — 阅读并选定来源
 4. `fetch_web_images({ pageUrl })`
 5. `xhs_publish_note({ title, content, imagePaths, autoPublish: true })`

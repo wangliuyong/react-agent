@@ -1,9 +1,10 @@
 /**
- * 从消息正文提取本地产物路径（剧本/分镜/成片/HTML 等），提供「打开文件位置」。
+ * 从消息正文提取本地产物路径（剧本/分镜/成片/HTML 等），提供预览与「打开文件位置」。
  */
 import { queryArtifactPaths } from '../../utils/artifact-paths'
 import { queryLocalPathExists } from '../../api'
 import { ArtifactPathMeta } from '../ArtifactPathMeta'
+import { ArtifactInlinePreview } from './ArtifactInlinePreview'
 import styles from './ArtifactLinks.module.css'
 
 export { queryArtifactPaths } from '../../utils/artifact-paths'
@@ -14,7 +15,7 @@ interface ArtifactLinksProps {
   excludePaths?: string[]
 }
 
-/** 展示组件：检测消息中的本地产物路径并提供打开文件位置（仅展示磁盘上存在的文件） */
+/** 展示组件：检测消息中的本地产物路径并提供预览 + 打开文件位置 */
 export function ArtifactLinks({
   content,
   excludePaths = []
@@ -57,6 +58,7 @@ export function ArtifactLinks({
       <div className={styles.list}>
         {existingPaths.map((p) => (
           <div key={p} className={styles.item}>
+            <ArtifactInlinePreview filePath={p} />
             <ArtifactPathMeta
               filePath={p}
               showBrowserOpen={/\.html?$/i.test(p)}

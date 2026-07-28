@@ -1,25 +1,137 @@
+import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { join } from 'path'
 import type { BrowserContext } from 'playwright'
 
-/** 拟人发布有头窗口随机分辨率，避免长期固定 viewport */
-export const HEADED_VIEWPORTS = [
-  { width: 1920, height: 1080 },
-  { width: 1536, height: 864 },
-  { width: 1440, height: 900 }
-] as const
-
-/** Playwright / Chrome 启动时需剔除的默认自动化开关 */
+/**
+ * 有头浏览器窗口尺寸策略：
+ * - 运行期禁止改窗：viewport 必须为 null（否则新 tab 会 setWindowBounds）
+ * - 仅当 Chromium profile 残留「异常小」window_placement 时，启动前校正一次
+ */
 export const CHROMIUM_STEALTH_IGNORE_DEFAULT_ARGS = ['--enable-automation'] as const
 
-/** 与 ignoreDefaultArgs 配合，进一步压低 Chromium 自动化特征 */
 export const CHROMIUM_STEALTH_LAUNCH_ARGS = [
   '--disable-blink-features=AutomationControlled',
   '--no-first-run',
   '--no-default-browser-check'
 ] as const
 
-export function queryRandomHeadedViewport(): { width: number; height: number } {
-  const list = HEADED_VIEWPORTS
-  return list[Math.floor(Math.random() * list.length)]
+/** 相对工作区宽或高低于该比例，视为异常小窗口（需启动前校正） */
+export const HEADED_WINDOW_TOO_SMALL_RATIO = 0.6
+
+/** @deprecated 有头模式不使用强制 viewport 列表 */
+export const HEADED_VIEWPORTS = [] as const
+
+export type HeadedWindowPlacement = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+  maximized: boolean
+  work_area_left: number
+  work_area_top: number
+  work_area_right: number
+  work_area_bottom: number
+}
+
+export type HeadedWorkArea = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** 判断 profile 里的窗口外框是否异常偏小 */
+export function queryIsHeadedWindowPlacementTooSmall(
+  placement: Pick<HeadedWindowPlacement, 'left' | 'top' | 'right' | 'bottom'>,
+  workArea: HeadedWorkArea
+): boolean {
+  const width = Math.max(0, placement.right - placement.left)
+  const height = Math.max(0, placement.bottom - placement.top)
+  if (workArea.width <= 0 || workArea.height <= 0) return false
+  return (
+    width < workArea.width * HEADED_WINDOW_TOO_SMALL_RATIO ||
+    height < workArea.height * HEADED_WINDOW_TOO_SMALL_RATIO
+  )
+}
+
+/** 生成贴合工作区的正常 window_placement（不进 macOS 系统全屏） */
+export function queryNormalHeadedWindowPlacement(workArea: HeadedWorkArea): HeadedWindowPlacement {
+  const left = workArea.x
+  const top = workArea.y
+  const right = workArea.x + workArea.width
+  const bottom = workArea.y + workArea.height
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    maximized: false,
+    work_area_left: left,
+    work_area_top: top,
+    work_area_right: right,
+    work_area_bottom: bottom
+  }
+}
+
+/**
+ * 启动前：若 Default/Preferences 中 window_placement 异常偏小，则改写为工作区大小。
+ * @returns 是否发生了校正
+ */
+export function postResetHeadedWindowPlacementIfTooSmall(
+  profileDir: string,
+  workArea: HeadedWorkArea
+): boolean {
+  const prefsPath = join(profileDir, 'Default', 'Preferences')
+  if (!existsSync(prefsPath)) return false
+
+  let data: Record<string, unknown>
+  try {
+    data = JSON.parse(readFileSync(prefsPath, 'utf8')) as Record<string, unknown>
+  } catch {
+    return false
+  }
+
+  const browser = (data.browser ?? {}) as Record<string, unknown>
+  const placement = browser.window_placement as HeadedWindowPlacement | undefined
+  if (
+    placement &&
+    typeof placement.left === 'number' &&
+    typeof placement.top === 'number' &&
+    typeof placement.right === 'number' &&
+    typeof placement.bottom === 'number' &&
+    !queryIsHeadedWindowPlacementTooSmall(placement, workArea)
+  ) {
+    return false
+  }
+
+  browser.window_placement = queryNormalHeadedWindowPlacement(workArea)
+  data.browser = browser
+  writeFileSync(prefsPath, JSON.stringify(data))
+  return true
+}
+
+/** @deprecated 运行期禁止改窗 */
+export function queryHeadedWindowLaunchArgs(_workArea?: {
+  width: number
+  height: number
+}): string[] {
+  return []
+}
+
+/** @deprecated 有头模式禁止强制 viewport */
+export function queryHeadedViewport(_workArea?: {
+  width: number
+  height: number
+}): { width: number; height: number } | null {
+  return null
+}
+
+/** @deprecated 同 queryHeadedViewport */
+export function queryRandomHeadedViewport(_workArea?: {
+  width: number
+  height: number
+}): { width: number; height: number } | null {
+  return null
 }
 
 /**

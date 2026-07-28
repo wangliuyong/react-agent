@@ -3,14 +3,19 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
-  DOUYIN_PUBLISH_MIN_ZOOM,
   DOUYIN_TITLE_MAX_LENGTH,
-  queryDouyinPublishZoomSteps,
   queryDouyinTextLooksFilled,
+  queryIsDouyinCreatorHomeUrl,
   queryIsDouyinPublishUrl,
   queryNormalizeDouyinDraftText,
+  queryParseDouyinAddedImageCount,
   queryVerifyDouyinFilledDraft
 } from '../electron/main/browser/douyin-dom'
+import {
+  queryIsDouyinSafeImagePath,
+  queryNeedsDouyinImageConvert
+} from '../electron/main/browser/douyin-image-prepare'
+import { queryMimeTypeFromFilePath } from '../electron/main/browser/human-input'
 
 describe('queryNormalizeDouyinDraftText', () => {
   it('折叠空白并去掉零宽字符', () => {
@@ -91,17 +96,6 @@ describe('queryVerifyDouyinFilledDraft', () => {
   })
 })
 
-describe('queryDouyinPublishZoomSteps', () => {
-  it('默认从 90% 降到 50%', () => {
-    expect(queryDouyinPublishZoomSteps()).toEqual([0.9, 0.8, 0.7, 0.6, 0.5])
-    expect(DOUYIN_PUBLISH_MIN_ZOOM).toBe(0.5)
-  })
-
-  it('自定义下限时截断阶梯', () => {
-    expect(queryDouyinPublishZoomSteps(0.7)).toEqual([0.9, 0.8, 0.7])
-  })
-})
-
 describe('DOUYIN_TITLE_MAX_LENGTH', () => {
   it('标题硬上限为 20 字', () => {
     expect(DOUYIN_TITLE_MAX_LENGTH).toBe(20)
@@ -118,5 +112,64 @@ describe('queryIsDouyinPublishUrl', () => {
     ).toBe(true)
     expect(queryIsDouyinPublishUrl('https://creator.douyin.com/creator-micro/home')).toBe(false)
     expect(queryIsDouyinPublishUrl('https://creator.douyin.com/')).toBe(false)
+  })
+})
+
+describe('queryIsDouyinCreatorHomeUrl', () => {
+  it('识别创作者首页落点', () => {
+    expect(queryIsDouyinCreatorHomeUrl('https://creator.douyin.com/creator-micro/home')).toBe(true)
+    expect(queryIsDouyinCreatorHomeUrl('https://creator.douyin.com/creator-micro')).toBe(true)
+    expect(
+      queryIsDouyinCreatorHomeUrl('https://creator.douyin.com/creator-micro/content/upload')
+    ).toBe(false)
+  })
+})
+
+describe('douyin image prepare', () => {
+  it('仅 jpg/jpeg 可直传；png/webp/gif 等需转 JPEG（避免创作者中心拒收）', () => {
+    expect(queryIsDouyinSafeImagePath('/tmp/a.jpg')).toBe(true)
+    expect(queryIsDouyinSafeImagePath('/tmp/a.JPEG')).toBe(true)
+    expect(queryIsDouyinSafeImagePath('/tmp/a.PNG')).toBe(false)
+    expect(queryIsDouyinSafeImagePath('/tmp/a.webp')).toBe(false)
+    expect(queryIsDouyinSafeImagePath('/tmp/a.gif')).toBe(false)
+    expect(queryNeedsDouyinImageConvert('/tmp/a.gif')).toBe(true)
+    expect(queryNeedsDouyinImageConvert('/tmp/a.webp')).toBe(true)
+    expect(queryNeedsDouyinImageConvert('/tmp/a.png')).toBe(true)
+    expect(queryNeedsDouyinImageConvert('/tmp/a.jpeg')).toBe(false)
+  })
+})
+
+describe('queryMimeTypeFromFilePath', () => {
+  it('按扩展名推断拖放 MIME', () => {
+    expect(queryMimeTypeFromFilePath('/tmp/a.jpg')).toBe('image/jpeg')
+    expect(queryMimeTypeFromFilePath('/tmp/a.PNG')).toBe('image/png')
+    expect(queryMimeTypeFromFilePath('/tmp/a.webp')).toBe('image/webp')
+    expect(queryMimeTypeFromFilePath('/tmp/a.bin')).toBe('application/octet-stream')
+  })
+})
+
+describe('queryParseDouyinAddedImageCount', () => {
+  it('从「已添加N张图片」文案解析数量', () => {
+    expect(queryParseDouyinAddedImageCount('已添加1张图片')).toBe(1)
+    expect(queryParseDouyinAddedImageCount('已添加 3 张图片')).toBe(3)
+    expect(queryParseDouyinAddedImageCount('其它文案 已添加12张 结尾')).toBe(12)
+    expect(queryParseDouyinAddedImageCount('没有配图')).toBe(0)
+  })
+})
+
+describe('headed window placement', () => {
+  it('识别异常小窗口并生成贴合工作区的 placement', async () => {
+    const { queryIsHeadedWindowPlacementTooSmall, queryNormalHeadedWindowPlacement } =
+      await import('../electron/main/browser/browser-stealth')
+    const workArea = { x: 0, y: 25, width: 1440, height: 875 }
+    expect(
+      queryIsHeadedWindowPlacementTooSmall(
+        { left: 475, top: 53, right: 975, bottom: 428 },
+        workArea
+      )
+    ).toBe(true)
+    const normal = queryNormalHeadedWindowPlacement(workArea)
+    expect(normal.right - normal.left).toBe(1440)
+    expect(queryIsHeadedWindowPlacementTooSmall(normal, workArea)).toBe(false)
   })
 })

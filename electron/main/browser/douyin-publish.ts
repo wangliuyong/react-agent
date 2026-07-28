@@ -1,6 +1,9 @@
 import type { Page } from 'playwright'
+import { join } from 'path'
 import { getBrowserService } from './service'
+import { getArtifactsDir } from '../store/paths'
 import { humanTypeBySelectors, humanTypeInto } from './human-input'
+import { postPrepareDouyinPublishImages } from './douyin-image-prepare'
 import {
   DOUYIN_PUBLISH_URL,
   DOUYIN_TITLE_MAX_LENGTH,
@@ -8,6 +11,7 @@ import {
   clickDouyinImageTab,
   clickDouyinPublishButton,
   ensureDouyinPublishPage,
+  lockDouyinPublishStay,
   queryIsDouyinPublishUrl,
   removeDouyinOverlay,
   scrollDouyinPublishFooterIntoView,
@@ -118,8 +122,20 @@ export async function publishDouyinNote(params: PublishDouyinParams): Promise<st
     )
   }
 
+  // 创作者中心常拒收 webp/gif（页面虽写支持 webp）；上传前统一转成 JPEG
+  const preparedPaths = postPrepareDouyinPublishImages(
+    imagePaths,
+    join(getArtifactsDir(), 'douyin-prepared')
+  )
+  if (!preparedPaths.length) {
+    return (
+      '配图无法转为可上传的 JPEG（抖音图文实际仅稳妥支持 jpg/jpeg）。' +
+      '请改用 jpg，或重新 fetch_web_images 后重试。'
+    )
+  }
+
   try {
-    await uploadDouyinImages(page, imagePaths)
+    await uploadDouyinImages(page, preparedPaths)
   } catch (e) {
     const previewCount = await queryDouyinImagePreviewCount(page)
     if (previewCount > 0) {
@@ -210,104 +226,111 @@ export async function publishDouyinNote(params: PublishDouyinParams): Promise<st
     { id: '4', title: '填写文案并发布', status: 'running' }
   ])
 
-  // —— 填完后拟人通读 + 回读校验；不一致则重填一次 ——
-  let verify = await queryVerifyDouyinFilledContent(page, {
-    expectedTitle: titleText,
-    expectedContent: content,
-    titleFilledSeparately: fillMeta.titleFilledSeparately
-  })
-  if (!verify.ok) {
-    console.warn('[douyin-publish] 首次填写校验未通过，尝试重填:', verify.issues.join('；'))
-    fillMeta = await fillDouyinCopy()
-    if (fillMeta.located) {
-      verify = await queryVerifyDouyinFilledContent(page, {
-        expectedTitle: titleText,
-        expectedContent: content,
-        titleFilledSeparately: fillMeta.titleFilledSeparately
-      })
+  // 填完即锁定：禁止误触「首页」/侧栏把编辑页带走
+  const unlockStay = await lockDouyinPublishStay(page)
+  try {
+    // —— 填完后拟人通读 + 回读校验；不一致则重填一次 ——
+    let verify = await queryVerifyDouyinFilledContent(page, {
+      expectedTitle: titleText,
+      expectedContent: content,
+      titleFilledSeparately: fillMeta.titleFilledSeparately
+    })
+    if (!verify.ok) {
+      console.warn('[douyin-publish] 首次填写校验未通过，尝试重填:', verify.issues.join('；'))
+      fillMeta = await fillDouyinCopy()
+      if (fillMeta.located) {
+        verify = await queryVerifyDouyinFilledContent(page, {
+          expectedTitle: titleText,
+          expectedContent: content,
+          titleFilledSeparately: fillMeta.titleFilledSeparately
+        })
+      }
     }
-  }
 
-  if (!verify.ok) {
-    await scrollDouyinPublishFooterIntoView(page)
-    return (
-      `配图已上传，但填写内容校验未通过（${verify.issues.join('；')}）。` +
-      `期望标题: ${titleText}\n期望正文: ${content}\n` +
-      `页面回读标题: ${verify.title || '（空）'}\n页面回读正文: ${verify.content || '（空）'}\n` +
-      `请用 browser_snapshot 检查后手动修正，再点「发布」。`
-    )
-  }
+    if (!verify.ok) {
+      await scrollDouyinPublishFooterIntoView(page)
+      return (
+        `配图已上传，但填写内容校验未通过（${verify.issues.join('；')}）。` +
+        `期望标题: ${titleText}\n期望正文: ${content}\n` +
+        `页面回读标题: ${verify.title || '（空）'}\n页面回读正文: ${verify.content || '（空）'}\n` +
+        `请用 browser_snapshot 检查后手动修正，再点「发布」。`
+      )
+    }
 
-  assertNotAborted(signal)
+    assertNotAborted(signal)
 
-  // 校验通过后若误触导航到首页，无法继续发布：立即拦截并提示
-  if (!queryIsDouyinPublishUrl(page.url())) {
-    return (
-      `文案已填写，但页面已离开抖音发布页（当前: ${page.url()}），未继续点击发布。` +
-      `请重新打开创作者上传页后重试，或用 browser_snapshot 检查。`
-    )
-  }
+    // 校验通过后若仍离页，中止（锁定层会尽量拦回首页，此处兜底）
+    if (!queryIsDouyinPublishUrl(page.url())) {
+      return (
+        `文案已填写，但页面已离开抖音发布页（当前: ${page.url()}），未继续点击发布。` +
+        `请重新打开创作者上传页后重试，或用 browser_snapshot 检查。`
+      )
+    }
 
-  if (!autoPublish) {
-    // 校验通过后滚到发布栏，供用户目视确认后手动发布
-    await scrollDouyinPublishFooterIntoView(page)
-    await dwellBeforeDouyinPublish(page)
+    if (!autoPublish) {
+      // 校验通过后滚到发布栏，供用户目视确认后手动发布
+      await scrollDouyinPublishFooterIntoView(page)
+      await dwellBeforeDouyinPublish(page)
+      setTasks([
+        { id: '1', title: '打开抖音创作者中心', status: 'done' },
+        { id: '2', title: '确认登录状态', status: 'done' },
+        { id: '3', title: '切换图文并上传配图', status: 'done' },
+        { id: '4', title: '填写文案并发布', status: 'pending' }
+      ])
+      return (
+        `已上传配图 ${preparedPaths.length} 张并填写文案，内容校验通过，停在待发布状态（autoPublish=false）。` +
+        `页面已拟人滚到发布按钮并停留确认；用户可在浏览器中检查后手动点「发布」。`
+      )
+    }
+
+    if (!fullAccess) {
+      // 校验通过后先滚到发布按钮，等人确认再真正点击
+      await scrollDouyinPublishFooterIntoView(page)
+      if (!(await ensureDouyinPublishPage(page))) {
+        return '内容已填好，但页面已离开发布页，无法等待确认发布。请重新打开上传页后重试。'
+      }
+      await emitAwaitUser(
+        '内容已填好且校验通过，页面已滚到发布按钮。确认无误后点击「继续」，将触发抖音「发布」操作。'
+      )
+      assertNotAborted(signal)
+    }
+
+    if (!(await ensureDouyinPublishPage(page))) {
+      return '内容已填好，但页面已离开发布页，无法自动点击发布。请重新打开上传页后重试。'
+    }
+
+    // 只 CSS 清遮罩，绝不 Esc / 盲点（Esc 会退出编辑态回首页）
+    await removeDouyinOverlay(page)
+
+    // 内部：再次下滚直到发布按钮 → 底栏拟人停留 → 点击发布
+    let published = await clickDouyinPublishButton(page)
+    if (published) {
+      await clickDouyinConfirmDialog(page)
+    }
+
+    if (!published) {
+      return (
+        '未能自动触发「发布」按钮（页面可能改版）。' +
+        '内容应已填好，请在右侧浏览器手动点击「发布」。'
+      )
+    }
+
+    await page.waitForTimeout(3000)
+
+    // 发布已触发：关闭有头浏览器，避免窗口长期占用与 profile 锁残留
+    await browser.closeHeaded()
+
     setTasks([
       { id: '1', title: '打开抖音创作者中心', status: 'done' },
       { id: '2', title: '确认登录状态', status: 'done' },
       { id: '3', title: '切换图文并上传配图', status: 'done' },
-      { id: '4', title: '填写文案并发布', status: 'pending' }
+      { id: '4', title: '填写文案并发布', status: 'done' }
     ])
-    return (
-      `已上传配图 ${imagePaths.length} 张并填写文案，内容校验通过，停在待发布状态（autoPublish=false）。` +
-      `页面已拟人滚到发布按钮并停留确认；用户可在浏览器中检查后手动点「发布」。`
-    )
+
+    return `已触发抖音发布流程。标题「${title}」。智能体浏览器已自动关闭。【执行完毕】`
+  } finally {
+    await unlockStay().catch(() => undefined)
   }
-
-  if (!fullAccess) {
-    // 校验通过后先滚到发布按钮，等人确认再真正点击
-    await scrollDouyinPublishFooterIntoView(page)
-    if (!(await ensureDouyinPublishPage(page))) {
-      return '内容已填好，但页面已离开发布页，无法等待确认发布。请重新打开上传页后重试。'
-    }
-    await emitAwaitUser(
-      '内容已填好且校验通过，页面已滚到发布按钮。确认无误后点击「继续」，将触发抖音「发布」操作。'
-    )
-    assertNotAborted(signal)
-  }
-
-  if (!(await ensureDouyinPublishPage(page))) {
-    return '内容已填好，但页面已离开发布页，无法自动点击发布。请重新打开上传页后重试。'
-  }
-
-  await removeDouyinOverlay(page)
-
-  // 内部：再次下滚直到发布按钮 → 底栏拟人停留 → 点击发布
-  let published = await clickDouyinPublishButton(page)
-  if (published) {
-    await clickDouyinConfirmDialog(page)
-  }
-
-  if (!published) {
-    return (
-      '未能自动触发「发布」按钮（页面可能改版）。' +
-      '内容应已填好，请在右侧浏览器手动点击「发布」。'
-    )
-  }
-
-  await page.waitForTimeout(3000)
-
-  // 发布已触发：关闭有头浏览器，避免窗口长期占用与 profile 锁残留
-  await browser.closeHeaded()
-
-  setTasks([
-    { id: '1', title: '打开抖音创作者中心', status: 'done' },
-    { id: '2', title: '确认登录状态', status: 'done' },
-    { id: '3', title: '切换图文并上传配图', status: 'done' },
-    { id: '4', title: '填写文案并发布', status: 'done' }
-  ])
-
-  return `已触发抖音发布流程。标题「${title}」。智能体浏览器已自动关闭。【执行完毕】`
 }
 
 async function detectNeedLogin(page: Page): Promise<boolean> {

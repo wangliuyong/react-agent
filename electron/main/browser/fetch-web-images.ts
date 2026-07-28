@@ -1,10 +1,14 @@
-import { createWriteStream, existsSync, mkdirSync, writeFileSync } from 'fs'
-import { join, extname } from 'path'
+import { createWriteStream, existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs'
+import { join, extname, basename, dirname } from 'path'
 import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
+import { nativeImage } from 'electron'
 import { getArtifactsDir } from '../store/paths'
 import { getBrowserService } from './service'
 import { HttpError, queryHttp } from '../net/http-client'
+
+/** 发布配图允许保留的扩展名（抖音等渠道要求） */
+export const FETCH_SAFE_IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp'])
 
 export interface FetchWebImagesOptions {
   /** 内容来源页：打开后从页面提取大图 */
@@ -22,6 +26,48 @@ export interface FetchWebImagesResult {
   paths: string[]
   sources: string[]
   message: string
+}
+
+/**
+ * 判断扩展名/路径是否已是 jpg/jpeg/png/webp（抓取后可直接用于抖音等发布）。
+ */
+export function queryIsFetchSafeImageExt(extOrPath: string): boolean {
+  const ext = (extOrPath.startsWith('.') ? extOrPath : extname(extOrPath)).toLowerCase()
+  return FETCH_SAFE_IMAGE_EXTS.has(ext)
+}
+
+/**
+ * 若本地文件不是 jpg/jpeg/png/webp，用 nativeImage 转为 JPEG 并删除原文件。
+ * gif/bmp/avif 等会落到同目录的 `.jpg`。
+ */
+export function postNormalizeFetchedImageToSafeFormat(filePath: string): string | null {
+  if (!filePath || !existsSync(filePath)) return null
+  if (queryIsFetchSafeImageExt(filePath)) return filePath
+
+  const dir = dirname(filePath)
+  const base = basename(filePath, extname(filePath)) || 'image'
+  const outPath = join(dir, `${base}.jpg`)
+
+  try {
+    const img = nativeImage.createFromPath(filePath)
+    if (img.isEmpty()) {
+      console.warn('[fetchWebImages] 无法解码非安全格式图片:', filePath)
+      return null
+    }
+    writeFileSync(outPath, img.toJPEG(90))
+    if (outPath !== filePath) {
+      try {
+        unlinkSync(filePath)
+      } catch {
+        // 原文件删除失败不影响已转换结果
+      }
+    }
+    console.info('[fetchWebImages] normalized', filePath, '→', outPath)
+    return outPath
+  } catch (err) {
+    console.warn('[fetchWebImages] normalize failed:', filePath, err)
+    return null
+  }
 }
 
 /**
@@ -93,7 +139,13 @@ export async function fetchWebImages(opts: FetchWebImagesOptions): Promise<Fetch
   return {
     paths,
     sources,
-    message: `已从网页保存 ${paths.length} 张配图到本地：\n${paths.map((p, i) => `${i + 1}. ${p}\n   ← ${sources[i]}`).join('\n')}`
+    message: `已从网页保存 ${paths.length} 张配图到本地：\n${paths
+      .map((p, i) => {
+        const name = p.replace(/\\/g, '/').split('/').pop() || `image-${i + 1}`
+        // Markdown 图片语法：聊天内联预览更稳，避免仅裸路径时漏提取
+        return `${i + 1}. ![${name}](${p})\n   ← ${sources[i]}`
+      })
+      .join('\n')}`
   }
 }
 
@@ -308,7 +360,7 @@ async function downloadImageOnce(
   )
 
   if (!existsSync(filePath)) return null
-  return filePath
+  return postNormalizeFetchedImageToSafeFormat(filePath)
 }
 
 /**
@@ -343,7 +395,7 @@ async function downloadImageViaBrowserRequest(
   const filePath = join(outDir, `image-${index + 1}${ext}`)
   writeFileSync(filePath, await response.body())
   if (!existsSync(filePath)) return null
-  return filePath
+  return postNormalizeFetchedImageToSafeFormat(filePath)
 }
 
 function guessExt(url: string, contentType: string): string {

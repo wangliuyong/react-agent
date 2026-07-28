@@ -818,6 +818,8 @@ async function executeLeafNode(
   const stepPrompt = interpolatePromptSoft(
     [
       `【工作流步骤】${node.title}`,
+      // 自动流程：连续执行，禁止方案选择暂停；画布「等待确认」节点仍会暂停
+      '【自动执行】请自行决策并按顺序连续完成，禁止调用 present_plan_choices 等待用户确认。',
       node.prompt
     ]
       .filter(Boolean)

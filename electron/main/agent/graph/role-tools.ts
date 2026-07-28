@@ -28,6 +28,7 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
     'query_ashare_kline',
     'query_ashare_realtime_analysis',
     'query_weather',
+    'web_search',
     'query_web_data',
     'fetch_web_images',
     'list_attachments',
@@ -72,6 +73,7 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
     'present_plan_choices',
     // 视频选题常需热点榜 + 打开报道页读详情（与 researcher 调研能力对齐）
     'fetch_hot_topics',
+    'web_search',
     'query_web_data',
     'fetch_web_images',
     'browser_navigate',

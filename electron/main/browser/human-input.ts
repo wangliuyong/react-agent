@@ -1,6 +1,23 @@
+import { readFileSync } from 'fs'
+import { basename, extname } from 'path'
 import type { Locator, Page } from 'playwright'
 import { humanBezierMoveTo, humanGaussianPause, rand, sleep } from './human-behavior'
 import { queryHumanTypeDelayMs } from './xhs-content-rewrite'
+
+/** 按扩展名推断拖放用的 MIME（创作者中心会校验 type） */
+export function queryMimeTypeFromFilePath(filePath: string): string {
+  const ext = extname(filePath).toLowerCase()
+  const map: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp',
+    '.avif': 'image/avif'
+  }
+  return map[ext] ?? 'application/octet-stream'
+}
 
 /**
  * 拟人鼠标/键盘：贝塞尔移动轨迹 + 真实 click/type，避免 locator.fill / 瞬时 click。
@@ -136,8 +153,64 @@ export async function humanTypeBySelectors(
 }
 
 /**
- * 上传：先鼠标点「上传」相关按钮，再对隐藏 file input 设文件。
- * OS 文件选择框无法真实模拟，setInputFiles 是必要兜底。
+ * 将本地文件以「拖入」方式放到目标区域（模拟 OS 拖文件进浏览器）。
+ * 派发 dragenter → dragover → drop，DataTransfer 携带真实 File。
+ * 用于抖音创作者中心等明确提示「将图片拖入此区域」的上传区。
+ */
+export async function humanDropLocalFiles(
+  page: Page,
+  dropTarget: Locator,
+  paths: string[]
+): Promise<void> {
+  if (!paths.length) return
+
+  await dropTarget.waitFor({ state: 'visible', timeout: 12_000 })
+  await dropTarget.scrollIntoViewIfNeeded().catch(() => undefined)
+
+  const box = await dropTarget.boundingBox()
+  if (box) {
+    // 鼠标先移入投放区，更接近真人拖放
+    await humanMoveTo(page, {
+      x: box.x + box.width * rand(0.4, 0.6),
+      y: box.y + box.height * rand(0.4, 0.6)
+    })
+    await sleep(rand(80, 180))
+  }
+
+  const payloads = paths.map((p) => ({
+    name: basename(p),
+    mimeType: queryMimeTypeFromFilePath(p),
+    // base64 避免大图用 number[] 序列化占内存
+    b64: readFileSync(p).toString('base64')
+  }))
+
+  await dropTarget.evaluate((el, files) => {
+    const dt = new DataTransfer()
+    for (const f of files) {
+      const binary = atob(f.b64)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+      dt.items.add(new File([bytes], f.name, { type: f.mimeType }))
+    }
+    // dragover 需可取消，部分上传组件在 dragover 里 preventDefault 后才接受 drop
+    for (const type of ['dragenter', 'dragover', 'drop'] as const) {
+      el.dispatchEvent(
+        new DragEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: dt
+        })
+      )
+    }
+  }, payloads)
+
+  await sleep(rand(900, 1600))
+}
+
+/**
+ * 上传本地文件。
+ * 优先直接对隐藏 file input 调 setInputFiles（不弹 OS 框）。
+ * 若 input 尚未挂载、必须点击触发：用 filechooser 接管，禁止裸点「上传」导致原生对话框卡住。
  */
 export async function humanUploadFiles(
   page: Page,
@@ -145,14 +218,39 @@ export async function humanUploadFiles(
   opts?: { fileInputSelector?: string; triggerTexts?: string[] }
 ): Promise<void> {
   const triggers = opts?.triggerTexts ?? ['上传图文', '上传图片', '上传', '添加图片', '从本地上传']
-  await humanClickText(page, triggers).catch(() => false)
-  await sleep(rand(300, 700))
-
   const input = opts?.fileInputSelector
     ? page.locator(opts.fileInputSelector).first()
     : page.locator('input[type=file]').first()
 
-  await input.waitFor({ state: 'attached', timeout: 10_000 })
-  await input.setInputFiles(paths)
+  const attached = await input.waitFor({ state: 'attached', timeout: 3_000 }).then(
+    () => true,
+    () => false
+  )
+  if (attached) {
+    await input.setInputFiles(paths)
+    await sleep(rand(800, 1500))
+    return
+  }
+
+  let trigger = null as ReturnType<Page['getByText']> | null
+  for (const text of triggers) {
+    const loc = page.getByText(text, { exact: false }).first()
+    if (await loc.isVisible({ timeout: 1200 }).catch(() => false)) {
+      trigger = loc
+      break
+    }
+  }
+  if (!trigger) {
+    // 最后再等一次 input（部分站点延迟挂载）
+    await input.waitFor({ state: 'attached', timeout: 10_000 })
+    await input.setInputFiles(paths)
+    await sleep(rand(800, 1500))
+    return
+  }
+
+  const chooserPromise = page.waitForEvent('filechooser', { timeout: 12_000 })
+  await humanClickLocator(page, trigger)
+  const chooser = await chooserPromise
+  await chooser.setFiles(paths)
   await sleep(rand(800, 1500))
 }

@@ -13,6 +13,7 @@ import { fetchHotTopicsTool } from './hot-topics'
 import { queryAshareKlineTool, queryAshareRealtimeAnalysisTool } from './stock-tools'
 import { queryWeatherTool } from './weather-tools'
 import { queryWebDataTool } from './web-data-tools'
+import { webSearchTool } from './web-search-tools'
 import {
   generateScriptTool,
   generateStoryboardTool,
@@ -54,6 +55,7 @@ function queryBuildAllTools(): AgentTool[] {
     queryAshareKlineTool,
     queryAshareRealtimeAnalysisTool,
     queryWeatherTool,
+    webSearchTool,
     queryWebDataTool,
     generateScriptTool,
     generateStoryboardTool,

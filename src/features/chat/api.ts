@@ -74,6 +74,11 @@ export async function queryLocalMediaUrl(filePath: string): Promise<string | nul
   return window.api.queryLocalMediaUrl(filePath)
 }
 
+/** 读取本地文本类产物预览（md/json/txt 等） */
+export async function queryAgentAssetTextPreview(filePath: string): Promise<string | null> {
+  return window.api.queryAgentAssetTextPreview(filePath)
+}
+
 /** 校验本地路径是否存在（产物列表展示前过滤） */
 export async function queryLocalPathExists(filePath: string): Promise<boolean> {
   return window.api.queryLocalPathExists(filePath)

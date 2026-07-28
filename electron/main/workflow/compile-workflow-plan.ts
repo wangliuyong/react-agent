@@ -42,7 +42,8 @@ function remapNode(node: WorkflowNode, prefix: string): WorkflowNode {
 
 /**
  * 将流程任务的多个子流程按序拼接为可执行组合工作流（id = 计划 id）。
- * 子流程之间插入 await_user，避免一口气跑完无确认。
+ * 子流程按选择顺序串行执行；不自动插入确认门。
+ * 仅当子流程自身包含「等待确认」节点时才会暂停。
  */
 export function compileWorkflowPlanToDefinition(plan: PublishPlan): WorkflowDefinition {
   const ids = normalizePublishPlanWorkflowIds(plan)
@@ -55,15 +56,6 @@ export function compileWorkflowPlanToDefinition(plan: PublishPlan): WorkflowDefi
     if (!child?.nodes.length) continue
 
     const prefix = `sub${i}_${wid}`
-    // 子流程之间暂停确认，避免一口气串行跑完
-    if (nodes.length > 0) {
-      nodes.push({
-        id: `${prefix}__gate`,
-        type: 'await_user',
-        title: `进入下一子流程：${child.title}`,
-        reason: `上一段子流程已结束。确认后继续执行「${child.title}」（${child.nodes.length} 步）。`
-      })
-    }
     for (const n of child.nodes) {
       nodes.push(remapNode(n, prefix))
     }

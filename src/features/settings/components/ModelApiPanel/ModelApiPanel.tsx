@@ -439,7 +439,7 @@ export function ModelApiPanel(): React.ReactElement {
             <div className={styles.runtimeContent}>
               <span className={styles.runtimeTitle}>完全访问</span>
               <Text type="secondary" className={styles.runtimeDesc}>
-                允许更广泛的本机操作，仅在你信任当前任务时开启
+                跳过敏感确认与方案选择；自动发布/流程连续执行（确认节点、扫码、渲染除外）
               </Text>
             </div>
             <div className={styles.runtimeControl}>

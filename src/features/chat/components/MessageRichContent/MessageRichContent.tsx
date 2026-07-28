@@ -1,4 +1,3 @@
-import type { ChatMessage } from '@shared/types'
 import { LazyChatMarkdown } from '../LazyChatMarkdown'
 import { MessageImageGallery } from '../MessageImageGallery'
 import { MessageAudioPlayer } from '../MessageAudioPlayer'
@@ -23,6 +22,11 @@ import styles from './MessageRichContent.module.css'
 interface MessageRichContentProps {
   content: string
   attachmentPaths?: string[]
+  /**
+   * 会话内先前出现的本地图路径：仅用于「配图预览」表按「图N」预判填入，
+   * 不强制进入底部画廊（避免把整段历史配图都摊开）。
+   */
+  previewContextPaths?: string[]
   streaming?: boolean
   markdownClassName?: string
   showDoneAlert?: boolean
@@ -36,6 +40,7 @@ interface MessageRichContentProps {
 export function MessageRichContent({
   content,
   attachmentPaths,
+  previewContextPaths,
   streaming = false,
   markdownClassName,
   showDoneAlert = true,
@@ -46,7 +51,22 @@ export function MessageRichContent({
   const htmlItems = extractMessageHtml(content)
   const stockCharts = showStockCharts ? extractStockCharts(content) : []
   const stockLiveRefresh = showStockCharts ? queryStockLiveRefresh(content) : false
-  const displayText = queryDisplayContentWithCharts(content, images)
+
+  // 上下文路径并入嵌入 refs，供「图N」表格预判；画廊仍只用正文/附件图
+  const contextRefs: MessageImageRef[] = []
+  const seen = new Set(images.map((i) => i.src))
+  for (const p of previewContextPaths ?? []) {
+    if (!p || seen.has(p)) continue
+    seen.add(p)
+    contextRefs.push({
+      key: p,
+      kind: 'local',
+      src: p,
+      label: p.replace(/\\/g, '/').split('/').pop() || p
+    })
+  }
+  const embedRefs = contextRefs.length ? [...images, ...contextRefs] : images
+  const displayText = queryDisplayContentWithCharts(content, embedRefs)
   // 已在 Markdown 内联的图不再进底部画廊，避免与表格预览重复
   const inlinedSrcs = queryInlinedImageSrcs(displayText)
   const galleryImages = images.filter((img) => !inlinedSrcs.has(img.src))
