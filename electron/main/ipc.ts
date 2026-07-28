@@ -86,6 +86,7 @@ import {
   postClearAgentAssets,
   queryAgentAssetTextPreview
 } from './store/assets'
+import { queryRemotionExports, postEnqueueRemotionExport, postUpdateRemotionExport } from './media/remotion-service'
 import {
   queryWorkflows,
   queryWorkflow,
@@ -360,6 +361,13 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.postClearAgentAssets, () => postClearAgentAssets())
   ipcMain.handle(IpcChannels.queryAgentAssetTextPreview, (_e, filePath: string) =>
     queryAgentAssetTextPreview(filePath)
+  )
+  ipcMain.handle(IpcChannels.queryRemotionExports, () => queryRemotionExports())
+  ipcMain.handle(IpcChannels.postEnqueueRemotionExport, (_e, input) =>
+    postEnqueueRemotionExport(input)
+  )
+  ipcMain.handle(IpcChannels.postUpdateRemotionExport, (_e, input) =>
+    postUpdateRemotionExport(input)
   )
 
   ipcMain.handle(IpcChannels.queryAgentRules, () => queryAgentRules())

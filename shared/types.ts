@@ -85,6 +85,12 @@ export const IpcChannels = {
   postClearAgentAssets: 'post:agent-assets:clear',
   /** 设置页：读取文本类资产预览 */
   queryAgentAssetTextPreview: 'query:agent-asset:text-preview',
+  /** Remotion 视频页：导出列表（进行中 / 成功 / 失败） */
+  queryRemotionExports: 'query:remotion-exports',
+  /** Remotion 视频页：导出任务入队 */
+  postEnqueueRemotionExport: 'post:remotion-export:enqueue',
+  /** Remotion 视频页：更新导出任务状态 */
+  postUpdateRemotionExport: 'post:remotion-export:update',
   // Agent 用户规则（持久指令，注入 SYSTEM_PROMPT）
   queryAgentRules: 'query:agent-rules',
   postAgentRule: 'post:agent-rule',
@@ -2529,6 +2535,16 @@ export interface ElectronApi {
   postClearAgentAssets: () => Promise<import('./agent-assets').AgentAssetMutationResult>
   /** 设置页：文本类资产内容预览 */
   queryAgentAssetTextPreview: (filePath: string) => Promise<string | null>
+  /** Remotion 视频页：导出列表 */
+  queryRemotionExports: () => Promise<import('./remotion-exports').RemotionExportRecord[]>
+  /** Remotion 视频页：导出任务入队（立刻出现在导出列表） */
+  postEnqueueRemotionExport: (
+    input: import('./remotion-exports').PostEnqueueRemotionExportInput
+  ) => Promise<import('./remotion-exports').RemotionExportRecord>
+  /** Remotion 视频页：回写导出任务状态 */
+  postUpdateRemotionExport: (
+    input: import('./remotion-exports').PostUpdateRemotionExportInput
+  ) => Promise<import('./remotion-exports').RemotionExportRecord | null>
   queryAgentRules: () => Promise<AgentRule[]>
   postAgentRule: (input: AgentRuleUpsertInput) => Promise<AgentRule>
   postDeleteAgentRule: (id: string) => Promise<void>

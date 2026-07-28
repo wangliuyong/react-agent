@@ -116,6 +116,11 @@ const api: ElectronApi = {
   postClearAgentAssets: () => ipcRenderer.invoke(IpcChannels.postClearAgentAssets),
   queryAgentAssetTextPreview: (filePath: string) =>
     ipcRenderer.invoke(IpcChannels.queryAgentAssetTextPreview, filePath),
+  queryRemotionExports: () => ipcRenderer.invoke(IpcChannels.queryRemotionExports),
+  postEnqueueRemotionExport: (input) =>
+    ipcRenderer.invoke(IpcChannels.postEnqueueRemotionExport, input),
+  postUpdateRemotionExport: (input) =>
+    ipcRenderer.invoke(IpcChannels.postUpdateRemotionExport, input),
 
   queryAgentRules: () => ipcRenderer.invoke(IpcChannels.queryAgentRules),
   postAgentRule: (input: AgentRuleUpsertInput) =>

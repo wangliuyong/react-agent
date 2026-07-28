@@ -15,6 +15,7 @@ import {
 } from '../../utils/query-remotion-video-list'
 import { queryRemotionTemplatePreview } from '../../templates/template-preview-registry'
 import { RemotionVideoTemplateDrawer } from '../RemotionVideoTemplateDrawer/RemotionVideoTemplateDrawer'
+import { RemotionExportListDrawer } from '../RemotionExportListDrawer/RemotionExportListDrawer'
 import {
   FeaturePageShell,
   FeaturePageHeader,
@@ -90,6 +91,7 @@ export function RemotionVideoPage(): React.ReactElement {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<RemotionVideoSort>('updated_desc')
   const [drawerProject, setDrawerProject] = useState<RemotionVideoProject | null>(null)
+  const [exportListOpen, setExportListOpen] = useState(false)
 
   const filtered = useMemo(() => {
     const byCategory = queryRemotionVideosByCategory(REMOTION_VIDEO_SEED_PROJECTS, category)
@@ -118,6 +120,9 @@ export function RemotionVideoPage(): React.ReactElement {
         description="基于 Remotion 的模板化成片与批量渲染；按业务分类管理合成项目"
         extra={
           <Space wrap>
+            <Button icon={<UnorderedListOutlined />} onClick={() => setExportListOpen(true)}>
+              导出列表
+            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
               新建合成
             </Button>
@@ -190,6 +195,7 @@ export function RemotionVideoPage(): React.ReactElement {
         project={drawerProject}
         onClose={() => setDrawerProject(null)}
       />
+      <RemotionExportListDrawer open={exportListOpen} onClose={() => setExportListOpen(false)} />
     </FeaturePageShell>
   )
 }

@@ -16,7 +16,7 @@ import {
   HOT_NEWS_DURATION_MIN_SEC
 } from '../../utils/query-hot-news-content-budget'
 import { queryMergedHotNewsProps } from '../../utils/query-merged-hot-news-props'
-import { postExportHotNewsVideo } from '../../utils/post-export-hot-news-video'
+import { postEnqueueHotNewsExport } from '../../utils/post-export-hot-news-video'
 import { RemotionTemplatePreviewModal } from '../RemotionTemplatePreviewModal/RemotionTemplatePreviewModal'
 import styles from './RemotionVideoTemplateDrawer.module.css'
 
@@ -141,17 +141,19 @@ export function RemotionVideoTemplateDrawer({
 
     setExporting(true)
     try {
-      const path = await postExportHotNewsVideo({
+      // 入队后立即返回；成片在后台渲染，结果见导出列表
+      await postEnqueueHotNewsExport({
         compositionId: playerConfig.compositionId,
         width: playerConfig.width,
         height: playerConfig.height,
         fps: playerConfig.fps,
         durationInFrames: playerConfig.durationInFrames,
-        props
+        props,
+        title: project.title
       })
-      message.success(`导出成功：${path}`)
+      message.success('已加入任务队列，请在导出列表查看导出结果')
     } catch (err) {
-      message.error(err instanceof Error ? err.message : '导出失败')
+      message.error(err instanceof Error ? err.message : '加入导出队列失败')
     } finally {
       setExporting(false)
     }
