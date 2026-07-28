@@ -357,7 +357,7 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
                   '2. 列出 Top 8 条科技/互联网相关热点（不足则列综合热点）',
                   '3. 每条：标题 + 一句话说明 + [查看](链接)（无链接可写热搜词条）',
                   '4. 文内注明来源平台（微博）',
-                  '5. 只输出 Markdown；禁止调用 notify_message（流程结束后系统自动 post 推送飞书）',
+                  '5. 只输出 Markdown；（流程结束后系统自动 post 推送飞书）',
                   '',
                   '{{hotTopics}}'
                 ].join('\n'),

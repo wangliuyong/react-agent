@@ -818,8 +818,7 @@ async function executeLeafNode(
   const stepPrompt = interpolatePromptSoft(
     [
       `【工作流步骤】${node.title}`,
-      node.prompt,
-      '完成本步骤目标后直接结束本轮，不要擅自执行后续流程步骤。'
+      node.prompt
     ]
       .filter(Boolean)
       .join('\n\n'),

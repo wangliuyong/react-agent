@@ -73,7 +73,7 @@ function buildScheduleCustomPrompt(userPrompt: string, hasAutoNotify: boolean): 
   ]
   if (hasAutoNotify) {
     lines.push(
-      '3. 任务结果将由系统自动转为飞书富文本推送，禁止调用 notify_message；',
+      '3. 任务结果将由系统自动转为飞书富文本推送',
       '4. 禁止对相同渠道重复发送通知。'
     )
   } else {
