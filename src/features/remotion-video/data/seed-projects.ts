@@ -30,7 +30,7 @@ export const REMOTION_VIDEO_SEED_PROJECTS: RemotionVideoProject[] = [
   {
     id: 'rv-news-hot',
     title: '热点新闻',
-    description: '片头闪屏、主标题导语、分条轮播与底部滚动字幕，内置 Remotion 模板',
+    description: '片头闪屏、主标题与分条同步轮播、底部滚动字幕，内置 Remotion 模板',
     category: 'news',
     status: 'ready',
     accent: '#e63946',

@@ -243,14 +243,14 @@ export function RemotionVideoTemplateDrawer({
             </div>
             <Form.Item
               label="内容要求 / 素材"
-              extra="可粘贴新闻要点、口播稿；留空则由 Agent 按所选来源自动选题。"
+              extra="可写「播 4 条、每条 5 秒」等节奏要求，或粘贴素材；Agent 会先拉热点标题再查详情生成播报文案。"
               className={styles.formFull}
             >
               <Input.TextArea
                 className={styles.promptArea}
                 value={userBrief}
                 onChange={(e) => setUserBrief(e.target.value)}
-                placeholder="描述想突出的热点角度，或粘贴素材文案"
+                placeholder="例如：科技向，播 4 条，每条约 5 秒，需要详细播报"
                 autoSize={{ minRows: 4, maxRows: 8 }}
               />
             </Form.Item>
@@ -266,7 +266,7 @@ export function RemotionVideoTemplateDrawer({
               loading={analyzing}
               onClick={() => void handleAnalyzeAndPreview()}
             >
-              生成并预览
+              {analyzing ? '拉取热点并查详情…' : '生成并预览'}
             </Button>
             <Button
               icon={<PlaySquareOutlined />}

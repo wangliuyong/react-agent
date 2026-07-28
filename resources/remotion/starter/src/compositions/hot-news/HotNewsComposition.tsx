@@ -7,9 +7,9 @@ import {
   useCurrentFrame,
   useVideoConfig
 } from 'remotion'
-import { useSlideUp } from '../../lib/animations'
 import { HotNewsBackground } from './HotNewsBackground'
 import { HotNewsTicker } from './HotNewsTicker'
+import { queryHotNewsCarouselSlot } from './query-hot-news-carousel'
 import type { HotNewsProps } from './types'
 
 const DISPLAY_FONT =
@@ -94,18 +94,55 @@ const HotNewsTopBar: React.FC<{
   )
 }
 
-/** 主标题区 */
+/**
+ * 主标题区：按 items 定时轮播，展示 title + detail（详细播报）。
+ * 节奏由 secondsPerItem / items[].seconds 决定，与中部条带共用同一索引。
+ */
 const HotNewsHero: React.FC<{
   headline: string
   summary: string
+  items: HotNewsProps['items']
   accentColor: string
   compact?: boolean
-}> = ({ headline, summary, accentColor, compact }) => {
+  mainDurationInFrames: number
+  secondsPerItem?: number
+}> = ({
+  headline,
+  summary,
+  items,
+  accentColor,
+  compact,
+  mainDurationInFrames,
+  secondsPerItem
+}) => {
   const frame = useCurrentFrame()
-  const titleAnim = useSlideUp(8, 36, compact ? 28 : 36)
-  const summaryOpacity = interpolate(frame, [28, 52], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp'
+  const { fps } = useVideoConfig()
+  const slides =
+    items.length > 0
+      ? items
+      : [{ tag: '热点', title: headline, detail: summary }]
+  const { index, localFrame } = queryHotNewsCarouselSlot({
+    frame,
+    fps,
+    mainDurationInFrames,
+    itemCount: slides.length,
+    secondsPerItem,
+    itemSeconds: slides.map((s) => s.seconds)
+  })
+  const current = slides[index] ?? slides[0]
+  const displayHeadline = current?.title || headline
+  /** 优先展示检索后的详情；缺省回退 summary / 标签提示 */
+  const displayDetail =
+    (current?.detail && current.detail.trim()) ||
+    (slides.length === 1 ? summary : '') ||
+    `${current?.tag || '热点'}｜正在播报`
+
+  const enter = spring({
+    frame: localFrame,
+    fps,
+    config: { damping: 16, stiffness: 140 },
+    from: 0,
+    to: 1
   })
 
   return (
@@ -124,8 +161,8 @@ const HotNewsHero: React.FC<{
           height: 4,
           background: accentColor,
           marginBottom: compact ? 16 : 28,
-          opacity: titleAnim.opacity,
-          transform: `scaleX(${titleAnim.opacity})`,
+          opacity: enter,
+          transform: `scaleX(${enter})`,
           transformOrigin: 'left center'
         }}
       />
@@ -133,57 +170,70 @@ const HotNewsHero: React.FC<{
         style={{
           margin: 0,
           fontFamily: DISPLAY_FONT,
-          fontSize: compact ? 52 : 76,
+          fontSize: compact ? 44 : 68,
           fontWeight: 700,
-          lineHeight: 1.12,
+          lineHeight: 1.15,
           color: '#fafafa',
-          opacity: titleAnim.opacity,
-          transform: `translateY(${titleAnim.translateY}px)`,
+          opacity: enter,
+          transform: `translateY(${(1 - enter) * 28}px)`,
           textShadow: '0 8px 32px rgba(0,0,0,0.45)'
         }}
       >
-        {headline}
+        {displayHeadline}
       </h1>
       <p
         style={{
-          margin: compact ? '20px 0 0' : '28px 0 0',
+          margin: compact ? '16px 0 0' : '22px 0 0',
           fontFamily: UI_FONT,
-          fontSize: compact ? 22 : 30,
+          fontSize: compact ? 18 : 26,
           lineHeight: 1.55,
-          color: 'rgba(255,255,255,0.78)',
-          opacity: summaryOpacity,
-          maxWidth: compact ? '100%' : '92%'
+          color: 'rgba(255,255,255,0.82)',
+          opacity: enter,
+          maxWidth: compact ? '100%' : '92%',
+          display: '-webkit-box',
+          WebkitLineClamp: compact ? 5 : 4,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden'
         }}
       >
-        {summary}
+        {displayDetail}
       </p>
     </div>
   )
 }
 
-/** 分条快讯轮播 */
+/** 分条快讯轮播（与主标题同步切换） */
 const HotNewsItemStrip: React.FC<{
   items: HotNewsProps['items']
   hotTopicName?: string
   accentColor: string
   compact?: boolean
-  /** 主内容段时长（帧），用于均分每条新闻的展示时间 */
   mainDurationInFrames: number
-}> = ({ items, hotTopicName, accentColor, compact, mainDurationInFrames }) => {
+  secondsPerItem?: number
+}> = ({
+  items,
+  hotTopicName,
+  accentColor,
+  compact,
+  mainDurationInFrames,
+  secondsPerItem
+}) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  const count = Math.max(1, items.length)
-  const slotFrames = Math.max(
-    Math.floor(fps * 2),
-    Math.floor((mainDurationInFrames - fps) / count)
-  )
-  const index = Math.min(items.length - 1, Math.floor(frame / slotFrames))
-  const local = frame - index * slotFrames
+  const { index, localFrame } = queryHotNewsCarouselSlot({
+    frame,
+    fps,
+    mainDurationInFrames,
+    itemCount: items.length,
+    secondsPerItem,
+    itemSeconds: items.map((item) => item.seconds)
+  })
   const item = items[index] ?? items[0]
-  const topicLabel = (hotTopicName?.trim() || item?.tag || '热点').slice(0, 8)
+  /** 角标优先用当前条目 tag，保证切换时标签与标题一起变 */
+  const topicLabel = (item?.tag || hotTopicName?.trim() || '热点').slice(0, 8)
 
   const enter = spring({
-    frame: local,
+    frame: localFrame,
     fps,
     config: { damping: 16, stiffness: 140 },
     from: 0,
@@ -237,7 +287,7 @@ const HotNewsItemStrip: React.FC<{
           color: 'rgba(255,255,255,0.94)'
         }}
       >
-        {item.title}
+        {item?.title ?? ''}
       </div>
     </div>
   )
@@ -294,7 +344,7 @@ const HotNewsSting: React.FC<{ accentColor: string }> = ({ accentColor }) => {
 
 /**
  * 热点新闻 Remotion 模板（横竖屏自适应）。
- * 时间轴：片头 → 主标题 → 分条轮播（全程底部滚动字幕）。
+ * 时间轴：片头 → 主标题与分条同步轮播（全程底部滚动字幕）。
  */
 export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
   const {
@@ -305,6 +355,7 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
     items,
     hotTopicName,
     tickerLines,
+    secondsPerItem,
     accentColor = '#e63946'
   } = props
 
@@ -344,8 +395,11 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
         <HotNewsHero
           headline={headline}
           summary={summary}
+          items={items}
           accentColor={accentColor}
           compact={compact}
+          mainDurationInFrames={mainDurationInFrames}
+          secondsPerItem={secondsPerItem}
         />
         <HotNewsItemStrip
           items={items}
@@ -353,6 +407,7 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
           accentColor={accentColor}
           compact={compact}
           mainDurationInFrames={mainDurationInFrames}
+          secondsPerItem={secondsPerItem}
         />
       </Sequence>
 

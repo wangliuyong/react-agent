@@ -43,6 +43,7 @@ export function RemotionTemplatePlayer({
           compositionHeight={height}
           style={{ width: '100%', height: '100%' }}
           controls
+          autoPlay
           loop
           acknowledgeRemotionLicense
         />
