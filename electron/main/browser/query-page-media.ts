@@ -15,6 +15,7 @@ import {
   queryImageDownloadReferer,
   queryPreferHttpsImageUrl
 } from './fetch-web-images'
+import { querySelectRelevantMedia } from './media-relevance'
 
 /** 支持的媒体种类 */
 export type PageMediaKind = 'image' | 'video' | 'audio'
@@ -714,24 +715,76 @@ export interface PostDownloadPageMediaResult {
   notes: string[]
 }
 
+export interface PostDownloadPageMediaOptions {
+  /** 主题：有值时先做相关性筛选，再只下载相关项 */
+  topic?: string
+  /** 页面视口截图（PNG），供屏幕识别 */
+  screenshotPng?: Buffer
+  /** 相关性筛选后最多保留几条再下载，默认 6 */
+  maxKeep?: number
+  signal?: AbortSignal
+}
+
 /**
  * 将已发现的媒体下载到 artifacts/web-media/<timestamp>/。
- * 单条失败不中断：回填 downloadNote，保留 URL。
+ * 传入 topic/截图时先筛选相关项；单条失败不中断。
  */
 export async function postDownloadPageMedia(
   items: PageMediaItem[],
   pageUrl: string,
-  outDir?: string
+  outDir?: string,
+  options?: PostDownloadPageMediaOptions
 ): Promise<PostDownloadPageMediaResult> {
   const dir =
     outDir ?? join(getArtifactsDir(), 'web-media', String(Date.now()))
   mkdirSync(dir, { recursive: true })
 
   const notes: string[] = []
+  let toDownload = items
+
+  const topic = String(options?.topic ?? '').trim()
+  if ((topic || options?.screenshotPng) && items.length > 0) {
+    const selected = await querySelectRelevantMedia({
+      topic: topic || '页面正文相关媒体',
+      candidates: items.map((m) => ({
+        url: m.url,
+        kind: m.kind,
+        label: m.title,
+        inViewport: true
+      })),
+      // 下载时再收紧：最多保留约一半候选或 6 条，避免「全相关」时仍整页落盘
+      maxCount: Math.min(items.length, options?.maxKeep ?? 6),
+      screenshotPng: options?.screenshotPng,
+      signal: options?.signal
+    })
+    const keep = new Set(selected.urls)
+    const skipped = items.filter((m) => !keep.has(m.url))
+    toDownload = items.filter((m) => keep.has(m.url))
+    if (skipped.length) {
+      notes.push(
+        `相关性筛选跳过 ${skipped.length} 条（${selected.note}）`
+      )
+    } else {
+      notes.push(selected.note)
+    }
+    // 被跳过的仍返回给 Agent，但不落盘
+    for (const m of skipped) {
+      notes.push(`跳过无关 ${m.kind}: ${m.url}`)
+    }
+  }
+
   const result: PageMediaItem[] = []
+  const skippedSet = new Set(
+    items.filter((m) => !toDownload.some((d) => d.url === m.url)).map((m) => m.url)
+  )
 
   for (let i = 0; i < items.length; i++) {
     const item = { ...items[i] }
+    if (skippedSet.has(item.url)) {
+      item.downloadNote = '与主题不相关，已跳过下载'
+      result.push(item)
+      continue
+    }
     try {
       try {
         item.localPath = await postDownloadMediaOnce(item, dir, i, pageUrl)

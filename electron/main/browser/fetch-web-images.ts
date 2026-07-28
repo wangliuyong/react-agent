@@ -7,6 +7,11 @@ import { queryFormatMarkdownImage } from '../../../shared/markdown-local-image'
 import { getArtifactsDir } from '../store/paths'
 import { getBrowserService } from './service'
 import { HttpError, queryHttp } from '../net/http-client'
+import {
+  queryPageViewportScreenshot,
+  querySelectRelevantMedia,
+  type MediaRelevanceCandidate
+} from './media-relevance'
 
 /** 发布配图允许保留的扩展名（抖音等渠道要求） */
 export const FETCH_SAFE_IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp'])
@@ -20,6 +25,11 @@ export interface FetchWebImagesOptions {
   maxCount?: number
   /** 子目录名，默认 xhs-images */
   subdir?: string
+  /**
+   * 搜索/创作主题。有值时用屏幕识别（截图+vision）只保留相关配图，
+   * 避免把 Logo/广告/无关推荐位一股脑下载。
+   */
+  topic?: string
   signal?: AbortSignal
 }
 
@@ -73,27 +83,33 @@ export function postNormalizeFetchedImageToSafeFormat(filePath: string): string 
 
 /**
  * 从网页或直链下载配图到 artifacts，供各渠道发布使用。
- * 用户本地上传变为可选；优先走网页来源。
+ * 有 pageUrl 时先截屏做相关性筛选，再只下载与主题相关的图。
  */
 export async function fetchWebImages(opts: FetchWebImagesOptions): Promise<FetchWebImagesResult> {
   const maxCount = Math.min(Math.max(opts.maxCount ?? 3, 1), 9)
   const subdir = opts.subdir ?? 'xhs-images'
+  const topic = String(opts.topic ?? '').trim()
   const outDir = join(getArtifactsDir(), subdir, String(Date.now()))
   mkdirSync(outDir, { recursive: true })
 
-  const candidates: string[] = []
+  const candidates: MediaRelevanceCandidate[] = []
+  let screenshotPng: Buffer | null = null
+  let filterNote = ''
 
   if (opts.imageUrls?.length) {
     for (const u of opts.imageUrls) {
-      if (u && /^https?:\/\//i.test(u)) candidates.push(u)
+      if (u && /^https?:\/\//i.test(u) && !candidates.some((c) => c.url === u)) {
+        candidates.push({ url: u, kind: 'image', label: u.split('/').pop() })
+      }
     }
   }
 
   if (opts.pageUrl) {
     if (opts.signal?.aborted) throw new Error('用户已中止')
-    const fromPage = await extractImageUrlsFromPage(opts.pageUrl, maxCount * 3)
-    for (const u of fromPage) {
-      if (!candidates.includes(u)) candidates.push(u)
+    const fromPage = await extractImageCandidatesFromPage(opts.pageUrl, maxCount * 4)
+    screenshotPng = fromPage.screenshotPng
+    for (const c of fromPage.candidates) {
+      if (!candidates.some((x) => x.url === c.url)) candidates.push(c)
     }
   }
 
@@ -106,11 +122,39 @@ export async function fetchWebImages(opts: FetchWebImagesOptions): Promise<Fetch
     }
   }
 
+  // 有主题或页面截图时做相关性筛选，避免整页资源全下
+  let urlsToDownload = candidates.map((c) => c.url)
+  if (topic || screenshotPng) {
+    const selected = await querySelectRelevantMedia({
+      topic: topic || '页面正文主图',
+      candidates,
+      maxCount,
+      screenshotPng: screenshotPng ?? undefined,
+      signal: opts.signal
+    })
+    urlsToDownload = selected.urls
+    filterNote = selected.note
+    console.info('[fetchWebImages] relevance:', selected.strategy, selected.note)
+  } else {
+    urlsToDownload = candidates.slice(0, maxCount).map((c) => c.url)
+  }
+
+  if (!urlsToDownload.length) {
+    return {
+      paths: [],
+      sources: [],
+      message:
+        `候选 ${candidates.length} 张经相关性筛选后无一保留` +
+        (filterNote ? `（${filterNote}）` : '') +
+        '。请换更明确的 topic，或改传 imageUrls。'
+    }
+  }
+
   const paths: string[] = []
   const sources: string[] = []
   let index = 0
 
-  for (const url of candidates) {
+  for (const url of urlsToDownload) {
     if (paths.length >= maxCount) break
     if (opts.signal?.aborted) throw new Error('用户已中止')
     try {
@@ -132,35 +176,48 @@ export async function fetchWebImages(opts: FetchWebImagesOptions): Promise<Fetch
       paths: [],
       sources: [],
       message:
-        `候选 ${candidates.length} 张均下载失败（常见原因：CDN 防盗链 403，如抖音/小红书图床）。` +
+        `候选 ${urlsToDownload.length} 张均下载失败（常见原因：CDN 防盗链 403，如抖音/小红书图床）。` +
         '请换来源 pageUrl、改传可访问的 imageUrls，或让用户本地上传配图。'
     }
   }
 
+  const head = filterNote
+    ? `已按相关性保存 ${paths.length} 张配图（${filterNote}）：\n`
+    : `已从网页保存 ${paths.length} 张配图到本地：\n`
+
   return {
     paths,
     sources,
-    message: `已从网页保存 ${paths.length} 张配图到本地：\n${paths
-      .map((p, i) => {
-        const name = p.replace(/\\/g, '/').split('/').pop() || `image-${i + 1}`
-        // 含空格路径走 CommonMark `<>` 目的地，聊天才能内联预览
-        return `${i + 1}. ${queryFormatMarkdownImage(name, p)}\n   ← ${sources[i]}`
-      })
-      .join('\n')}`
+    message:
+      head +
+      paths
+        .map((p, i) => {
+          const name = p.replace(/\\/g, '/').split('/').pop() || `image-${i + 1}`
+          return `${i + 1}. ${queryFormatMarkdownImage(name, p)}\n   ← ${sources[i]}`
+        })
+        .join('\n')
   }
 }
 
-/** 打开来源页，提取面积较大的图片 URL（过滤图标/头像） */
-async function extractImageUrlsFromPage(pageUrl: string, limit: number): Promise<string[]> {
+interface PageImageExtractResult {
+  candidates: MediaRelevanceCandidate[]
+  screenshotPng: Buffer | null
+}
+
+/** 打开来源页，提取图片候选（含标签/视口）并截取屏幕供识别 */
+async function extractImageCandidatesFromPage(
+  pageUrl: string,
+  limit: number
+): Promise<PageImageExtractResult> {
   const browser = getBrowserService()
   await browser.ensureStarted()
   await browser.navigate(pageUrl)
   const page = browser.getPage()
-  if (!page) return []
+  if (!page) return { candidates: [], screenshotPng: null }
 
   await page.waitForTimeout(1800)
 
-  const urls = await page.evaluate((max) => {
+  const raw = await page.evaluate((max) => {
     const abs = (src: string): string => {
       try {
         return new URL(src, location.href).href
@@ -169,23 +226,35 @@ async function extractImageUrlsFromPage(pageUrl: string, limit: number): Promise
       }
     }
 
-    type Cand = { url: string; score: number }
+    type Cand = {
+      url: string
+      score: number
+      label: string
+      inViewport: boolean
+    }
     const list: Cand[] = []
     const seen = new Set<string>()
 
-    const push = (raw: string, score: number): void => {
-      if (!raw || raw.startsWith('data:')) return
-      const full = abs(raw)
+    const push = (
+      rawUrl: string,
+      score: number,
+      label: string,
+      inViewport: boolean
+    ): void => {
+      if (!rawUrl || rawUrl.startsWith('data:')) return
+      const full = abs(rawUrl)
       if (!full || !/^https?:\/\//i.test(full) || seen.has(full)) return
-      // 过滤明显小图/追踪像素
       if (/\.(svg)(\?|$)/i.test(full)) return
       let s = score
-      if (/sprite|icon|logo|avatar|emoji|pixel|1x1/i.test(full)) {
+      if (/sprite|icon|logo|avatar|emoji|pixel|1x1/i.test(full + label)) {
         s -= 50
       }
       seen.add(full)
-      list.push({ url: full, score: s })
+      list.push({ url: full, score: s, label: label.slice(0, 120), inViewport })
     }
+
+    const vh = window.innerHeight || 800
+    const vw = window.innerWidth || 1200
 
     for (const img of Array.from(document.images)) {
       const w = img.naturalWidth || img.width || 0
@@ -198,7 +267,20 @@ async function extractImageUrlsFromPage(pageUrl: string, limit: number): Promise
         img.getAttribute('data-src') ||
         img.getAttribute('data-original') ||
         ''
-      push(src, area || 10000)
+      const rect = img.getBoundingClientRect()
+      const inViewport =
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.bottom > 0 &&
+        rect.right > 0 &&
+        rect.top < vh &&
+        rect.left < vw
+      const label =
+        img.getAttribute('alt') ||
+        img.getAttribute('title') ||
+        img.getAttribute('aria-label') ||
+        ''
+      push(src, area || 10000, label, inViewport)
       const srcset = img.getAttribute('srcset')
       if (srcset) {
         const best = srcset
@@ -206,11 +288,10 @@ async function extractImageUrlsFromPage(pageUrl: string, limit: number): Promise
           .map((p) => p.trim().split(/\s+/)[0])
           .filter(Boolean)
           .pop()
-        if (best) push(best, (area || 10000) + 1)
+        if (best) push(best, (area || 10000) + 1, label, inViewport)
       }
     }
 
-    // Open Graph / Twitter 卡片图
     for (const sel of [
       'meta[property="og:image"]',
       'meta[name="twitter:image"]',
@@ -218,21 +299,39 @@ async function extractImageUrlsFromPage(pageUrl: string, limit: number): Promise
     ]) {
       const el = document.querySelector(sel)
       const content = el?.getAttribute('content')
-      if (content) push(content, 500000)
+      if (content) push(content, 500000, 'og:image', true)
     }
 
-    // 懒加载背景图
     for (const el of Array.from(document.querySelectorAll('[style*="background"]'))) {
       const bg = getComputedStyle(el).backgroundImage
       const m = bg.match(/url\(["']?(https?:[^"')]+)["']?\)/i)
-      if (m) push(m[1], 20000)
+      if (m) {
+        const rect = el.getBoundingClientRect()
+        const inViewport =
+          rect.width > 0 &&
+          rect.height > 0 &&
+          rect.bottom > 0 &&
+          rect.right > 0 &&
+          rect.top < vh &&
+          rect.left < vw
+        push(m[1], 20000, 'background', inViewport)
+      }
     }
 
     list.sort((a, b) => b.score - a.score)
-    return list.slice(0, max).map((c) => c.url)
+    return list.slice(0, max)
   }, limit)
 
-  return urls
+  const screenshotPng = await queryPageViewportScreenshot(page)
+  const candidates: MediaRelevanceCandidate[] = raw.map((c) => ({
+    url: c.url,
+    kind: 'image' as const,
+    label: c.label,
+    score: c.score,
+    inViewport: c.inViewport
+  }))
+
+  return { candidates, screenshotPng }
 }
 
 /**

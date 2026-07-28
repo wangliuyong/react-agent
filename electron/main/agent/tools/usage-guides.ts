@@ -152,7 +152,7 @@ const USAGE_GUIDE_OVERRIDES: Record<string, string> = {
 
 用户粘贴了网页链接（掘金、知乎、公众号、CSDN、博客、GitHub 等），需要**阅读 / 总结 / 基于原文创作**时，先调用本工具拉取标题与正文，再作答。不要凭 URL 臆造内容。
 
-需要页面里的图片 / 视频 / 音频时，传 \`mediaTypes\` 按需提取清单；要落盘再设 \`downloadMedia: true\`。仅发布配图仍可用 \`fetch_web_images\`。
+需要页面里的图片 / 视频 / 音频时，传 \`mediaTypes\` 按需提取清单；要落盘再设 \`downloadMedia: true\`（会按标题/主题筛选相关项，不整页狂下）。仅发布配图仍可用 \`fetch_web_images\`（务必传 \`topic\`）。
 
 ## 如何调用
 

@@ -17,6 +17,7 @@ import {
   type PageMediaItem,
   type PageMediaKind
 } from '../../browser/query-page-media'
+import { queryPageViewportScreenshot } from '../../browser/media-relevance'
 import { queryEncodeWorkflowCtxResult } from './hot-topics'
 import type { AgentTool } from './types'
 
@@ -39,6 +40,8 @@ export interface LinkContentSnapshot {
   description?: string
   /** 可选：按需提取的媒体清单 */
   media?: PageMediaItem[]
+  /** 可选：无头浏览器视口截图，供下载前屏幕识别筛选 */
+  screenshotPng?: Buffer
 }
 
 /** 媒体提取选项（空 kinds = 不提取） */
@@ -414,13 +417,19 @@ async function queryWebDataViaBrowser(
       )
     }
 
+    const screenshotPng =
+      mediaOpts && mediaOpts.kinds.length > 0
+        ? ((await queryPageViewportScreenshot(page)) ?? undefined)
+        : undefined
+
     return {
       title: extracted.title,
       url,
       content,
       author: extracted.author || undefined,
       description: extracted.description || undefined,
-      media
+      media,
+      screenshotPng
     }
   } finally {
     sniffer?.dispose()
@@ -439,7 +448,7 @@ export const queryWebDataTool: AgentTool = {
     '适用于掘金、知乎专栏/问答、微信公众号、CSDN、简书、博客、GitHub README 及一般网站；' +
     '优先 HTTP 解析，失败则无头浏览器后台抓取（不弹窗）。' +
     '可选 mediaTypes=[image|video|audio] 按需提取页面媒体清单；HTTP 抽不到媒体时自动无头浏览器兜底并嗅探网络请求；' +
-    'downloadMedia=true 时下载到 artifacts（单文件上限 50MB）。' +
+    'downloadMedia=true 时下载到 artifacts（单文件上限 50MB）；下载前会按标题/正文主题做屏幕识别筛选，跳过无关 Logo/广告。' +
     '热点榜单请用 fetch_hot_topics；天气用 query_weather；仅发布配图仍可用 fetch_web_images。',
   permission: 'safe',
   parameters: {
@@ -468,7 +477,13 @@ export const queryWebDataTool: AgentTool = {
       downloadMedia: {
         type: 'boolean',
         description:
-          '为 true 且已提取到媒体时，下载到 artifacts/web-media/ 并回填 localPath（默认 false，只列 URL）'
+          '为 true 且已提取到媒体时，下载到 artifacts/web-media/ 并回填 localPath（默认 false，只列 URL）。' +
+          '会按页面主题筛选相关项，不会整页资源全量落盘'
+      },
+      mediaTopic: {
+        type: 'string',
+        description:
+          '下载媒体时的相关性主题（可选）。不传则用页面标题+摘要；用于跳过无关图/视频'
       },
       maxMediaCount: {
         type: 'number',
@@ -496,6 +511,7 @@ export const queryWebDataTool: AgentTool = {
     const mediaKinds = queryNormalizeMediaTypes(args.mediaTypes)
     const maxMediaCount = queryNormalizeMaxMediaCount(args.maxMediaCount)
     const downloadMedia = Boolean(args.downloadMedia)
+    const mediaTopic = args.mediaTopic != null ? String(args.mediaTopic).trim() : ''
     const mediaOpts: MediaExtractOptions | undefined =
       mediaKinds.length > 0 ? { kinds: mediaKinds, maxCount: maxMediaCount } : undefined
 
@@ -533,9 +549,16 @@ export const queryWebDataTool: AgentTool = {
       content: queryTruncate(result.data.content, maxLength)
     }
 
-    // 按需下载：失败单条记 note，不拖垮整次工具
+    // 按需下载：先按主题/截图筛相关性，失败单条记 note
     if (downloadMedia && snap.media && snap.media.length > 0) {
-      const dl = await postDownloadPageMedia(snap.media, url)
+      const topic =
+        mediaTopic ||
+        [snap.title, snap.description].filter(Boolean).join(' ').trim() ||
+        snap.content.slice(0, 80)
+      const dl = await postDownloadPageMedia(snap.media, url, undefined, {
+        topic,
+        screenshotPng: snap.screenshotPng
+      })
       snap = { ...snap, media: dl.items }
     }
 

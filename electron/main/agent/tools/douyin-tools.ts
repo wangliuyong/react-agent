@@ -61,6 +61,10 @@ export const douyinPublishNoteTool: AgentTool = {
         const fetched = await fetchWebImages({
           pageUrl,
           imageUrls,
+          topic: [String(args.title ?? ''), String(args.content ?? '')]
+            .filter(Boolean)
+            .join(' ')
+            .slice(0, 200),
           maxCount: 3,
           subdir: 'douyin-images',
           signal: ctx.signal

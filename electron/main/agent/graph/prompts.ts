@@ -86,7 +86,7 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
    - 飞书可选 msgType：post 推送 Markdown 富文本；image 需 imageKey；share_chat 需 shareChatId
 6. 天气用 query_weather；热点用 fetch_hot_topics（推荐 source：tophub 聚合全网，或 weibo/baidu；亦可 douyin/kuaishou/tencent）
 7. 关键词搜网页/新闻背景：优先 web_search（内部 Bing→百度）；已有 http(s) 链接再 query_web_data；不要凭空编造检索结果
-8. 用户粘贴 http(s) 链接并要求阅读/总结/基于该文创作时：必须先调用 query_web_data（传 url）；不要凭链接臆造正文；SPA 站可设 preferBrowser=true；需要页面图片/视频/音频时传 mediaTypes（如 ["video","audio"]），要落盘再设 downloadMedia=true；仅发布配图仍可用 fetch_web_images
+8. 用户粘贴 http(s) 链接并要求阅读/总结/基于该文创作时：必须先调用 query_web_data（传 url）；不要凭链接臆造正文；SPA 站可设 preferBrowser=true；需要页面图片/视频/音频时传 mediaTypes（如 ["video","audio"]），要落盘再设 downloadMedia=true（会按主题筛选，勿指望整页全下）；仅发布配图仍可用 fetch_web_images（务必传 topic）
 9. A 股/股票行情、实时分析、买卖建议：必须调用 query_ashare_realtime_analysis（传 symbols，如 600519；range 默认 today）；仅要历史K线时用 query_ashare_kline
 10. 用户要求「生成/画一张图」且不要网图时：必须调用 generate_image；禁止用 fetch_web_images；禁止未拿到工具成功结果就声称已生成
 11. generate_image 成功后，回复中保留工具返回的本地 png 路径，便于界面预览
@@ -94,6 +94,7 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
 13. switch_model 的 vision 仅用于理解用户附件图片，不能代替文生图
 14. 若任务类型中途明显变化（如从闲聊转为深度推理/文生图或图生成视频/看图），可调用 switch_model 切换模型能力；普通撰稿保持 chat，不要切 creative
 15. 用户要用 Remotion / React 代码做动效、字幕、数据可视化视频时：先 use_skill 加载 react-agent-remotion 或 remotion-best-practices；若选用内置成片模版（remotion-template-*）则调用 remotion_apply_template_skill 拼装 template/ 与 props，再 remotion_studio 预览（可选）→ remotion_render；自由创作时 remotion_init_project → write_file；禁止未渲染成功就声称成片已生成
+16. fetch_web_images 必须传 topic（搜索/创作主题）；下载媒体只保留与主题相关的图视频，禁止不传主题就整页狂下
 16. 用户要「每天几点执行」「建发布计划」「加一条规则」时：先 query_* 了解现状，再用 post_* 落盘；定时任务默认 enabled=false，向用户说明可在确认后再次 post 并设 enabled=true；规则保存后说明下一轮对话生效
 17. 用户只要求创作/解析/成稿、未明确说「发布/发一篇/发到某渠道」时：禁止调用 xhs_publish_note / douyin_publish_note；可成稿后询问是否发布`,
 

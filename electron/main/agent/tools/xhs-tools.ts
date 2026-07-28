@@ -17,6 +17,7 @@ export const fetchWebImagesTool: AgentTool = {
   name: 'fetch_web_images',
   description:
     '从内容来源网页提取并下载配图，或按图片直链下载到本地。' +
+    '会先截取页面屏幕并用识图模型筛选与主题相关的图，拒绝 Logo/广告/无关推荐，避免整页资源一股脑下载。' +
     '发布小红书/抖音前应优先调用本工具获取配图；用户上传图片是可选的。' +
     '返回本地绝对路径列表，可交给 xhs_publish_note 或 douyin_publish_note 的 imagePaths。',
   permission: 'safe',
@@ -31,6 +32,12 @@ export const fetchWebImagesTool: AgentTool = {
         type: 'array',
         items: { type: 'string' },
         description: '图片直链列表（与 pageUrl 可同时使用）'
+      },
+      topic: {
+        type: 'string',
+        description:
+          '搜索/创作主题（强烈建议传入，如「齐达内退役」「36氪融资」）。' +
+          '用于屏幕识别筛选相关配图；不传则按页面主图启发式筛选'
       },
       maxCount: {
         type: 'number',
@@ -50,6 +57,7 @@ export const fetchWebImagesTool: AgentTool = {
     const result = await fetchWebImages({
       pageUrl,
       imageUrls,
+      topic: args.topic != null ? String(args.topic) : undefined,
       maxCount: args.maxCount != null ? Number(args.maxCount) : 3,
       signal: ctx.signal
     })
@@ -162,6 +170,10 @@ export const xhsPublishNoteTool: AgentTool = {
         const fetched = await fetchWebImages({
           pageUrl,
           imageUrls,
+          topic: [String(args.title ?? ''), String(args.content ?? '')]
+            .filter(Boolean)
+            .join(' ')
+            .slice(0, 200),
           maxCount: 3,
           signal: ctx.signal
         })
