@@ -10,6 +10,7 @@ import type { Page } from 'playwright'
 import { getArtifactsDir } from '../store/paths'
 import { getBrowserService } from './service'
 import { HttpError, queryHttp } from '../net/http-client'
+import { queryFormatMarkdownImage } from '../../../shared/markdown-local-image'
 import {
   queryImageDownloadReferer,
   queryPreferHttpsImageUrl
@@ -765,7 +766,7 @@ export function queryFormatMediaSection(items: PageMediaItem[]): string {
     if (m.localPath) {
       if (m.kind === 'image') {
         const name = m.localPath.replace(/\\/g, '/').split('/').pop() || 'image'
-        local = `\n   本地路径：![${name}](${m.localPath})`
+        local = `\n   本地路径：${queryFormatMarkdownImage(name, m.localPath)}`
       } else {
         local = `\n   本地路径：${m.localPath}`
       }

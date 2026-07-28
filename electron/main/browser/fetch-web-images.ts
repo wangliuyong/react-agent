@@ -3,6 +3,7 @@ import { join, extname, basename, dirname } from 'path'
 import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
 import { nativeImage } from 'electron'
+import { queryFormatMarkdownImage } from '../../../shared/markdown-local-image'
 import { getArtifactsDir } from '../store/paths'
 import { getBrowserService } from './service'
 import { HttpError, queryHttp } from '../net/http-client'
@@ -142,8 +143,8 @@ export async function fetchWebImages(opts: FetchWebImagesOptions): Promise<Fetch
     message: `已从网页保存 ${paths.length} 张配图到本地：\n${paths
       .map((p, i) => {
         const name = p.replace(/\\/g, '/').split('/').pop() || `image-${i + 1}`
-        // Markdown 图片语法：聊天内联预览更稳，避免仅裸路径时漏提取
-        return `${i + 1}. ![${name}](${p})\n   ← ${sources[i]}`
+        // 含空格路径走 CommonMark `<>` 目的地，聊天才能内联预览
+        return `${i + 1}. ${queryFormatMarkdownImage(name, p)}\n   ← ${sources[i]}`
       })
       .join('\n')}`
   }

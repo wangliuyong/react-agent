@@ -1,7 +1,11 @@
 import type { ChatMessage, ChatMessageToolCall } from '@shared/types'
 import { queryToolArgsRecord, queryToolCallLabel } from '../../utils/agent-status'
 import { ASHARE_REALTIME_ANALYSIS_TOOL } from '../../utils/message-charts'
-import { MessageRichContent, queryMediaCountLabel } from '../MessageRichContent'
+import {
+  MessageRichContent,
+  queryMediaCountLabel,
+  queryToolResultHasLocalFiles
+} from '../MessageRichContent'
 import styles from './MessageList.module.css'
 
 export interface ToolCallGroupProps {
@@ -19,8 +23,8 @@ export interface ToolCallGroupProps {
 }
 
 /**
- * 截图风格：默认折叠的「已调用 N 个工具」。
- * 仅基础 K 线工具在组内展示图表；实时分析工具的 K 线由 MessageList 外置到正式内容区。
+ * 截图风格：「已调用 N 个工具」。
+ * 默认折叠；含本地落盘文件或组内 K 线时默认展开，便于预览与打开目录。
  */
 export function ToolCallGroup({
   tools,
@@ -35,6 +39,9 @@ export function ToolCallGroup({
     (t) =>
       t.content.includes('@@stock_chart@@') && t.toolName !== ASHARE_REALTIME_ANALYSIS_TOOL
   )
+  const hasLocalFiles = tools.some((t) => queryToolResultHasLocalFiles(t.content))
+  // 有本地文件 / 组内 K 线时整组展开，避免预览被折叠藏住
+  const expandGroup = hasInlineStockChart || hasLocalFiles
 
   const argsByCallId = new Map(
     (toolCalls ?? []).map((tc) => [tc.id, queryToolArgsRecord(tc.args)] as const)
@@ -44,7 +51,7 @@ export function ToolCallGroup({
     <Collapse
       size="small"
       className={`${styles.toolBlock} ${styles.toolCallGroup}`}
-      defaultActiveKey={hasInlineStockChart ? ['group'] : undefined}
+      defaultActiveKey={expandGroup ? ['group'] : undefined}
       items={[
         {
           key: 'group',
@@ -70,12 +77,14 @@ export function ToolCallGroup({
                   const showChartsInTool =
                     t.content.includes('@@stock_chart@@') &&
                     t.toolName !== ASHARE_REALTIME_ANALYSIS_TOOL
+                  const expandTool =
+                    showChartsInTool || queryToolResultHasLocalFiles(t.content)
                   return (
                     <Collapse
                       key={t.id}
                       size="small"
                       className={styles.toolCallItem}
-                      defaultActiveKey={showChartsInTool ? ['1'] : undefined}
+                      defaultActiveKey={expandTool ? ['1'] : undefined}
                       items={[
                         {
                           key: '1',

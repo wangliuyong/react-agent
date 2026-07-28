@@ -1,5 +1,7 @@
 import { Image } from 'antd'
 import { queryLocalImageDataUrl } from '../../api'
+import { queryNormalizeMarkdownImageSrc } from '../../utils/message-images'
+import { ArtifactFileActions } from '../ArtifactFileActions'
 import styles from './MessageInlineImage.module.css'
 
 interface MessageInlineImageProps {
@@ -14,16 +16,18 @@ function queryIsLocalImagePath(src: string): boolean {
 
 /**
  * Markdown 内联图片：本地路径经 IPC 转 data URL，点击走 Ant Design 大图预览。
- * 用于表格「预览」列与正文 `![]()`，与底部 MessageImageGallery 互补。
+ * 本地文件额外提供一键打开目录，与底部画廊操作一致。
  */
 export function MessageInlineImage({
   src,
   alt = ''
 }: MessageInlineImageProps): React.ReactElement {
+  // 兼容 `![x](<abs with space>)` 被某些解析器原样传入的情况
+  const normalizedSrc = queryNormalizeMarkdownImageSrc(src)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
-  const isLocal = queryIsLocalImagePath(src)
+  const isLocal = queryIsLocalImagePath(normalizedSrc)
 
   useEffect(() => {
     let cancelled = false
@@ -33,7 +37,7 @@ export function MessageInlineImage({
 
     void (async () => {
       if (isLocal) {
-        const dataUrl = await queryLocalImageDataUrl(src)
+        const dataUrl = await queryLocalImageDataUrl(normalizedSrc)
         if (cancelled) return
         if (dataUrl) {
           setPreviewUrl(dataUrl)
@@ -46,7 +50,7 @@ export function MessageInlineImage({
 
       // 远程 / data URL 直接交给 <Image>，失败由 onError 兜底
       if (!cancelled) {
-        setPreviewUrl(src)
+        setPreviewUrl(normalizedSrc)
         setLoading(false)
       }
     })()
@@ -54,7 +58,7 @@ export function MessageInlineImage({
     return () => {
       cancelled = true
     }
-  }, [src, isLocal])
+  }, [normalizedSrc, isLocal])
 
   if (loading) {
     return (
@@ -66,20 +70,30 @@ export function MessageInlineImage({
 
   if (failed || !previewUrl) {
     return (
-      <span className={styles.fallback} title={src}>
-        {alt || '无法预览'}
+      <span className={styles.fallbackWrap}>
+        <span className={styles.fallback} title={normalizedSrc}>
+          {alt || '无法预览'}
+        </span>
+        {isLocal ? (
+          <ArtifactFileActions filePath={normalizedSrc} iconOnly className={styles.fileActions} />
+        ) : null}
       </span>
     )
   }
 
   return (
-    <Image
-      src={previewUrl}
-      alt={alt || '图片预览'}
-      className={styles.thumb}
-      rootClassName={styles.thumbRoot}
-      preview={{ mask: '预览' }}
-      onError={() => setFailed(true)}
-    />
+    <span className={styles.inlineWrap}>
+      <Image
+        src={previewUrl}
+        alt={alt || '图片预览'}
+        className={styles.thumb}
+        rootClassName={styles.thumbRoot}
+        preview={{ mask: '预览' }}
+        onError={() => setFailed(true)}
+      />
+      {isLocal ? (
+        <ArtifactFileActions filePath={normalizedSrc} iconOnly className={styles.fileActions} />
+      ) : null}
+    </span>
   )
 }

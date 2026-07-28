@@ -4,6 +4,7 @@
  */
 
 import { join } from 'path'
+import { queryFormatMarkdownImage } from '../../../../shared/markdown-local-image'
 import {
   querySceneAssetsDir,
   queryTextToImageProvider
@@ -64,7 +65,7 @@ export const generateImageTool: AgentTool = {
     return (
       `文生图成功。\n` +
       `图片路径：${result.path}\n` +
-      `![生成图片](${result.path})\n` +
+      `${queryFormatMarkdownImage('生成图片', result.path)}\n` +
       `说明：${result.message}\n` +
       `请在回复中保留上述本地路径或 markdown 图片，以便聊天界面内联预览；不要声称这是网图。`
     )

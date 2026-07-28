@@ -1,2 +1,3 @@
-export { MessageRichContent, queryMediaCountLabel } from './MessageRichContent'
+export { MessageRichContent, queryMediaCountLabel, queryToolResultHasLocalFiles } from './MessageRichContent'
 export type { MessageImageRef } from './MessageRichContent'
+

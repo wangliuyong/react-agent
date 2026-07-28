@@ -11,6 +11,7 @@ import {
 } from '../../utils/message-images'
 import { extractMessageMedia } from '../../utils/message-media'
 import { extractMessageHtml } from '../../utils/message-html'
+import { queryArtifactPaths } from '../../utils/artifact-paths'
 import {
   extractStockCharts,
   queryDisplayContentWithCharts,
@@ -67,9 +68,11 @@ export function MessageRichContent({
   }
   const embedRefs = contextRefs.length ? [...images, ...contextRefs] : images
   const displayText = queryDisplayContentWithCharts(content, embedRefs)
-  // 已在 Markdown 内联的图不再进底部画廊，避免与表格预览重复
+  // 远程内联图不进画廊；本地图始终进底部画廊，保证预览 +「打开文件位置」
   const inlinedSrcs = queryInlinedImageSrcs(displayText)
-  const galleryImages = images.filter((img) => !inlinedSrcs.has(img.src))
+  const galleryImages = images.filter(
+    (img) => img.kind === 'local' || !inlinedSrcs.has(img.src)
+  )
 
   const previewPaths = [
     ...images.filter((i) => i.kind === 'local').map((i) => i.src),
@@ -111,6 +114,23 @@ export function queryMediaCountLabel(content: string, attachmentPaths?: string[]
   if (video.length) parts.push(`${video.length} 个视频`)
   if (htmlItems.length) parts.push(`${htmlItems.length} 个网页`)
   return parts.length ? ` · ${parts.join(' · ')}` : ''
+}
+
+/**
+ * 工具结果是否含本地落盘文件（图/音视频/HTML/产物路径）。
+ * 用于工具折叠面板：有本地文件时默认展开，便于预览与打开目录。
+ */
+export function queryToolResultHasLocalFiles(
+  content: string,
+  attachmentPaths?: string[]
+): boolean {
+  if (extractMessageImages(content, attachmentPaths).some((img) => img.kind === 'local')) {
+    return true
+  }
+  const { audio, video } = extractMessageMedia(content)
+  if (audio.length > 0 || video.length > 0) return true
+  if (extractMessageHtml(content).length > 0) return true
+  return queryArtifactPaths(content).length > 0
 }
 
 export type { MessageImageRef }

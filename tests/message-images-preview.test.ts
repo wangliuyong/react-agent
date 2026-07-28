@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   extractMessageImages,
   queryEmbedImagesInDisplayText,
+  queryFormatMarkdownImage,
   queryInlinedImageSrcs,
   stripImagePathsFromDisplayText
 } from '../src/features/chat/utils/message-images'
@@ -34,6 +35,21 @@ describe('聊天媒体路径提取（含 Application Support 空格与中文冒�
     expect(images[0].src).toBe(APP_SUPPORT_PNG)
   })
 
+  it('识别尖括号目的地的含空格 markdown 图片', () => {
+    const text = `1. ${queryFormatMarkdownImage('image-1.jpg', APP_SUPPORT_PNG)}\n   ← https://cdn.example.com/a.jpg`
+    const images = extractMessageImages(text)
+    expect(images).toHaveLength(1)
+    expect(images[0].src).toBe(APP_SUPPORT_PNG)
+    expect(images[0].kind).toBe('local')
+  })
+
+  it('含空格路径嵌入时自动加 CommonMark 尖括号', () => {
+    expect(queryFormatMarkdownImage('image-1.jpg', APP_SUPPORT_PNG)).toBe(
+      `![image-1.jpg](<${APP_SUPPORT_PNG}>)`
+    )
+    expect(queryFormatMarkdownImage('a.png', '/tmp/a.png')).toBe('![a.png](/tmp/a.png)')
+  })
+
   it('strip 后正文不再残留裸路径与「本地路径：」标签', () => {
     const text = `✅ 图片已生成\n本地路径: ${APP_SUPPORT_PNG}\n一只橘猫`
     const images = extractMessageImages(text)
@@ -55,7 +71,7 @@ describe('聊天媒体路径提取（含 Application Support 空格与中文冒�
       `已生成\n图片路径：${APP_SUPPORT_PNG}\n视频：${APP_SUPPORT_MP4}\n请查收`
     const images = extractMessageImages(text)
     const display = queryDisplayContent(text, images)
-    expect(display).toContain(`![cat_sunlight.png](${APP_SUPPORT_PNG})`)
+    expect(display).toContain(queryFormatMarkdownImage('cat_sunlight.png', APP_SUPPORT_PNG))
     expect(display).not.toMatch(/图片路径/)
     expect(display).not.toContain(APP_SUPPORT_MP4)
     expect(display).toContain('请查收')
@@ -73,8 +89,12 @@ describe('聊天媒体路径提取（含 Application Support 空格与中文冒�
     expect(images).toHaveLength(2)
 
     const embedded = queryEmbedImagesInDisplayText(text, images)
-    expect(embedded).toContain(`| ![图1](${APP_SUPPORT_PNG}) | \`cat_sunlight.png\` ← 搜狐新闻源 |`)
-    expect(embedded).toContain(`| ![图2](${APP_SUPPORT_PNG_2}) | \`dog.png\` ← 新浪新闻源 |`)
+    expect(embedded).toContain(
+      `| ${queryFormatMarkdownImage('图1', APP_SUPPORT_PNG)} | \`cat_sunlight.png\` ← 搜狐新闻源 |`
+    )
+    expect(embedded).toContain(
+      `| ${queryFormatMarkdownImage('图2', APP_SUPPORT_PNG_2)} | \`dog.png\` ← 新浪新闻源 |`
+    )
     expect(embedded).not.toMatch(/\| 图1 \|/)
     expect(queryInlinedImageSrcs(embedded).has(APP_SUPPORT_PNG)).toBe(true)
   })
@@ -93,11 +113,21 @@ describe('聊天媒体路径提取（含 Application Support 空格与中文冒�
     expect(contextRefs).toHaveLength(3)
 
     const embedded = queryEmbedImagesInDisplayText(text, contextRefs)
-    expect(embedded).toContain(`| ![图1](${APP_SUPPORT_PNG}) | 新华社来源标识 |`)
     expect(embedded).toContain(
-      `| ![图2](${APP_SUPPORT_PNG_2}) ![图3](/Users/wly/tmp/third.png) | 齐达内个人照/发布会场景 |`
+      `| ${queryFormatMarkdownImage('图1', APP_SUPPORT_PNG)} | 新华社来源标识 |`
+    )
+    expect(embedded).toContain(
+      `| ${queryFormatMarkdownImage('图2', APP_SUPPORT_PNG_2)} ${queryFormatMarkdownImage('图3', '/Users/wly/tmp/third.png')} | 齐达内个人照/发布会场景 |`
     )
     expect(embedded).not.toMatch(/\| 图1 \|/)
+  })
+
+  it('旧消息无尖括号 markdown 会被升级为可解析形式', () => {
+    const text = `已从网页保存 1 张配图到本地：\n1. ![image-1.jpg](${APP_SUPPORT_PNG})\n   ← https://cdn.example.com/a.jpg`
+    const images = extractMessageImages(text)
+    const embedded = queryEmbedImagesInDisplayText(text, images)
+    expect(embedded).toContain(queryFormatMarkdownImage('image-1.jpg', APP_SUPPORT_PNG))
+    expect(embedded).not.toContain(`![image-1.jpg](${APP_SUPPORT_PNG})`)
   })
 
   it('解析图号标签索引', async () => {
@@ -168,5 +198,18 @@ describe('聊天媒体路径提取（含 Application Support 空格与中文冒�
     const { audio } = extractMessageMedia(wrapped)
     expect(images.map((i) => i.src)).toEqual([APP_SUPPORT_PNG])
     expect(audio.map((a) => a.src)).toEqual([audioPath])
+  })
+
+  it('含本地落盘文件时 queryToolResultHasLocalFiles 为 true', async () => {
+    const { queryToolResultHasLocalFiles } = await import(
+      '../src/features/chat/components/MessageRichContent/MessageRichContent'
+    )
+    expect(
+      queryToolResultHasLocalFiles(
+        `已从网页保存 1 张配图：\n1. ${queryFormatMarkdownImage('a.jpg', APP_SUPPORT_PNG)}`
+      )
+    ).toBe(true)
+    expect(queryToolResultHasLocalFiles(`成片路径：${APP_SUPPORT_MP4}`)).toBe(true)
+    expect(queryToolResultHasLocalFiles('仅文字，无本地文件')).toBe(false)
   })
 })

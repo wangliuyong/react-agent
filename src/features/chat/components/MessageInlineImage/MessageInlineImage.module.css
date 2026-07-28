@@ -1,5 +1,14 @@
 /* 表格单元格与正文共用的内联缩略图：克制尺寸，点击放大 */
 
+.inlineWrap,
+.fallbackWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+  max-width: 100%;
+}
+
 .thumbRoot {
   display: inline-block;
   vertical-align: middle;
@@ -53,4 +62,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fileActions {
+  flex-shrink: 0;
 }

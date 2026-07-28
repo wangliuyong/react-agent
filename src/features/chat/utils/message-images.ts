@@ -1,4 +1,13 @@
 import { queryDecodeWorkflowCtxMessage } from './workflow-ctx'
+import {
+  queryFormatMarkdownImage,
+  queryNormalizeMarkdownImageSrc
+} from '@shared/markdown-local-image'
+
+export {
+  queryFormatMarkdownImage,
+  queryNormalizeMarkdownImageSrc
+} from '@shared/markdown-local-image'
 
 /** 消息内识别出的图片引用 */
 export interface MessageImageRef {
@@ -54,12 +63,15 @@ function isRemoteImageUrl(src: string): boolean {
   return /^https?:\/\//i.test(src) || src.startsWith('data:image/')
 }
 
+/** 正文中是否已有该路径的 Markdown 图片（兼容有/无尖括号两种写法） */
+function queryHasMarkdownImage(text: string, src: string): boolean {
+  const path = queryNormalizeMarkdownImageSrc(src)
+  return text.includes(`](${path})`) || text.includes(`](<${path}>)`)
+}
+
 function addRef(refs: MessageImageRef[], seen: Set<string>, src: string): void {
-  // 去掉 markdown / 工具结果里常见的包裹符号
-  const trimmed = src
-    .trim()
-    .replace(/^["'`]+|["'`]+$/g, '')
-    .replace(/[，,;；]+$/g, '')
+  // 去掉 markdown / 工具结果里常见的包裹符号（含 CommonMark 尖括号目的地）
+  const trimmed = queryNormalizeMarkdownImageSrc(src)
   if (!trimmed || seen.has(trimmed)) return
   if (!isLocalPath(trimmed) && !isRemoteImageUrl(trimmed)) return
   seen.add(trimmed)
@@ -138,7 +150,8 @@ function queryRemoveBarePathCopies(text: string, src: string): string {
   const escaped = escapeRegExp(src)
   return text
     .replace(new RegExp(`\`${escaped}\``, 'g'), '')
-    .replace(new RegExp(`(?<!\\]\\()${escaped}`, 'g'), '')
+    // 排除 `](path)` 与 `](<path>)` 目的地内的路径，避免升级尖括号后又被掏空
+    .replace(new RegExp(`(?<!\\]\\()(?<!\\]\\(<)${escaped}`, 'g'), '')
 }
 
 /**
@@ -162,7 +175,7 @@ function queryEmbedPathInTableRow(text: string, ref: MessageImageRef): string | 
     const pathCell = restNorm.trim()
       ? `\`${ref.label}\`${restNorm.startsWith(' ') ? restNorm : ` ${restNorm}`}`
       : `\`${ref.label}\``
-    return `${pipeStart}![${label}](${ref.src})${midPipe}${pathCell}`
+    return `${pipeStart}${queryFormatMarkdownImage(label, ref.src)}${midPipe}${pathCell}`
   })
 }
 
@@ -182,7 +195,12 @@ export function queryEmbedImagesInDisplayText(
   for (const ref of refs) {
     if (ref.kind !== 'local') continue
 
-    if (text.includes(`](${ref.src})`)) {
+    if (queryHasMarkdownImage(text, ref.src)) {
+      // 旧消息可能是无尖括号写法；统一改成可被 remark 解析的形式
+      text = text.replace(
+        new RegExp(`!\\[([^\\]]*)]\\(${escapeRegExp(ref.src)}\\)`, 'g'),
+        (_m, alt: string) => queryFormatMarkdownImage(alt || ref.label, ref.src)
+      )
       text = queryRemoveBarePathCopies(text, ref.src)
       continue
     }
@@ -194,7 +212,10 @@ export function queryEmbedImagesInDisplayText(
     }
 
     const escaped = escapeRegExp(ref.src)
-    text = text.replace(new RegExp(`[\\\`']?${escaped}[\\\`']?`, 'g'), `![${ref.label}](${ref.src})`)
+    text = text.replace(
+      new RegExp(`[\\\`']?${escaped}[\\\`']?`, 'g'),
+      queryFormatMarkdownImage(ref.label, ref.src)
+    )
   }
 
   // 配图预览表常见「图1 / 图2-3」无路径：用上下文 refs 按序号补缩略图
@@ -247,7 +268,7 @@ export function queryFillFigureLabelPreview(
       for (const idx of indexes) {
         const ref = localRefs[idx - 1]
         if (!ref) continue
-        parts.push(`![图${idx}](${ref.src})`)
+        parts.push(queryFormatMarkdownImage(`图${idx}`, ref.src))
       }
       if (!parts.length) return full
       return `${pipeStart}${parts.join(' ')}${midPipe}${contentCell}${tail}`
@@ -255,13 +276,16 @@ export function queryFillFigureLabelPreview(
   )
 }
 
-/** 展示正文里已内联的图片 src（用于画廊去重，避免表格缩略图与底部画廊重复） */
+/**
+ * 展示正文里已内联的图片 src（用于画廊去重）。
+ * 本地图默认仍进底部画廊（含一键打开），因此调用方通常只用来排除远程内联图。
+ */
 export function queryInlinedImageSrcs(displayText: string): Set<string> {
   const srcs = new Set<string>()
   const re = /!\[[^\]]*]\(([^)]+)\)/g
   let match: RegExpExecArray | null
   while ((match = re.exec(displayText)) !== null) {
-    const src = match[1].trim()
+    const src = queryNormalizeMarkdownImageSrc(match[1])
     if (src) srcs.add(src)
   }
   return srcs
