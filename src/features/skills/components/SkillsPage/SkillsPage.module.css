@@ -96,6 +96,47 @@
   margin-top: 8px;
 }
 
+/* 技能目录路径：可点击打开访达 / 资源管理器 */
+.dirPathRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--db-border-light);
+  border-radius: var(--db-radius-md);
+  background: var(--db-bg);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.dirPathRow:hover {
+  border-color: var(--db-primary-border);
+  background: var(--db-primary-muted);
+}
+
+.dirPathIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--db-primary);
+  font-size: 14px;
+}
+
+.dirPathText {
+  flex: 1;
+  min-width: 0;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--db-text-secondary);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
 .injectToggle {
   display: flex;
   align-items: center;

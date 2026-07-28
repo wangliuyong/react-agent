@@ -37,8 +37,13 @@ describe('skills store', () => {
   })
 
   it('从 resources/skills 创建、查询并删除技能', async () => {
-    const { getSkillsDir, postDeleteProjectSkill, postProjectSkill, queryProjectSkills } =
-      await import('../electron/main/store/skills')
+    const {
+      getSkillsDir,
+      postDeleteProjectSkill,
+      postProjectSkill,
+      queryProjectSkillDetail,
+      queryProjectSkills
+    } = await import('../electron/main/store/skills')
 
     expect(getSkillsDir()).toBe(testState.skillsDir)
 
@@ -58,6 +63,9 @@ describe('skills store', () => {
     expect(readFileSync(join(testState.skillsDir, 'demo-skill', 'SKILL.md'), 'utf-8')).toContain(
       'name: 演示技能'
     )
+
+    const detail = queryProjectSkillDetail('demo-skill')
+    expect(detail?.dirPath).toBe(join(testState.skillsDir, 'demo-skill'))
 
     postDeleteProjectSkill('demo-skill')
     expect(existsSync(join(testState.skillsDir, 'demo-skill'))).toBe(false)

@@ -6,7 +6,7 @@ import type {
   SkillUpsertInput
 } from '@shared/types'
 import { parseSkillImportJson } from '@shared/skill-import-json'
-import { queryProjectSkillDetail } from '../../api'
+import { postRevealSkillDir, queryProjectSkillDetail } from '../../api'
 import { useSkillsStore } from '../../hooks/useSkillsStore'
 import { SkillMarkdown } from '../SkillMarkdown'
 import { isValidSkillId, skillDetailToInput, slugifySkillId } from '../../types'
@@ -111,6 +111,8 @@ export function SkillsPage(): React.ReactElement {
 
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
+  /** 详情弹窗：打开技能目录进行中 */
+  const [revealingDir, setRevealingDir] = useState(false)
 
   const [editOpen, setEditOpen] = useState(false)
   const [editMode, setEditMode] = useState<'create' | 'update'>('create')
@@ -227,6 +229,25 @@ export function SkillsPage(): React.ReactElement {
       await setActive(skillId)
     } finally {
       setDetailLoading(false)
+    }
+  }
+
+  /** 在系统文件管理器中打开当前技能目录 */
+  const handleRevealSkillDir = async (): Promise<void> => {
+    if (!detail?.dirPath) {
+      message.warning('未找到技能目录路径')
+      return
+    }
+    setRevealingDir(true)
+    try {
+      const result = await postRevealSkillDir(detail.dirPath)
+      if (!result.ok) {
+        message.warning(result.error)
+      }
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '无法打开技能目录')
+    } finally {
+      setRevealingDir(false)
     }
   }
 
@@ -728,6 +749,13 @@ export function SkillsPage(): React.ReactElement {
                   </div>
                 </div>
                 <Space wrap>
+                  <Button
+                    icon={<FolderOpenOutlined />}
+                    loading={revealingDir}
+                    onClick={() => void handleRevealSkillDir()}
+                  >
+                    打开目录
+                  </Button>
                   <Button icon={<EditOutlined />} onClick={openEdit}>
                     编辑
                   </Button>
@@ -752,6 +780,18 @@ export function SkillsPage(): React.ReactElement {
                   </div>
                 </Space>
               </div>
+
+              {detail.dirPath ? (
+                <button
+                  type="button"
+                  className={styles.dirPathRow}
+                  title="在文件管理器中打开"
+                  onClick={() => void handleRevealSkillDir()}
+                >
+                  <FolderOpenOutlined className={styles.dirPathIcon} aria-hidden />
+                  <code className={styles.dirPathText}>{detail.dirPath}</code>
+                </button>
+              ) : null}
 
               {detail.description ? (
                 <p className={styles.description}>{detail.description}</p>
