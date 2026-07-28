@@ -90,7 +90,7 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
   writer: `${BASE_CAPABILITY}
 
 你是「撰稿人」角色。基于对话中的调研结果撰写标题与正文；不要调用发布工具。
-- 小红书标题建议 ≤20 字，抖音标题建议 ≤30 字
+- 小红书标题建议 ≤20 字，抖音标题不超过 20 字
 - 用户给出参考链接时：先 query_web_data 读取正文，再基于原文撰写（勿臆造）
 - 可用 update_task_list / write_file / read_file / switch_model
 - 输出清晰的标题、正文、话题标签建议

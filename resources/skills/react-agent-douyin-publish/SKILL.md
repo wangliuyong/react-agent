@@ -28,7 +28,7 @@ description: >-
 
 1. 打开 `https://creator.douyin.com/creator-micro/content/upload`
 2. 检测登录 → 未登录 `emitAwaitUser`
-3. 切换「发布图文」TAB → 上传配图 → 填标题（≤30 字建议）与描述
+3. 切换「发布图文」TAB → 上传配图 → 填标题（≤20 字）与描述
 4. `autoPublish=false` 停在待发布；`fullAccess=false` 发布前再次确认
 
 **当前范围**：仅图文笔记；视频上传后续单独接入。

@@ -1,6 +1,7 @@
 import type { AgentTool } from './types'
 import { fetchWebImages } from '../../browser/fetch-web-images'
 import { publishDouyinNote } from '../../browser/douyin-publish'
+import { DOUYIN_TITLE_MAX_LENGTH } from '../../browser/douyin-dom'
 import { queryPublishChannelMeta } from '../../../../shared/publish-channels'
 import { queryPublishChannels } from '../../store/channels'
 import { queryPublishAdapter } from '../../publish/adapter'
@@ -19,7 +20,7 @@ export const douyinPublishNoteTool: AgentTool = {
   parameters: {
     type: 'object',
     properties: {
-      title: { type: 'string', description: '作品标题，建议不超过 30 字' },
+      title: { type: 'string', description: '作品标题，不超过 20 字' },
       content: { type: 'string', description: '作品描述/正文' },
       imagePaths: {
         type: 'array',
@@ -83,10 +84,19 @@ export const douyinPublishNoteTool: AgentTool = {
       )
     }
 
+    // 抖音创作者中心标题硬上限 20 字；渠道配置可更严，取更小值
+    const metaMax = queryPublishChannelMeta('douyin').titleMaxLength
+    const titleMax =
+      metaMax != null && metaMax > 0
+        ? Math.min(metaMax, DOUYIN_TITLE_MAX_LENGTH)
+        : DOUYIN_TITLE_MAX_LENGTH
+    const title = String(args.title ?? '').slice(0, titleMax)
+    const content = String(args.content ?? '')
+
     if (!humanized) {
       return queryPublishAdapter('douyin', false).publish({
-        title: String(args.title ?? ''),
-        content: String(args.content ?? ''),
+        title,
+        content,
         imagePaths,
         signal: ctx.signal,
         emitAwaitUser: ctx.emitAwaitUser
@@ -94,8 +104,8 @@ export const douyinPublishNoteTool: AgentTool = {
     }
 
     return publishDouyinNote({
-      title: String(args.title ?? ''),
-      content: String(args.content ?? ''),
+      title,
+      content,
       imagePaths,
       autoPublish: args.autoPublish !== false,
       fullAccess: ctx.fullAccess,

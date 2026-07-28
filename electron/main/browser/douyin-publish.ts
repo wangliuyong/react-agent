@@ -3,14 +3,18 @@ import { getBrowserService } from './service'
 import { humanTypeBySelectors, humanTypeInto } from './human-input'
 import {
   DOUYIN_PUBLISH_URL,
+  DOUYIN_TITLE_MAX_LENGTH,
   clickDouyinConfirmDialog,
   clickDouyinImageTab,
   clickDouyinPublishButton,
+  ensureDouyinPublishPage,
+  queryIsDouyinPublishUrl,
   removeDouyinOverlay,
   scrollDouyinPublishFooterIntoView,
   dwellBeforeDouyinPublish,
   uploadDouyinImages,
-  queryDouyinImagePreviewCount
+  queryDouyinImagePreviewCount,
+  queryVerifyDouyinFilledContent
 } from './douyin-dom'
 
 export interface PublishDouyinParams {
@@ -134,37 +138,42 @@ export async function publishDouyinNote(params: PublishDouyinParams): Promise<st
   assertNotAborted(signal)
 
   // 抖音图文：标题常作为独立输入；正文为作品描述区（contenteditable / textarea）
-  const titleText = title.slice(0, 30)
+  const titleText = title.slice(0, DOUYIN_TITLE_MAX_LENGTH)
   const fullText = titleText ? `${titleText}\n${content}` : content
 
-  const titleFilled = await humanTypeBySelectors(
-    page,
-    [
-      'input[placeholder*="标题"]',
-      'textarea[placeholder*="标题"]',
-      '[class*="title"] input',
-      '[class*="title"] textarea',
-      'input[placeholder*="作品标题"]'
-    ],
-    titleText
-  )
+  /** 填写标题 + 作品描述；返回是否命中独立标题框 */
+  const fillDouyinCopy = async (): Promise<{ titleFilledSeparately: boolean; located: boolean }> => {
+    const titleFilled = await humanTypeBySelectors(
+      page,
+      [
+        'input[placeholder*="标题"]',
+        'textarea[placeholder*="标题"]',
+        '[class*="title"] input',
+        '[class*="title"] textarea',
+        'input[placeholder*="作品标题"]'
+      ],
+      titleText
+    )
 
-  const bodyFilled = await humanTypeBySelectors(
-    page,
-    [
-      'div[contenteditable="true"][data-placeholder*="描述"]',
-      'div[contenteditable="true"][placeholder*="描述"]',
-      '[class*="desc"] [contenteditable="true"]',
-      '[class*="editor"] [contenteditable="true"]',
-      'textarea[placeholder*="描述"]',
-      'textarea[placeholder*="作品"]',
-      'textarea[placeholder*="添加"]',
-      'div[contenteditable="true"]'
-    ],
-    titleFilled ? content : fullText
-  )
+    const bodyFilled = await humanTypeBySelectors(
+      page,
+      [
+        'div[contenteditable="true"][data-placeholder*="描述"]',
+        'div[contenteditable="true"][placeholder*="描述"]',
+        '[class*="desc"] [contenteditable="true"]',
+        '[class*="editor"] [contenteditable="true"]',
+        'textarea[placeholder*="描述"]',
+        'textarea[placeholder*="作品"]',
+        'textarea[placeholder*="添加"]',
+        'div[contenteditable="true"]'
+      ],
+      titleFilled ? content : fullText
+    )
 
-  if (!bodyFilled && !titleFilled) {
+    if (bodyFilled || titleFilled) {
+      return { titleFilledSeparately: titleFilled, located: true }
+    }
+
     // 优先找「作品描述」文案附近的可编辑区
     const descNear = page
       .getByText(/作品描述|添加作品描述|写下作品描述/, { exact: false })
@@ -173,18 +182,25 @@ export async function publishDouyinNote(params: PublishDouyinParams): Promise<st
       .first()
     if (await descNear.isVisible({ timeout: 2000 }).catch(() => false)) {
       await humanTypeInto(page, descNear, fullText)
-    } else {
-      const editable = page.locator('[contenteditable="true"]').first()
-      if (await editable.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await humanTypeInto(page, editable, fullText)
-      } else {
-        return (
-          `配图已上传，但未能自动定位文案输入框。` +
-          `标题草稿: ${title}\n正文草稿: ${content}\n` +
-          `请用 browser_snapshot + browser_type 继续填写。`
-        )
-      }
+      return { titleFilledSeparately: false, located: true }
     }
+
+    const editable = page.locator('[contenteditable="true"]').first()
+    if (await editable.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await humanTypeInto(page, editable, fullText)
+      return { titleFilledSeparately: false, located: true }
+    }
+
+    return { titleFilledSeparately: false, located: false }
+  }
+
+  let fillMeta = await fillDouyinCopy()
+  if (!fillMeta.located) {
+    return (
+      `配图已上传，但未能自动定位文案输入框。` +
+      `标题草稿: ${title}\n正文草稿: ${content}\n` +
+      `请用 browser_snapshot + browser_type 继续填写。`
+    )
   }
 
   setTasks([
@@ -194,7 +210,46 @@ export async function publishDouyinNote(params: PublishDouyinParams): Promise<st
     { id: '4', title: '填写文案并发布', status: 'running' }
   ])
 
+  // —— 填完后拟人通读 + 回读校验；不一致则重填一次 ——
+  let verify = await queryVerifyDouyinFilledContent(page, {
+    expectedTitle: titleText,
+    expectedContent: content,
+    titleFilledSeparately: fillMeta.titleFilledSeparately
+  })
+  if (!verify.ok) {
+    console.warn('[douyin-publish] 首次填写校验未通过，尝试重填:', verify.issues.join('；'))
+    fillMeta = await fillDouyinCopy()
+    if (fillMeta.located) {
+      verify = await queryVerifyDouyinFilledContent(page, {
+        expectedTitle: titleText,
+        expectedContent: content,
+        titleFilledSeparately: fillMeta.titleFilledSeparately
+      })
+    }
+  }
+
+  if (!verify.ok) {
+    await scrollDouyinPublishFooterIntoView(page)
+    return (
+      `配图已上传，但填写内容校验未通过（${verify.issues.join('；')}）。` +
+      `期望标题: ${titleText}\n期望正文: ${content}\n` +
+      `页面回读标题: ${verify.title || '（空）'}\n页面回读正文: ${verify.content || '（空）'}\n` +
+      `请用 browser_snapshot 检查后手动修正，再点「发布」。`
+    )
+  }
+
+  assertNotAborted(signal)
+
+  // 校验通过后若误触导航到首页，无法继续发布：立即拦截并提示
+  if (!queryIsDouyinPublishUrl(page.url())) {
+    return (
+      `文案已填写，但页面已离开抖音发布页（当前: ${page.url()}），未继续点击发布。` +
+      `请重新打开创作者上传页后重试，或用 browser_snapshot 检查。`
+    )
+  }
+
   if (!autoPublish) {
+    // 校验通过后滚到发布栏，供用户目视确认后手动发布
     await scrollDouyinPublishFooterIntoView(page)
     await dwellBeforeDouyinPublish(page)
     setTasks([
@@ -204,21 +259,30 @@ export async function publishDouyinNote(params: PublishDouyinParams): Promise<st
       { id: '4', title: '填写文案并发布', status: 'pending' }
     ])
     return (
-      `已上传配图 ${imagePaths.length} 张并填写文案，停在待发布状态（autoPublish=false）。` +
-      `页面已拟人滚到底部并停留确认；用户可在浏览器中检查后手动点「发布」。`
+      `已上传配图 ${imagePaths.length} 张并填写文案，内容校验通过，停在待发布状态（autoPublish=false）。` +
+      `页面已拟人滚到发布按钮并停留确认；用户可在浏览器中检查后手动点「发布」。`
     )
   }
 
   if (!fullAccess) {
-    // 先滚到底让用户能看见底栏；真正发布前的拟人停留放在 clickDouyinPublishButton 内
+    // 校验通过后先滚到发布按钮，等人确认再真正点击
     await scrollDouyinPublishFooterIntoView(page)
-    await emitAwaitUser('内容已填好，页面已滚到底部操作栏。确认无误后点击「继续」，将触发抖音「发布」操作。')
+    if (!(await ensureDouyinPublishPage(page))) {
+      return '内容已填好，但页面已离开发布页，无法等待确认发布。请重新打开上传页后重试。'
+    }
+    await emitAwaitUser(
+      '内容已填好且校验通过，页面已滚到发布按钮。确认无误后点击「继续」，将触发抖音「发布」操作。'
+    )
     assertNotAborted(signal)
+  }
+
+  if (!(await ensureDouyinPublishPage(page))) {
+    return '内容已填好，但页面已离开发布页，无法自动点击发布。请重新打开上传页后重试。'
   }
 
   await removeDouyinOverlay(page)
 
-  // 内部：分段滚到底 → 底栏停留约 3.5～9 秒（拟人确认）→ 再点发布
+  // 内部：再次下滚直到发布按钮 → 底栏拟人停留 → 点击发布
   let published = await clickDouyinPublishButton(page)
   if (published) {
     await clickDouyinConfirmDialog(page)

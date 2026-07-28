@@ -263,7 +263,7 @@ export const DEFAULT_PUBLISH_CHANNELS: PublishChannelMeta[] = [
     description: '创作者中心图文发布；可开启拟人浏览器或走 SDK 占位通道。视频后续接入。',
     enabled: true,
     publishTool: 'douyin_publish_note',
-    titleMaxLength: 30,
+    titleMaxLength: 20,
     loginCheckUrl: 'https://creator.douyin.com/creator-micro/content/upload',
     humanized: false,
     agentHint:

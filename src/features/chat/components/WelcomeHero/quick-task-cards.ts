@@ -55,7 +55,7 @@ export const QUICK_TASK_CARDS: QuickCard[] = [
     title: '发一条抖音图文',
     desc: '从来源网页抓取配图，生成标题正文并发布到抖音创作者中心',
     prompt:
-      '帮我发一条抖音图文，内容关于今日热点。请先 fetch_hot_topics（source 优先 douyin）选题，再找相关新闻来源页，用 fetch_web_images 抓取配图，再调用 douyin_publish_note 发布；标题不超过30字。我本地上传图片仅作可选补充。'
+      '帮我发一条抖音图文，内容关于今日热点。请先 fetch_hot_topics（source 优先 douyin）选题，再找相关新闻来源页，用 fetch_web_images 抓取配图，再调用 douyin_publish_note 发布；标题不超过20字。我本地上传图片仅作可选补充。'
   },
   {
     title: '发一条小红书',
@@ -121,7 +121,7 @@ export const QUICK_TASK_CARDS: QuickCard[] = [
     title: '热搜改抖音图文',
     desc: '热点选题→网页配图→抖音创作者中心发布',
     prompt:
-      '请先用 fetch_hot_topics 拿今日热点（source 优先 douyin，失败再试 weibo/baidu/tencent），选一条适合抖音的话题；用 fetch_web_images 从新闻来源页下载配图，再调用 douyin_publish_note 发布，标题不超过30字。'
+      '请先用 fetch_hot_topics 拿今日热点（source 优先 douyin，失败再试 weibo/baidu/tencent），选一条适合抖音的话题；用 fetch_web_images 从新闻来源页下载配图，再调用 douyin_publish_note 发布，标题不超过20字。'
   },
   {
     title: '写剧本并出分镜',
