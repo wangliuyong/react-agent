@@ -389,7 +389,7 @@ export function AssetsPanel(): React.ReactElement {
               ) : null}
             </div>
           ) : null}
-          {/* <Button
+          <Button
             danger
             icon={<DeleteOutlined />}
             onClick={handleClearAll}
@@ -397,7 +397,7 @@ export function AssetsPanel(): React.ReactElement {
             disabled={!assets.length}
           >
             一键清空
-          </Button> */}
+          </Button>
           <Button icon={<ReloadOutlined />} onClick={() => void hydrate()} loading={loading}>
             刷新
           </Button>
