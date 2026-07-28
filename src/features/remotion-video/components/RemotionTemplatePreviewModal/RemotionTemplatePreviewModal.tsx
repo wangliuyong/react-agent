@@ -1,4 +1,3 @@
-import type { HotNewsProps } from '@remotion-starter/compositions/hot-news/types'
 import type { RemotionTemplatePlayerConfig } from '../../templates/template-preview-registry'
 import { RemotionTemplatePlayer } from '../RemotionTemplatePlayer/RemotionTemplatePlayer'
 import styles from './RemotionTemplatePreviewModal.module.css'
@@ -7,19 +6,21 @@ interface RemotionTemplatePreviewModalProps {
   open: boolean
   title?: string
   config: RemotionTemplatePlayerConfig
-  displayProps: HotNewsProps
+  studioUrl?: string | null
+  statusText?: string
   onClose: () => void
 }
 
 /**
- * 模板视频预览弹窗。
- * zIndex 高于右侧配置抽屉，避免 Player 被遮挡。
+ * 模版 Studio 预览弹窗（技能拼装后打开）。
+ * zIndex 高于右侧配置抽屉。
  */
 export function RemotionTemplatePreviewModal({
   open,
   title = '视频预览',
   config,
-  displayProps,
+  studioUrl,
+  statusText,
   onClose
 }: RemotionTemplatePreviewModalProps): React.ReactElement {
   const isVertical = config.height > config.width
@@ -31,7 +32,7 @@ export function RemotionTemplatePreviewModal({
       onCancel={onClose}
       footer={null}
       centered
-      destroyOnClose
+      destroyOnHidden
       width={isVertical ? 'min(440px, 94vw)' : 'min(960px, 94vw)'}
       zIndex={1300}
       className={styles.modal}
@@ -40,8 +41,13 @@ export function RemotionTemplatePreviewModal({
       }}
     >
       <RemotionTemplatePlayer
-        config={config}
-        inputPropsOverride={displayProps}
+        studioUrl={studioUrl}
+        statusText={statusText}
+        compositionId={config.compositionId}
+        width={config.width}
+        height={config.height}
+        fps={config.fps}
+        durationInFrames={config.durationInFrames}
         variant="modal"
       />
     </Modal>

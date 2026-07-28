@@ -1,4 +1,4 @@
-import type { HotNewsItem, HotNewsProps } from '@remotion-starter/compositions/hot-news/types'
+import type { HotNewsItem, HotNewsProps } from '../types/hot-news-props'
 import type { HotNewsContentBudget } from './query-hot-news-content-budget'
 
 /** 与 Remotion 轮播工具保持一致的秒数钳制（3–15） */

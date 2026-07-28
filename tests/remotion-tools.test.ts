@@ -32,11 +32,12 @@ const roleToolsSource = readFileSync(
 )
 
 describe('Remotion 内置工具', () => {
-  it('注册 remotion_init_project / remotion_enable_sfx / remotion_studio / remotion_render', () => {
+  it('注册 remotion_init_project / remotion_enable_sfx / remotion_studio / remotion_render / remotion_apply_template_skill', () => {
     expect(remotionToolsSource).toContain("name: 'remotion_init_project'")
     expect(remotionToolsSource).toContain("name: 'remotion_enable_sfx'")
     expect(remotionToolsSource).toContain("name: 'remotion_studio'")
     expect(remotionToolsSource).toContain("name: 'remotion_render'")
+    expect(remotionToolsSource).toContain("name: 'remotion_apply_template_skill'")
     expect(remotionToolsSource).toContain('postInitRemotionProject')
     expect(remotionToolsSource).toContain('postEnableRemotionSfx')
     expect(remotionToolsSource).toContain('postStartRemotionStudio')
@@ -45,6 +46,7 @@ describe('Remotion 内置工具', () => {
     expect(indexSource).toContain('remotionEnableSfxTool')
     expect(indexSource).toContain('remotionStudioTool')
     expect(indexSource).toContain('remotionRenderTool')
+    expect(indexSource).toContain('remotionApplyTemplateSkillTool')
   })
 
   it('渲染服务使用 @remotion/bundler 与 @remotion/renderer，并支持 Studio', () => {
@@ -69,6 +71,7 @@ describe('Remotion 内置工具', () => {
     expect(promptsSource).toContain('react-agent-remotion')
     expect(roleToolsSource).toContain('remotion_enable_sfx')
     expect(roleToolsSource).toContain('remotion_init_project')
+    expect(roleToolsSource).toContain('remotion_apply_template_skill')
     expect(roleToolsSource).toContain('remotion_studio')
     expect(roleToolsSource).toContain('remotion_render')
   })

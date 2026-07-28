@@ -313,3 +313,89 @@ export const remotionRenderTool: AgentTool = {
     )
   }
 }
+
+/** 将技能模版源码拼装进会话工程并可选打开 Studio */
+export const remotionApplyTemplateSkillTool: AgentTool = {
+  name: 'remotion_apply_template_skill',
+  description:
+    '将 remotion-template-* 技能目录中的 template/ Composition 拷入当前会话 Remotion 工程，' +
+    '写入处理后的 props，并打开 remotion_studio 预览。' +
+    '视频生产页与「用某模版出片」时应优先调用本工具，而不是手写整套 Composition。' +
+    'skillId 例如 remotion-template-hot-news；props 为 HotNewsProps 等 JSON。',
+  permission: 'sensitive',
+  parameters: {
+    type: 'object',
+    properties: {
+      skillId: {
+        type: 'string',
+        description: '技能 id，如 remotion-template-hot-news'
+      },
+      compositionId: {
+        type: 'string',
+        description: '要预览/渲染的 Composition id；缺省用 manifest 第一条'
+      },
+      props: {
+        type: 'object',
+        description: '写入 default-props 的业务数据（如 HotNewsProps）'
+      },
+      width: { type: 'number' },
+      height: { type: 'number' },
+      fps: { type: 'number' },
+      durationInFrames: { type: 'number' },
+      openStudio: {
+        type: 'boolean',
+        description: '是否打开 Studio，默认 true'
+      }
+    },
+    required: ['skillId']
+  },
+  async execute(args, ctx) {
+    const { postApplyRemotionTemplateSkill } = await import(
+      '../../media/remotion-apply-template-skill'
+    )
+    const skillId = String(args.skillId ?? '').trim()
+    const compositionId =
+      args.compositionId != null ? String(args.compositionId).trim() : undefined
+    const props =
+      args.props && typeof args.props === 'object' && !Array.isArray(args.props)
+        ? (args.props as Record<string, unknown>)
+        : undefined
+    const width = args.width != null ? Number(args.width) : undefined
+    const height = args.height != null ? Number(args.height) : undefined
+    const fps = args.fps != null ? Number(args.fps) : undefined
+    const durationInFrames =
+      args.durationInFrames != null ? Number(args.durationInFrames) : undefined
+    const openStudio = args.openStudio !== false
+
+    const result = await postApplyRemotionTemplateSkill({
+      sessionId: ctx.sessionId,
+      skillId,
+      compositionId,
+      props,
+      width: Number.isFinite(width) ? width : undefined,
+      height: Number.isFinite(height) ? height : undefined,
+      fps: Number.isFinite(fps) ? fps : undefined,
+      durationInFrames: Number.isFinite(durationInFrames) ? durationInFrames : undefined,
+      openStudio
+    })
+
+    if (!result.ok) {
+      return `拼装失败：${result.message}`
+    }
+
+    return queryEncodeWorkflowCtxResult(
+      `${result.message}\n` +
+        `工程目录：${result.projectDir}\n` +
+        `compositionId：${result.compositionId}\n` +
+        (result.studioUrl ? `Studio：${result.studioUrl}\n` : '') +
+        '确认画面后可 remotion_render 导出 mp4。',
+      {
+        remotionProjectOk: '1',
+        remotionProjectDir: result.projectDir ?? '',
+        remotionCompositionId: result.compositionId ?? '',
+        remotionStudioUrl: result.studioUrl ?? '',
+        remotionTemplateSkillId: skillId
+      }
+    )
+  }
+}

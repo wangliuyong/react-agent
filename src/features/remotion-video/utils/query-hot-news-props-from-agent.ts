@@ -1,4 +1,4 @@
-import type { HotNewsProps } from '@remotion-starter/compositions/hot-news/types'
+import type { HotNewsProps } from '../types/hot-news-props'
 import type { HotTopicSource } from '../constants/hot-topic-sources'
 import type { RemotionVideoCategory } from '../types'
 import { postCreateSession } from '@/features/chat/api'
@@ -67,12 +67,13 @@ export async function queryHotNewsPropsFromAgent(
   const budget = queryHotNewsContentBudget(durationSec)
   const sourceHint =
     input.hotSource === 'all'
-      ? '热点来源：全部（先 fetch_hot_topics 多源综合，再筛选）'
-      : `热点来源：${input.hotSource}（请调用 fetch_hot_topics，source=${input.hotSource}）`
+      ? '信息来源：全部（必须先 fetch_hot_topics 多源综合，再筛选；禁止跳过拉热点）'
+      : `信息来源：${input.hotSource}（必须调用 fetch_hot_topics，source=${input.hotSource}；禁止编造未检索内容）`
 
   const prompt = [
     '你是 Remotion 热点新闻视频的内容导演兼文案编辑。最终只输出一个符合 schema 的 JSON，不要 Markdown 说明。',
     `模板 compositionId：${input.compositionId}`,
+    '【硬性要求】新闻类成片必须有明确信息来源；请严格按下方来源拉取热点，并在文案中体现可核对的事实。',
     sourceHint,
     `视频分类：${input.newsCategory}`,
     `成片总时长：约 ${budget.durationSec} 秒（片头约占 10%，主段可轮播约 ${Math.max(6, budget.durationSec - 3)} 秒）。`,

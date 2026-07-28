@@ -62,3 +62,10 @@ export async function postImportSkillFromUrl(
 export async function postSummarizeSkillFromSession(sessionId: string): Promise<SkillUpsertInput> {
   return window.api.postSummarizeSkillFromSession(sessionId)
 }
+
+/** 在系统文件管理器中打开技能目录 */
+export async function postRevealSkillDir(
+  dirPath: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return window.api.postRevealPath(dirPath)
+}

@@ -83,6 +83,44 @@ describe('skills store', () => {
     ])
   })
 
+  it('Remotion 视频模版从内置 remotion-template-* 技能读取', async () => {
+    const templateDir = join(testState.bundledRoot, 'skills', 'remotion-template-hot-news')
+    mkdirSync(templateDir, { recursive: true })
+    writeFileSync(
+      join(templateDir, 'SKILL.md'),
+      `---
+name: 热点新闻
+description: 测试模版
+remotionVideoTemplate: true
+category: news
+compositionId: HotNews
+accent: "#e63946"
+durationSec: 20
+status: ready
+previewKind: hot-news-wide
+---
+
+# 正文
+`,
+      'utf-8'
+    )
+    mkdirSync(join(templateDir, 'template'), { recursive: true })
+    writeFileSync(join(templateDir, 'template', 'manifest.json'), '{"compositions":[{"id":"HotNews","componentPath":"./x","componentExport":"X","width":1,"height":1,"fps":30,"durationInFrames":30}]}', 'utf-8')
+
+    const { queryRemotionVideoTemplates } = await import('../electron/main/store/skills')
+    const list = queryRemotionVideoTemplates()
+    expect(list).toHaveLength(1)
+    expect(list[0]).toEqual(
+      expect.objectContaining({
+        id: 'remotion-template-hot-news',
+        title: '热点新闻',
+        compositionId: 'HotNews',
+        previewKind: 'hot-news-wide',
+        hasTemplateCode: true
+      })
+    )
+  })
+
   it('提示词只暴露已启用技能目录，正文仅在显式使用技能时读取', async () => {
     const {
       postProjectSkill,

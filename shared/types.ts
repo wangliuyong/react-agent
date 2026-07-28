@@ -89,8 +89,12 @@ export const IpcChannels = {
   queryRemotionExports: 'query:remotion-exports',
   /** Remotion 视频页：导出任务入队 */
   postEnqueueRemotionExport: 'post:remotion-export:enqueue',
-  /** Remotion 视频页：更新导出任务状态 */
+  /** Remotion 视频页：导出任务更新 */
   postUpdateRemotionExport: 'post:remotion-export:update',
+  /** Remotion 视频页：从内置技能读取模版列表 */
+  queryRemotionVideoTemplates: 'query:remotion-video-templates',
+  /** Remotion：拼装技能模版并可选打开 Studio */
+  postApplyRemotionTemplateSkill: 'post:remotion-template:apply',
   // Agent 用户规则（持久指令，注入 SYSTEM_PROMPT）
   queryAgentRules: 'query:agent-rules',
   postAgentRule: 'post:agent-rule',
@@ -2070,6 +2074,8 @@ export interface SkillImportPreview {
 export interface ProjectSkillDetail extends ProjectSkill {
   content: string
   examplesContent?: string
+  /** 技能目录绝对路径（resources/skills/<id>），供「打开目录」使用 */
+  dirPath: string
 }
 
 /** 技能启用状态：skillId → { enabled } */
@@ -2545,6 +2551,29 @@ export interface ElectronApi {
   postUpdateRemotionExport: (
     input: import('./remotion-exports').PostUpdateRemotionExportInput
   ) => Promise<import('./remotion-exports').RemotionExportRecord | null>
+  /** Remotion 视频页：内置技能模版列表 */
+  queryRemotionVideoTemplates: () => Promise<
+    import('./remotion-video-template').RemotionVideoTemplate[]
+  >
+  /** Remotion：拼装技能模版到会话工程并预览 */
+  postApplyRemotionTemplateSkill: (input: {
+    sessionId: string
+    skillId: string
+    compositionId?: string
+    props?: Record<string, unknown>
+    width?: number
+    height?: number
+    fps?: number
+    durationInFrames?: number
+    openStudio?: boolean
+  }) => Promise<{
+    ok: boolean
+    message: string
+    projectDir?: string
+    compositionId?: string
+    studioUrl?: string
+    skillId?: string
+  }>
   queryAgentRules: () => Promise<AgentRule[]>
   postAgentRule: (input: AgentRuleUpsertInput) => Promise<AgentRule>
   postDeleteAgentRule: (id: string) => Promise<void>

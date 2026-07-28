@@ -139,13 +139,19 @@ ipcMain.handle('shell:open-external', async (_e, url: string) => {
 })
 
 ipcMain.handle('post:reveal-path', async (_e, filePath: string) => {
-  const { existsSync } = await import('fs')
+  const { existsSync, statSync } = await import('fs')
   const { normalize, resolve } = await import('path')
   const raw = String(filePath ?? '').trim()
   if (!raw) return { ok: false as const, error: '路径为空' }
   const target = normalize(resolve(raw))
   if (!existsSync(target)) return { ok: false as const, error: '文件不存在' }
-  shell.showItemInFolder(target)
+  // 目录：直接打开；文件：在资源管理器中定位并选中
+  if (statSync(target).isDirectory()) {
+    const openError = await shell.openPath(target)
+    if (openError) return { ok: false as const, error: openError }
+  } else {
+    shell.showItemInFolder(target)
+  }
   return { ok: true as const }
 })
 

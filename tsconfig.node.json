@@ -21,6 +21,7 @@
     "config/**/*",
     "electron/**/*",
     "shared/**/*",
+    "resources/skills/remotion-template-hot-news/template/compositions/hot-news/query-hot-news-carousel.ts",
     "src/features/chat/components/TaskChecklist/task-status.ts",
     "tests/**/*"
   ]

@@ -2,7 +2,7 @@
  * Remotion 热点新闻导出：入队后后台跑 Agent 渲染，
  * UI 立刻可在「导出列表」看到任务，无需阻塞等待成片。
  */
-import type { HotNewsProps } from '@remotion-starter/compositions/hot-news/types'
+import type { HotNewsProps } from '../types/hot-news-props'
 import type { RemotionExportRecord } from '@shared/remotion-exports'
 import { postAgentChat, postAgentContinue, postCreateSession, querySession } from '@/features/chat/api'
 import {
@@ -11,12 +11,14 @@ import {
 } from '../api'
 
 export interface PostExportHotNewsVideoInput {
+  /** 技能 id，如 remotion-template-hot-news */
+  skillId: string
   compositionId: string
   width: number
   height: number
   fps: number
   durationInFrames: number
-  props: HotNewsProps
+  props?: HotNewsProps
   /** 列表展示标题（模板名） */
   title?: string
 }
@@ -47,29 +49,24 @@ function queryMp4PathFromMessages(messages: { content: string }[]): string | nul
 async function postRunHotNewsExportJob(input: {
   sessionId: string
   exportId: string
+  skillId: string
   compositionId: string
   width: number
   height: number
   fps: number
   durationInFrames: number
-  props: HotNewsProps
+  props?: HotNewsProps
   outputFileName: string
 }): Promise<string> {
-  const propsJson = JSON.stringify(input.props, null, 2)
+  const propsHint = input.props
+    ? `props=${JSON.stringify(input.props)}`
+    : '不传 props（使用技能 template 内默认文案）'
 
   const prompt = [
-    '请为当前会话导出 Remotion 热点新闻 mp4，严格按顺序执行工具，不要改模板结构：',
-    `1. remotion_init_project：compositionId=${input.compositionId}，width=${input.width}，height=${input.height}，fps=${input.fps}，durationInFrames=${input.durationInFrames}`,
-    '2. write_file 覆盖工程内 src/compositions/hot-news/default-props.ts，内容为：',
-    '```ts',
-    "import type { HotNewsProps } from './types'",
-    '',
-    `export const HOT_NEWS_WIDE_DEFAULT_PROPS: HotNewsProps = ${propsJson}`,
-    '',
-    `export const HOT_NEWS_VERTICAL_DEFAULT_PROPS: HotNewsProps = ${propsJson}`,
-    '```',
-    `3. remotion_render：compositionId=${input.compositionId}，quality=standard，outputFileName=${input.outputFileName}`,
-    '禁止修改 Root.tsx 中已有 Composition 的 id，也禁止再注册同名 Composition。',
+    '请为当前会话导出 Remotion 模版 mp4，严格按顺序执行工具：',
+    `1. remotion_apply_template_skill：skillId=${input.skillId}，compositionId=${input.compositionId}，width=${input.width}，height=${input.height}，fps=${input.fps}，durationInFrames=${input.durationInFrames}，openStudio=false，${propsHint}`,
+    `2. remotion_render：compositionId=${input.compositionId}，quality=standard，outputFileName=${input.outputFileName}`,
+    '禁止手写整套 Composition；必须使用技能 template 拼装结果。',
     '成功后在回复中明确写出 mp4 绝对路径。'
   ].join('\n')
 
@@ -194,6 +191,7 @@ export async function postEnqueueHotNewsExport(
   void postRunHotNewsExportJob({
     sessionId: session.id,
     exportId: record.id,
+    skillId: input.skillId,
     compositionId: input.compositionId,
     width: input.width,
     height: input.height,

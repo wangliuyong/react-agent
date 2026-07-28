@@ -7,6 +7,7 @@ export type HotTopicSource =
   | 'tencent'
   | 'tophub'
 
+/** 信息来源选项（新闻类模版必选） */
 export const HOT_TOPIC_SOURCE_OPTIONS: { value: HotTopicSource | 'all'; label: string }[] = [
   { value: 'all', label: '全部来源' },
   { value: 'weibo', label: '微博热搜' },
@@ -16,3 +17,11 @@ export const HOT_TOPIC_SOURCE_OPTIONS: { value: HotTopicSource | 'all'; label: s
   { value: 'tencent', label: '腾讯新闻' },
   { value: 'tophub', label: '今日热榜' }
 ]
+
+/** 新闻类模版是否已选择有效信息来源 */
+export function queryHasHotTopicSource(
+  source: HotTopicSource | 'all' | null | undefined
+): source is HotTopicSource | 'all' {
+  if (source == null || source === '') return false
+  return HOT_TOPIC_SOURCE_OPTIONS.some((opt) => opt.value === source)
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { queryHotNewsCarouselSlot } from '../resources/remotion/starter/src/compositions/hot-news/query-hot-news-carousel'
+import { queryHotNewsCarouselSlot } from '../resources/skills/remotion-template-hot-news/template/compositions/hot-news/query-hot-news-carousel'
 
 describe('queryHotNewsCarouselSlot', () => {
   const fps = 30

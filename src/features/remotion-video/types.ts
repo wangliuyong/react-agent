@@ -4,8 +4,9 @@ export type RemotionVideoCategory = 'song' | 'news' | 'product' | 'education' | 
 /** 渲染与编辑生命周期 */
 export type RemotionVideoStatus = 'draft' | 'rendering' | 'ready' | 'failed'
 
-/** 列表卡片展示用的视频项目实体（后续可对接 API） */
+/** 列表卡片展示用的视频模版（来自内置 remotion-template-* 技能） */
 export interface RemotionVideoProject {
+  /** 技能 id */
   id: string
   title: string
   description: string
@@ -18,4 +19,8 @@ export interface RemotionVideoProject {
   updatedAt: number
   /** 可选封面图 URL；无则使用程序化占位 */
   coverUrl?: string
+  /** 技能内是否含 template/ 可拼装源码 */
+  hasTemplateCode?: boolean
+  /** 画幅提示 */
+  previewKind?: import('@shared/remotion-video-template').RemotionVideoPreviewKind
 }

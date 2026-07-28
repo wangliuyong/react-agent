@@ -341,12 +341,13 @@ export function ChatInput({
               </Tooltip>
             </Space>
             <Space size={10}>
-              <div className={styles.token} data-running={running}>
+              {/*不在展示token消耗*/}
+              {/*<div className={styles.token} data-running={running}>
                 {running ? <LoadingOutlined className={styles.tokenSpin} spin /> : null}
                 <Text type="secondary" className={styles.tokenText}>
                   {running ? '处理中' : `${tokenDisplayUsed}k/${tokenDisplayMaxK}k`}
                 </Text>
-              </div>
+              </div>*/}
               {running && !awaitingUser ? (
                 <Button
                   danger

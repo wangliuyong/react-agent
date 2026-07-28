@@ -47,6 +47,7 @@ const TOOL_LABELS: Record<string, string> = {
   generate_scene_assets: '生成场景素材',
   compose_video: '合成视频',
   remotion_init_project: '初始化 Remotion 工程',
+  remotion_apply_template_skill: '拼装 Remotion 模版技能',
   remotion_studio: '打开 Remotion 预览',
   remotion_render: '渲染 Remotion 视频',
   notify_message: '发送通知',

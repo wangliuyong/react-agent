@@ -5,7 +5,7 @@ import {
   REMOTION_VIDEO_CATEGORY_TABS,
   REMOTION_VIDEO_STATUS_META
 } from '../../constants'
-import { REMOTION_VIDEO_SEED_PROJECTS } from '../../data/seed-projects'
+import { queryRemotionVideoTemplates } from '../../api'
 import {
   formatRemotionDuration,
   queryRemotionVideoSearch,
@@ -13,7 +13,6 @@ import {
   queryRemotionVideosByCategory,
   type RemotionVideoSort
 } from '../../utils/query-remotion-video-list'
-import { queryRemotionTemplatePreview } from '../../templates/template-preview-registry'
 import { RemotionVideoTemplateDrawer } from '../RemotionVideoTemplateDrawer/RemotionVideoTemplateDrawer'
 import { RemotionExportListDrawer } from '../RemotionExportListDrawer/RemotionExportListDrawer'
 import {
@@ -84,31 +83,63 @@ function RemotionVideoProjectCard({
 
 /**
  * Remotion 视频生产 — 列表页。
- * 按视频分类 Tab 筛选（歌曲、新闻等），后续可接编辑器路由与渲染队列。
+ * 模版来自内置技能市场（remotion-template-*），不写死在代码中。
  */
 export function RemotionVideoPage(): React.ReactElement {
   const [category, setCategory] = useState<RemotionVideoCategory | 'all'>('all')
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<RemotionVideoSort>('updated_desc')
+  const [projects, setProjects] = useState<RemotionVideoProject[]>([])
+  const [loading, setLoading] = useState(true)
   const [drawerProject, setDrawerProject] = useState<RemotionVideoProject | null>(null)
   const [exportListOpen, setExportListOpen] = useState(false)
 
+  const loadTemplates = useCallback(async (): Promise<void> => {
+    try {
+      const list = await queryRemotionVideoTemplates()
+      setProjects(list)
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '加载 Remotion 模版失败')
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    void (async () => {
+      await loadTemplates()
+      if (!cancelled) setLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [loadTemplates])
+
   const filtered = useMemo(() => {
-    const byCategory = queryRemotionVideosByCategory(REMOTION_VIDEO_SEED_PROJECTS, category)
+    const byCategory = queryRemotionVideosByCategory(projects, category)
     const bySearch = queryRemotionVideoSearch(byCategory, search)
     return queryRemotionVideoSorted(bySearch, sort)
-  }, [category, search, sort])
+  }, [projects, category, search, sort])
 
   const handleOpenProject = (project: RemotionVideoProject): void => {
-    if (queryRemotionTemplatePreview(project.compositionId)) {
+    if (project.hasTemplateCode) {
       setDrawerProject(project)
       return
     }
-    message.info(`「${project.title}」编辑器即将接入，当前为列表预览`)
+    message.info(
+      `「${project.title}」技能 ${project.id} 尚未包含 template/ 源码，请先在技能中补充 Composition`
+    )
   }
 
   const handleCreate = (): void => {
-    message.info('新建 Remotion 合成即将接入')
+    message.info('新建 Remotion 合成即将接入；也可在技能市场安装 remotion-template-* 模版')
+  }
+
+  const handleRefresh = (): void => {
+    setLoading(true)
+    void loadTemplates()
+      .then(() => message.success('模版列表已从内置技能刷新'))
+      .finally(() => setLoading(false))
   }
 
   return (
@@ -116,8 +147,8 @@ export function RemotionVideoPage(): React.ReactElement {
       <FeaturePageHeader
         icon={<VideoCameraOutlined />}
         title="Remotion 视频生产"
-        badge={REMOTION_VIDEO_SEED_PROJECTS.length}
-        description="基于 Remotion 的模板化成片与批量渲染；按业务分类管理合成项目"
+        badge={projects.length}
+        description="模版来自技能市场内置 remotion-template-* 技能；按业务分类管理合成与导出"
         extra={
           <Space wrap>
             <Button icon={<UnorderedListOutlined />} onClick={() => setExportListOpen(true)}>
@@ -126,7 +157,7 @@ export function RemotionVideoPage(): React.ReactElement {
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
               新建合成
             </Button>
-            <Button icon={<ReloadOutlined />} onClick={() => message.success('列表已刷新')}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={handleRefresh}>
               刷新
             </Button>
           </Space>
@@ -166,14 +197,20 @@ export function RemotionVideoPage(): React.ReactElement {
       </FeaturePageToolbar>
 
       <FeatureScrollBody>
-        {filtered.length === 0 ? (
+        {loading && projects.length === 0 ? (
+          <div className={styles.empty}>
+            {/* tip 仅在嵌套/全屏模式生效，文案与 Spin 并列展示 */}
+            <Spin />
+            <Typography.Text type="secondary">正在从内置技能加载模版…</Typography.Text>
+          </div>
+        ) : filtered.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="该分类下暂无项目，可切换 Tab 或新建合成"
+            description="暂无模版技能。请确认 resources/skills 下存在 remotion-template-* 内置技能"
             className={styles.empty}
           >
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              新建合成
+            <Button type="primary" icon={<ReloadOutlined />} onClick={handleRefresh}>
+              重新加载
             </Button>
           </Empty>
         ) : (

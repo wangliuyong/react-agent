@@ -1,4 +1,4 @@
-import type { HotNewsProps } from '@remotion-starter/compositions/hot-news/types'
+import type { HotNewsProps } from '../types/hot-news-props'
 
 export interface HotNewsDisplayOverrides {
   hotTopicName?: string

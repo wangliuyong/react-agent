@@ -24,6 +24,7 @@ import { useSkillTool } from './skill-tools'
 import { switchModelTool } from './model-tools'
 import { generateImageTool } from './image-tools'
 import {
+  remotionApplyTemplateSkillTool,
   remotionEnableSfxTool,
   remotionInitProjectTool,
   remotionRenderTool,
@@ -55,6 +56,7 @@ export function getAllTools(): AgentTool[] {
     generateSceneAssetsTool,
     composeVideoTool,
     remotionInitProjectTool,
+    remotionApplyTemplateSkillTool,
     remotionEnableSfxTool,
     remotionStudioTool,
     remotionRenderTool,

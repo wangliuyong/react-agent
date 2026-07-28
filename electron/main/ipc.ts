@@ -59,7 +59,8 @@ import {
   postProjectSkill,
   postDeleteProjectSkill,
   querySkillTemplates,
-  postInstallSkillTemplate
+  postInstallSkillTemplate,
+  queryRemotionVideoTemplates
 } from './store/skills'
 import { querySkillImportPreview, postImportSkillFromUrl } from './store/skill-import'
 import { postSummarizeSkillFromSession } from './store/skill-summarize'
@@ -308,6 +309,11 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.postInstallSkillTemplate, (_e, templateId: string, targetId?: string) =>
     postInstallSkillTemplate(templateId, targetId)
   )
+  ipcMain.handle(IpcChannels.queryRemotionVideoTemplates, () => queryRemotionVideoTemplates())
+  ipcMain.handle(IpcChannels.postApplyRemotionTemplateSkill, async (_e, input) => {
+    const { postApplyRemotionTemplateSkill } = await import('./media/remotion-apply-template-skill')
+    return postApplyRemotionTemplateSkill(input)
+  })
   ipcMain.handle(IpcChannels.querySkillImportPreview, (_e, url: string) =>
     querySkillImportPreview(url)
   )

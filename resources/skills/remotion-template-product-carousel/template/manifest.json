@@ -1,0 +1,13 @@
+{
+  "compositions": [
+    {
+      "id": "ProductCarousel",
+      "componentPath": "./compositions/placeholder",
+      "componentExport": "PlaceholderComposition",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "durationInFrames": 1080
+    }
+  ]
+}

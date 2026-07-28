@@ -26,6 +26,7 @@ description: >-
    - 字幕：`use_skill('remotion-captions')`
    - 官方音效（按需）：`use_skill('remotion-sfx')` — 转场/UI/提示音
    - 渲染细节：`use_skill('remotion-render')`
+   - **成片模版（技能市场内置）**：`remotion-template-*`（如 `remotion-template-hot-news`、`remotion-template-news-flash`）；「Remotion 视频生产」页列表即来自这些技能，按模版流程初始化 Composition
 
 ### 2. 初始化工程
    ```

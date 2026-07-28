@@ -46,6 +46,7 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
     'write_file',
     'generate_image',
     'remotion_init_project',
+    'remotion_apply_template_skill',
     'remotion_enable_sfx',
     'remotion_studio',
     'list_attachments'
@@ -77,6 +78,7 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
     'generate_script',
     'generate_storyboard',
     'remotion_init_project',
+    'remotion_apply_template_skill',
     'remotion_enable_sfx',
     'remotion_studio',
     'update_task_list'
@@ -90,6 +92,7 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
     'write_file',
     'generate_scene_assets',
     'remotion_init_project',
+    'remotion_apply_template_skill',
     'remotion_enable_sfx',
     'remotion_studio',
     'remotion_render',
@@ -101,6 +104,7 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
     'switch_model',
     'query_web_data',
     'compose_video',
+    'remotion_apply_template_skill',
     'remotion_enable_sfx',
     'remotion_studio',
     'remotion_render',

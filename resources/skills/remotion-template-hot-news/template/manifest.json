@@ -1,0 +1,28 @@
+{
+  "compositions": [
+    {
+      "id": "HotNews",
+      "componentPath": "./compositions/hot-news",
+      "componentExport": "HotNewsComposition",
+      "defaultPropsPath": "./compositions/hot-news/default-props",
+      "defaultPropsExport": "HOT_NEWS_WIDE_DEFAULT_PROPS",
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "durationInFrames": 600
+    },
+    {
+      "id": "HotNewsVertical",
+      "componentPath": "./compositions/hot-news",
+      "componentExport": "HotNewsComposition",
+      "defaultPropsPath": "./compositions/hot-news/default-props",
+      "defaultPropsExport": "HOT_NEWS_VERTICAL_DEFAULT_PROPS",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "durationInFrames": 450
+    }
+  ],
+  "propsFile": "compositions/hot-news/default-props.ts",
+  "propsKind": "hot-news"
+}

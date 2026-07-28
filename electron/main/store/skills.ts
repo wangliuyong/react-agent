@@ -17,6 +17,8 @@ import type {
   SkillTemplate,
   SkillUpsertInput
 } from '../../../shared/types'
+import type { RemotionVideoTemplate } from '../../../shared/remotion-video-template'
+import { queryRemotionVideoTemplateFromSkillMd } from '../../../shared/remotion-video-template'
 import { getDataRoot } from './paths'
 import { queryBundledResourcesRoot, querySkillsDir } from './resources'
 
@@ -49,16 +51,31 @@ export const DEFAULT_ENABLED_REMOTION_SKILL_IDS = [
   'remotion-captions'
 ] as const
 
+/** 列出内置目录中所有 remotion-template-* 技能 id */
+function queryBundledRemotionTemplateSkillIds(): string[] {
+  const templatesDir = getSkillTemplatesDir()
+  if (!existsSync(templatesDir)) return []
+  return readdirSync(templatesDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && d.name.startsWith('remotion-template-'))
+    .map((d) => d.name)
+}
+
 /**
  * 确保 Remotion 技能已安装到可写目录，并对「尚未记录状态」的技能默认启用。
  * 用户若曾手动禁用（enabled: false），不会被本函数改回。
+ * 同时安装/启用「Remotion 视频生产」模版技能（remotion-template-*）。
  */
 export function postEnsureRemotionSkillsEnabled(): void {
   const templatesDir = getSkillTemplatesDir()
   const skillsDir = getSkillsDir()
   mkdirSync(skillsDir, { recursive: true })
 
-  for (const id of DEFAULT_ENABLED_REMOTION_SKILL_IDS) {
+  const ensureIds = [
+    ...DEFAULT_ENABLED_REMOTION_SKILL_IDS,
+    ...queryBundledRemotionTemplateSkillIds()
+  ]
+
+  for (const id of ensureIds) {
     const destDir = join(skillsDir, id)
     const srcDir = join(templatesDir, id)
     // 可写目录缺失时从内置模板复制（打包升级 / 首次启动）
@@ -73,7 +90,7 @@ export function postEnsureRemotionSkillsEnabled(): void {
 
   const states = readSkillStates()
   let changed = false
-  for (const id of DEFAULT_ENABLED_REMOTION_SKILL_IDS) {
+  for (const id of ensureIds) {
     if (!existsSync(join(skillsDir, id, 'SKILL.md'))) continue
     if (states[id] === undefined) {
       states[id] = { enabled: true }
@@ -254,7 +271,9 @@ export function queryProjectSkillDetail(id: string): ProjectSkillDetail | null {
     content: body,
     examplesContent: existsSync(examplesPath)
       ? readFileSync(examplesPath, 'utf-8').trim()
-      : undefined
+      : undefined,
+    /** 可写技能目录绝对路径，详情弹窗用于在文件管理器中打开 */
+    dirPath: dir
   }
 }
 
@@ -337,6 +356,43 @@ export function querySkillTemplates(): SkillTemplate[] {
   }
 
   return templates.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+}
+
+/**
+ * 列举「Remotion 视频生产」模版：扫描内置 skills 中 remotionVideoTemplate 元数据。
+ * 视频页只依赖本接口，不写死模版列表。
+ */
+export function queryRemotionVideoTemplates(): RemotionVideoTemplate[] {
+  const dir = getSkillTemplatesDir()
+  if (!existsSync(dir)) return []
+
+  const entries = readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory())
+  const templates: RemotionVideoTemplate[] = []
+
+  for (const entry of entries) {
+    const skillPath = join(dir, entry.name, 'SKILL.md')
+    if (!existsSync(skillPath)) continue
+    let raw: string
+    let updatedAt = Date.now()
+    try {
+      raw = readFileSync(skillPath, 'utf-8')
+      updatedAt = statSync(skillPath).mtimeMs
+    } catch {
+      continue
+    }
+    const skillDir = join(dir, entry.name)
+    const templateDirName = 'template'
+    const hasTemplateCode = existsSync(join(skillDir, templateDirName, 'manifest.json'))
+    const parsed = queryRemotionVideoTemplateFromSkillMd(
+      entry.name,
+      raw,
+      updatedAt,
+      hasTemplateCode
+    )
+    if (parsed) templates.push(parsed)
+  }
+
+  return templates.sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
 /** 将内置模板复制到当前环境的 resources/skills/<targetId>/ */
