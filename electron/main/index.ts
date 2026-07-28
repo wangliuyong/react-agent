@@ -171,10 +171,35 @@ ipcMain.handle('post:open-local-file', async (_e, filePath: string) => {
   return { ok: true as const }
 })
 
+/** 选择本地媒体：图片 / 视频 / 音频（多选），供聊天输入区附件 */
 ipcMain.handle('dialog:select-images', async () => {
   const result = await dialog.showOpenDialog({
     properties: ['openFile', 'multiSelections'],
-    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+    filters: [
+      {
+        name: '媒体文件',
+        extensions: [
+          'png',
+          'jpg',
+          'jpeg',
+          'webp',
+          'gif',
+          'bmp',
+          'mp4',
+          'mov',
+          'webm',
+          'mkv',
+          'wav',
+          'mp3',
+          'm4a',
+          'aac',
+          'ogg'
+        ]
+      },
+      { name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] },
+      { name: '视频', extensions: ['mp4', 'mov', 'webm', 'mkv'] },
+      { name: '音频', extensions: ['wav', 'mp3', 'm4a', 'aac', 'ogg'] }
+    ]
   })
   return result.canceled ? [] : result.filePaths
 })

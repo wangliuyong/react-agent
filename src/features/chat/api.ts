@@ -54,8 +54,14 @@ export async function postAgentContinue(
   return window.api.postAgentContinue(sessionId, payload)
 }
 
+/** 选择本地媒体文件（图片 / 视频 / 音频，可多选） */
 export async function postSelectImages(): Promise<string[]> {
   return window.api.postSelectImages()
+}
+
+/** 选择本地文件夹（聊天附件展示完整路径） */
+export async function postSelectDirectory(): Promise<string | null> {
+  return window.api.postSelectDirectory()
 }
 
 /** 读取本地图片为 data URL，供聊天预览 */

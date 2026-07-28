@@ -2611,9 +2611,9 @@ export interface ElectronApi {
   onScheduleUpdate: (cb: (tasks: ScheduledTask[]) => void) => () => void
   onPublishPlansUpdate: (cb: (plans: PublishPlan[]) => void) => () => void
   onAgentRulesUpdate: (cb: (rules: AgentRule[]) => void) => () => void
-  /** 选择本地图片文件 */
+  /** 选择本地媒体文件（图片 / 视频 / 音频，可多选） */
   postSelectImages: () => Promise<string[]>
-  /** 选择本地文件夹（流程输出节点等） */
+  /** 选择本地文件夹（聊天附件 / 流程输出节点等） */
   postSelectDirectory: () => Promise<string | null>
   /** 在系统默认浏览器中打开链接 */
   postOpenExternal: (url: string) => Promise<void>

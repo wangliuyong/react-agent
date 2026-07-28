@@ -78,26 +78,6 @@
   }
 }
 
-.attachments {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.fileChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px !important;
-  border-radius: var(--db-radius-sm) !important;
-  background: var(--db-primary-muted) !important;
-  border: 1px solid var(--db-primary-border) !important;
-  font-size: 12px !important;
-  color: var(--db-primary) !important;
-}
-
 /* 输入框 — 实底 + 聚焦环，不做上浮位移 */
 .box {
   background: var(--db-bg-content);

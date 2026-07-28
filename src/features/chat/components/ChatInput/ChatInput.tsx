@@ -10,9 +10,11 @@ import {
   type UserChoiceOption
 } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
+import { useChatAttachments } from '../../hooks/useChatAttachments'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
+import { AttachmentPreviewList } from '../AttachmentPreviewList'
 import { TypingIndicator } from '../TypingIndicator'
-import { postSelectImages } from '../../api'
+import { postSelectDirectory, postSelectImages } from '../../api'
 import styles from './ChatInput.module.css'
 
 const { Text } = Typography
@@ -63,8 +65,14 @@ export function ChatInput({
   onContinue
 }: ChatInputProps): React.ReactElement {
   const [text, setText] = useState('')
-  const [paths, setPaths] = useState<string[]>([])
   const [modelSwitching, setModelSwitching] = useState(false)
+  const {
+    attachments,
+    paths,
+    postAddPaths,
+    postRemovePath,
+    postClearAttachments
+  } = useChatAttachments()
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
 
@@ -172,7 +180,7 @@ export function ChatInput({
     const value = text.trim()
     onContinue(value || undefined, choiceId)
     setText('')
-    setPaths([])
+    postClearAttachments()
   }
 
   /** 点击方案按钮：直接带 choiceId 继续 */
@@ -191,7 +199,7 @@ export function ChatInput({
     if (running) return
     onSend(value, paths)
     setText('')
-    setPaths([])
+    postClearAttachments()
   }
 
   /** 确认态仍允许输入；普通运行中禁用 */
@@ -229,18 +237,11 @@ export function ChatInput({
           </div>
         ) : null}
 
-        {paths.length > 0 ? (
-          <div className={styles.attachments}>
-            {paths.map((p) => (
-              <Text key={p} code className={styles.fileChip}>
-                {p.split('/').pop()}
-              </Text>
-            ))}
-            <Button type="link" size="small" onClick={() => setPaths([])}>
-              清除
-            </Button>
-          </div>
-        ) : null}
+        <AttachmentPreviewList
+          attachments={attachments}
+          onRemove={postRemovePath}
+          onClear={postClearAttachments}
+        />
 
         <div className={styles.box} data-running={running}>
           <textarea
@@ -269,17 +270,37 @@ export function ChatInput({
           />
           <div className={styles.toolbar}>
             <Space size={4}>
-              <Tooltip title="可选：上传本地配图（优先用来源网页抓图）">
-                <Button
-                  type="text"
-                  icon={<PaperClipOutlined />}
-                  disabled={running}
-                  onClick={async () => {
-                    const selected = await postSelectImages()
-                    if (selected.length) setPaths((prev) => [...prev, ...selected])
-                  }}
-                />
-              </Tooltip>
+              <Dropdown
+                disabled={running}
+                menu={{
+                  items: [
+                    {
+                      key: 'media',
+                      icon: <PictureOutlined />,
+                      label: '上传媒体（图片 / 视频 / 音频）',
+                      onClick: () => {
+                        void (async () => {
+                          const selected = await postSelectImages()
+                          if (selected.length) postAddPaths(selected)
+                        })()
+                      }
+                    },
+                    {
+                      key: 'folder',
+                      icon: <FolderOpenOutlined />,
+                      label: '选择文件夹',
+                      onClick: () => {
+                        void (async () => {
+                          const dir = await postSelectDirectory()
+                          if (dir) postAddPaths([dir], 'folder')
+                        })()
+                      }
+                    }
+                  ]
+                }}
+              >
+                <Button type="text" icon={<PaperClipOutlined />} disabled={running} />
+              </Dropdown>
               <Dropdown
                 menu={{
                   items: [
