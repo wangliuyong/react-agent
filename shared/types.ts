@@ -1327,11 +1327,11 @@ export function queryAlignConnectionsToActiveProvider(
         conn.id === DEFAULT_CONNECTION_IDS.default
           ? model
           : queryResolveModelForProvider(
-              activeProvider,
-              conn.model,
-              params.catalog,
-              customProviders
-            )
+            activeProvider,
+            conn.model,
+            params.catalog,
+            customProviders
+          )
       return {
         ...conn,
         model: nextModel,
@@ -1343,11 +1343,11 @@ export function queryAlignConnectionsToActiveProvider(
       conn.id === DEFAULT_CONNECTION_IDS.default
         ? model
         : queryResolveModelForProvider(
-            activeProvider,
-            template.model,
-            params.catalog,
-            customProviders
-          )
+          activeProvider,
+          template.model,
+          params.catalog,
+          customProviders
+        )
     return {
       ...conn,
       provider: activeProvider,
@@ -1450,16 +1450,16 @@ export function queryModelConnection(
     settings.connections?.length > 0
       ? settings.connections
       : [
-          {
-            id: DEFAULT_CONNECTION_ID,
-            label: '默认',
-            provider: settings.provider,
-            apiKey: settings.apiKey,
-            baseUrl: settings.baseUrl,
-            model: settings.model,
-            capabilities: ['chat'] as ModelCapability[]
-          }
-        ]
+        {
+          id: DEFAULT_CONNECTION_ID,
+          label: '默认',
+          provider: settings.provider,
+          apiKey: settings.apiKey,
+          baseUrl: settings.baseUrl,
+          model: settings.model,
+          capabilities: ['chat'] as ModelCapability[]
+        }
+      ]
 
   if (purpose && settings.roleModelMap?.[purpose]) {
     const mapped = connections.find((c) => c.id === settings.roleModelMap[purpose])
@@ -1920,24 +1920,24 @@ export type AgentEvent =
   | { type: 'tool_result'; sessionId: string; toolName: string; result: string }
   | { type: 'task_update'; sessionId: string; tasks: TaskItem[] }
   | {
-      type: 'await_user'
-      sessionId: string
-      reason: string
-      choices?: UserChoiceOption[]
-      interruptId?: string
-    }
+    type: 'await_user'
+    sessionId: string
+    reason: string
+    choices?: UserChoiceOption[]
+    interruptId?: string
+  }
   | { type: 'browser_open'; sessionId: string; url: string }
   | { type: 'done'; sessionId: string; reason: string }
   | { type: 'error'; sessionId: string; message: string }
   | { type: 'agent_role'; sessionId: string; role: AgentRoleName }
   /** 任务内容驱动换模：当前使用的连接/能力 */
   | {
-      type: 'model_switch'
-      sessionId: string
-      capability: ModelCapability
-      model: string
-      connectionLabel: string
-    }
+    type: 'model_switch'
+    sessionId: string
+    capability: ModelCapability
+    model: string
+    connectionLabel: string
+  }
   /** 任务/流程每次执行新建会话时推送，渲染进程据此在侧边栏展示新对话 */
   | { type: 'session_started'; sessionId: string; session: Session }
   /** 工作流 Toast 节点触发，渲染进程展示 Ant Design message */
@@ -1951,28 +1951,28 @@ export type AgentEvent =
   | { type: 'token_update'; sessionId: string; tokenUsed: number; delta: number }
   /** 长耗时工具执行中的进度（如 Remotion 渲染） */
   | {
-      type: 'tool_progress'
-      sessionId: string
-      toolName: string
-      progress: ToolProgressPayload
-    }
+    type: 'tool_progress'
+    sessionId: string
+    toolName: string
+    progress: ToolProgressPayload
+  }
   /** 子 Agent 工具调用进度（不写父 session messages） */
   | {
-      type: 'subagent_tool'
-      sessionId: string
-      runId: string
-      toolName: string
-      phase: 'start' | 'result'
-      result?: string
-    }
+    type: 'subagent_tool'
+    sessionId: string
+    runId: string
+    toolName: string
+    phase: 'start' | 'result'
+    result?: string
+  }
   | { type: 'subagent_start'; sessionId: string; run: SubagentRunMeta; prompt: string }
   | {
-      type: 'subagent_done'
-      sessionId: string
-      runId: string
-      summary: string
-      status: SubagentRunStatus
-    }
+    type: 'subagent_done'
+    sessionId: string
+    runId: string
+    summary: string
+    status: SubagentRunStatus
+  }
 
 export interface BrowserStatus {
   running: boolean

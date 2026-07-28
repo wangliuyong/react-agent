@@ -95,12 +95,14 @@ const HotNewsTopBar: React.FC<{
 }
 
 /**
- * 主标题区：按 items 定时轮播，展示 title + detail（详细播报）。
+ * 主标题区：按 items 定时轮播，展示 title + detail（详细播报）+ 数据来源。
  * 节奏由 secondsPerItem / items[].seconds 决定，与中部条带共用同一索引。
  */
 const HotNewsHero: React.FC<{
   headline: string
   summary: string
+  /** 全局数据来源（必填）；单条 items[].source 可覆写 */
+  dataSource: string
   items: HotNewsProps['items']
   accentColor: string
   compact?: boolean
@@ -109,6 +111,7 @@ const HotNewsHero: React.FC<{
 }> = ({
   headline,
   summary,
+  dataSource,
   items,
   accentColor,
   compact,
@@ -136,6 +139,9 @@ const HotNewsHero: React.FC<{
     (current?.detail && current.detail.trim()) ||
     (slides.length === 1 ? summary : '') ||
     `${current?.tag || '热点'}｜正在播报`
+  /** 单条 source 优先，否则用全局 dataSource */
+  const displaySource =
+    (current?.source && current.source.trim()) || dataSource.trim() || '未标注'
 
   const enter = spring({
     frame: localFrame,
@@ -198,6 +204,45 @@ const HotNewsHero: React.FC<{
       >
         {displayDetail}
       </p>
+      {/* 新闻成片强制可见的数据来源标注 */}
+      <div
+        style={{
+          marginTop: compact ? 14 : 18,
+          display: 'flex',
+          alignItems: 'center',
+          gap: compact ? 8 : 10,
+          opacity: enter,
+          transform: `translateY(${(1 - enter) * 12}px)`
+        }}
+      >
+        <span
+          style={{
+            flexShrink: 0,
+            padding: compact ? '3px 8px' : '4px 10px',
+            borderRadius: 3,
+            background: 'rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            fontFamily: UI_FONT,
+            fontSize: compact ? 13 : 16,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            color: 'rgba(255,255,255,0.72)'
+          }}
+        >
+          数据来源
+        </span>
+        <span
+          style={{
+            fontFamily: UI_FONT,
+            fontSize: compact ? 15 : 18,
+            fontWeight: 500,
+            color: 'rgba(255,255,255,0.68)',
+            letterSpacing: '0.02em'
+          }}
+        >
+          {displaySource}
+        </span>
+      </div>
     </div>
   )
 }
@@ -352,6 +397,7 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
     dateLabel,
     headline,
     summary,
+    dataSource,
     items,
     hotTopicName,
     tickerLines,
@@ -395,6 +441,7 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
         <HotNewsHero
           headline={headline}
           summary={summary}
+          dataSource={dataSource}
           items={items}
           accentColor={accentColor}
           compact={compact}

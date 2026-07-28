@@ -15,6 +15,7 @@ const HOT_NEWS_JSON_SCHEMA = `{
   "dateLabel": "string",
   "headline": "string（单条主标题，勿拼接多条）",
   "summary": "string（总导语，1-2句）",
+  "dataSource": "string（必填，画面「数据来源」；真实媒体/机构/热榜名，如 澎湃新闻、微博热搜）",
   "hotTopicName": "string (2-6字，中部红色角标，如 芯片)",
   "secondsPerItem": "number（每条默认展示秒数，由你根据用户要求与成片时长智能决定）",
   "tickerLines": ["string (底部 LIVE 滚动快讯，每条一句)"],
@@ -23,6 +24,7 @@ const HOT_NEWS_JSON_SCHEMA = `{
     "tag": "string",
     "title": "string（热点标题）",
     "detail": "string（该条详细播报，2-4句，必须来自检索到的具体信息，禁止只重复 title）",
+    "source": "string（可选，本条数据来源；缺省用全局 dataSource）",
     "seconds": "number（可选，本条单独展示秒数；缺省用 secondsPerItem）"
   }]
 }`
@@ -73,7 +75,9 @@ export async function queryHotNewsPropsFromAgent(
   const prompt = [
     '你是 Remotion 热点新闻视频的内容导演兼文案编辑。最终只输出一个符合 schema 的 JSON，不要 Markdown 说明。',
     `模板 compositionId：${input.compositionId}`,
-    '【硬性要求】新闻类成片必须有明确信息来源；请严格按下方来源拉取热点，并在文案中体现可核对的事实。',
+    '【硬性要求】新闻类成片必须有明确信息来源与画面可见的数据来源标注。',
+    '请严格按下方来源拉取热点；JSON 必须填写 dataSource（真实媒体/机构/热榜名），禁止空值或「未知/暂无」。',
+    '多条新闻来源不同时，用 items[].source 分条标注；全局 dataSource 写主来源或综合来源。',
     sourceHint,
     `视频分类：${input.newsCategory}`,
     `成片总时长：约 ${budget.durationSec} 秒（片头约占 10%，主段可轮播约 ${Math.max(6, budget.durationSec - 3)} 秒）。`,
@@ -104,8 +108,8 @@ export async function queryHotNewsPropsFromAgent(
     '',
     `规则：headline 必须是单条主标题（不超过 ${budget.headlineMaxChars} 字），禁止用逗号/顿号拼接多条；`,
     `summary 不超过 ${budget.summaryMaxChars} 字；items 共 ${budget.minItems}-${budget.maxItems} 条且每条必须有 detail；`,
-    'tag 2-8 字；secondsPerItem 必填；可选为个别条目设 items[].seconds。',
-    '模板会按 secondsPerItem（或条目 seconds）轮播：主标题展示 title+detail，中部条带同步切换。',
+    'dataSource 必填且须画面可展示；禁止占位符；tag 2-8 字；secondsPerItem 必填；可选为个别条目设 items[].seconds / items[].source。',
+    '模板会按 secondsPerItem（或条目 seconds）轮播：主标题展示 title+detail+数据来源，中部条带同步切换。',
     '只回复一个 JSON 对象。'
   ].join('\n')
 

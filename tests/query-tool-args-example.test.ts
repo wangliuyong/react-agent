@@ -17,7 +17,7 @@ describe('queryToolArgsExample', () => {
 
   it('returns fetch_hot_topics example with source and maxCount', () => {
     expect(queryToolArgsExample('fetch_hot_topics')).toEqual({
-      source: 'weibo',
+      source: 'tophub',
       maxCount: 20
     })
   })
@@ -40,7 +40,7 @@ describe('queryToolArgsExample', () => {
 
   it('formats pretty JSON for the form field', () => {
     expect(queryFormatToolArgsExampleJson('fetch_hot_topics')).toBe(
-      JSON.stringify({ source: 'weibo', maxCount: 20 }, null, 2)
+      JSON.stringify({ source: 'tophub', maxCount: 20 }, null, 2)
     )
     expect(queryFormatToolArgsExampleJson('')).toBe('{}')
   })

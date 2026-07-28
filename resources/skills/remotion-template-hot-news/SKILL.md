@@ -25,6 +25,19 @@ previewKind: hot-news-wide
 新闻类模版**必须**指定信息来源（微博 / 百度 / 抖音 / 快手 / 腾讯 / 今日热榜 / 全部）。  
 生成与导出前先 `fetch_hot_topics`，禁止无来源编造热点。
 
+## 数据来源标注（必选 · 画面可见）
+
+成片**必须**在画面上标注数据来源，禁止只写在对话里而不写入 props。
+
+| 要求 | 说明 |
+|------|------|
+| props 字段 | `dataSource`（必填字符串）；单条可覆写 `items[].source` |
+| 画面展示 | 主文案下方显示「数据来源：…」，轮播时随当前条切换 |
+| 文案内容 | 真实出处：媒体名 / 官方机构 / 热榜平台，如「澎湃新闻」「国家市场监督管理总局」「微博热搜」 |
+| 禁止 | 空字符串、占位符（「未知」「暂无」）、编造媒体名；禁止省略本字段后渲染 |
+
+拼装前确认：`dataSource` 非空，且预览中能看到「数据来源」字样。
+
 ## 模版源码
 
 本技能 `template/` 目录包含完整 Composition（`compositions/hot-news/`）与 `manifest.json`。  
@@ -33,8 +46,8 @@ previewKind: hot-news-wide
 ## 标准流程
 
 1. `use_skill('remotion-template-hot-news')`（或视频页一键拼装）
-2. `remotion_apply_template_skill`：skillId=`remotion-template-hot-news`，写入处理后的 HotNewsProps
-3. `remotion_studio` 预览节奏
+2. `remotion_apply_template_skill`：skillId=`remotion-template-hot-news`，写入含 `dataSource` 的 HotNewsProps
+3. `remotion_studio` 预览节奏（确认画面有「数据来源」）
 4. `remotion_render`：`compositionId=HotNews` 或 `HotNewsVertical`
 
 ## Composition 约定
@@ -48,7 +61,8 @@ previewKind: hot-news-wide
 ## Props 要点
 
 - `brandName` / `dateLabel` / `headline` / `summary`
-- `items[]`：标题、摘要、标签
+- **`dataSource`（必填）**：画面「数据来源：…」文案
+- `items[]`：标题、摘要、标签；可选 `source` 覆写本条来源
 - `tickerLines[]`：底部滚动快讯
 
 ## 交付

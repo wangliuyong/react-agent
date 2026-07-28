@@ -36,7 +36,7 @@ const TOOL_ARGS_EXAMPLES: Record<string, Record<string, unknown>> = {
     maxCount: 3
   },
   fetch_hot_topics: {
-    source: 'weibo',
+    source: 'tophub',
     maxCount: 20
   },
   query_ashare_kline: {

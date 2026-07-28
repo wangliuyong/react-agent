@@ -16,13 +16,27 @@ const DISPLAY_FONT =
   '"Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", Georgia, "Times New Roman", serif'
 const UI_FONT = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif'
 
-/** 顶栏：品牌、日期、直播标识 */
+/** 解析当前画面应展示的来源文案（单条 source 优先） */
+function queryDisplayDataSource(
+  dataSource: string | undefined,
+  itemSource?: string
+): string {
+  const fromItem = itemSource?.trim()
+  if (fromItem) return fromItem
+  const fromGlobal = dataSource?.trim()
+  if (fromGlobal) return fromGlobal
+  return '未标注'
+}
+
+/** 顶栏：品牌、日期 + 强制可见的「来源」角标（电视台右上角信息块） */
 const HotNewsTopBar: React.FC<{
   brandName: string
   dateLabel: string
+  /** 画面必显的数据来源 */
+  dataSource: string
   accentColor: string
   compact?: boolean
-}> = ({ brandName, dateLabel, accentColor, compact }) => {
+}> = ({ brandName, dateLabel, dataSource, accentColor, compact }) => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const reveal = spring({ frame, fps, config: { damping: 18, stiffness: 120 }, from: 0, to: 1 })
@@ -36,10 +50,12 @@ const HotNewsTopBar: React.FC<{
         left: compact ? 32 : 72,
         right: compact ? 32 : 72,
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'space-between',
+        gap: 16,
         opacity: reveal,
-        transform: `translateY(${(1 - reveal) * -24}px)`
+        transform: `translateY(${(1 - reveal) * -24}px)`,
+        zIndex: 5
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 12 : 20 }}>
@@ -68,27 +84,75 @@ const HotNewsTopBar: React.FC<{
           {brandName}
         </span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: compact ? 8 : 10
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: '#ff3b30',
+              boxShadow: `0 0 ${8 + pulse * 10}px rgba(255, 59, 48, 0.85)`,
+              opacity: pulse
+            }}
+          />
+          <span
+            style={{
+              fontFamily: UI_FONT,
+              fontSize: compact ? 18 : 22,
+              color: 'rgba(255,255,255,0.72)',
+              letterSpacing: '0.04em'
+            }}
+          >
+            {dateLabel}
+          </span>
+        </div>
+        {/* 右上角来源条：不被主文案/中部条带遮挡 */}
         <div
           style={{
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            background: '#ff3b30',
-            boxShadow: `0 0 ${8 + pulse * 10}px rgba(255, 59, 48, 0.85)`,
-            opacity: pulse
-          }}
-        />
-        <span
-          style={{
-            fontFamily: UI_FONT,
-            fontSize: compact ? 18 : 22,
-            color: 'rgba(255,255,255,0.72)',
-            letterSpacing: '0.04em'
+            display: 'inline-flex',
+            alignItems: 'center',
+            maxWidth: compact ? 280 : 420,
+            borderLeft: `3px solid ${accentColor}`,
+            paddingLeft: compact ? 10 : 12,
+            background:
+              'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.28) 70%, transparent 100%)'
           }}
         >
-          {dateLabel}
-        </span>
+          <span
+            style={{
+              flexShrink: 0,
+              fontFamily: UI_FONT,
+              fontSize: compact ? 13 : 15,
+              fontWeight: 700,
+              letterSpacing: '0.14em',
+              color: accentColor,
+              marginRight: compact ? 8 : 10
+            }}
+          >
+            来源
+          </span>
+          <span
+            style={{
+              fontFamily: UI_FONT,
+              fontSize: compact ? 15 : 18,
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.92)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {dataSource}
+          </span>
+        </div>
       </div>
     </div>
   )
@@ -97,6 +161,7 @@ const HotNewsTopBar: React.FC<{
 /**
  * 主标题区：按 items 定时轮播，展示 title + detail（详细播报）。
  * 节奏由 secondsPerItem / items[].seconds 决定，与中部条带共用同一索引。
+ * 数据来源改在顶栏与中部条带上方展示，避免被遮挡。
  */
 const HotNewsHero: React.FC<{
   headline: string
@@ -151,7 +216,7 @@ const HotNewsHero: React.FC<{
         position: 'absolute',
         left: compact ? 32 : 72,
         right: compact ? 32 : 72,
-        top: compact ? '160px' : '200px',
+        top: compact ? '168px' : '210px',
         maxWidth: compact ? '100%' : '78%'
       }}
     >
@@ -202,10 +267,11 @@ const HotNewsHero: React.FC<{
   )
 }
 
-/** 分条快讯轮播（与主标题同步切换） */
+/** 分条快讯轮播（与主标题同步切换）；上方附带本条数据来源 chyron */
 const HotNewsItemStrip: React.FC<{
   items: HotNewsProps['items']
   hotTopicName?: string
+  dataSource: string
   accentColor: string
   compact?: boolean
   mainDurationInFrames: number
@@ -213,6 +279,7 @@ const HotNewsItemStrip: React.FC<{
 }> = ({
   items,
   hotTopicName,
+  dataSource,
   accentColor,
   compact,
   mainDurationInFrames,
@@ -231,6 +298,7 @@ const HotNewsItemStrip: React.FC<{
   const item = items[index] ?? items[0]
   /** 角标优先用当前条目 tag，保证切换时标签与标题一起变 */
   const topicLabel = (item?.tag || hotTopicName?.trim() || '热点').slice(0, 8)
+  const displaySource = queryDisplayDataSource(dataSource, item?.source)
 
   const enter = spring({
     frame: localFrame,
@@ -248,46 +316,98 @@ const HotNewsItemStrip: React.FC<{
         right: compact ? 32 : 72,
         bottom: compact ? 120 : 140,
         display: 'flex',
-        alignItems: 'stretch',
-        gap: compact ? 16 : 24,
+        flexDirection: 'column',
+        gap: compact ? 10 : 14,
         opacity: enter,
-        transform: `translateX(${(1 - enter) * 40}px)`
+        transform: `translateX(${(1 - enter) * 40}px)`,
+        zIndex: 4
       }}
     >
+      {/* 中部条带上方：本条来源，轮播时与标题同步切换 */}
       <div
         style={{
-          flexShrink: 0,
-          width: compact ? 88 : 120,
-          display: 'flex',
+          display: 'inline-flex',
+          alignSelf: 'flex-start',
           alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: UI_FONT,
-          fontSize: compact ? 22 : 28,
-          fontWeight: 800,
-          color: '#fff',
-          background: `linear-gradient(160deg, ${accentColor} 0%, color-mix(in srgb, ${accentColor} 70%, #000) 100%)`,
-          borderRadius: 8,
-          letterSpacing: '0.06em'
+          gap: compact ? 8 : 10,
+          padding: compact ? '5px 12px' : '6px 14px',
+          borderRadius: 4,
+          background: 'rgba(0,0,0,0.55)',
+          border: '1px solid rgba(255,255,255,0.14)',
+          boxShadow: `inset 3px 0 0 ${accentColor}`
         }}
       >
-        {topicLabel}
+        <span
+          style={{
+            fontFamily: UI_FONT,
+            fontSize: compact ? 13 : 15,
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            color: accentColor
+          }}
+        >
+          数据来源
+        </span>
+        <span
+          style={{
+            width: 1,
+            height: compact ? 12 : 14,
+            background: 'rgba(255,255,255,0.28)'
+          }}
+        />
+        <span
+          style={{
+            fontFamily: UI_FONT,
+            fontSize: compact ? 15 : 18,
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.92)'
+          }}
+        >
+          {displaySource}
+        </span>
       </div>
       <div
         style={{
-          flex: 1,
-          padding: compact ? '16px 20px' : '20px 28px',
-          borderRadius: 8,
-          border: '1px solid rgba(255,255,255,0.12)',
-          background: 'rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(8px)',
-          fontFamily: UI_FONT,
-          fontSize: compact ? 24 : 32,
-          fontWeight: 600,
-          lineHeight: 1.35,
-          color: 'rgba(255,255,255,0.94)'
+          display: 'flex',
+          alignItems: 'stretch',
+          gap: compact ? 16 : 24
         }}
       >
-        {item?.title ?? ''}
+        <div
+          style={{
+            flexShrink: 0,
+            width: compact ? 88 : 120,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: UI_FONT,
+            fontSize: compact ? 22 : 28,
+            fontWeight: 800,
+            color: '#fff',
+            background: `linear-gradient(160deg, ${accentColor} 0%, color-mix(in srgb, ${accentColor} 70%, #000) 100%)`,
+            borderRadius: 8,
+            letterSpacing: '0.06em'
+          }}
+        >
+          {topicLabel}
+        </div>
+        <div
+          style={{
+            flex: 1,
+            padding: compact ? '16px 20px' : '20px 28px',
+            borderRadius: 8,
+            border: '1px solid rgba(255,255,255,0.12)',
+            background: 'rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(8px)',
+            fontFamily: UI_FONT,
+            fontSize: compact ? 24 : 32,
+            fontWeight: 600,
+            lineHeight: 1.35,
+            color: 'rgba(255,255,255,0.94)'
+          }}
+        >
+          {item?.title ?? ''}
+        </div>
       </div>
     </div>
   )
@@ -352,6 +472,7 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
     dateLabel,
     headline,
     summary,
+    dataSource,
     items,
     hotTopicName,
     tickerLines,
@@ -376,6 +497,8 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
     tickerLines?.filter((line) => line.trim()).length
       ? tickerLines.filter((line) => line.trim())
       : items.map((item) => item.title).filter(Boolean)
+  /** 顶栏用全局来源；缺省时回退首条 source，保证画面必有标注 */
+  const topBarSource = queryDisplayDataSource(dataSource, items[0]?.source)
 
   return (
     <AbsoluteFill style={{ fontFamily: UI_FONT }}>
@@ -389,6 +512,7 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
         <HotNewsTopBar
           brandName={brandName}
           dateLabel={dateLabel}
+          dataSource={topBarSource}
           accentColor={accentColor}
           compact={compact}
         />
@@ -404,6 +528,7 @@ export const HotNewsComposition: React.FC<HotNewsProps> = (props) => {
         <HotNewsItemStrip
           items={items}
           hotTopicName={topicLabel}
+          dataSource={topBarSource}
           accentColor={accentColor}
           compact={compact}
           mainDurationInFrames={mainDurationInFrames}

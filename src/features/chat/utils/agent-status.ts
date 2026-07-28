@@ -37,7 +37,7 @@ const TOOL_LABELS: Record<string, string> = {
   xhs_publish_note: '发布小红书',
   douyin_publish_note: '发布抖音',
   fetch_web_images: '抓取网页配图',
-  fetch_hot_topics: '获取热点（微博/百度/抖音/快手/腾讯/今日热榜）',
+  fetch_hot_topics: '获取热点（推荐今日热榜/微博/百度）',
   query_ashare_kline: 'A股K线',
   query_ashare_realtime_analysis: 'A股实时分析',
   query_weather: '查询天气',

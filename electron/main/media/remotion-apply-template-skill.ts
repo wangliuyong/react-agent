@@ -102,7 +102,8 @@ function postCopyTemplateIntoProject(templateRoot: string, projectSrc: string): 
 }
 
 /**
- * 根据 manifest 生成 Root.tsx：保留 Main + 注册模版 Composition。
+ * 根据 manifest 生成 Root.tsx：仅注册当前预览/渲染的焦点 Composition。
+ * 不保留 starter Main，也不注册同模版其它画幅变体，避免 Studio 侧栏出现多个条目。
  */
 export function queryBuildRootSourceFromManifest(
   manifest: RemotionTemplateManifest,
@@ -114,84 +115,48 @@ export function queryBuildRootSourceFromManifest(
     durationInFrames: number
   }
 ): string {
-  const importLines = new Set<string>()
-  importLines.add(`import type { ComponentType } from 'react'`)
-  importLines.add(`import { Composition } from 'remotion'`)
-  importLines.add(`import { MyComposition } from './Composition'`)
-
-  const propsImports = new Map<string, Set<string>>()
-  const componentImports = new Map<string, Set<string>>()
-
-  for (const c of manifest.compositions) {
-    const pathKey = c.componentPath
-    if (!componentImports.has(pathKey)) componentImports.set(pathKey, new Set())
-    componentImports.get(pathKey)!.add(c.componentExport)
-    if (c.defaultPropsPath && c.defaultPropsExport) {
-      if (!propsImports.has(c.defaultPropsPath)) propsImports.set(c.defaultPropsPath, new Set())
-      propsImports.get(c.defaultPropsPath)!.add(c.defaultPropsExport)
-    }
+  const focusComp =
+    manifest.compositions.find((c) => c.id === focus.compositionId) ??
+    manifest.compositions[0]
+  if (!focusComp) {
+    throw new Error('manifest 未声明任何 Composition')
   }
 
-  for (const [path, names] of Array.from(componentImports.entries())) {
-    importLines.add(
-      `import { ${Array.from(names).join(', ')} } from '${path}'`
-    )
-  }
-  for (const [path, names] of Array.from(propsImports.entries())) {
-    importLines.add(`import { ${Array.from(names).join(', ')} } from '${path}'`)
-  }
-
-  const castLines: string[] = []
-  const usedCasts = new Set<string>()
-  for (const c of manifest.compositions) {
-    const castName = `${c.componentExport}ForComposition`
-    if (usedCasts.has(castName)) continue
-    usedCasts.add(castName)
-    castLines.push(
-      `const ${castName} = ${c.componentExport} as unknown as ComponentType<Record<string, unknown>>`
+  const importLines: string[] = [
+    `import type { ComponentType } from 'react'`,
+    `import { Composition } from 'remotion'`,
+    `import { ${focusComp.componentExport} } from '${focusComp.componentPath}'`
+  ]
+  if (focusComp.defaultPropsPath && focusComp.defaultPropsExport) {
+    importLines.push(
+      `import { ${focusComp.defaultPropsExport} } from '${focusComp.defaultPropsPath}'`
     )
   }
 
-  const compositionBlocks = manifest.compositions.map((c) => {
-    const isFocus = c.id === focus.compositionId
-    const width = isFocus ? focus.width : c.width
-    const height = isFocus ? focus.height : c.height
-    const fps = isFocus ? focus.fps : c.fps
-    const durationInFrames = isFocus ? focus.durationInFrames : c.durationInFrames
-    const castName = `${c.componentExport}ForComposition`
-    const defaultProps =
-      c.defaultPropsExport != null
-        ? `\n        defaultProps={${c.defaultPropsExport} as unknown as Record<string, unknown>}`
-        : ''
-    return `      <Composition
-        id="${c.id}"
-        component={${castName}}
-        durationInFrames={${durationInFrames}}
-        fps={${fps}}
-        width={${width}}
-        height={${height}}${defaultProps}
-      />`
-  })
+  const castName = `${focusComp.componentExport}ForComposition`
+  const defaultProps =
+    focusComp.defaultPropsExport != null
+      ? `\n        defaultProps={${focusComp.defaultPropsExport} as unknown as Record<string, unknown>}`
+      : ''
 
-  return `${Array.from(importLines).join('\n')}
+  return `${importLines.join('\n')}
 
-${castLines.join('\n')}
+const ${castName} = ${focusComp.componentExport} as unknown as ComponentType<Record<string, unknown>>
 
 /**
- * Remotion 根入口：Main + 技能模版 Composition（由 remotion_apply_template_skill 生成）。
+ * Remotion 根入口：仅当前焦点 Composition（由 remotion_apply_template_skill 生成）。
  */
 export const RemotionRoot: React.FC = () => {
   return (
     <>
       <Composition
-        id="Main"
-        component={MyComposition}
-        durationInFrames={150}
-        fps={30}
-        width={1920}
-        height={1080}
+        id="${focusComp.id}"
+        component={${castName}}
+        durationInFrames={${focus.durationInFrames}}
+        fps={${focus.fps}}
+        width={${focus.width}}
+        height={${focus.height}}${defaultProps}
       />
-${compositionBlocks.join('\n')}
     </>
   )
 }

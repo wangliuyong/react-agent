@@ -5,13 +5,14 @@ import { queryNormalizeHotNewsProps } from '../src/features/remotion-video/utils
 describe('queryNormalizeHotNewsProps', () => {
   const budget = queryHotNewsContentBudget(20)
 
-  it('解析 detail、secondsPerItem 与条目 seconds', () => {
+  it('解析 detail、secondsPerItem、dataSource 与条目 seconds/source', () => {
     const props = queryNormalizeHotNewsProps(
       {
         brandName: '灵犀快讯',
         dateLabel: '2026年7月28日',
         headline: '工信部发布算力基建新规划',
         summary: '聚焦东数西算与智算中心布局。',
+        dataSource: '工信部官网',
         secondsPerItem: 5,
         tickerLines: ['算力基建提速'],
         items: [
@@ -20,6 +21,7 @@ describe('queryNormalizeHotNewsProps', () => {
             title: '工信部发布算力基建新规划',
             detail:
               '工信部印发新规划，明确智算中心建设节奏与绿色算力指标，东部枢纽与西部节点协同推进。',
+            source: '工信部官网',
             seconds: 6
           },
           {
@@ -33,8 +35,10 @@ describe('queryNormalizeHotNewsProps', () => {
     )
 
     expect(props).not.toBeNull()
+    expect(props!.dataSource).toBe('工信部官网')
     expect(props!.secondsPerItem).toBe(5)
     expect(props!.items[0].detail).toContain('智算中心')
+    expect(props!.items[0].source).toBe('工信部官网')
     expect(props!.items[0].seconds).toBe(6)
     expect(props!.items[1].detail).toContain('光模块')
   })
@@ -46,6 +50,7 @@ describe('queryNormalizeHotNewsProps', () => {
         dateLabel: '今天',
         headline: '标题',
         summary: '导语内容足够长用于通过校验。',
+        dataSource: '微博热搜',
         items: [
           { tag: '科技', title: '新闻一', detail: '详情一包含足够文字以便展示播报内容。' },
           { tag: '财经', title: '新闻二', detail: '详情二包含足够文字以便展示播报内容。' },
@@ -55,11 +60,25 @@ describe('queryNormalizeHotNewsProps', () => {
       budget
     )
     expect(props).not.toBeNull()
+    expect(props!.dataSource).toBe('微博热搜')
     expect(props!.secondsPerItem).toBeGreaterThanOrEqual(budget.minSecondsPerItem)
     expect(props!.secondsPerItem).toBeLessThanOrEqual(budget.maxSecondsPerItem)
   })
 
   it('缺少必填字段时返回 null', () => {
     expect(queryNormalizeHotNewsProps({ brandName: 'x' }, budget)).toBeNull()
+  })
+
+  it('缺少 dataSource 或使用占位符时返回 null', () => {
+    const base = {
+      brandName: '测试',
+      dateLabel: '今天',
+      headline: '标题',
+      summary: '导语内容足够长用于通过校验。',
+      items: [{ tag: '科技', title: '新闻一', detail: '详情一包含足够文字以便展示播报内容。' }]
+    }
+    expect(queryNormalizeHotNewsProps(base, budget)).toBeNull()
+    expect(queryNormalizeHotNewsProps({ ...base, dataSource: '未知' }, budget)).toBeNull()
+    expect(queryNormalizeHotNewsProps({ ...base, dataSource: '暂无' }, budget)).toBeNull()
   })
 })

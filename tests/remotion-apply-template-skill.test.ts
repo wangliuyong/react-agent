@@ -91,6 +91,17 @@ describe('postApplyRemotionTemplateSkill', () => {
             height: 1080,
             fps: 30,
             durationInFrames: 600
+          },
+          {
+            id: 'HotNewsVertical',
+            componentPath: './compositions/hot-news',
+            componentExport: 'HotNewsComposition',
+            defaultPropsPath: './compositions/hot-news/default-props',
+            defaultPropsExport: 'HOT_NEWS_VERTICAL_DEFAULT_PROPS',
+            width: 1080,
+            height: 1920,
+            fps: 30,
+            durationInFrames: 450
           }
         ],
         propsFile: 'compositions/hot-news/default-props.ts',
@@ -143,5 +154,31 @@ describe('postApplyRemotionTemplateSkill', () => {
     const rootSource = readFileSync(join(projectSrc, 'Root.tsx'), 'utf-8')
     expect(rootSource).toContain('id="HotNews"')
     expect(rootSource).toContain('HotNewsComposition')
+    // 预览侧栏只应有当前焦点 Composition，不含 starter Main 与其它画幅变体
+    expect(rootSource).not.toContain('id="Main"')
+    expect(rootSource).not.toContain('id="HotNewsVertical"')
+    expect(rootSource).not.toContain('MyComposition')
+  })
+
+  it('焦点为竖版时 Root 仅注册 HotNewsVertical', async () => {
+    const { postApplyRemotionTemplateSkill } = await import(
+      '../electron/main/media/remotion-apply-template-skill'
+    )
+
+    const result = await postApplyRemotionTemplateSkill({
+      sessionId: 'sess-vertical',
+      skillId: 'remotion-template-hot-news',
+      compositionId: 'HotNewsVertical',
+      width: 1080,
+      height: 1920,
+      openStudio: false
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.compositionId).toBe('HotNewsVertical')
+    const rootSource = readFileSync(join(result.projectDir!, 'src', 'Root.tsx'), 'utf-8')
+    expect(rootSource).toContain('id="HotNewsVertical"')
+    expect(rootSource).not.toContain('id="HotNews"')
+    expect(rootSource).not.toContain('id="Main"')
   })
 })

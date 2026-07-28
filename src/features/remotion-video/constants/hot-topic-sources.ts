@@ -7,15 +7,15 @@ export type HotTopicSource =
   | 'tencent'
   | 'tophub'
 
-/** 信息来源选项（新闻类模版必选） */
+/** 信息来源选项（新闻类模版必选；tophub 聚合全网，推荐综合选题） */
 export const HOT_TOPIC_SOURCE_OPTIONS: { value: HotTopicSource | 'all'; label: string }[] = [
   { value: 'all', label: '全部来源' },
+  { value: 'tophub', label: '今日热榜（聚合推荐）' },
   { value: 'weibo', label: '微博热搜' },
   { value: 'baidu', label: '百度热搜' },
   { value: 'douyin', label: '抖音热点' },
   { value: 'kuaishou', label: '快手热点' },
-  { value: 'tencent', label: '腾讯新闻' },
-  { value: 'tophub', label: '今日热榜' }
+  { value: 'tencent', label: '腾讯新闻' }
 ]
 
 /** 新闻类模版是否已选择有效信息来源 */

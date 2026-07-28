@@ -19,8 +19,15 @@ export function queryNormalizeHotNewsProps(
   const dateLabel = String(raw.dateLabel ?? '').trim()
   const headline = String(raw.headline ?? '').trim()
   const summary = String(raw.summary ?? '').trim()
+  /** 数据来源必填：剔除常见占位后再校验 */
+  const dataSourceRaw = String(raw.dataSource ?? '').trim()
+  const dataSourcePlaceholder = /^(未知|暂无|无|n\/?a|null|undefined|-|—|－－)$/i
+  const dataSource =
+    dataSourceRaw && !dataSourcePlaceholder.test(dataSourceRaw)
+      ? dataSourceRaw.slice(0, 48)
+      : ''
   const itemsRaw = raw.items
-  if (!brandName || !headline || !summary || !Array.isArray(itemsRaw)) return null
+  if (!brandName || !headline || !summary || !dataSource || !Array.isArray(itemsRaw)) return null
 
   const items = itemsRaw
     .map((row) => queryNormalizeHotNewsItem(row, budget))
@@ -59,6 +66,7 @@ export function queryNormalizeHotNewsProps(
     dateLabel: dateLabel || new Date().toLocaleDateString('zh-CN'),
     headline: headline.slice(0, budget.headlineMaxChars),
     summary: summary.slice(0, budget.summaryMaxChars),
+    dataSource,
     items: items.slice(0, budget.maxItems),
     secondsPerItem,
     ...(hotTopicName ? { hotTopicName } : {}),
@@ -73,7 +81,13 @@ function queryNormalizeHotNewsItem(
   budget: HotNewsContentBudget
 ): HotNewsItem | null {
   if (!row || typeof row !== 'object') return null
-  const rec = row as { tag?: string; title?: string; detail?: string; seconds?: number }
+  const rec = row as {
+    tag?: string
+    title?: string
+    detail?: string
+    source?: string
+    seconds?: number
+  }
   const tag = String(rec.tag ?? '').trim()
   const title = String(rec.title ?? '').trim()
   if (!tag || !title) return null
@@ -82,6 +96,11 @@ function queryNormalizeHotNewsItem(
   if (detail) {
     detail = detail.slice(0, budget.detailMaxChars)
   }
+
+  const sourceRaw = String(rec.source ?? '').trim()
+  const sourcePlaceholder = /^(未知|暂无|无|n\/?a|null|undefined|-|—|－－)$/i
+  const source =
+    sourceRaw && !sourcePlaceholder.test(sourceRaw) ? sourceRaw.slice(0, 48) : undefined
 
   const secondsNum = Number(rec.seconds)
   const seconds = Number.isFinite(secondsNum)
@@ -94,6 +113,7 @@ function queryNormalizeHotNewsItem(
     tag,
     title,
     ...(detail ? { detail } : {}),
+    ...(source ? { source } : {}),
     ...(seconds != null ? { seconds } : {})
   }
 }

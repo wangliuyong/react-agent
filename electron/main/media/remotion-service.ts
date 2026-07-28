@@ -842,8 +842,8 @@ export async function postStartRemotionStudio(
 export function postStopRemotionStudios(sessionId?: string): void {
   const entries = sessionId
     ? ([[sessionId, studioBySession.get(sessionId)]] as const).filter(
-        (row): row is readonly [string, NonNullable<(typeof row)[1]>] => Boolean(row[1])
-      )
+      (row): row is readonly [string, NonNullable<(typeof row)[1]>] => Boolean(row[1])
+    )
     : [...studioBySession.entries()]
 
   for (const [id, entry] of entries) {

@@ -3,6 +3,8 @@ export interface HotNewsItem {
   tag: string
   title: string
   detail?: string
+  /** 本条数据来源（可选；缺省用全局 dataSource） */
+  source?: string
   seconds?: number
 }
 
@@ -15,6 +17,8 @@ export interface HotNewsProps {
   dateLabel: string
   headline: string
   summary: string
+  /** 数据来源（必填，画面「数据来源：…」） */
+  dataSource: string
   hotTopicName?: string
   tickerLines?: string[]
   items: HotNewsItem[]
