@@ -362,7 +362,7 @@ export function WorkbenchPage(): React.ReactElement {
           </section>
         </div>
 
-        {/* <section className={styles.section} aria-label="统计图表">
+        <section className={styles.section} aria-label="统计图表">
           <div className={styles.sectionHead}>
             <h2 className={styles.sectionTitle}>使用统计</h2>
             <Text type="secondary" className={styles.sectionDesc}>
@@ -384,7 +384,7 @@ export function WorkbenchPage(): React.ReactElement {
               topSessions={topSessions}
             />
           </Suspense>
-        </section> */}
+        </section>
       </FeatureScrollBody>
     </FeaturePageShell>
   )
