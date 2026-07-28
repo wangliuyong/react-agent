@@ -10,7 +10,10 @@ export interface FeatureScrollBodyProps {
   className?: string
 }
 
-/** 功能页可滚动主体，标准 padding 24px 28px */
+/**
+ * 功能页可滚动主体。
+ * 内边距放在内层，避免 Chromium 下 flex 滚动容器 padding-bottom 被裁切。
+ */
 export function FeatureScrollBody({
   children,
   flush = false,
@@ -26,5 +29,9 @@ export function FeatureScrollBody({
     .filter(Boolean)
     .join(' ')
 
-  return <div className={bodyClass}>{children}</div>
+  return (
+    <div className={bodyClass}>
+      <div className={styles.bodyInner}>{children}</div>
+    </div>
+  )
 }

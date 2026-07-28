@@ -140,28 +140,37 @@
   white-space: nowrap;
 }
 
+/*
+ * 外层只负责滚动：Chromium 下 flex + overflow 的 padding-bottom
+ * 不计入 scrollHeight，滚到底会贴边。内边距放到 .bodyInner。
+ */
 .body {
   position: relative;
   z-index: 1;
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 24px 28px 32px;
-  display: flex;
-  flex-direction: column;
-}
-
-.bodyFlush {
-  padding-left: 0;
-  padding-right: 0;
 }
 
 .bodyLocked {
   overflow: hidden;
 }
 
-.body :global(.ant-spin-nested-loading),
-.body :global(.ant-spin-container) {
+.bodyInner {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 24px 28px 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.bodyFlush .bodyInner {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.bodyInner :global(.ant-spin-nested-loading),
+.bodyInner :global(.ant-spin-container) {
   flex: 1;
   min-height: 0;
   display: flex;

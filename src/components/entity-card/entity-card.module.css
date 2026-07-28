@@ -168,10 +168,6 @@
   color: var(--db-tag-success-text) !important;
 }
 
-.pd24{
-  padding-bottom: 24px;
-}
-
 .warningTag {
   background: var(--db-tag-warning-bg) !important;
   color: var(--db-tag-warning-text) !important;
