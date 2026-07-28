@@ -6,6 +6,10 @@ import {
 } from './message-media'
 import { extractMessageHtml, stripOrphanedPathLabels, stripEmptyCodeFences } from './message-html'
 import {
+  queryEmbedImagesInDisplayText,
+  type MessageImageRef
+} from './message-images'
+import {
   queryExtractStockCharts,
   queryExtractStockChartEnvelope,
   stripStockChartBlock,
@@ -53,10 +57,10 @@ export function queryStockLiveRefresh(content: string): boolean {
   return envelope?.liveRefresh === true
 }
 
-/** 展示用正文：去掉 workflow 前缀、媒体/HTML 路径与 K 线 JSON 块 */
+/** 展示用正文：去掉 workflow 前缀、媒体/HTML 路径与 K 线 JSON 块；本地图嵌入为内联预览 */
 export function queryDisplayContentWithCharts(
   content: string,
-  imagePaths: { src: string; kind: string }[] = []
+  imagePaths: MessageImageRef[] = []
 ): string {
   const { audio, video } = extractMessageMedia(content)
   const htmlRefs = extractMessageHtml(content)
@@ -67,15 +71,13 @@ export function queryDisplayContentWithCharts(
   }
 
   text = stripStockChartBlock(text)
-
-  for (const img of imagePaths) {
-    if (img.kind === 'local') {
-      text = text.split(img.src).join('').trim()
-    }
-  }
-  text = text.replace(/!\[[^\]]*]\([^)]+\)/g, '').trim()
+  text = queryEmbedImagesInDisplayText(text, imagePaths)
+  // 仅清理残留路径标签，保留已嵌入的 ![alt](src)
   text = text
-    .replace(/(?:文件位置|本地|图片|视频|音频|旁白|成片|HTML|网页|页面|本地路径|保存路径)?路径[：:]\s*/g, '')
+    .replace(
+      /(?:文件位置|本地|视频|音频|旁白|成片|HTML|网页|页面|本地路径|保存路径)?路径[：:]\s*(?!!\[)/g,
+      ''
+    )
     .trim()
   return stripEmptyCodeFences(stripOrphanedPathLabels(text))
 }

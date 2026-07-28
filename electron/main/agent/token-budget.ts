@@ -37,36 +37,100 @@ export function queryLatestHumanMessage(messages: BaseMessage[]): BaseMessage | 
 }
 
 /**
- * 清理无法配对的 ToolMessage / 未完成的 tool_calls。
+ * 清理并修复无法配对的 ToolMessage / 未完成的 tool_calls。
  *
- * 为什么：会话落盘时若未持久化 assistant.tool_calls，进程重启后冷启动会把
- * 「纯文本 AIMessage + 孤立 ToolMessage」回填给模型，OpenAI 兼容接口会直接拒绝对话，
- * 表现即为「用户消息已显示但 Agent 无任何回复」。
+ * 为什么：
+ * 1. 会话落盘若丢失 assistant.tool_calls，冷启动会出现「纯文本 AI + 孤立 Tool」→ 供应商 400。
+ * 2. present_plan_choices 等 await 会在 session 中插入占位 assistant / 用户选择，
+ *    导致 tool_calls 与 tool 结果之间夹杂其他消息；OpenAI/DeepSeek 要求 tool 结果必须
+ *    紧跟在对应 assistant.tool_calls 之后，否则报 INVALID_TOOL_RESULTS。
+ * 3. 中断或进程重启可能留下「有 tool_calls、无 tool 结果」的助手消息，需补合成结果。
  */
 export function sanitizeMessagesForModel(messages: BaseMessage[]): BaseMessage[] {
-  const declaredToolCallIds = new Set<string>()
   const out: BaseMessage[] = []
+  let index = 0
 
-  for (const message of messages) {
+  while (index < messages.length) {
+    const message = messages[index]
+
     if (isAIMessage(message) || AIMessage.isInstance(message)) {
       const ai = message as AIMessage
-      const toolCalls = ai.tool_calls ?? []
-      for (const tc of toolCalls) {
-        if (tc.id) declaredToolCallIds.add(tc.id)
+      const toolCalls = (ai.tool_calls ?? []).filter((tc) => Boolean(tc.id))
+      if (!toolCalls.length) {
+        out.push(message)
+        index += 1
+        continue
       }
+
+      const neededIds = toolCalls.map((tc) => String(tc.id))
+      const neededNameById = new Map(
+        toolCalls.map((tc) => [String(tc.id), String(tc.name || 'tool')] as const)
+      )
+      const collected = new Map<string, ToolMessage>()
+
+      // 先吞掉紧随其后的 ToolMessage；再向前扫描把「被占位消息隔开」的结果找回来
+      let cursor = index + 1
+      while (cursor < messages.length && ToolMessage.isInstance(messages[cursor])) {
+        const toolMsg = messages[cursor] as ToolMessage
+        const callId = String(toolMsg.tool_call_id ?? '')
+        if (neededNameById.has(callId) && !collected.has(callId)) {
+          collected.set(callId, toolMsg)
+        }
+        cursor += 1
+      }
+
+      if (collected.size < neededIds.length) {
+        let lookAhead = cursor
+        while (lookAhead < messages.length && collected.size < neededIds.length) {
+          const candidate = messages[lookAhead]
+          // 遇到下一次带 tool_calls 的助手消息则停止，避免跨轮误配
+          if (
+            (isAIMessage(candidate) || AIMessage.isInstance(candidate)) &&
+            ((candidate as AIMessage).tool_calls?.length ?? 0) > 0
+          ) {
+            break
+          }
+          if (ToolMessage.isInstance(candidate)) {
+            const toolMsg = candidate as ToolMessage
+            const callId = String(toolMsg.tool_call_id ?? '')
+            if (neededNameById.has(callId) && !collected.has(callId)) {
+              collected.set(callId, toolMsg)
+            }
+          }
+          lookAhead += 1
+        }
+      }
+
       out.push(message)
+      for (const callId of neededIds) {
+        const existing = collected.get(callId)
+        if (existing) {
+          out.push(existing)
+          continue
+        }
+        // 补齐缺失的 tool 结果，避免下一轮请求被供应商以 INVALID_TOOL_RESULTS 拒绝
+        out.push(
+          new ToolMessage({
+            content: '工具调用未完成或已中断（系统已自动跳过）',
+            tool_call_id: callId,
+            name: neededNameById.get(callId) || 'tool'
+          })
+        )
+      }
+
+      // 跳过已消费的连续 ToolMessage；被隔开的匹配结果稍后遇到时作孤立项丢弃
+      index = cursor
       continue
     }
 
     if (ToolMessage.isInstance(message)) {
-      // 仅保留能对应到某次 assistant tool_call 的结果
-      if (declaredToolCallIds.has(message.tool_call_id)) {
-        out.push(message)
-      }
+      // 孤立工具结果（无对应 tool_calls）一律丢弃
+      index += 1
       continue
     }
 
     out.push(message)
+    index += 1
   }
 
   return out
@@ -97,7 +161,7 @@ export function trimMessagesToCharBudget(
     selected.shift()
   }
 
-  // 裁剪后仍可能残留「无 tool_calls 的 assistant + 工具结果」组合，统一再清洗一次
+  // 裁剪后仍可能残留未配对 tool_calls / 错位 tool 结果，统一再清洗一次
   return sanitizeMessagesForModel(selected)
 }
 

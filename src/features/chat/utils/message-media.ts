@@ -1,3 +1,5 @@
+import { queryEmbedImagesInDisplayText, type MessageImageRef } from './message-images'
+
 /** 消息内识别出的音视频引用（图片仍走 message-images.ts） */
 export interface MessageMediaRef {
   key: string
@@ -146,23 +148,21 @@ export function stripMediaPathsFromDisplayText(
   for (const ref of [...audio, ...video]) {
     text = text.split(ref.src).join('').trim()
   }
-  text = text.replace(/(?:本地|视频|音频|旁白|成片)?路径[：:]\s*/g, '').trim()
+  // 为什么用 (?<!图片)：避免把「图片路径：」拆成残留「图片」+ 路径，图片交给 embed 内联
+  text = text
+    .replace(/(?<!图片)(?:本地|视频|音频|旁白|成片)?路径[：:]\s*/g, '')
+    .trim()
   return text
 }
 
-/** 供 Markdown 展示的完整正文（解码 + 去路径） */
+/** 供 Markdown 展示的完整正文（解码 + 媒体路径处理 + 本地图内联） */
 export function queryDisplayContent(
   content: string,
-  imagePaths: { src: string; kind: string }[] = []
+  imagePaths: MessageImageRef[] = []
 ): string {
   const { audio, video } = extractMessageMedia(content)
   let text = stripMediaPathsFromDisplayText(content, audio, video)
-  for (const img of imagePaths) {
-    if (img.kind === 'local') {
-      text = text.split(img.src).join('').trim()
-    }
-  }
-  text = text.replace(/!\[[^\]]*]\([^)]+\)/g, '').trim()
-  text = text.replace(/(?:本地|图片|视频|音频|旁白|成片)?路径[：:]\s*/g, '').trim()
+  text = queryEmbedImagesInDisplayText(text, imagePaths)
+  text = text.replace(/(?:本地|图片|视频|音频|旁白|成片)?路径[：:]\s*(?!!\[)/g, '').trim()
   return text
 }

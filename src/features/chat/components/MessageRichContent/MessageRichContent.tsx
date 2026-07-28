@@ -7,6 +7,7 @@ import { MessageHtmlPreview } from '../MessageHtmlPreview'
 import { ArtifactLinks } from '../ArtifactLinks'
 import {
   extractMessageImages,
+  queryInlinedImageSrcs,
   type MessageImageRef
 } from '../../utils/message-images'
 import { extractMessageMedia } from '../../utils/message-media'
@@ -30,7 +31,7 @@ interface MessageRichContentProps {
 }
 
 /**
- * 消息富媒体展示：Markdown + 图片画廊 + 音频/视频/HTML 预览 + 产物链接。
+ * 消息富媒体展示：Markdown（含表格内联图预览）+ 画廊 + 音视频/HTML + 产物链接。
  */
 export function MessageRichContent({
   content,
@@ -46,6 +47,9 @@ export function MessageRichContent({
   const stockCharts = showStockCharts ? extractStockCharts(content) : []
   const stockLiveRefresh = showStockCharts ? queryStockLiveRefresh(content) : false
   const displayText = queryDisplayContentWithCharts(content, images)
+  // 已在 Markdown 内联的图不再进底部画廊，避免与表格预览重复
+  const inlinedSrcs = queryInlinedImageSrcs(displayText)
+  const galleryImages = images.filter((img) => !inlinedSrcs.has(img.src))
 
   const previewPaths = [
     ...images.filter((i) => i.kind === 'local').map((i) => i.src),
@@ -62,7 +66,7 @@ export function MessageRichContent({
         <span className={styles.cursor} />
       ) : null}
       <LazyMessageKlineChart charts={stockCharts} liveRefresh={stockLiveRefresh} />
-      <MessageImageGallery images={images} />
+      <MessageImageGallery images={galleryImages} />
       <MessageAudioPlayer items={audio} />
       <MessageVideoPlayer items={video} />
       <MessageHtmlPreview items={htmlItems} />

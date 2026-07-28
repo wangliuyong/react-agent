@@ -2,6 +2,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
 import { ChatCodeBlock } from '../ChatCodeBlock'
+import { MessageInlineImage } from '../MessageInlineImage'
 import styles from './ChatMarkdown.module.css'
 
 interface ChatMarkdownProps {
@@ -55,7 +56,10 @@ function createMarkdownComponents(streaming: boolean): Components {
       <div className={styles.tableWrap}>
         <table className={styles.table}>{children}</table>
       </div>
-    )
+    ),
+    // 本地绝对路径由 MessageInlineImage 经 IPC 转 data URL 并支持点击放大
+    img: ({ src, alt }) =>
+      src ? <MessageInlineImage src={src} alt={alt ?? ''} /> : null
   }
 }
 

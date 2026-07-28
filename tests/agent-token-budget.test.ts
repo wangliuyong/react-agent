@@ -112,4 +112,68 @@ describe('Agent token 预算', () => {
       final
     ])
   })
+
+  it('补齐缺失的 tool 结果，避免 INVALID_TOOL_RESULTS', () => {
+    const aiWithTools = new AIMessage({
+      content: '先列方案',
+      tool_calls: [
+        {
+          id: 'call_plan',
+          name: 'present_plan_choices',
+          args: { reason: '选路径' },
+          type: 'tool_call'
+        }
+      ]
+    })
+    const human = new HumanMessage('继续')
+
+    const sanitized = sanitizeMessagesForModel([aiWithTools, human])
+    expect(sanitized).toHaveLength(3)
+    expect(sanitized[0]).toBe(aiWithTools)
+    expect(ToolMessage.isInstance(sanitized[1])).toBe(true)
+    expect((sanitized[1] as ToolMessage).tool_call_id).toBe('call_plan')
+    expect(sanitized[2]).toBe(human)
+  })
+
+  it('把被占位消息隔开的 tool 结果紧挨到 tool_calls 之后', () => {
+    const aiWithTools = new AIMessage({
+      content: '可选方案',
+      tool_calls: [
+        {
+          id: 'call_plan',
+          name: 'present_plan_choices',
+          args: {},
+          type: 'tool_call'
+        }
+      ]
+    })
+    const placeholder = new AIMessage('等待确认：请选择')
+    const selected = new HumanMessage('【已选：方案 A】')
+    const tool = new ToolMessage({
+      content: '{"ok":true}',
+      tool_call_id: 'call_plan',
+      name: 'present_plan_choices'
+    })
+    const final = new AIMessage('开始执行')
+
+    const sanitized = sanitizeMessagesForModel([
+      aiWithTools,
+      placeholder,
+      selected,
+      tool,
+      final
+    ])
+
+    expect(sanitized.map((m) => m.getType?.() ?? '')).toEqual([
+      'ai',
+      'tool',
+      'ai',
+      'human',
+      'ai'
+    ])
+    expect((sanitized[1] as ToolMessage).tool_call_id).toBe('call_plan')
+    expect(sanitized[2]).toBe(placeholder)
+    expect(sanitized[3]).toBe(selected)
+    expect(sanitized[4]).toBe(final)
+  })
 })

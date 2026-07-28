@@ -6,6 +6,10 @@ import {
   type ModelCapability,
   type ModelRoleKey
 } from '../../../shared/types'
+import {
+  createThinkingRoundtripFetch,
+  thinkingRoundtripCallback
+} from './chat-openai-thinking-roundtrip'
 import { queryResolveModelConnection } from './model-router'
 
 /**
@@ -51,6 +55,7 @@ export function queryChatModelConfig(
 
 /**
  * 创建对接百炼 / DeepSeek / OfoxAI / OpenAI 兼容 API 的 LangChain 聊天模型。
+ * 自定义 fetch + thinkingRoundtripCallback：thinking 多轮工具时回传 reasoning_content。
  * @param purpose 角色或媒体任务键，用于 roleModelMap 选型
  * @param capability 任务能力标签；有值时优先按 capabilities 选连接
  */
@@ -59,7 +64,16 @@ export function createChatModel(
   purpose?: ModelRoleKey,
   capability?: ModelCapability
 ): ChatOpenAI {
-  return new ChatOpenAI(queryChatModelConfig(settings, purpose, capability))
+  const config = queryChatModelConfig(settings, purpose, capability)
+  const prevFetch = config.configuration?.fetch as typeof fetch | undefined
+  return new ChatOpenAI({
+    ...config,
+    callbacks: [thinkingRoundtripCallback],
+    configuration: {
+      ...config.configuration,
+      fetch: createThinkingRoundtripFetch(prevFetch)
+    }
+  })
 }
 
 /**

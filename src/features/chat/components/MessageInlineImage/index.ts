@@ -1,0 +1,1 @@
+export { MessageInlineImage } from './MessageInlineImage'

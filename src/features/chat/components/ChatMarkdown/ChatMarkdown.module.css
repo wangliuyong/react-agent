@@ -106,7 +106,12 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--db-border-light);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
+}
+
+/* 预览列缩略图与路径短名垂直居中对齐 */
+.table :global(td img) {
+  vertical-align: middle;
 }
 
 .table :global(th) {

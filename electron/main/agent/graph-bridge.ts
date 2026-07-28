@@ -463,14 +463,28 @@ function buildToolContext(
 
 /**
  * 将会话落盘消息还原为 LangChain 消息。
- * 会恢复 assistant.toolCalls，并清洗无法配对的孤立 tool 结果（兼容旧会话）。
+ * - 恢复 assistant.toolCalls
+ * - 跳过 awaitMeta 占位（present_plan_choices 等待确认气泡，不应进入模型上下文）
+ * - 将 thinkingContent 还原为 additional_kwargs.reasoning_content（DeepSeek thinking 多轮工具必需）
+ * - 清洗无法配对 / 错位的 tool 结果
  */
 function sessionToLcMessages(session: Session): BaseMessage[] {
   const out: BaseMessage[] = []
   for (const m of session.messages) {
     if (m.role === 'user') {
       out.push(new HumanMessage(m.content))
-    } else if (m.role === 'assistant') {
+      continue
+    }
+
+    if (m.role === 'assistant') {
+      // 等待确认占位仅供 UI 恢复方案选择，夹在 tool_calls 与 tool 结果之间会触发 INVALID_TOOL_RESULTS
+      if (m.awaitMeta) continue
+
+      const reasoning =
+        typeof m.thinkingContent === 'string' && m.thinkingContent.trim()
+          ? m.thinkingContent.trim()
+          : undefined
+
       // 有 toolCalls 时必须带上，否则后续 ToolMessage 会变成孤立结果被供应商拒绝
       if (m.toolCalls?.length) {
         out.push(
@@ -481,17 +495,29 @@ function sessionToLcMessages(session: Session): BaseMessage[] {
               name: tc.name,
               args: tc.args,
               type: 'tool_call' as const
-            }))
+            })),
+            // DeepSeek thinking：带 tool_calls 的 assistant 必须在后续请求中回传 reasoning_content
+            ...(reasoning ? { additional_kwargs: { reasoning_content: reasoning } } : {})
           })
         )
       } else {
-        out.push(new AIMessage(m.content))
+        out.push(
+          new AIMessage({
+            content: m.content,
+            ...(reasoning ? { additional_kwargs: { reasoning_content: reasoning } } : {})
+          })
+        )
       }
-    } else if (m.role === 'tool') {
+      continue
+    }
+
+    if (m.role === 'tool') {
+      // 只接受真实 toolCallId；勿回退到消息 id，否则会与 assistant.tool_calls 对不上
+      if (!m.toolCallId) continue
       out.push(
         new ToolMessage({
           content: m.content,
-          tool_call_id: m.toolCallId || m.id,
+          tool_call_id: m.toolCallId,
           name: m.toolName
         })
       )

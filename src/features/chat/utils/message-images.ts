@@ -123,7 +123,95 @@ function preferLocalImageRefs(refs: MessageImageRef[]): MessageImageRef[] {
   return refs.filter((r) => r.kind === 'local')
 }
 
-/** 展示用：去掉 [附件] 块与已识别本地路径行，保留可读文本 */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** 去掉已写成 Markdown 图片后残留的同路径裸露副本（反引号或纯文本） */
+function queryRemoveBarePathCopies(text: string, src: string): string {
+  const escaped = escapeRegExp(src)
+  return text
+    .replace(new RegExp(`\`${escaped}\``, 'g'), '')
+    .replace(new RegExp(`(?<!\\]\\()${escaped}`, 'g'), '')
+}
+
+/**
+ * 表格行内：把路径列里的本地图挪到「预览」列，路径列仅保留短文件名 + 来源标注。
+ * 为什么：原先直接删路径会留下空反引号，预览列只剩「图1」文案。
+ */
+function queryEmbedPathInTableRow(text: string, ref: MessageImageRef): string | null {
+  const escaped = escapeRegExp(ref.src)
+  const tableRowRe = new RegExp(
+    `(\\|\\s*)([^|\\n]+?)(\\s*\\|\\s*)[\`']?${escaped}[\`']?([^|\\n]*)`,
+    'g'
+  )
+  if (!tableRowRe.test(text)) return null
+  tableRowRe.lastIndex = 0
+  return text.replace(tableRowRe, (_match, pipeStart, previewCell, midPipe, rest) => {
+    const label = String(previewCell).trim() || ref.label
+    // 保留单元格尾部空格，避免与行末 `|` 粘连
+    const restNorm = String(rest)
+      .replace(/^\s*[←<-]+/, ' ←')
+      .replace(/^\s+(?=←)/, ' ')
+    const pathCell = restNorm.trim()
+      ? `\`${ref.label}\`${restNorm.startsWith(' ') ? restNorm : ` ${restNorm}`}`
+      : `\`${ref.label}\``
+    return `${pipeStart}![${label}](${ref.src})${midPipe}${pathCell}`
+  })
+}
+
+/**
+ * 将已识别本地图片嵌入为 Markdown 图片语法，供正文内联预览。
+ * - 表格：预览列放缩略图，路径列保留短名
+ * - 其它：裸路径 / 反引号路径 → `![label](src)`
+ * 远程 Markdown 图片原样保留；[附件] 块仍剥离（由画廊展示）。
+ */
+export function queryEmbedImagesInDisplayText(
+  content: string,
+  refs: MessageImageRef[]
+): string {
+  let text = content.replace(/\n?\[附件\]\n[\s\S]*$/, '').trim()
+
+  for (const ref of refs) {
+    if (ref.kind !== 'local') continue
+
+    if (text.includes(`](${ref.src})`)) {
+      text = queryRemoveBarePathCopies(text, ref.src)
+      continue
+    }
+
+    const tableEmbedded = queryEmbedPathInTableRow(text, ref)
+    if (tableEmbedded != null) {
+      text = tableEmbedded
+      continue
+    }
+
+    const escaped = escapeRegExp(ref.src)
+    text = text.replace(new RegExp(`[\\\`']?${escaped}[\\\`']?`, 'g'), `![${ref.label}](${ref.src})`)
+  }
+
+  // 路径已变成图片后，清掉空的「图片路径：」标签
+  text = text.replace(/(?:本地|图片)?路径[：:]\s*(?=!\[)/g, '')
+  text = text.replace(/(?:本地|图片)?路径[：:]\s*$/gm, '')
+  return text.replace(/\n{3,}/g, '\n\n').trim()
+}
+
+/** 展示正文里已内联的图片 src（用于画廊去重，避免表格缩略图与底部画廊重复） */
+export function queryInlinedImageSrcs(displayText: string): Set<string> {
+  const srcs = new Set<string>()
+  const re = /!\[[^\]]*]\(([^)]+)\)/g
+  let match: RegExpExecArray | null
+  while ((match = re.exec(displayText)) !== null) {
+    const src = match[1].trim()
+    if (src) srcs.add(src)
+  }
+  return srcs
+}
+
+/**
+ * 展示用：去掉 [附件] 块与已识别本地路径行，保留可读文本。
+ * 注意：聊天主展示已改走 queryEmbedImagesInDisplayText；本函数供需彻底剥离路径的场景。
+ */
 export function stripImagePathsFromDisplayText(content: string, refs: MessageImageRef[]): string {
   let text = content.replace(/\n?\[附件\]\n[\s\S]*$/, '').trim()
   for (const ref of refs) {

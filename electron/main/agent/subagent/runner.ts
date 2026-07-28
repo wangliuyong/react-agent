@@ -130,7 +130,18 @@ function sessionMessagesToLc(messages: ChatMessage[]): BaseMessage[] {
   for (const m of messages) {
     if (m.role === 'user') {
       out.push(new HumanMessage(m.content))
-    } else if (m.role === 'assistant') {
+      continue
+    }
+
+    if (m.role === 'assistant') {
+      // 与主会话一致：跳过 await 占位，避免 tool_calls 与 tool 结果被隔开
+      if (m.awaitMeta) continue
+
+      const reasoning =
+        typeof m.thinkingContent === 'string' && m.thinkingContent.trim()
+          ? m.thinkingContent.trim()
+          : undefined
+
       // 与主会话一致：恢复 toolCalls，避免 fork 冷启动历史断裂
       if (m.toolCalls?.length) {
         out.push(
@@ -141,17 +152,27 @@ function sessionMessagesToLc(messages: ChatMessage[]): BaseMessage[] {
               name: tc.name,
               args: tc.args,
               type: 'tool_call' as const
-            }))
+            })),
+            ...(reasoning ? { additional_kwargs: { reasoning_content: reasoning } } : {})
           })
         )
       } else {
-        out.push(new AIMessage(m.content))
+        out.push(
+          new AIMessage({
+            content: m.content,
+            ...(reasoning ? { additional_kwargs: { reasoning_content: reasoning } } : {})
+          })
+        )
       }
-    } else if (m.role === 'tool') {
+      continue
+    }
+
+    if (m.role === 'tool') {
+      if (!m.toolCallId) continue
       out.push(
         new ToolMessage({
           content: m.content,
-          tool_call_id: m.toolCallId || m.id,
+          tool_call_id: m.toolCallId,
           name: m.toolName
         })
       )

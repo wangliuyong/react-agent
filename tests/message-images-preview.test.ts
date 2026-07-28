@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   extractMessageImages,
+  queryEmbedImagesInDisplayText,
+  queryInlinedImageSrcs,
   stripImagePathsFromDisplayText
 } from '../src/features/chat/utils/message-images'
 import {
@@ -10,6 +12,8 @@ import {
 
 const APP_SUPPORT_PNG =
   '/Users/wly/Library/Application Support/lingxi/react-agent-data/videos/scenes/s1/cat_sunlight.png'
+const APP_SUPPORT_PNG_2 =
+  '/Users/wly/Library/Application Support/lingxi/react-agent-data/videos/scenes/s1/dog.png'
 const APP_SUPPORT_MP4 =
   '/Users/wly/Library/Application Support/lingxi/react-agent-data/videos/scenes/s1/shot-1.mp4'
 
@@ -46,13 +50,32 @@ describe('聊天媒体路径提取（含 Application Support 空格与中文冒�
     expect(video[0].src).toBe(APP_SUPPORT_MP4)
   })
 
-  it('queryDisplayContent 去掉图/视频路径后保留说明文字', () => {
+  it('queryDisplayContent 将本地图嵌入 Markdown，并去掉视频裸路径', () => {
     const text =
       `已生成\n图片路径：${APP_SUPPORT_PNG}\n视频：${APP_SUPPORT_MP4}\n请查收`
     const images = extractMessageImages(text)
     const display = queryDisplayContent(text, images)
-    expect(display).not.toContain('.png')
-    expect(display).not.toContain('.mp4')
+    expect(display).toContain(`![cat_sunlight.png](${APP_SUPPORT_PNG})`)
+    expect(display).not.toMatch(/图片路径/)
+    expect(display).not.toContain(APP_SUPPORT_MP4)
     expect(display).toContain('请查收')
+  })
+
+  it('表格行把路径嵌进预览列，路径列仅保留短文件名', () => {
+    const text = [
+      '### 热点①',
+      '| 预览 | 文件路径 |',
+      '| --- | --- |',
+      `| 图1 | \`${APP_SUPPORT_PNG}\` ← 搜狐新闻源 |`,
+      `| 图2 | \`${APP_SUPPORT_PNG_2}\` ← 新浪新闻源 |`
+    ].join('\n')
+    const images = extractMessageImages(text)
+    expect(images).toHaveLength(2)
+
+    const embedded = queryEmbedImagesInDisplayText(text, images)
+    expect(embedded).toContain(`| ![图1](${APP_SUPPORT_PNG}) | \`cat_sunlight.png\` ← 搜狐新闻源 |`)
+    expect(embedded).toContain(`| ![图2](${APP_SUPPORT_PNG_2}) | \`dog.png\` ← 新浪新闻源 |`)
+    expect(embedded).not.toMatch(/\| 图1 \|/)
+    expect(queryInlinedImageSrcs(embedded).has(APP_SUPPORT_PNG)).toBe(true)
   })
 })
