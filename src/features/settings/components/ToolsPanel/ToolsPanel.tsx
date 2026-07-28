@@ -7,9 +7,14 @@ import type {
 } from '@shared/types'
 import { queryToolLabel } from '@/features/chat/utils/agent-status'
 import { SkillMarkdown } from '@/features/skills/components/SkillMarkdown'
+import { VirtualGrid, VirtualList } from '@/components/VirtualList'
 import { queryAgentToolsCatalog } from '../../api'
 import cardStyles from '@/components/entity-card'
 import styles from './ToolsPanel.module.css'
+
+/** 工具卡片行 / 注入卡片预估高度 */
+const TOOL_CARD_ROW_ESTIMATE = 188
+const INJECTION_CARD_ESTIMATE = 120
 
 const { Text, Title, Paragraph } = Typography
 
@@ -171,7 +176,7 @@ export function ToolsPanel(): React.ReactElement {
             </Text>
           </div>
 
-          {/* 滚动仅发生在卡片网格，标题与搜索栏保持固定 */}
+          {/* 滚动仅发生在 VirtualGrid，标题与搜索栏保持固定 */}
           <div className={styles.listScroll}>
             <Spin spinning={loading && tools.length === 0}>
               {filtered.length === 0 ? (
@@ -181,13 +186,17 @@ export function ToolsPanel(): React.ReactElement {
                   className={styles.empty}
                 />
               ) : (
-                <div className={cardStyles.grid}>
-                  {filtered.map((tool, index) => {
-                    const perm = PERMISSION_META[tool.permission]
+                <VirtualGrid
+                  className={styles.virtualList}
+                  items={filtered}
+                  gap={16}
+                  overscan={4}
+                  estimateSize={TOOL_CARD_ROW_ESTIMATE}
+                  getItemKey={(tool) => tool.name}
+                  renderItem={(tool, index) => {
                     const roles = rolesUsingTool(tool.name)
                     return (
                       <Card
-                        key={tool.name}
                         variant="borderless"
                         className={cardStyles.card}
                         style={{ '--card-index': index } as CSSProperties}
@@ -199,11 +208,9 @@ export function ToolsPanel(): React.ReactElement {
                             </span>
                             <div className={cardStyles.cardTitleBlock}>
                               <Text className={cardStyles.cardTitle}>
-                                {/* <Tag className={perm.tagClass}>{perm.label}</Tag> */}
                                 {queryToolLabel(tool.name)}
                               </Text>
                               <code className={cardStyles.cardSubtitle}>{tool.name}</code>
-
                             </div>
                           </div>
                           <div className={cardStyles.cardActions}>
@@ -240,8 +247,8 @@ export function ToolsPanel(): React.ReactElement {
                         </div>
                       </Card>
                     )
-                  })}
-                </div>
+                  }}
+                />
               )}
             </Spin>
           </div>
@@ -249,61 +256,73 @@ export function ToolsPanel(): React.ReactElement {
       ) : (
         <div className={styles.listScroll}>
           <Spin spinning={loading && injections.length === 0}>
-            <div className={styles.injectionList}>
-              {injections.map((row, index) => (
-                <Card
-                  key={row.role}
-                  variant="borderless"
-                  className={cardStyles.card}
-                  style={{ '--card-index': index } as CSSProperties}
-                >
-                  <div className={cardStyles.cardHead}>
-                    <div className={cardStyles.cardTitleBlock}>
-                      <Text className={cardStyles.cardTitle}>
-                        {ROLE_LABELS[row.role] ?? row.role}
-                      </Text>
-                      <code className={cardStyles.cardSubtitle}>{row.role}</code>
-                    </div>
-                    <Space size={6}>
-                      {row.customized ? <Tag className={cardStyles.primaryTag}>已自定义</Tag> : null}
-                      <Tag
-                        className={
-                          row.mode === 'all'
-                            ? cardStyles.primaryTag
-                            : row.mode === 'none'
-                              ? cardStyles.mutedTag
-                              : cardStyles.successTag
-                        }
-                      >
-                        {MODE_LABELS[row.mode]}
-                      </Tag>
-                      {row.customized ? (
-                        <Tag className={cardStyles.mutedTag}>已自定义</Tag>
-                      ) : null}
-                      <span className={styles.countBadge}>{row.toolNames.length}</span>
-                    </Space>
-                  </div>
-                  {row.toolNames.length === 0 ? (
-                    <Text type="secondary">此角色不挂载任何工具（仅路由）</Text>
-                  ) : (
-                    <div className={styles.chipWrap}>
-                      {row.toolNames.map((name) => (
+            {injections.length === 0 ? (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={loading ? '加载中…' : '暂无角色注入配置'}
+                className={styles.empty}
+              />
+            ) : (
+              <VirtualList
+                className={styles.virtualList}
+                items={injections}
+                gap={14}
+                overscan={4}
+                estimateSize={INJECTION_CARD_ESTIMATE}
+                getItemKey={(row) => row.role}
+                renderItem={(row, index) => (
+                  <Card
+                    variant="borderless"
+                    className={cardStyles.card}
+                    style={{ '--card-index': index } as CSSProperties}
+                  >
+                    <div className={cardStyles.cardHead}>
+                      <div className={cardStyles.cardTitleBlock}>
+                        <Text className={cardStyles.cardTitle}>
+                          {ROLE_LABELS[row.role] ?? row.role}
+                        </Text>
+                        <code className={cardStyles.cardSubtitle}>{row.role}</code>
+                      </div>
+                      <Space size={6}>
+                        {row.customized ? (
+                          <Tag className={cardStyles.primaryTag}>已自定义</Tag>
+                        ) : null}
                         <Tag
-                          key={name}
-                          className={styles.toolChip}
-                          onClick={() => {
-                            const tool = tools.find((t) => t.name === name)
-                            if (tool) openDetail(tool)
-                          }}
+                          className={
+                            row.mode === 'all'
+                              ? cardStyles.primaryTag
+                              : row.mode === 'none'
+                                ? cardStyles.mutedTag
+                                : cardStyles.successTag
+                          }
                         >
-                          {name}
+                          {MODE_LABELS[row.mode]}
                         </Tag>
-                      ))}
+                        <span className={styles.countBadge}>{row.toolNames.length}</span>
+                      </Space>
                     </div>
-                  )}
-                </Card>
-              ))}
-            </div>
+                    {row.toolNames.length === 0 ? (
+                      <Text type="secondary">此角色不挂载任何工具（仅路由）</Text>
+                    ) : (
+                      <div className={styles.chipWrap}>
+                        {row.toolNames.map((name) => (
+                          <Tag
+                            key={name}
+                            className={styles.toolChip}
+                            onClick={() => {
+                              const tool = tools.find((t) => t.name === name)
+                              if (tool) openDetail(tool)
+                            }}
+                          >
+                            {name}
+                          </Tag>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
+                )}
+              />
+            )}
           </Spin>
         </div>
       )}

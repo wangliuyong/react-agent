@@ -19,9 +19,13 @@ import {
   queryAgentAssets
 } from '../../api'
 import cardStyles from '@/components/entity-card'
+import { VirtualGrid } from '@/components/VirtualList'
 import styles from './AssetsPanel.module.css'
 
 const { Text, Title, Paragraph } = Typography
+
+/** 资产卡片行预估高度 */
+const ASSET_CARD_ROW_ESTIMATE = 188
 
 type KindFilter = AgentAssetKind | 'all'
 type ZoneFilter = AgentAssetZone | 'all'
@@ -451,12 +455,17 @@ export function AssetsPanel(): React.ReactElement {
               }
             />
           ) : (
-            <div className={cardStyles.grid}>
-              {filtered.map((asset, index) => {
+            <VirtualGrid
+              className={styles.virtualList}
+              items={filtered}
+              gap={16}
+              overscan={4}
+              estimateSize={ASSET_CARD_ROW_ESTIMATE}
+              getItemKey={(asset) => asset.path}
+              renderItem={(asset, index) => {
                 const isSelected = selectedPaths.has(asset.path)
                 return (
                   <Card
-                    key={asset.path}
                     variant="borderless"
                     hoverable
                     className={`${cardStyles.card} ${cardStyles.cardSelectable}${isSelected ? ` ${cardStyles.cardActive}` : ''}`}
@@ -465,8 +474,10 @@ export function AssetsPanel(): React.ReactElement {
                   >
                     <div className={cardStyles.cardHead}>
                       <div className={styles.assetIdentity}>
-
-                        <span className={`${cardStyles.cardIcon} ${styles.assetIcon}`} data-kind={asset.kind}>
+                        <span
+                          className={`${cardStyles.cardIcon} ${styles.assetIcon}`}
+                          data-kind={asset.kind}
+                        >
                           {KIND_ICON[asset.kind]}
                         </span>
                         <div className={cardStyles.cardTitleBlock}>
@@ -478,14 +489,16 @@ export function AssetsPanel(): React.ReactElement {
                           </span>
                         </div>
                       </div>
-                      <Tag className={cardStyles.primaryTag}>{AGENT_ASSET_KIND_LABELS[asset.kind]}</Tag>
-
-
+                      <Tag className={cardStyles.primaryTag}>
+                        {AGENT_ASSET_KIND_LABELS[asset.kind]}
+                      </Tag>
                     </div>
 
                     <div className={cardStyles.cardBody}>
                       <div className={cardStyles.tagRow}>
-                        <Tag className={cardStyles.mutedTag}>{AGENT_ASSET_ZONE_LABELS[asset.zone]}</Tag>
+                        <Tag className={cardStyles.mutedTag}>
+                          {AGENT_ASSET_ZONE_LABELS[asset.zone]}
+                        </Tag>
                       </div>
                       <Text
                         type="secondary"
@@ -496,7 +509,10 @@ export function AssetsPanel(): React.ReactElement {
                       </Text>
                     </div>
 
-                    <div className={cardStyles.cardFooter} onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className={cardStyles.cardFooter}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className={styles.footerActions}>
                         <Tooltip title="预览">
                           <Button
@@ -544,8 +560,8 @@ export function AssetsPanel(): React.ReactElement {
                     </div>
                   </Card>
                 )
-              })}
-            </div>
+              }}
+            />
           )}
         </Spin>
       </div>

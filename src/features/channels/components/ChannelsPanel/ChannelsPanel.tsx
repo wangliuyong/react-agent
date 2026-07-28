@@ -24,9 +24,13 @@ import {
   isValidChannelId,
   slugifyChannelId
 } from '../../types'
+import { VirtualGrid } from '@/components/VirtualList'
 import styles from './ChannelsPanel.module.css'
 import { shellStyles } from '@/components/page-shell'
 import cardStyles from '@/components/entity-card'
+
+/** 渠道卡片行预估高度（与 entity-card 最小高度对齐，实际由 measure 校正） */
+const CHANNEL_CARD_ROW_ESTIMATE = 188
 
 const { Text, Title } = Typography
 
@@ -530,14 +534,19 @@ export function ChannelsPanel(): React.ReactElement {
               ) : null}
             </Empty>
           ) : (
-            <div className={cardStyles.grid}>
-              {filtered.map((channel, index) => {
+            <VirtualGrid
+              className={styles.virtualList}
+              items={filtered}
+              gap={16}
+              overscan={4}
+              estimateSize={CHANNEL_CARD_ROW_ESTIMATE}
+              getItemKey={(channel) => channel.id}
+              renderItem={(channel, index) => {
                 const isNotify = normalizeChannelKind(channel.kind) === 'notify'
                 const status = statusMap[channel.id]
                 const visual = channelVisual(channel.id)
                 return (
                   <Card
-                    key={channel.id}
                     variant="borderless"
                     className={`${cardStyles.card} ${channel.enabled ? '' : styles.cardDisabled}`}
                     style={{ '--card-index': index } as CSSProperties}
@@ -603,41 +612,41 @@ export function ChannelsPanel(): React.ReactElement {
                     </div>
                   </Card>
                 )
-              })}
-            </div>
+              }}
+            />
           )}
         </Spin>
-
-        {/* 底部说明：样式对齐技能详情 description 条，替代默认 Alert */}
-        {kindTab === 'publish' ? (
-          <aside className={styles.tipPanel}>
-            <div className={styles.tipTitle}>浏览器登录态</div>
-            <p className={styles.tipText}>
-              各发布渠道共用同一个 Playwright 浏览器 Profile。若登录异常或 Cookie
-              冲突，可清除后重新扫码。
-            </p>
-            <Popconfirm
-              title="确定清除全部渠道登录态？"
-              description="将删除本机 browser-profile 目录，所有渠道需重新登录。"
-              onConfirm={() => void handleClearProfile()}
-              okText="清除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button danger size="small" loading={clearing}>
-                清除全部登录态
-              </Button>
-            </Popconfirm>
-          </aside>
-        ) : (
-          <aside className={styles.tipPanel}>
-            <div className={styles.tipTitle}>通知渠道</div>
-            <p className={styles.tipText}>
-              飞书使用自定义机器人 Webhook；Webhook 与签名密钥仅保存在本机，不会发给 Agent。
-            </p>
-          </aside>
-        )}
       </div>
+
+      {/* 底部说明固定在列表外，避免虚拟滚动占用；样式对齐技能详情 description 条 */}
+      {kindTab === 'publish' ? (
+        <aside className={styles.tipPanel}>
+          <div className={styles.tipTitle}>浏览器登录态</div>
+          <p className={styles.tipText}>
+            各发布渠道共用同一个 Playwright 浏览器 Profile。若登录异常或 Cookie
+            冲突，可清除后重新扫码。
+          </p>
+          <Popconfirm
+            title="确定清除全部渠道登录态？"
+            description="将删除本机 browser-profile 目录，所有渠道需重新登录。"
+            onConfirm={() => void handleClearProfile()}
+            okText="清除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button danger size="small" loading={clearing}>
+              清除全部登录态
+            </Button>
+          </Popconfirm>
+        </aside>
+      ) : (
+        <aside className={styles.tipPanel}>
+          <div className={styles.tipTitle}>通知渠道</div>
+          <p className={styles.tipText}>
+            飞书使用自定义机器人 Webhook；Webhook 与签名密钥仅保存在本机，不会发给 Agent。
+          </p>
+        </aside>
+      )}
 
       <Modal
         title={detailChannel?.label ?? '渠道详情'}

@@ -113,9 +113,8 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   padding-right: 2px;
-  padding-bottom: 8px;
 }
 
 .listScroll :global(.ant-spin-nested-loading),
@@ -125,6 +124,11 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+}
+
+.virtualList {
+  flex: 1;
+  min-height: 0;
 }
 
 .empty {

@@ -16,3 +16,14 @@
   left: 0;
   width: 100%;
 }
+
+/* VirtualGrid：一行多列，列数由 JS 与 entity-card 断点同步 */
+.gridRow {
+  display: grid;
+  width: 100%;
+  align-items: stretch;
+}
+
+.gridCell {
+  min-width: 0;
+}

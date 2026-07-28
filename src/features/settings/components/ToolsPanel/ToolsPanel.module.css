@@ -73,11 +73,12 @@
 }
 
 .listScroll {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   padding-right: 2px;
-  padding-bottom: 8px;
 }
 
 .listScroll :global(.ant-spin-nested-loading),
@@ -89,6 +90,11 @@
   width: 100%;
 }
 
+.virtualList {
+  flex: 1;
+  min-height: 0;
+}
+
 .empty {
   flex: 1;
   display: flex;
@@ -97,12 +103,6 @@
   justify-content: center;
   width: 100%;
   min-height: 200px;
-}
-
-.injectionList {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
 }
 
 .chipWrap {
