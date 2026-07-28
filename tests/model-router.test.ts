@@ -325,6 +325,31 @@ describe('supervisor 路由辅助', () => {
     expect(querySanitizeSupervisorNext('content', '选热点创作')).toBe('content')
   })
 
+  it('Remotion 模版仅产出 props JSON 时，sanitize 将 video 降级为 general', () => {
+    const propsOnlyPrompt = [
+      '你是 Remotion 热点新闻视频的内容导演兼文案编辑。最终只输出一个符合 schema 的 JSON，不要 Markdown 说明。',
+      '模板 compositionId：HotNews',
+      '必须调用 fetch_hot_topics 获取今日热点。',
+      '成片总时长：约 45 秒。'
+    ].join('\n')
+    expect(querySanitizeSupervisorNext('video', propsOnlyPrompt)).toBe('general')
+    expect(queryInferSupervisorNext('', propsOnlyPrompt)).toBe('video')
+    expect(
+      queryResolveSupervisorRoute('{"next":"video","capability":"chat"}', propsOnlyPrompt)
+    ).toEqual({
+      nextAgent: 'general',
+      pipelineKind: 'general',
+      capability: 'chat'
+    })
+    // 明确要走成片/渲染管线时保留 video
+    expect(
+      querySanitizeSupervisorNext(
+        'video',
+        '请用 remotion_render 导出成片，compositionId=HotNews'
+      )
+    ).toBe('video')
+  })
+
   it('发布意图识别：创作不等于发布', () => {
     expect(queryHasExplicitPublishIntent('选 1 个热点深入解析创作内容')).toBe(false)
     expect(queryHasExplicitPublishIntent('帮我写小红书文案，先不要发布')).toBe(false)

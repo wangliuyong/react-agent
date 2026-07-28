@@ -314,6 +314,10 @@ export function registerIpcHandlers(): void {
     const { postApplyRemotionTemplateSkill } = await import('./media/remotion-apply-template-skill')
     return postApplyRemotionTemplateSkill(input)
   })
+  ipcMain.handle(IpcChannels.postRenderRemotionStudioExport, async (_e, input) => {
+    const { postRenderRemotionStudioExport } = await import('./media/remotion-service')
+    return postRenderRemotionStudioExport(input)
+  })
   ipcMain.handle(IpcChannels.querySkillImportPreview, (_e, url: string) =>
     querySkillImportPreview(url)
   )

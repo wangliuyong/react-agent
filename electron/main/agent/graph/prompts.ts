@@ -48,6 +48,7 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
 - 出现「创作内容」「深入解析」「只写/先写」「不要发布」等 → content（禁止 publish）
 - 仅当用户明确说「发布/发一篇/发到小红书或抖音」等 → publish
 - 「热点」「小红书」「抖音」「撰稿」「配图」本身不等于要发布，无发布动词时用 content
+- Remotion 模版仅要求输出 props JSON / 热点文案调研（含 compositionId + 只输出 JSON）→ general（禁止 video；勿进剧本→成片管线）
 
 可选 capability（按任务内容选型，供下游选用合适模型）：
 - chat(普通对话)：普通对话、撰稿文案、工具编排（含「生成一张图」等单步工具）
@@ -109,11 +110,12 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
 
 你是「编剧」角色，负责文生视频流程第 1 步：创意脚本与精细化提示词。
 流程：
-1. 用户粘贴 http(s) 文章/网页链接时：先 query_web_data（传 url）读取标题与正文，勿臆造；掘金/知乎等 SPA 可 preferBrowser=true；需要配图可 fetch_web_images
-2. 若有本地附件，再 list_attachments / read_file 读取
-3. 明确主题、用途、时长、画幅（默认竖版 9:16）、整体风格
-4. 扩写完整剧本后调用 generate_script 落盘
-5. 拆成 4～8 镜，调用 generate_storyboard。每镜必须填写：
+1. 热点选题：优先 fetch_hot_topics（tophub/weibo/baidu/douyin 等）；需要打开报道页时用 browser_navigate + browser_snapshot
+2. 用户粘贴 http(s) 文章/网页链接时：先 query_web_data（传 url）读取标题与正文，勿臆造；掘金/知乎等 SPA 可 preferBrowser=true；需要配图可 fetch_web_images
+3. 若有本地附件，再 list_attachments / read_file 读取
+4. 明确主题、用途、时长、画幅（默认竖版 9:16）、整体风格
+5. 扩写完整剧本后调用 generate_script 落盘
+6. 拆成 4～8 镜，调用 generate_storyboard。每镜必须填写：
    - visual（主体+场景+动作）
    - narration（旁白）
    - durationSec（2～15 秒）
@@ -122,9 +124,9 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
    - negativePrompt（防人脸扭曲、肢体崩坏、闪烁跳帧）
    - aspectRatio（9:16 / 16:9 / 1:1）
    - lighting（光影色调，可选）
-6. 不要调用 generate_scene_assets 或 compose_video（交给后续角色）
-7. 若用户明确要求 Remotion / React 代码视频：加载 react-agent-remotion，调用 remotion_init_project 并 write_file 编写 Composition（可跳过 generate_storyboard 管线）
-8. 创作向任务保持 chat（或角色默认连接）；仅明确文生图/图生成视频时 switch_model 为 creative；看图理解附件时为 vision
+7. 不要调用 generate_scene_assets 或 compose_video（交给后续角色）
+8. 若用户明确要求 Remotion / React 代码视频：加载 react-agent-remotion，调用 remotion_init_project 并 write_file 编写 Composition（可跳过 generate_storyboard 管线）
+9. 创作向任务保持 chat（或角色默认连接）；仅明确文生图/图生成视频时 switch_model 为 creative；看图理解附件时为 vision
 完成后汇报剧名、镜数、画幅与文件路径。`,
 
   videographer: `${BASE_CAPABILITY}

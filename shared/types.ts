@@ -95,6 +95,8 @@ export const IpcChannels = {
   queryRemotionVideoTemplates: 'query:remotion-video-templates',
   /** Remotion：拼装技能模版并可选打开 Studio */
   postApplyRemotionTemplateSkill: 'post:remotion-template:apply',
+  /** Remotion：直接渲染已启动 Studio 的会话工程 */
+  postRenderRemotionStudioExport: 'post:remotion-studio:export',
   // Agent 用户规则（持久指令，注入 SYSTEM_PROMPT）
   queryAgentRules: 'query:agent-rules',
   postAgentRule: 'post:agent-rule',
@@ -2573,6 +2575,20 @@ export interface ElectronApi {
     compositionId?: string
     studioUrl?: string
     skillId?: string
+  }>
+  /** Remotion：直接导出已启动 Studio 的工程（不走 Agent） */
+  postRenderRemotionStudioExport: (input: {
+    sessionId: string
+    compositionId: string
+    projectDir?: string
+    outputFileName?: string
+    quality?: 'fast' | 'standard' | 'high'
+    title?: string
+  }) => Promise<{
+    ok: boolean
+    message: string
+    path?: string
+    record?: import('./remotion-exports').RemotionExportRecord
   }>
   queryAgentRules: () => Promise<AgentRule[]>
   postAgentRule: (input: AgentRuleUpsertInput) => Promise<AgentRule>

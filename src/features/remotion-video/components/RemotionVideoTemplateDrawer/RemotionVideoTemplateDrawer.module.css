@@ -88,10 +88,60 @@
 
 .actions {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.actionButtons {
+  display: flex;
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  padding-top: 4px;
+}
+
+.studioLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, #e63946 88%, #000),
+    color-mix(in srgb, #0f172a 70%, #e63946)
+  );
+  box-shadow: 0 8px 24px color-mix(in srgb, #e63946 28%, transparent);
+}
+
+.studioLiveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.65);
+  animation: studioPulse 1.6s ease-out infinite;
+}
+
+.studioIdle {
+  font-size: 12px;
+  color: var(--db-text-tertiary);
+}
+
+@keyframes studioPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
 }
 
 .hint {

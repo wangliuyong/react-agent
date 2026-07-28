@@ -838,6 +838,130 @@ export async function postStartRemotionStudio(
   })
 }
 
+/** 查询会话是否仍有存活的 Studio 预览进程 */
+export function queryRemotionStudioAlive(sessionId: string): {
+  alive: boolean
+  url?: string
+  projectDir?: string
+} {
+  const id = String(sessionId ?? '').trim()
+  if (!id) return { alive: false }
+  const existing = studioBySession.get(id)
+  if (!existing || !queryIsChildAlive(existing.process)) {
+    if (existing) studioBySession.delete(id)
+    return { alive: false }
+  }
+  return { alive: true, url: existing.url, projectDir: existing.projectDir }
+}
+
+export interface PostRenderRemotionStudioExportInput {
+  sessionId: string
+  compositionId: string
+  /** 缺省用会话 remotion 工程目录 */
+  projectDir?: string
+  outputFileName?: string
+  quality?: RemotionQualityPreset
+  title?: string
+}
+
+export interface PostRenderRemotionStudioExportResult {
+  ok: boolean
+  message: string
+  record?: RemotionExportRecord
+  path?: string
+}
+
+/**
+ * 视频页「导出视频」：直接渲染已启动 Studio 的会话工程，不走 Agent 重拼装。
+ * 入队 → remotion render → 成功后关闭本会话 Studio。
+ */
+export async function postRenderRemotionStudioExport(
+  input: PostRenderRemotionStudioExportInput
+): Promise<PostRenderRemotionStudioExportResult> {
+  const sessionId = String(input.sessionId ?? '').trim()
+  if (!sessionId) {
+    return { ok: false, message: 'sessionId 不能为空' }
+  }
+
+  const studio = queryRemotionStudioAlive(sessionId)
+  const projectDir =
+    String(input.projectDir ?? '').trim() ||
+    studio.projectDir ||
+    queryRemotionProjectDir(sessionId)
+
+  if (!existsSync(join(projectDir, 'src', 'index.ts'))) {
+    return {
+      ok: false,
+      message: '未找到已拼装的 Remotion 工程，请先「生成并预览」或「预览模版」启动 Studio'
+    }
+  }
+
+  if (!studio.alive) {
+    return {
+      ok: false,
+      message: 'Studio 未在运行。请先预览启动 Studio，再导出当前画面'
+    }
+  }
+
+  const compositionId = String(input.compositionId ?? 'Main').trim() || 'Main'
+  const rawName = String(input.outputFileName ?? '').trim()
+  const safeName = rawName
+    ? rawName.replace(/[^\w.\u4e00-\u9fff-]+/g, '_').replace(/\.+$/, '')
+    : `studio-export-${Date.now()}`
+  const fileName = safeName.toLowerCase().endsWith('.mp4') ? safeName : `${safeName}.mp4`
+  const outputPath = join(projectDir, 'out', fileName)
+
+  const record = postEnqueueRemotionExport({
+    sessionId,
+    compositionId,
+    fileName,
+    title: input.title
+  })
+
+  const result = await postRenderRemotionVideo({
+    sessionId,
+    projectDir,
+    compositionId,
+    outputPath,
+    quality: input.quality ?? 'standard'
+  })
+
+  if (!result.ok || !result.path) {
+    postUpdateRemotionExport({
+      id: record.id,
+      status: 'failed',
+      errorMessage: result.message.slice(0, 400)
+    })
+    return {
+      ok: false,
+      message: result.message,
+      record: { ...record, status: 'failed', errorMessage: result.message.slice(0, 400) }
+    }
+  }
+
+  // 成片完成：关闭本会话 Studio，与 remotion_render 工具行为一致
+  postStopRemotionStudios(sessionId)
+
+  const updated = postUpdateRemotionExport({
+    id: record.id,
+    status: 'success',
+    outputPath: result.path,
+    progressPercent: 100
+  })
+
+  return {
+    ok: true,
+    message: `已从 Studio 工程导出：${result.path}`,
+    path: result.path,
+    record: updated ?? {
+      ...record,
+      status: 'success',
+      outputPath: result.path,
+      progressPercent: 100
+    }
+  }
+}
+
 /** 关闭指定会话或全部 Remotion Studio 进程（取消确认 / Agent 中止 / 应用退出时调用） */
 export function postStopRemotionStudios(sessionId?: string): void {
   const entries = sessionId

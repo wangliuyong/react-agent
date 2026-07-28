@@ -101,7 +101,10 @@ app.whenReady().then(() => {
   createWindow()
 
   // 非关键初始化延后到下一事件循环，不阻塞首屏
-  void Promise.resolve().then(() => {
+  void Promise.resolve().then(async () => {
+    // Agent 工具全局预热：全量注册进进程缓存，供各角色 / 工作流直接注入
+    const { postWarmAgentTools } = await import('./agent/tools')
+    postWarmAgentTools()
     initializeResources()
     postEnsureRemotionSkillsEnabled()
     void postEnsureRemotionBrowser().catch(() => {

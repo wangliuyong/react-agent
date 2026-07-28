@@ -70,8 +70,12 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
     'use_skill',
     'switch_model',
     'present_plan_choices',
+    // 视频选题常需热点榜 + 打开报道页读详情（与 researcher 调研能力对齐）
+    'fetch_hot_topics',
     'query_web_data',
     'fetch_web_images',
+    'browser_navigate',
+    'browser_snapshot',
     'list_attachments',
     'read_file',
     'write_file',
@@ -170,45 +174,38 @@ export function queryResolvedRoleToolWhitelist(
   return queryDefaultRoleToolWhitelist(role as BuiltinPipelineRole)
 }
 
-/** 按角色过滤 AgentTool；supervisor 无工具。 */
+/**
+ * Agent 运行时工具集：启动后全局注入全量工具（不再按角色白名单裁剪）。
+ * supervisor 仍无工具（只做路由）。
+ * 白名单仍保留在设置页展示 / 默认推荐，不参与运行时过滤。
+ */
 export function queryToolsForRole(
   role: AgentRoleName,
-  overrides?: RoleToolWhitelistOverrides,
-  customRoles?: CustomAgentRole[]
+  _overrides?: RoleToolWhitelistOverrides,
+  _customRoles?: CustomAgentRole[]
 ): AgentTool[] {
   if (role === 'supervisor') return []
-  const all = getAllTools()
-  const list = queryResolvedRoleToolWhitelist(role, overrides, customRoles)
-  if (!list) return all
-  const allow = new Set(list)
-  return all.filter((t) => allow.has(t.name))
-}
-
-/** 按显式白名单过滤（工作流 agent 节点） */
-export function queryToolsByWhitelist(whitelist?: string[]): AgentTool[] {
-  const all = getAllTools()
-  if (!whitelist || whitelist.length === 0) return all
-  const allow = new Set(whitelist)
-  return all.filter((t) => allow.has(t.name))
+  return getAllTools()
 }
 
 /**
- * 子 Agent 工具集：白名单 / 黑名单叠加，并可强制排除 task 以防嵌套派发。
+ * 工作流 / 步骤 Agent：同样全局注入全量工具。
+ * whitelist 参数保留兼容（画布配置、UI 示例），运行时不再裁剪。
+ */
+export function queryToolsByWhitelist(_whitelist?: string[]): AgentTool[] {
+  return getAllTools()
+}
+
+/**
+ * 子 Agent 工具集：全局注入全量；仅 denylist / forceDenyTask 仍生效（防嵌套派发等）。
  */
 export function queryToolsForSubagent(params: {
   allowlist?: string[] | null
   denylist?: string[]
   forceDenyTask?: boolean
 }): AgentTool[] {
-  const { allowlist, denylist, forceDenyTask } = params
-  let tools: AgentTool[]
-  if (allowlist === null || allowlist === undefined) {
-    tools = getAllTools()
-  } else if (allowlist.length === 0) {
-    tools = []
-  } else {
-    tools = queryToolsByWhitelist(allowlist)
-  }
+  const { denylist, forceDenyTask } = params
+  let tools = getAllTools()
   if (denylist?.length) {
     const deny = new Set(denylist)
     tools = tools.filter((t) => !deny.has(t.name))

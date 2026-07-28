@@ -69,7 +69,7 @@ describe('queryNormalizeHotNewsProps', () => {
     expect(queryNormalizeHotNewsProps({ brandName: 'x' }, budget)).toBeNull()
   })
 
-  it('缺少 dataSource 或使用占位符时返回 null', () => {
+  it('缺少 dataSource 时可用 fallbackDataSource 兜底', () => {
     const base = {
       brandName: '测试',
       dateLabel: '今天',
@@ -79,6 +79,33 @@ describe('queryNormalizeHotNewsProps', () => {
     }
     expect(queryNormalizeHotNewsProps(base, budget)).toBeNull()
     expect(queryNormalizeHotNewsProps({ ...base, dataSource: '未知' }, budget)).toBeNull()
-    expect(queryNormalizeHotNewsProps({ ...base, dataSource: '暂无' }, budget)).toBeNull()
+
+    const withFallback = queryNormalizeHotNewsProps(base, budget, {
+      fallbackDataSource: '抖音热点'
+    })
+    expect(withFallback).not.toBeNull()
+    expect(withFallback!.dataSource).toBe('抖音热点')
+  })
+
+  it('可用 items[].source 回填全局 dataSource', () => {
+    const props = queryNormalizeHotNewsProps(
+      {
+        brandName: '测试',
+        dateLabel: '今天',
+        headline: '标题',
+        summary: '导语内容足够长用于通过校验。',
+        items: [
+          {
+            tag: '科技',
+            title: '新闻一',
+            detail: '详情一包含足够文字以便展示播报内容。',
+            source: '澎湃新闻'
+          }
+        ]
+      },
+      budget
+    )
+    expect(props).not.toBeNull()
+    expect(props!.dataSource).toBe('澎湃新闻')
   })
 })

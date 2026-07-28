@@ -1,5 +1,5 @@
 import type { HotNewsProps } from '../../types/hot-news-props'
-import type { RemotionVideoProject, RemotionVideoCategory } from '../../types'
+import type { RemotionVideoProject } from '../../types'
 import { REMOTION_VIDEO_CATEGORY_LABEL } from '../../constants'
 import { HOT_TOPIC_SOURCE_OPTIONS, queryHasHotTopicSource, type HotTopicSource } from '../../constants/hot-topic-sources'
 import {
@@ -16,8 +16,10 @@ import {
   HOT_NEWS_DURATION_MIN_SEC
 } from '../../utils/query-hot-news-content-budget'
 import { queryMergedHotNewsProps } from '../../utils/query-merged-hot-news-props'
-import { postEnqueueHotNewsExport } from '../../utils/post-export-hot-news-video'
-import { postApplyRemotionTemplateSkill } from '../../api'
+import {
+  postApplyRemotionTemplateSkill,
+  postRenderRemotionStudioExport
+} from '../../api'
 import { postCreateSession } from '@/features/chat/api'
 import { RemotionTemplatePreviewModal } from '../RemotionTemplatePreviewModal/RemotionTemplatePreviewModal'
 import styles from './RemotionVideoTemplateDrawer.module.css'
@@ -54,14 +56,21 @@ export function RemotionVideoTemplateDrawer({
   const [tickerLinesText, setTickerLinesText] = useState('')
   /** 新闻类默认不预选，强制用户选择信息来源 */
   const [hotSource, setHotSource] = useState<HotTopicSource | 'all' | null>(null)
-  const [videoCategory, setVideoCategory] = useState<RemotionVideoCategory>('news')
+  /** 视频分类：可选预设中文名，也支持用户自由输入 */
+  const [videoCategory, setVideoCategory] = useState('新闻')
   const [previewProps, setPreviewProps] = useState<HotNewsProps | null>(null)
   const [previewModalOpen, setPreviewModalOpen] = useState(false)
+  /** 已启动 Studio 的会话：导出走该会话工程直渲，不再新建 Agent */
+  const [studioSessionId, setStudioSessionId] = useState<string | null>(null)
+  const [studioProjectDir, setStudioProjectDir] = useState<string | null>(null)
   const [studioUrl, setStudioUrl] = useState<string | null>(null)
   const [studioStatus, setStudioStatus] = useState<string>('')
   const [analyzing, setAnalyzing] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [applying, setApplying] = useState(false)
+
+  /** Studio 已就绪：可直接导出当前工程画面 */
+  const studioReady = Boolean(studioSessionId && studioUrl)
 
   useEffect(() => {
     if (!open) return
@@ -69,7 +78,11 @@ export function RemotionVideoTemplateDrawer({
     setHotTopicName('')
     setTickerLinesText('')
     setHotSource(null)
-    setVideoCategory(project?.category ?? 'news')
+    setVideoCategory(
+      project?.category
+        ? REMOTION_VIDEO_CATEGORY_LABEL[project.category]
+        : '新闻'
+    )
     setAspectRatio(
       project
         ? queryAspectRatioFromCompositionId(project.compositionId, project.previewKind)
@@ -78,6 +91,8 @@ export function RemotionVideoTemplateDrawer({
     setDurationSec(DEFAULT_HOT_NEWS_DURATION_SEC)
     setPreviewProps(null)
     setPreviewModalOpen(false)
+    setStudioSessionId(null)
+    setStudioProjectDir(null)
     setStudioUrl(null)
     setStudioStatus('')
   }, [open, project?.id, project?.category])
@@ -93,6 +108,19 @@ export function RemotionVideoTemplateDrawer({
     if (queryHasHotTopicSource(hotSource)) return true
     message.warning('新闻类模版必须选择信息来源')
     return false
+  }
+
+  /** 记录 Studio 会话上下文，供「导出视频」直渲同一工程 */
+  const postRememberStudioContext = (input: {
+    sessionId: string
+    projectDir?: string
+    studioUrl?: string | null
+    status: string
+  }): void => {
+    setStudioSessionId(input.sessionId)
+    setStudioProjectDir(input.projectDir ?? null)
+    setStudioUrl(input.studioUrl ?? null)
+    setStudioStatus(input.status)
   }
 
   /** 拼装技能 template + props，打开 Studio */
@@ -116,8 +144,12 @@ export function RemotionVideoTemplateDrawer({
       if (!result.ok) {
         throw new Error(result.message)
       }
-      setStudioUrl(result.studioUrl ?? null)
-      setStudioStatus(result.message)
+      postRememberStudioContext({
+        sessionId: session.id,
+        projectDir: result.projectDir,
+        studioUrl: result.studioUrl,
+        status: result.message
+      })
       setPreviewModalOpen(true)
       message.success(result.studioUrl ? '已拼装并打开 Studio' : '模版已拼装')
     } finally {
@@ -143,8 +175,12 @@ export function RemotionVideoTemplateDrawer({
         openStudio: true
       })
       if (!result.ok) throw new Error(result.message)
-      setStudioUrl(result.studioUrl ?? null)
-      setStudioStatus(result.message)
+      postRememberStudioContext({
+        sessionId: session.id,
+        projectDir: result.projectDir,
+        studioUrl: result.studioUrl,
+        status: result.message
+      })
       setPreviewModalOpen(true)
       message.success('已用模版默认数据打开 Studio')
     } catch (err) {
@@ -168,7 +204,7 @@ export function RemotionVideoTemplateDrawer({
       const props = await queryHotNewsPropsFromAgent({
         userBrief,
         hotSource,
-        newsCategory: videoCategory,
+        newsCategory: videoCategory.trim() || '新闻',
         compositionId: playerConfig.compositionId,
         hotTopicName,
         tickerLinesText,
@@ -187,59 +223,49 @@ export function RemotionVideoTemplateDrawer({
     }
   }
 
+  /**
+   * 导出视频：直接渲染已启动 Studio 的会话工程。
+   * 不新建 Agent、不重拼装；与预览所见为同一份 Composition。
+   */
   const handleExport = async (): Promise<void> => {
     if (!project || !supportsPreview) return
-    if (!queryEnsureInfoSource()) return
-    let props = displayProps
-    if (!props && queryIsHotNewsTemplateSkill(project.id)) {
-      if (!queryHasHotTopicSource(hotSource)) return
-      setAnalyzing(true)
-      try {
-        const raw = await queryHotNewsPropsFromAgent({
-          userBrief,
-          hotSource,
-          newsCategory: videoCategory,
-          compositionId: playerConfig.compositionId,
-          hotTopicName,
-          tickerLinesText,
-          durationSec
-        })
-        props = queryMergedHotNewsProps(raw, { hotTopicName, tickerLinesText })
-        if (!tickerLinesText.trim() && props.tickerLines?.length) {
-          setTickerLinesText(props.tickerLines.join('\n'))
-        }
-        setPreviewProps(props)
-      } catch (err) {
-        message.error(err instanceof Error ? err.message : '请先完成内容分析')
-        setAnalyzing(false)
-        return
-      }
-      setAnalyzing(false)
+    if (!studioSessionId || !studioUrl) {
+      message.warning('请先「生成并预览」或「预览模版」启动 Studio，再导出当前画面')
+      return
     }
 
     setExporting(true)
+    setStudioStatus('正在从 Studio 工程导出 mp4…')
     try {
-      await postEnqueueHotNewsExport({
-        skillId: project.id,
+      const result = await postRenderRemotionStudioExport({
+        sessionId: studioSessionId,
         compositionId: playerConfig.compositionId,
-        width: playerConfig.width,
-        height: playerConfig.height,
-        fps: playerConfig.fps,
-        durationInFrames: playerConfig.durationInFrames,
-        props: props ?? undefined,
+        projectDir: studioProjectDir ?? undefined,
+        outputFileName: `studio-${project.id}-${Date.now()}.mp4`,
+        quality: 'standard',
         title: project.title
       })
-      message.success('已加入任务队列，请在导出列表查看导出结果')
+      if (!result.ok) {
+        throw new Error(result.message)
+      }
+      // 成片后主进程已关闭 Studio：清空本地就绪态
+      setStudioSessionId(null)
+      setStudioProjectDir(null)
+      setStudioUrl(null)
+      setStudioStatus(result.message)
+      setPreviewModalOpen(false)
+      message.success('已从当前 Studio 导出，请在导出列表查看成片')
     } catch (err) {
-      message.error(err instanceof Error ? err.message : '加入导出队列失败')
+      message.error(err instanceof Error ? err.message : '导出失败')
     } finally {
       setExporting(false)
     }
   }
 
-  const categoryOptions = (
-    Object.entries(REMOTION_VIDEO_CATEGORY_LABEL) as [RemotionVideoCategory, string][]
-  ).map(([value, label]) => ({ value, label }))
+  /** AutoComplete 预设：值为中文标签，便于用户直输与 Agent 理解 */
+  const categoryOptions = Object.values(REMOTION_VIDEO_CATEGORY_LABEL).map((label) => ({
+    value: label
+  }))
 
   const busy = analyzing || applying
 
@@ -315,11 +341,21 @@ export function RemotionVideoTemplateDrawer({
                   />
                 </Form.Item>
               ) : null}
-              <Form.Item label="视频分类">
-                <Select
+              <Form.Item
+                label="视频分类"
+                extra="可从列表选择，也可直接输入自定义分类（如：财经快讯）"
+              >
+                <AutoComplete
                   value={videoCategory}
                   onChange={setVideoCategory}
                   options={categoryOptions}
+                  placeholder="选择或输入分类，如：新闻、财经快讯"
+                  allowClear
+                  filterOption={(input, option) =>
+                    String(option?.value ?? '')
+                      .toLowerCase()
+                      .includes(input.trim().toLowerCase())
+                  }
                 />
               </Form.Item>
               <Form.Item label="热点名称" extra="画面中部红色角标">
@@ -349,42 +385,63 @@ export function RemotionVideoTemplateDrawer({
           </Form>
 
           <div className={styles.actions}>
-            <Button
-              icon={<EyeOutlined />}
-              loading={applying && !analyzing}
-              onClick={() => void handlePreviewDefault()}
-            >
-              预览模版
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlayCircleOutlined />}
-              loading={busy}
-              onClick={() => void handleAnalyzeAndPreview()}
-            >
-              {analyzing ? '拉取热点并拼装…' : applying ? '拼装中…' : '生成并预览'}
-            </Button>
-            <Button
-              icon={<PlaySquareOutlined />}
-              disabled={!studioUrl}
-              onClick={() => setPreviewModalOpen(true)}
-            >
-              打开预览
-            </Button>
-            <Button
-              icon={<ExportOutlined />}
-              loading={exporting}
-              onClick={() => void handleExport()}
-            >
-              导出视频
-            </Button>
+            {studioReady ? (
+              <span className={styles.studioLive} aria-live="polite">
+                <span className={styles.studioLiveDot} />
+                Studio 已就绪 · 导出将渲染当前预览工程
+              </span>
+            ) : (
+              <span className={styles.studioIdle}>先预览启动 Studio，再导出当前画面</span>
+            )}
+            <div className={styles.actionButtons}>
+              <Button
+                icon={<EyeOutlined />}
+                loading={applying && !analyzing}
+                onClick={() => void handlePreviewDefault()}
+              >
+                预览模版
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
+                loading={busy}
+                onClick={() => void handleAnalyzeAndPreview()}
+              >
+                {analyzing ? '拉取热点并拼装…' : applying ? '拼装中…' : '生成并预览'}
+              </Button>
+              <Button
+                icon={<PlaySquareOutlined />}
+                disabled={!studioUrl}
+                onClick={() => setPreviewModalOpen(true)}
+              >
+                打开预览
+              </Button>
+              <Tooltip
+                title={
+                  studioReady
+                    ? '直接渲染已启动 Studio 的工程，所见即所得'
+                    : '请先启动 Studio 后再导出'
+                }
+              >
+                <Button
+                  type={studioReady ? 'primary' : 'default'}
+                  danger={studioReady}
+                  icon={<ExportOutlined />}
+                  loading={exporting}
+                  disabled={!studioReady && !exporting}
+                  onClick={() => void handleExport()}
+                >
+                  {exporting ? '正在导出…' : '导出视频'}
+                </Button>
+              </Tooltip>
+            </div>
           </div>
 
           {displayProps ? (
             <pre className={styles.jsonPreview}>{JSON.stringify(displayProps, null, 2)}</pre>
           ) : (
             <Text type="secondary" className={styles.hint}>
-              点击「生成并预览」：Agent 处理数据后拼装技能模版并打开 Studio
+              点击「生成并预览」：Agent 处理数据后拼装技能模版并打开 Studio；确认画面后点「导出视频」直渲该工程。
             </Text>
           )}
         </div>
@@ -396,6 +453,8 @@ export function RemotionVideoTemplateDrawer({
         config={playerConfig}
         studioUrl={studioUrl}
         statusText={studioStatus}
+        exporting={exporting}
+        onExport={() => void handleExport()}
         onClose={() => setPreviewModalOpen(false)}
       />
     </Drawer>

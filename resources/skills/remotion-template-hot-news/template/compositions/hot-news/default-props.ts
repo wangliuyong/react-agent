@@ -2,12 +2,12 @@ import type { HotNewsProps } from './types'
 
 /** 横版 16:9 默认文案（内置模板与列表预览共用） */
 export const HOT_NEWS_WIDE_DEFAULT_PROPS: HotNewsProps = {
-  brandName: '灵犀 · 热点速览',
-  dateLabel: '2026年7月27日 · 午间快讯',
+  brandName: '灵犀快讯',
+  dateLabel: '2026年7月28日',
   headline: '多模态大模型落地提速，产业应用进入规模化阶段',
   summary:
     '多家头部厂商同日发布端侧推理方案，视频生成与智能体工作流成为本轮竞争焦点，资本市场关注度持续升温。',
-  dataSource: '今日热榜 · 综合',
+  dataSource: '澎湃新闻',
   accentColor: '#e63946',
   hotTopicName: '科技',
   secondsPerItem: 5,
@@ -22,7 +22,7 @@ export const HOT_NEWS_WIDE_DEFAULT_PROPS: HotNewsProps = {
       title: '开源视频生成框架更新，支持 4K 与批量渲染管线',
       detail:
         '多家开源社区同步放出新版本，首次完整支持 4K 导出与批量渲染队列。创作者可在本地完成多镜头合成，显著降低云端算力成本。',
-      source: '开源社区公告'
+      source: '澎湃新闻'
     },
     {
       tag: '财经',

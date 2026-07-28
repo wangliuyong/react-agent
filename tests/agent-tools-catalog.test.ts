@@ -34,6 +34,10 @@ describe('agent tools catalog', () => {
     expect(byRole.researcher.toolNames).toContain('query_ashare_realtime_analysis')
     expect(byRole.researcher.toolNames).toContain('query_ashare_kline')
     expect(byRole.scriptwriter.toolNames).toContain('query_web_data')
+    // 编剧也需拉热点/打开网页读详情（Remotion 热点模版等视频选题）
+    expect(byRole.scriptwriter.toolNames).toContain('fetch_hot_topics')
+    expect(byRole.scriptwriter.toolNames).toContain('browser_navigate')
+    expect(byRole.scriptwriter.toolNames).toContain('browser_snapshot')
   })
 
   it('用户覆盖可把 scriptwriter 设为全量或收紧名单', () => {

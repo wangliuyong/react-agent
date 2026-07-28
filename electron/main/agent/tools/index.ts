@@ -33,9 +33,13 @@ import {
 import { presentPlanChoicesTool } from './confirm-tools'
 import { managementTools } from './management-tools'
 import type { AgentTool } from './types'
+import { queryResolveToolName } from './query-resolve-tool-name'
 
-/** 注册全部工具；新增能力只在此追加，不改 Loop */
-export function getAllTools(): AgentTool[] {
+/** 进程内工具注册表缓存：启动时预热，避免每次图构建重复组装 */
+let cachedTools: AgentTool[] | null = null
+
+/** 组装全量工具列表（未缓存时用） */
+function queryBuildAllTools(): AgentTool[] {
   return [
     useSkillTool,
     switchModelTool,
@@ -73,6 +77,37 @@ export function getAllTools(): AgentTool[] {
   ]
 }
 
+/**
+ * 注册全部工具；新增能力只在此追加，不改 Loop。
+ * 启动预热后走缓存，保证全局注入同一份实例列表。
+ */
+export function getAllTools(): AgentTool[] {
+  if (!cachedTools) {
+    cachedTools = queryBuildAllTools()
+  }
+  return cachedTools
+}
+
+/**
+ * 启动时全局注入：预热工具注册表。
+ * 为什么：首轮 Agent 建图前完成装载，避免冷启动抖动；后续 getAllTools 直接命中缓存。
+ */
+export function postWarmAgentTools(): number {
+  cachedTools = null
+  return getAllTools().length
+}
+
+/**
+ * 按名称查找工具：精确优先，失败则 ≥90% 相似度模糊命中。
+ */
 export function getToolByName(name: string): AgentTool | undefined {
-  return getAllTools().find((t) => t.name === name)
+  const all = getAllTools()
+  const exact = all.find((t) => t.name === name)
+  if (exact) return exact
+  const resolved = queryResolveToolName(
+    name,
+    all.map((t) => t.name)
+  )
+  if (!resolved) return undefined
+  return all.find((t) => t.name === resolved.name)
 }

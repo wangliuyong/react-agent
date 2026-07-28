@@ -125,6 +125,8 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.queryRemotionVideoTemplates),
   postApplyRemotionTemplateSkill: (input) =>
     ipcRenderer.invoke(IpcChannels.postApplyRemotionTemplateSkill, input),
+  postRenderRemotionStudioExport: (input) =>
+    ipcRenderer.invoke(IpcChannels.postRenderRemotionStudioExport, input),
 
   queryAgentRules: () => ipcRenderer.invoke(IpcChannels.queryAgentRules),
   postAgentRule: (input: AgentRuleUpsertInput) =>

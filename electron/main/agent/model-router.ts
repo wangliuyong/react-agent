@@ -218,6 +218,7 @@ export function queryParseSupervisorRoute(
 
 /**
  * 综合 JSON 解析与关键词兜底，得到下一跳 Agent 节点名。
+ * 解析成功与关键词兜底均走 sanitize，避免 Supervisor 误标 video/publish。
  */
 export function queryResolveSupervisorRoute(
   supervisorText: string,
@@ -230,8 +231,10 @@ export function queryResolveSupervisorRoute(
 } {
   const parsed = queryParseSupervisorRoute(supervisorText, customRoleIds)
   if (parsed) {
+    const pipelineKind = querySanitizeSupervisorNext(parsed.pipelineKind, userText)
     return {
-      ...parsed,
+      nextAgent: queryPipelineEntryRole(pipelineKind),
+      pipelineKind,
       capability: querySanitizeModelCapability(parsed.capability, userText)
     }
   }
@@ -266,12 +269,39 @@ export function queryInferSupervisorNext(
 }
 
 /**
- * 纠正 Supervisor 误路由：未明确要求发布时，不得进入 publisher 节点。
+ * Remotion 模版「只产出 props JSON」任务特征。
+ * 为什么：文案里常含「成片/视频」会被关键词误判为 video 管线，
+ * 而 scriptwriter 默认无 fetch_hot_topics，会出现 Tool not found。
+ */
+export function queryIsRemotionTemplatePropsOnlyTask(userText: string): boolean {
+  const text = userText.trim()
+  if (!text) return false
+  // 明确要求渲染/剧本落盘时保留 video 管线
+  if (
+    /remotion_render|generate_script|generate_storyboard|一句话成片|生成视频成片/.test(
+      text
+    )
+  ) {
+    return false
+  }
+  return (
+    /compositionId/.test(text) &&
+    /符合 schema 的 JSON|只输出一个[\s\S]{0,24}JSON/.test(text)
+  )
+}
+
+/**
+ * 纠正 Supervisor 误路由：
+ * - 未明确要求发布时，不得进入 publisher 节点
+ * - Remotion 仅产出模版 props JSON 时，不得进入 video（scriptwriter）管线
  */
 export function querySanitizeSupervisorNext(
   next: SupervisorNextTarget,
   userText: string
 ): SupervisorNextTarget {
+  if (next === 'video' && queryIsRemotionTemplatePropsOnlyTask(userText)) {
+    return 'general'
+  }
   if (next !== 'publish') return next
   if (queryHasExplicitPublishIntent(userText)) return 'publish'
   if (CONTENT_PIPELINE_RE.test(userText)) return 'content'

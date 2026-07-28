@@ -83,6 +83,32 @@ export async function postApplyRemotionTemplateSkill(
   return window.api.postApplyRemotionTemplateSkill(input)
 }
 
+export interface PostRenderRemotionStudioExportInput {
+  sessionId: string
+  compositionId: string
+  projectDir?: string
+  outputFileName?: string
+  quality?: 'fast' | 'standard' | 'high'
+  title?: string
+}
+
+export interface PostRenderRemotionStudioExportResult {
+  ok: boolean
+  message: string
+  path?: string
+  record?: RemotionExportRecord
+}
+
+/**
+ * 直接渲染已启动 Studio 的会话工程（不新建 Agent、不重拼装）。
+ * 成功后主进程会关闭该会话 Studio。
+ */
+export async function postRenderRemotionStudioExport(
+  input: PostRenderRemotionStudioExportInput
+): Promise<PostRenderRemotionStudioExportResult> {
+  return window.api.postRenderRemotionStudioExport(input)
+}
+
 /**
  * 在系统文件管理器中定位成片。
  * 文件缺失时回退到父目录（失败任务仍可打开 out 文件夹）。

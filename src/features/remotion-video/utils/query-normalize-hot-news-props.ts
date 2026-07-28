@@ -7,32 +7,54 @@ function queryClampHotNewsItemSeconds(seconds: number): number {
   return Math.min(15, Math.max(3, seconds))
 }
 
+/** 剔除「未知 / 暂无」等占位，保留可展示的数据来源文案 */
+function querySanitizeDataSourceLabel(raw: string): string {
+  const text = String(raw ?? '').trim()
+  if (!text) return ''
+  if (/^(未知|暂无|无|n\/?a|null|undefined|-|—|－－)$/i.test(text)) return ''
+  return text.slice(0, 48)
+}
+
+export interface QueryNormalizeHotNewsPropsOptions {
+  /**
+   * Agent 漏填 dataSource 时的兜底（通常为用户所选信息来源中文名，如「抖音热点」）。
+   * 保证画面「数据来源」仍可标注，避免整份 JSON 被拒。
+   */
+  fallbackDataSource?: string
+}
+
 /**
  * 将 Agent 原始 JSON 规范化为 HotNewsProps。
- * 校验条数、截断字数，并解析 secondsPerItem / items[].detail / items[].seconds。
+ * 校验条数、截断字数，并解析 secondsPerItem / items[].detail / items[].seconds / dataSource。
  */
 export function queryNormalizeHotNewsProps(
   raw: Record<string, unknown>,
-  budget: HotNewsContentBudget
+  budget: HotNewsContentBudget,
+  options?: QueryNormalizeHotNewsPropsOptions
 ): HotNewsProps | null {
   const brandName = String(raw.brandName ?? '').trim()
   const dateLabel = String(raw.dateLabel ?? '').trim()
   const headline = String(raw.headline ?? '').trim()
   const summary = String(raw.summary ?? '').trim()
-  /** 数据来源必填：剔除常见占位后再校验 */
-  const dataSourceRaw = String(raw.dataSource ?? '').trim()
-  const dataSourcePlaceholder = /^(未知|暂无|无|n\/?a|null|undefined|-|—|－－)$/i
-  const dataSource =
-    dataSourceRaw && !dataSourcePlaceholder.test(dataSourceRaw)
-      ? dataSourceRaw.slice(0, 48)
-      : ''
   const itemsRaw = raw.items
-  if (!brandName || !headline || !summary || !dataSource || !Array.isArray(itemsRaw)) return null
+  if (!brandName || !headline || !summary || !Array.isArray(itemsRaw)) return null
 
   const items = itemsRaw
     .map((row) => queryNormalizeHotNewsItem(row, budget))
     .filter((x): x is HotNewsItem => Boolean(x))
   if (items.length < 1) return null
+
+  /**
+   * 数据来源优先级：
+   * 1) 全局 dataSource
+   * 2) 首条带 source 的条目
+   * 3) 调用方兜底（用户所选信息来源）
+   */
+  const dataSource =
+    querySanitizeDataSourceLabel(String(raw.dataSource ?? '')) ||
+    items.map((item) => querySanitizeDataSourceLabel(item.source ?? '')).find(Boolean) ||
+    querySanitizeDataSourceLabel(options?.fallbackDataSource ?? '')
+  if (!dataSource) return null
 
   const accentColor = raw.accentColor != null ? String(raw.accentColor).trim() : undefined
   const hotTopicName =
@@ -97,10 +119,7 @@ function queryNormalizeHotNewsItem(
     detail = detail.slice(0, budget.detailMaxChars)
   }
 
-  const sourceRaw = String(rec.source ?? '').trim()
-  const sourcePlaceholder = /^(未知|暂无|无|n\/?a|null|undefined|-|—|－－)$/i
-  const source =
-    sourceRaw && !sourcePlaceholder.test(sourceRaw) ? sourceRaw.slice(0, 48) : undefined
+  const source = querySanitizeDataSourceLabel(String(rec.source ?? ''))
 
   const secondsNum = Number(rec.seconds)
   const seconds = Number.isFinite(secondsNum)

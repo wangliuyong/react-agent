@@ -204,40 +204,51 @@ const HotNewsHero: React.FC<{
       >
         {displayDetail}
       </p>
-      {/* 新闻成片强制可见的数据来源标注 */}
+      {/* 导语下方：一体式「数据来源」徽章（左标签灰底 + 右来源白字） */}
       <div
         style={{
           marginTop: compact ? 14 : 18,
-          display: 'flex',
-          alignItems: 'center',
-          gap: compact ? 8 : 10,
+          display: 'inline-flex',
+          alignItems: 'stretch',
+          maxWidth: '100%',
+          borderRadius: 4,
+          overflow: 'hidden',
+          border: '1px solid rgba(255,255,255,0.22)',
+          background: 'rgba(0,0,0,0.42)',
           opacity: enter,
-          transform: `translateY(${(1 - enter) * 12}px)`
+          transform: `translateY(${(1 - enter) * 12}px)`,
+          boxShadow: '0 6px 18px rgba(0,0,0,0.28)'
         }}
       >
         <span
           style={{
             flexShrink: 0,
-            padding: compact ? '3px 8px' : '4px 10px',
-            borderRadius: 3,
-            background: 'rgba(255,255,255,0.1)',
-            border: '1px solid rgba(255,255,255,0.18)',
+            display: 'flex',
+            alignItems: 'center',
+            padding: compact ? '4px 10px' : '5px 12px',
+            background: 'rgba(255,255,255,0.16)',
             fontFamily: UI_FONT,
-            fontSize: compact ? 13 : 16,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            color: 'rgba(255,255,255,0.72)'
+            fontSize: compact ? 13 : 15,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            color: 'rgba(255,255,255,0.88)'
           }}
         >
           数据来源
         </span>
         <span
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: compact ? '4px 12px' : '5px 14px',
             fontFamily: UI_FONT,
-            fontSize: compact ? 15 : 18,
-            fontWeight: 500,
-            color: 'rgba(255,255,255,0.68)',
-            letterSpacing: '0.02em'
+            fontSize: compact ? 14 : 17,
+            fontWeight: 600,
+            color: '#ffffff',
+            letterSpacing: '0.02em',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
           }}
         >
           {displaySource}

@@ -2,6 +2,7 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt'
 import type { BaseCheckpointSaver } from '@langchain/langgraph'
 import type { StructuredToolInterface } from '@langchain/core/tools'
 import type { LanguageModelLike } from '@langchain/core/language_models/base'
+import { FuzzyToolNode } from '../tools/fuzzy-tool-node'
 
 /** 静态模型，或每次 LLM 调用前重新解析的工厂（支持中途换模） */
 export type ReactSubgraphLlm =
@@ -38,9 +39,13 @@ function queryHasBindTools(
  * 当 llm 为工厂函数时：每次 agent 节点调用都会重新解析模型并 bindTools，
  * 从而支持 switch_model 在同一次 ReAct 循环内切换连接。
  * （createReactAgent 对动态 llm 不会自动 bindTools，需在此包装。）
+ *
+ * tools 以 FuzzyToolNode 注入：LLM 工具名 ≥90% 相似即命中，避免轻微拼写偏差报 not found。
  */
 export function createReactSubgraph(params: CreateReactSubgraphParams) {
   const { llm, tools, systemPrompt, checkpointer, name } = params
+  // bindTools 仍用原始列表；执行侧用模糊匹配节点
+  const toolNode = new FuzzyToolNode(tools)
 
   const resolvedLlm =
     typeof llm === 'function'
@@ -56,7 +61,7 @@ export function createReactSubgraph(params: CreateReactSubgraphParams) {
   return createReactAgent({
     // 动态工厂：每次 agent 节点调用重新解析模型（见 createReactAgent llm: function）
     llm: resolvedLlm as never,
-    tools,
+    tools: toolNode,
     prompt: systemPrompt,
     checkpointer,
     name: name ?? 'react_agent'

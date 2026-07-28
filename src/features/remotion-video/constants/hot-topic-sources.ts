@@ -22,6 +22,6 @@ export const HOT_TOPIC_SOURCE_OPTIONS: { value: HotTopicSource | 'all'; label: s
 export function queryHasHotTopicSource(
   source: HotTopicSource | 'all' | null | undefined
 ): source is HotTopicSource | 'all' {
-  if (source == null || source === '') return false
+  if (source == null) return false
   return HOT_TOPIC_SOURCE_OPTIONS.some((opt) => opt.value === source)
 }
