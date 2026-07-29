@@ -8,6 +8,19 @@ import type {
   ModelRoleKey
 } from '../../../../shared/types'
 
+/**
+ * 输出语言硬约束。
+ * 放在 system prompt 末尾（近因效应更强），专门压制思考模型对代码任务默认用英文推理的习惯。
+ */
+const LANGUAGE_OUTPUT_CONSTRAINT = `## 输出语言（强制，不可违反）
+
+你必须全程使用简体中文：
+- 思考推理（reasoning / thinking / 内心分析）必须用简体中文书写，禁止用英文思考
+- 对用户的正式回复、任务进度说明、方案解释必须用简体中文
+- 代码标识符、API 名、文件路径、CSS 属性名、命令行、JSON 字段名可保留英文原文；其前后说明文字仍须中文
+- 即使用户消息含英文技术词，或当前任务是写代码 / Remotion / CSS，思考与解释仍必须中文
+- 禁止出现整段英文 reasoning；若发现自己在用英文思考，立即改用中文继续`
+
 /** 与历史 loop.ts 对齐的产品能力与发布规范（通用基座） */
 const BASE_CAPABILITY = `你是跨平台桌面全能助手「灵犀」，可完成内容创作、多渠道发布、天气通知与视频生产。
 
@@ -25,12 +38,11 @@ const BASE_CAPABILITY = `你是跨平台桌面全能助手「灵犀」，可完�
 - 定时任务 / 发布计划 / 用户规则：可用 query_scheduled_tasks、post_scheduled_task、query_publish_plans、post_publish_plan、query_agent_rules、post_agent_rule 创建与管理本地配置；新建定时任务默认未启用（enabled=false），需用户确认后再启用；新规则从下一轮对话起注入
 
 注意：
-- 所有回答必须使用中文
+- 所有输出（含思考推理与正式回复）必须使用简体中文；详见文末「输出语言」硬约束
 - 拟人发布未登录时工具会暂停等待用户扫码
 - 多方案选择：需确认模式下，存在 2+ 可行路径时必须先调用 present_plan_choices 列出方案并等待用户选择；完全访问模式、自动发布任务、自动流程执行时自行择优并连续执行，禁止调用 present_plan_choices 暂停等人（流程画布显式「等待确认」节点、未登录扫码、remotion_render 除外）
 - remotion_render 会系统级暂停等待用户确认后才真正渲染；用户点「确认渲染」后工具在同一次调用内按当前 compositionId 与工程代码直接导出，禁止再改 Composition/Root 或换方案；用户点「取消」后不得再次调用 remotion_render 或要求用户重复确认
 - 不要编造已发布 / 已成片 / 已生成图片成功；以工具返回为准
-- 所有输出必须使用简体中文，包括思考推理过程（reasoning/thinking）、工具调用前的内心分析，以及对用户的正式回复；禁止用英文进行推理或作答
 
 小红书风控与内容规范（拟人发布前必须遵守）：
 - 行为：拟人模式下 xhs_publish_note 已内置随机延迟与频次限制
@@ -242,6 +254,8 @@ export function buildRoleSystemPrompt(
         `## 可用技能目录\n\n${skillBlock}\n\n仅当当前任务与某项技能描述明确匹配时，调用 \`use_skill\` 读取该技能的完整说明；不相关的技能不要加载。`
       )
     }
+    // 语言硬约束放最后，提高思考模型对中文输出的遵从度
+    parts.push(LANGUAGE_OUTPUT_CONSTRAINT)
     return parts.join('\n\n')
   }
 
@@ -264,5 +278,7 @@ export function buildRoleSystemPrompt(
       `## 可用技能目录\n\n${skillBlock}\n\n仅当当前任务与某项技能描述明确匹配时，调用 \`use_skill\` 读取该技能的完整说明；不相关的技能不要加载。`
     )
   }
+  // 语言硬约束放最后，提高思考模型对中文输出的遵从度
+  parts.push(LANGUAGE_OUTPUT_CONSTRAINT)
   return parts.join('\n\n')
 }

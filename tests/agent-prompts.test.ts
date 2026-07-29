@@ -41,6 +41,14 @@ describe('角色提示词 Token 预算', () => {
     expect(prompt).toContain('执行模式：需确认')
   })
 
+  it('非 supervisor 角色在 system prompt 末尾强制简体中文（含思考）', () => {
+    const prompt = buildRoleSystemPrompt('general')
+
+    expect(prompt).toContain('输出语言（强制，不可违反）')
+    expect(prompt).toContain('禁止用英文思考')
+    expect(prompt.trimEnd().endsWith('立即改用中文继续')).toBe(true)
+  })
+
   it('完全访问模式注入连续执行约束', () => {
     const prompt = buildRoleSystemPrompt('general', undefined, { fullAccess: true })
 
