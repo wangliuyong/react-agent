@@ -77,7 +77,7 @@ export function createChatModel(
 }
 
 /**
- * 按最新 capability 动态创建模型的工厂（供 createReactAgent 的 llm 函数形态使用）。
+ * 按最新 capability 动态创建模型的工厂（供 createReactSubgraph / createAgent wrapModelCall 使用）。
  * 为什么：ReAct 循环内 switch_model 改 capability 后，下一轮 LLM 调用需重新选型。
  */
 export function createCapabilityRoutedModel(

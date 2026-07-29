@@ -8,7 +8,8 @@ import { queryResolveToolName } from './query-resolve-tool-name'
 
 /**
  * 带工具名模糊匹配的 ToolNode。
- * 为什么：createReactAgent 默认按精确名查找，LLM 轻微拼写偏差会报 Tool not found。
+ * 为什么：默认 ToolNode 按精确名查找，LLM 轻微拼写偏差会报 Tool not found。
+ * 主路径已迁到 createAgent + wrapToolCall（见 react-subgraph.ts）；本类保留供单测与兼容。
  */
 export class FuzzyToolNode extends ToolNode {
   constructor(
