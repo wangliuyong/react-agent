@@ -30,6 +30,28 @@ export function queryDecodeWorkflowToolResult(result: string): {
   }
 }
 
+/**
+ * 合并工具结果到流程 context。
+ * patch 优先；outputKeys 只补写 patch 未提供的键（避免 stockHasBuy 等标志被整段 message 覆盖）。
+ */
+export function queryMergeToolResultToContext(
+  context: Record<string, unknown>,
+  decoded: { message: string; patch: Record<string, unknown> },
+  options?: { outputKeys?: string[]; toolName?: string }
+): Record<string, unknown> {
+  const nextContext = { ...context, ...decoded.patch }
+  const outputKeys = options?.outputKeys
+  if (outputKeys?.length) {
+    for (const key of outputKeys) {
+      if (Object.prototype.hasOwnProperty.call(decoded.patch, key)) continue
+      nextContext[key] = decoded.message
+    }
+  } else if (!Object.keys(decoded.patch).length && options?.toolName) {
+    nextContext[options.toolName] = decoded.message
+  }
+  return nextContext
+}
+
 /** Agent 提示词插值：缺省 key 用空串，避免打断流程 */
 export function interpolatePromptSoft(
   template: string,

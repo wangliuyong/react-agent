@@ -49,7 +49,7 @@ import {
   resolveUserContinue,
   type UserContinueResult
 } from './choice-resolver'
-import { queryIsAgentUserCancelledError } from './agent-user-cancelled'
+import { queryIsAgentUserCancelledError, queryIsAbortError } from './agent-user-cancelled'
 import {
   queryFormatAgentErrorMessage,
   queryLastToolNameFromMessages
@@ -903,7 +903,11 @@ export async function runLangGraphChat(params: {
       return
     }
   } catch (e) {
-    if (controller.signal.aborted || queryIsAgentUserCancelledError(e)) {
+    if (
+      controller.signal.aborted ||
+      queryIsAgentUserCancelledError(e) ||
+      queryIsAbortError(e)
+    ) {
       emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
       return
     }
@@ -1098,7 +1102,13 @@ export async function runLangGraphStep(params: {
       return 'completed'
     }
   } catch (e) {
-    if (controller.signal.aborted || queryIsAgentUserCancelledError(e)) return 'aborted'
+    if (
+      controller.signal.aborted ||
+      queryIsAgentUserCancelledError(e) ||
+      queryIsAbortError(e)
+    ) {
+      return 'aborted'
+    }
     const message = e instanceof Error ? e.message : String(e)
     if (/recursion/i.test(message)) return 'max_turns'
     postEmitAgentError(sessionId, message, {

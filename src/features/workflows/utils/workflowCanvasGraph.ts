@@ -119,7 +119,8 @@ export function queryCanvasFromNodes(nodes: WorkflowNode[]): WorkflowCanvas {
                 when: isDef
                   ? undefined
                   : arm.when ?? whenFromLegacyBranchKey(arm.key),
-                isDefault: isDef || undefined
+                isDefault: isDef || undefined,
+                matchMode: node.matchMode === 'all' ? 'all' : undefined
               })
             }
           } else {
@@ -564,7 +565,9 @@ function compileXorFromEdges(
     title,
     mode: 'expression',
     cases,
-    defaultKey
+    defaultKey,
+    // 同 source 任一条边声明 all → 多路同时命中
+    matchMode: edgesFrom.some((e) => e.matchMode === 'all') ? 'all' : undefined
   }
   return { node, join }
 }

@@ -40,12 +40,12 @@ const TOOL_ARGS_EXAMPLES: Record<string, Record<string, unknown>> = {
     maxCount: 20
   },
   query_ashare_kline: {
-    symbols: '600519,000001',
+    symbols: '{{symbols}}',
     period: 'daily',
     count: 120
   },
   query_ashare_realtime_analysis: {
-    symbols: '600519,000001',
+    symbols: '{{symbols}}',
     range: 'today',
     preloadRanges: true
   },
@@ -146,7 +146,13 @@ const TOOL_CONTEXT_OUTPUT_EXAMPLES: Record<string, Record<string, unknown>> = {
     stockSymbols: '600519,000001',
     stockKlineSummary: '…',
     stockAnalysisReport: '…',
-    stockSignal: 'hold'
+    stockSignal: 'hold',
+    stockHasBuy: '1',
+    stockHasSell: '1',
+    stockHasHold: '0',
+    stockBuyReport: '…',
+    stockSellReport: '…',
+    stockHoldReport: ''
   },
   query_weather: {
     weatherOk: '1',

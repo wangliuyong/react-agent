@@ -544,10 +544,13 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         title: '获取 A 股 K 线',
         toolName: 'query_ashare_kline',
         argsTemplate: {
-          symbols: '600519,000001',
+          symbols: '{{symbols}}',
           period: 'daily',
           count: 120
         },
+        collectPrompt:
+          '根据上游 context 与用户输入（如 userInput），解析股票代码并写入 symbols（6 位 A 股代码，多个英文逗号分隔）。' +
+          '输入若是股票名称请先转换为代码。最终只输出一行 JSON，例如 {"symbols":"600900"}，不要 Markdown，禁止 present_plan_choices。',
         outputKeys: ['stockKlineSummary']
       },
       {
@@ -590,7 +593,8 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
     title: 'A 股实时 K 线 · 综合分析 · 买卖分支',
     description:
       '工具节点配置股票代码（英文逗号分隔）与 range（today/week/month/custom）；' +
-      '自动输出 K 线图、技术指标分析、涨跌预测；按 stockSignal 走买入/卖出/观望分支。',
+      '每只股票独立分析，按 stockHasBuy/Sell/Hold 可同时走买入、卖出、观望多条分支；' +
+      '各支路仅注入对应分组报告。',
     templateKind: 'generic',
     nodes: [
       { id: 'tpl_ra_start', type: 'start', title: '开始' },
@@ -600,68 +604,82 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
         title: '实时 K 线 + 综合分析',
         toolName: 'query_ashare_realtime_analysis',
         argsTemplate: {
-          symbols: '600519,000001',
+          symbols: '{{symbols}}',
           range: 'today',
           preloadRanges: true
         },
-        outputKeys: ['stockAnalysisReport', 'stockKlineSummary']
+        collectPrompt:
+          '根据上游 context 与用户输入（如 userInput），解析股票代码并写入 symbols（6 位 A 股代码，多个英文逗号分隔）。' +
+          '输入若是股票名称请先转换为代码。最终只输出一行 JSON，例如 {"symbols":"600900"}，不要 Markdown，禁止 present_plan_choices。',
+        outputKeys: [
+          'stockAnalysisReport',
+          'stockKlineSummary',
+          'stockHasBuy',
+          'stockHasSell',
+          'stockHasHold',
+          'stockBuyReport',
+          'stockSellReport',
+          'stockHoldReport'
+        ]
       },
       {
         id: 'tpl_ra_cond',
         type: 'condition',
         title: '买卖信号分支',
         mode: 'expression',
+        matchMode: 'all',
         cases: [
           {
             key: 'buy_branch',
             label: '买入信号',
-            when: { contextKey: 'stockSignal', op: 'eq', value: 'buy' },
+            when: { contextKey: 'stockHasBuy', op: 'eq', value: '1' },
             nodes: [
               {
                 id: 'tpl_ra_buy',
                 type: 'agent',
                 title: '买入策略建议',
                 prompt:
-                  '当前综合信号为买入。请基于下列分析报告，给出建仓思路：入场区间、仓位建议、止损位与持有周期。' +
-                  '语气专业简洁，并强调风险。\n\n{{stockAnalysisReport}}',
+                  '以下股票综合信号为买入。请基于报告给出建仓思路：入场区间、仓位建议、止损位与持有周期。' +
+                  '语气专业简洁，并强调风险。\n\n{{stockBuyReport}}',
                 toolWhitelist: ['update_task_list'],
-                inputKeys: ['stockAnalysisReport']
+                inputKeys: ['stockBuyReport']
               }
             ]
           },
           {
             key: 'sell_branch',
             label: '卖出信号',
-            when: { contextKey: 'stockSignal', op: 'eq', value: 'sell' },
+            when: { contextKey: 'stockHasSell', op: 'eq', value: '1' },
             nodes: [
               {
                 id: 'tpl_ra_sell',
                 type: 'agent',
                 title: '卖出/减仓建议',
                 prompt:
-                  '当前综合信号为卖出。请基于下列分析报告，给出减仓或止盈策略：关键阻力位、分批卖出方案与后续观察点。\n\n{{stockAnalysisReport}}',
+                  '以下股票综合信号为卖出。请基于报告给出减仓或止盈策略：关键阻力位、分批卖出方案与后续观察点。\n\n{{stockSellReport}}',
                 toolWhitelist: ['update_task_list'],
-                inputKeys: ['stockAnalysisReport']
+                inputKeys: ['stockSellReport']
               }
             ]
           },
           {
             key: 'hold_branch',
             label: '观望',
+            when: { contextKey: 'stockHasHold', op: 'eq', value: '1' },
             nodes: [
               {
                 id: 'tpl_ra_hold',
                 type: 'agent',
                 title: '观望解读',
                 prompt:
-                  '当前综合信号为观望。请解读下列分析报告，说明为何暂不操作，以及后续需关注的突破/跌破价位。\n\n{{stockAnalysisReport}}',
+                  '以下股票综合信号为观望。请解读报告，说明为何暂不操作，以及后续需关注的突破/跌破价位。\n\n{{stockHoldReport}}',
                 toolWhitelist: ['update_task_list'],
-                inputKeys: ['stockAnalysisReport']
+                inputKeys: ['stockHoldReport']
               }
             ]
           }
         ],
-        defaultKey: 'hold_branch'
+        // 无 default：三路均有 when；失败时工具会置 stockHasHold=1
       },
       {
         id: 'tpl_ra_await',
@@ -673,13 +691,13 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
     ],
     canvas: {
       positions: {
-        tpl_ra_start: { x: 200, y: 20 },
-        tpl_ra_fetch: { x: 200, y: 90 },
-        tpl_ra_buy: { x: 40, y: 220 },
-        tpl_ra_sell: { x: 200, y: 220 },
-        tpl_ra_hold: { x: 360, y: 220 },
-        tpl_ra_await: { x: 200, y: 310 },
-        tpl_ra_end: { x: 200, y: 390 }
+        tpl_ra_start: { x: 280, y: 24 },
+        tpl_ra_fetch: { x: 260, y: 120 },
+        tpl_ra_buy: { x: 40, y: 280 },
+        tpl_ra_sell: { x: 260, y: 280 },
+        tpl_ra_hold: { x: 480, y: 280 },
+        tpl_ra_await: { x: 260, y: 420 },
+        tpl_ra_end: { x: 280, y: 540 }
       },
       edges: [
         { id: 'e_ra_s_f', source: 'tpl_ra_start', target: 'tpl_ra_fetch' },
@@ -688,21 +706,24 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
           source: 'tpl_ra_fetch',
           target: 'tpl_ra_buy',
           label: '买入',
-          when: { contextKey: 'stockSignal', op: 'eq', value: 'buy' }
+          when: { contextKey: 'stockHasBuy', op: 'eq', value: '1' },
+          matchMode: 'all'
         },
         {
           id: 'e_ra_f_sell',
           source: 'tpl_ra_fetch',
           target: 'tpl_ra_sell',
           label: '卖出',
-          when: { contextKey: 'stockSignal', op: 'eq', value: 'sell' }
+          when: { contextKey: 'stockHasSell', op: 'eq', value: '1' },
+          matchMode: 'all'
         },
         {
           id: 'e_ra_f_hold',
           source: 'tpl_ra_fetch',
           target: 'tpl_ra_hold',
           label: '观望',
-          isDefault: true
+          when: { contextKey: 'stockHasHold', op: 'eq', value: '1' },
+          matchMode: 'all'
         },
         { id: 'e_ra_buy_w', source: 'tpl_ra_buy', target: 'tpl_ra_await' },
         { id: 'e_ra_sell_w', source: 'tpl_ra_sell', target: 'tpl_ra_await' },
@@ -715,21 +736,78 @@ export const BUILTIN_WORKFLOW_TEMPLATES: WorkflowDefinition[] = [
   }
 ]
 
-/** 将缺失的预置模板合并进现有列表（不覆盖已有 id） */
+/** 一次性升级：仍使用旧 XOR（stockSignal）或硬编码 symbols 的 A 股分析模板 */
+const ASHRE_REALTIME_TEMPLATE_ID = 'tpl_ashare_realtime_analysis'
+
+function queryToolHasHardcodedAshareSymbols(node: WorkflowDefinition['nodes'][number]): boolean {
+  if (node.type !== 'tool') return false
+  if (!String(node.toolName || '').includes('ashare')) return false
+  const symbols = node.argsTemplate?.symbols
+  if (typeof symbols !== 'string') return false
+  // 已用 {{symbols}} 插值则无需升级
+  if (symbols.includes('{{')) return false
+  return /600519|000001/.test(symbols)
+}
+
+function queryIsLegacyAshareRealtimeTemplate(w: WorkflowDefinition): boolean {
+  if (w.id !== ASHRE_REALTIME_TEMPLATE_ID) return false
+  const edgeLegacy = w.canvas?.edges?.some(
+    (e) => e.when?.contextKey === 'stockSignal'
+  )
+  if (edgeLegacy) return true
+  if (
+    w.nodes.some(
+      (n) =>
+        n.type === 'condition' &&
+        n.cases.some((c) => c.when?.contextKey === 'stockSignal')
+    )
+  ) {
+    return true
+  }
+  // 工具仍写死茅台/平安代码时一并升级，避免输入长江电力却查默认股
+  return w.nodes.some((n) => queryToolHasHardcodedAshareSymbols(n))
+}
+
+/**
+ * 将缺失的预置模板合并进现有列表（不覆盖用户已保存内容）。
+ * 仅当 A 股分析模板仍为旧 stockSignal XOR 时，一次性升级到多分支版本。
+ */
 export function mergeBuiltinWorkflowTemplates(
   existing: WorkflowDefinition[]
-): { list: WorkflowDefinition[]; added: number } {
-  const ids = new Set(existing.map((w) => w.id))
+): { list: WorkflowDefinition[]; added: number; refreshed: number } {
+  const byId = new Map(existing.map((w) => [w.id, w]))
   const now = Date.now()
-  const toAdd: WorkflowDefinition[] = []
+  let added = 0
+  let refreshed = 0
+  const list = [...existing]
+
   for (const tpl of BUILTIN_WORKFLOW_TEMPLATES) {
-    if (ids.has(tpl.id)) continue
-    toAdd.push({
-      ...tpl,
-      createdAt: now,
-      updatedAt: now
-    })
+    const prev = byId.get(tpl.id)
+    if (!prev) {
+      list.push({
+        ...tpl,
+        createdAt: now,
+        updatedAt: now
+      })
+      added += 1
+      continue
+    }
+    // 只升级仍带旧 stockSignal 条件的内置 A 股模板，避免覆盖用户保存
+    if (
+      tpl.id === ASHRE_REALTIME_TEMPLATE_ID &&
+      queryIsLegacyAshareRealtimeTemplate(prev)
+    ) {
+      const idx = list.findIndex((w) => w.id === tpl.id)
+      if (idx >= 0) {
+        list[idx] = {
+          ...tpl,
+          createdAt: prev.createdAt,
+          updatedAt: now
+        }
+        refreshed += 1
+      }
+    }
   }
-  if (!toAdd.length) return { list: existing, added: 0 }
-  return { list: [...existing, ...toAdd], added: toAdd.length }
+
+  return { list, added, refreshed }
 }

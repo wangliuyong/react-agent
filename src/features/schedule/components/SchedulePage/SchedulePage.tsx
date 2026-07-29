@@ -47,6 +47,8 @@ interface TaskFormValues {
   customPrompt?: string
   /** 自定义指令任务成功后自动推送的通知渠道 */
   notifyChannels?: PublishChannelId[]
+  /** 预设用户输入：有值时跳过流程输入节点等待 */
+  presetUserInput?: string
   /** 后台执行：不跳转聊天、卡片展示 loading */
   runInBackground: boolean
   enabled: boolean
@@ -109,6 +111,7 @@ function taskToFormValues(task: ScheduledTask): TaskFormValues {
     workflowId: task.workflowId,
     customPrompt: task.customPrompt,
     notifyChannels: task.notifyChannels ?? [],
+    presetUserInput: task.presetUserInput ?? '',
     runInBackground: queryRunInBackground(task),
     enabled: task.enabled
   }
@@ -149,6 +152,7 @@ function mergeTaskFormValues(base: ScheduledTask, values: TaskFormValues): Sched
     workflowId: values.actionType === 'workflow' ? values.workflowId : undefined,
     customPrompt: values.actionType === 'custom_prompt' ? values.customPrompt?.trim() : undefined,
     notifyChannels: values.notifyChannels ?? [],
+    presetUserInput: values.presetUserInput?.trim() || undefined,
     runInBackground: values.runInBackground,
     enabled: values.enabled
   }
@@ -431,6 +435,20 @@ function TaskEditModal({
             <Input.TextArea rows={5} placeholder="到点时发送给 Agent 的完整指令…" />
           </Form.Item>
         ) : null}
+        {/* 始终挂载，避免切换动作类型时因 preserve=false 丢失预设值 */}
+        <Form.Item
+          label="预设用户输入"
+          name="presetUserInput"
+          hidden={actionType === 'custom_prompt'}
+          extra="有值时，到点执行碰到流程「输入」节点直接采用该内容，不再等待人工输入。关联发布计划时本字段优先于计划内预设。"
+        >
+          <Input.TextArea
+            rows={3}
+            placeholder={'例如：长江电力\n留空则仍按输入节点等待用户填写'}
+            maxLength={2000}
+            showCount
+          />
+        </Form.Item>
         <Form.Item
           label="完成后通知"
           name="notifyChannels"

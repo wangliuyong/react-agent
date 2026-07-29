@@ -1,5 +1,6 @@
 import type { PublishPlan, PublishPlanKind, PublishSubTask } from './types'
 import { normalizePublishSubTaskChannels } from './publish-channels'
+import { queryNormalizePresetUserInput } from './workflow-preset-input'
 
 /** 归一化通知渠道 id 列表：去空、去重；不做 xhs 回退 */
 export function normalizeNotifyChannelIds(raw: unknown): string[] {
@@ -68,6 +69,7 @@ export function normalizePublishPlan(plan: PublishPlan): PublishPlan {
     // 写盘时去掉单字段，避免与数组分叉
     workflowId: undefined,
     notifyChannels: normalizeNotifyChannelIds(plan.notifyChannels),
+    presetUserInput: queryNormalizePresetUserInput(plan.presetUserInput),
     subTasks: plan.subTasks.map((sub) =>
       normalizePublishSubTask(sub as PublishSubTask & { channel?: unknown })
     )

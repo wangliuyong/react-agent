@@ -10,7 +10,16 @@ import type {
   WorkflowRun,
   WorkflowRunStartResult
 } from '../../../shared/types'
-import { queryConditionCaseKey } from '../../../shared/evaluate-workflow-condition'
+import { queryConditionCaseKeys } from '../../../shared/evaluate-workflow-condition'
+import {
+  queryMergeCollectPatchToContext,
+  queryParseCollectJsonPatch
+} from '../../../shared/workflow-collect-defaults'
+import {
+  queryBuildWorkflowInitialContext,
+  queryCanSkipInputWaitWithPreset,
+  queryPresetUserInputFromContext
+} from '../../../shared/workflow-preset-input'
 import { formatRunSessionTitle } from '../../../shared/session-run-title'
 import { postSession, querySession } from '../store/sessions'
 import { queryWorkflow } from '../store/workflows'
@@ -20,6 +29,7 @@ import {
 } from '../store/workflow-runs'
 import { queryOrMigratePublishWorkflow } from './migrate-publish'
 import {
+  appendUserContinueMessage,
   bindGraphSessionAbort,
   postGraphAbort,
   releaseGraphSessionAbort,
@@ -46,7 +56,8 @@ import {
   patchAgentOutputToContext,
   queryAgentStepOutput,
   queryDecodeWorkflowToolResult,
-  queryMarkdownHeadingTitle
+  queryMarkdownHeadingTitle,
+  queryMergeToolResultToContext
 } from './tool-result'
 import { isGraphInterrupt } from '@langchain/langgraph'
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
@@ -327,7 +338,7 @@ async function executeToolNode(
     throw new Error(rawResult)
   }
 
-  // 支持 @@workflow_ctx@@ 把 patch 写入 context（如 hotTopicsOk），message 仍作工具日志
+  // 支持 @@workflow_ctx@@ 把 patch 写入 context（如 hotTopicsOk / stockHasBuy），message 仍作工具日志
   const decoded = queryDecodeWorkflowToolResult(rawResult)
   emitToolResult(sessionId, node.toolName, decoded.message)
   appendWorkflowMessage(session, {
@@ -336,14 +347,10 @@ async function executeToolNode(
     content: decoded.message
   })
 
-  const nextContext = { ...context, ...decoded.patch }
-  if (node.outputKeys?.length) {
-    for (const key of node.outputKeys) {
-      nextContext[key] = decoded.message
-    }
-  } else if (!Object.keys(decoded.patch).length) {
-    nextContext[node.toolName] = decoded.message
-  }
+  const nextContext = queryMergeToolResultToContext(context, decoded, {
+    outputKeys: node.outputKeys,
+    toolName: node.toolName
+  })
   return patchContextWithNodeExecution(
     beforeContext,
     nextContext,
@@ -565,8 +572,81 @@ const INPUT_KIND_LABELS: Record<string, string> = {
 }
 
 /**
+ * 数据采集前置/后置步：按 collectPrompt 跑受限 Agent，解析 JSON 写入 context。
+ * hideFromUi：不对用户展示内部指令。
+ */
+async function executeCollectPrompt(
+  sessionId: string,
+  node: WorkflowLeafNode,
+  context: Record<string, unknown>,
+  collectPrompt: string
+): Promise<Record<string, unknown>> {
+  const instruction = interpolatePromptSoft(collectPrompt, context).trim()
+  if (!instruction) return context
+
+  const stepPrompt = [
+    `【工作流数据采集】${node.title}`,
+    '【自动执行】请根据下列说明从当前上下文与会话中取值，最终只输出一行 JSON 对象（键值写入流程 context）。',
+    '禁止 Markdown 代码围栏，禁止调用 present_plan_choices，禁止向用户提问。',
+    '',
+    '【取值说明】',
+    instruction,
+    '',
+    '【当前 context 摘要】',
+    JSON.stringify(
+      Object.fromEntries(
+        Object.entries(context)
+          .filter(([k]) => !k.startsWith('__'))
+          .slice(0, 40)
+          .map(([k, v]) => [
+            k,
+            typeof v === 'string' && v.length > 200 ? `${v.slice(0, 200)}…` : v
+          ])
+      )
+    )
+  ].join('\n')
+
+  logWorkflowNodeInput('数据采集 · 开始', node, context, { instruction })
+
+  const sessionBefore = querySession(sessionId)
+  const msgCountBefore = sessionBefore?.messages.length ?? 0
+
+  const stepResult = await runLangGraphStep({
+    sessionId,
+    prompt: stepPrompt,
+    // 不开放工具：强制直接输出 JSON，避免数据采集再拉行情导致超时/Abort 误报
+    toolWhitelist: ['__workflow_collect_no_tool__'],
+    hideFromUi: true
+  })
+
+  if (stepResult === 'aborted') throw new Error('__aborted__')
+  if (stepResult === 'error' || stepResult === 'max_turns') {
+    throw new Error(
+      stepResult === 'max_turns'
+        ? `步骤「${node.title}」数据采集达到最大轮次`
+        : `步骤「${node.title}」数据采集失败`
+    )
+  }
+
+  const sessionAfter = querySession(sessionId)
+  const agentOutput = queryAgentStepOutput(sessionAfter?.messages ?? [], msgCountBefore)
+  const parsed = queryParseCollectJsonPatch(agentOutput)
+  if ('error' in parsed) {
+    throw new Error(`步骤「${node.title}」${parsed.error}`)
+  }
+
+  const nextContext = queryMergeCollectPatchToContext(context, parsed.patch)
+  logWorkflowNodeInput('数据采集 · 已写入 context', node, nextContext, {
+    patchKeys: Object.keys(parsed.patch)
+  })
+  return nextContext
+}
+
+/**
  * 执行输入节点：暂停并采集用户文字/附件，写入 context。
  * 文字写入 outputKeys[0] 或 userInput；附件路径写入 attachmentPaths 或 outputKeys[1]。
+ * 若配置 collectPrompt，用户提交后再跑 Agent 取值。
+ * 定时/发布预设 `__presetUserInput` 有值且含 text 时直接采用，不进入等待。
  */
 async function executeInputNode(
   session: Session,
@@ -581,21 +661,43 @@ async function executeInputNode(
   const kindHint = kinds.map((k) => INPUT_KIND_LABELS[k] ?? k).join('、')
   const reason = node.prompt?.trim() || `请提供：${kindHint}`
   const nodeInput = { reason, kinds, prompt: node.prompt }
-  logWorkflowNodeInput('输入节点 · 等待用户', node, context, nodeInput)
+  const presetText = queryPresetUserInputFromContext(context)
+  const usePreset = queryCanSkipInputWaitWithPreset(kinds, presetText)
 
   appendWorkflowMessage(session, {
     role: 'assistant',
-    content: `【${node.title}】${reason}`
+    content: usePreset
+      ? `【${node.title}】已使用预设输入，跳过等待。`
+      : `【${node.title}】${reason}`,
+    // 仅真正等待时挂 awaitMeta，避免预设路径仍显示「继续」条
+    awaitMeta: usePreset ? undefined : { reason }
   })
 
-  await waitForGraphUserContinue(sessionId, reason)
-  if (signal.aborted) throw new Error('__aborted__')
+  let text = ''
+  let attachmentPaths: string[] = []
 
-  const latest = querySession(sessionId)
-  const userMessages = (latest?.messages ?? []).filter((m) => m.role === 'user')
-  const lastUser = userMessages[userMessages.length - 1]
-  const text = lastUser?.content?.trim() ?? ''
-  const attachmentPaths = lastUser?.attachmentPaths?.filter(Boolean) ?? []
+  if (usePreset && presetText) {
+    logWorkflowNodeInput('输入节点 · 采用预设', node, context, {
+      ...nodeInput,
+      presetUserInput: presetText
+    })
+    appendUserContinueMessage(sessionId, { userInput: presetText })
+    text = presetText
+  } else {
+    logWorkflowNodeInput('输入节点 · 等待用户', node, context, nodeInput)
+    // 已写【标题】说明，跳过「等待确认：」占位；用户消息由 postGraphContinue 落盘，此处勿重复追加
+    const continueResult = await waitForGraphUserContinue(sessionId, reason, {
+      skipPlaceholder: true
+    })
+    if (signal.aborted) throw new Error('__aborted__')
+
+    text = continueResult.userInput?.trim() ?? ''
+    // 附件仍从最近一条 user 消息读取（继续载荷暂不带 attachmentPaths）
+    const latest = querySession(sessionId)
+    const userMessages = (latest?.messages ?? []).filter((m) => m.role === 'user')
+    const lastUser = userMessages[userMessages.length - 1]
+    attachmentPaths = lastUser?.attachmentPaths?.filter(Boolean) ?? []
+  }
 
   let nextContext = { ...context }
   const outputKeys = node.outputKeys?.length ? node.outputKeys : []
@@ -604,7 +706,6 @@ async function executeInputNode(
 
   if (kinds.includes('text') && text) {
     nextContext = patchAgentOutputToContext(nextContext, text, [textKey])
-    appendWorkflowMessage(session, { role: 'user', content: text })
   }
 
   const needsFiles = kinds.some((k) => k === 'attachment' || k === 'image' || k === 'video')
@@ -612,10 +713,20 @@ async function executeInputNode(
     nextContext[fileKey] = attachmentPaths
   }
 
+  const collectPrompt = node.collectPrompt?.trim()
+  if (collectPrompt) {
+    nextContext = await executeCollectPrompt(sessionId, node, nextContext, collectPrompt)
+  }
+
   logWorkflowNodeInput('输入节点 · 已采集', node, nextContext)
   const output: Record<string, unknown> = {}
   if (kinds.includes('text') && text) output[textKey] = text
   if (needsFiles && attachmentPaths.length) output[fileKey] = attachmentPaths
+  if (collectPrompt) {
+    for (const [k, v] of Object.entries(nextContext)) {
+      if (!(k in beforeContext) || beforeContext[k] !== v) output[k] = v
+    }
+  }
   return patchContextWithNodeExecution(
     beforeContext,
     nextContext,
@@ -732,10 +843,34 @@ async function executeLeafNode(
   run = patchRun(run, { cursorNodeId: node.id, status: 'running' })
   logWorkflowNodeInput('叶节点 · 开始执行', node, run.context)
 
+  // 输入节点：采集说明给人看，collectPrompt 在用户提交后执行（见 executeInputNode）
+  // 有预设用户输入时不进入 awaiting_user，避免 UI 误显示「继续」
   if (node.type === 'input') {
-    run = patchRun(run, { status: 'awaiting_user' })
+    const hasPreset = queryCanSkipInputWaitWithPreset(
+      node.inputKinds,
+      queryPresetUserInputFromContext(run.context)
+    )
+    if (!hasPreset) {
+      run = patchRun(run, { status: 'awaiting_user' })
+    }
     const nextContext = await executeInputNode(session, node, run.context, signal)
     return patchRun(run, { context: nextContext, status: 'running' })
+  }
+
+  // 等待确认：不再前置数据采集（避免确认前多余 Agent 步被 abort 弹英文错）
+  // 其余叶子：collectPrompt 非空则先取值再执行主体
+  const collectPrompt =
+    node.type !== 'await_user' && 'collectPrompt' in node
+      ? node.collectPrompt?.trim()
+      : undefined
+  if (collectPrompt) {
+    const collected = await executeCollectPrompt(
+      sessionId,
+      node,
+      run.context,
+      collectPrompt
+    )
+    run = patchRun(run, { context: collected })
   }
 
   if (node.type === 'output') {
@@ -951,34 +1086,45 @@ async function executeConditionNode(
   persistSessionTasks(session, buildTasks(specs, statusMap))
   logWorkflowNodeInput('条件节点 · 开始执行', node, run.context)
 
-  let selectedKey: string
+  let selectedKeys: string[]
   if (node.mode === 'agent') {
     const rawKey = await queryAgentBranchKey(sessionId, node, run.context, signal)
-    const picked = queryConditionCaseKey(node, run.context, rawKey)
+    const picked = queryConditionCaseKeys(node, run.context, rawKey)
     if ('error' in picked) throw new Error(picked.error)
-    selectedKey = picked.key
+    selectedKeys = picked.keys
   } else {
-    const picked = queryConditionCaseKey(node, run.context)
+    const picked = queryConditionCaseKeys(node, run.context)
     if ('error' in picked) throw new Error(picked.error)
-    selectedKey = picked.key
+    selectedKeys = picked.keys
   }
 
+  const selectedSet = new Set(selectedKeys)
+  const chosenArms = node.cases.filter((c) => selectedSet.has(c.key))
+  if (selectedKeys.length && !chosenArms.length) {
+    throw new Error(`条件分支无匹配 case: ${selectedKeys.join(',')}`)
+  }
+
+  const branchLabels = chosenArms.map((c) => c.label || c.key)
+  const keysJoined = selectedKeys.join(',')
   const prevBranch =
     (run.context.__branchKeys as Record<string, string> | undefined) ?? {}
   const branchContext = {
     ...run.context,
-    __branchKeys: { ...prevBranch, [node.id]: selectedKey }
+    __branchKeys: keysJoined
+      ? { ...prevBranch, [node.id]: keysJoined }
+      : prevBranch
   }
-  const chosen = node.cases.find((c) => c.key === selectedKey)
-  if (!chosen) throw new Error(`条件分支无 case: ${selectedKey}`)
 
   run = patchRun(run, {
     context: patchContextWithNodeExecution(
       beforeContext,
       branchContext,
       node,
-      { mode: node.mode, caseKeys: node.cases.map((c) => c.key) },
-      { branchKey: selectedKey, branchLabel: chosen.label || selectedKey }
+      { mode: node.mode, caseKeys: node.cases.map((c) => c.key), matchMode: node.matchMode ?? 'first' },
+      {
+        branchKey: keysJoined || '(none)',
+        branchLabel: branchLabels.length ? branchLabels.join('、') : '无'
+      }
     ),
     cursorNodeId: node.id,
     status: 'running'
@@ -988,12 +1134,14 @@ async function executeConditionNode(
   if (node.mode !== 'agent') {
     appendWorkflowMessage(session, {
       role: 'assistant',
-      content: `条件「${node.title}」选择分支：${chosen.label || selectedKey}`
+      content: branchLabels.length
+        ? `条件「${node.title}」命中分支：${branchLabels.join('、')}`
+        : `条件「${node.title}」未命中任何分支，已跳过`
     })
   }
 
   for (const arm of node.cases) {
-    if (arm.key === selectedKey) continue
+    if (selectedSet.has(arm.key)) continue
     for (const child of arm.nodes) {
       statusMap.set(child.id, 'skipped')
       run = patchRun(run, {
@@ -1007,19 +1155,22 @@ async function executeConditionNode(
   }
   persistSessionTasks(session, buildTasks(specs, statusMap))
 
-  for (const child of chosen.nodes) {
-    statusMap.set(child.id, 'running')
-    persistSessionTasks(session, buildTasks(specs, statusMap))
-    try {
-      run = await executeLeafNode(session, child, run, signal)
-      statusMap.set(child.id, 'done')
+  // 多路命中时串行执行（同 Session 不能并行多段 ReAct）；零命中则全部已 skipped
+  for (const chosen of chosenArms) {
+    for (const child of chosen.nodes) {
+      statusMap.set(child.id, 'running')
       persistSessionTasks(session, buildTasks(specs, statusMap))
-    } catch (e) {
-      if (e instanceof Error && e.message === '__aborted__') throw e
-      statusMap.set(child.id, 'failed')
-      statusMap.set(node.id, 'failed')
-      persistSessionTasks(session, buildTasks(specs, statusMap))
-      throw e
+      try {
+        run = await executeLeafNode(session, child, run, signal)
+        statusMap.set(child.id, 'done')
+        persistSessionTasks(session, buildTasks(specs, statusMap))
+      } catch (e) {
+        if (e instanceof Error && e.message === '__aborted__') throw e
+        statusMap.set(child.id, 'failed')
+        statusMap.set(node.id, 'failed')
+        persistSessionTasks(session, buildTasks(specs, statusMap))
+        throw e
+      }
     }
   }
 
@@ -1032,7 +1183,7 @@ async function executeConditionNode(
  * 推进单个顶层节点。
  * parallel：组内若全是 tool → Promise.all 并发；含 agent/await_user 时串行
  * （同 Session 上不能并行跑多段 ReAct，否则消息/abort 会交错）。
- * condition：XOR 只跑选中支路，其余标 skipped。
+ * condition：matchMode=first 时 XOR；all 时所有命中支路串行执行，其余 skipped。
  */
 async function executeTopLevelNode(
   sessionId: string,
@@ -1389,6 +1540,10 @@ export interface PostRunWorkflowOptions {
    * 画布内「立即运行」等场景使用。
    */
   silent?: boolean
+  /** 预设用户输入：写入 run.context，输入节点有值时跳过人工等待 */
+  presetUserInput?: string
+  /** 额外初始 context（与 presetUserInput 合并） */
+  initialContext?: Record<string, unknown>
 }
 
 /** 启动工作流：创建（或复用）Session + Run，异步推进节点 */
@@ -1421,13 +1576,17 @@ export async function postRunWorkflow(
   }
 
   const now = Date.now()
+  const initialContext = queryBuildWorkflowInitialContext({
+    presetUserInput: options?.presetUserInput,
+    initialContext: options?.initialContext
+  })
   const run = postWorkflowRun({
     id: crypto.randomUUID(),
     workflowId: workflow.id,
     sessionId: session.id,
     status: 'pending',
     cursorNodeId: null,
-    context: {},
+    context: initialContext,
     createdAt: now,
     updatedAt: now
   })

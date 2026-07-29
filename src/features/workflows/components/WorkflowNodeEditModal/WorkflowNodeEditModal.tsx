@@ -19,6 +19,10 @@ import type { FeishuNotifyMsgType } from '@shared/publish-channels'
 import { queryFeishuMsgType } from '@shared/publish-channels'
 import { queryNotifyTargets } from '@shared/workflow-notify'
 import {
+  queryDefaultCollectPrompt,
+  queryIsReplaceableCollectPrompt
+} from '@shared/workflow-collect-defaults'
+import {
   queryIoAlignmentIssues,
   parseContextKeyList,
   formatContextKeyList
@@ -115,6 +119,8 @@ interface FormValues {
   reason?: string
   inputKeys?: string
   outputKeys?: string
+  /** Agent 如何取值写入 context；运行时非空则前置/输入后执行 */
+  collectPrompt?: string
   /** input 节点 */
   inputKinds?: WorkflowInputKind[]
   inputPrompt?: string
@@ -174,11 +180,22 @@ function queryFormatArgsJsonForForm(example: Record<string, unknown>): string {
 }
 
 function nodeToFormValues(node: WorkflowNode): FormValues {
+  const collectFromNode =
+    'collectPrompt' in node && typeof node.collectPrompt === 'string'
+      ? node.collectPrompt
+      : undefined
+  const toolNameForDefault = node.type === 'tool' ? node.toolName : undefined
   const base: FormValues = {
     type: node.type,
     title: node.title,
     inputKeys: formatKeysForForm('inputKeys' in node ? node.inputKeys : undefined),
-    outputKeys: formatKeysForForm('outputKeys' in node ? node.outputKeys : undefined)
+    outputKeys: formatKeysForForm('outputKeys' in node ? node.outputKeys : undefined),
+    // 等待确认默认不填数据采集，避免误跑 Agent；其它叶子空则用类型默认文案
+    collectPrompt:
+      collectFromNode?.trim() ||
+      (isLeafNode(node) && node.type !== 'await_user'
+        ? queryDefaultCollectPrompt(node.type, toolNameForDefault)
+        : undefined)
   }
   if (node.type === 'agent') {
     return {
@@ -291,10 +308,12 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
   const id = prev?.id ?? crypto.randomUUID()
   const inputKeys = parseContextKeyList(values.inputKeys)
   const outputKeys = parseContextKeyList(values.outputKeys)
+  const collectPrompt = (values.collectPrompt ?? '').trim() || undefined
   const withIo = <T extends WorkflowLeafNode>(node: T): T => ({
     ...node,
     ...(inputKeys.length ? { inputKeys } : {}),
-    ...(outputKeys.length ? { outputKeys } : {})
+    ...(outputKeys.length ? { outputKeys } : {}),
+    ...(collectPrompt ? { collectPrompt } : {})
   })
 
   if (values.type === 'condition') {
@@ -533,6 +552,8 @@ export function WorkflowNodeEditModal({
   const isEditingCondition = node?.type === 'condition'
   /** 打开弹窗时记录的工具名，用于区分「用户改选」与「回填表单」 */
   const initialToolNameRef = useRef<string | undefined>(undefined)
+  /** 上一类型/工具，用于判断数据采集文案是否仍可被默认值替换 */
+  const collectDefaultsRef = useRef<{ type?: string; toolName?: string }>({})
 
   const toolSelectOptions = useMemo(
     () =>
@@ -545,17 +566,46 @@ export function WorkflowNodeEditModal({
   useEffect(() => {
     if (!open) {
       initialToolNameRef.current = undefined
+      collectDefaultsRef.current = {}
       return
     }
     if (node) {
-      form.setFieldsValue(nodeToFormValues(node))
+      const values = nodeToFormValues(node)
+      form.setFieldsValue(values)
       initialToolNameRef.current =
         node.type === 'tool' ? node.toolName?.trim() || undefined : undefined
+      collectDefaultsRef.current = {
+        type: node.type,
+        toolName: node.type === 'tool' ? node.toolName : undefined
+      }
     } else {
-      form.setFieldsValue(nodeToFormValues(createAgentNode()))
+      const draft = createAgentNode()
+      form.setFieldsValue(nodeToFormValues(draft))
       initialToolNameRef.current = undefined
+      collectDefaultsRef.current = { type: 'agent' }
     }
   }, [open, node, form])
+
+  /**
+   * 切换类型或工具时：若数据采集仍是空/上一默认值，则换成新默认文案。
+   */
+  useEffect(() => {
+    if (!open || !type || type === 'condition' || type === 'parallel' || type === 'start' || type === 'end') {
+      return
+    }
+    const prev = collectDefaultsRef.current
+    const nextTool = type === 'tool' ? (toolName ?? '').trim() || undefined : undefined
+    if (prev.type === type && prev.toolName === nextTool) return
+    const current = form.getFieldValue('collectPrompt') as string | undefined
+    if (queryIsReplaceableCollectPrompt(current, prev.type, prev.toolName)) {
+      // 确认节点默认清空，其它叶子填类型默认文案
+      form.setFieldValue(
+        'collectPrompt',
+        type === 'await_user' ? '' : queryDefaultCollectPrompt(type, nextTool)
+      )
+    }
+    collectDefaultsRef.current = { type, toolName: nextTool }
+  }, [open, type, toolName, form])
 
   /**
    * 工具步骤：用户从下拉改选工具后，若参数 JSON 仍为 `{}`，自动填入该工具的示例参数。
@@ -710,6 +760,21 @@ export function WorkflowNodeEditModal({
 
         {showIoFields && (
           <>
+            <Form.Item
+              name="collectPrompt"
+              label="数据采集"
+              tooltip="描述 Agent 如何从用户输入/上游 context 取值并写入键；非空时运行时先取值再执行本步骤（输入节点为用户提交之后）"
+              extra="默认已填取值说明，可按业务修改；清空则跳过取值步。最终须产出一行 JSON。"
+            >
+              <Input.TextArea
+                rows={4}
+                placeholder={
+                  type
+                    ? queryDefaultCollectPrompt(type, toolName)
+                    : '说明如何取值并写入 context 键'
+                }
+              />
+            </Form.Item>
             <Form.Item
               name="inputKeys"
               label="输入字段"

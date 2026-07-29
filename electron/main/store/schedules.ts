@@ -10,6 +10,7 @@ import type { ScheduledTask } from '../../../shared/types'
 import { createBuiltinScheduledTasks } from '../../../shared/builtin-seeds'
 import { computeNextRunAt, queryRunInBackground, queryScheduleTimesOfDay } from '../../../shared/schedule-utils'
 import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
+import { queryNormalizePresetUserInput } from '../../../shared/workflow-preset-input'
 import { postInitPublishPlans } from './plans'
 import { getSchedulesDir } from './paths'
 
@@ -24,6 +25,7 @@ export function normalizeScheduledTask(task: ScheduledTask): ScheduledTask {
     notifyChannels: normalizeNotifyChannelIds(task.notifyChannels),
     /** 旧任务无字段时默认后台执行 */
     runInBackground: queryRunInBackground(task),
+    presetUserInput: queryNormalizePresetUserInput(task.presetUserInput),
     updatedAt: Date.now(),
     nextRunAt: computeNextRunAt(task) ?? undefined
   }

@@ -179,7 +179,8 @@ function toRfEdges(
       data: {
         label: e.label,
         when: e.when,
-        isDefault: e.isDefault
+        isDefault: e.isDefault,
+        matchMode: e.matchMode
       } satisfies Partial<WorkflowCanvasEdge>
     }
   })
@@ -217,6 +218,7 @@ function queryCanvasFromRf(
       if (data.label) edge.label = data.label
       if (data.when) edge.when = data.when
       if (data.isDefault) edge.isDefault = true
+      if (data.matchMode === 'all') edge.matchMode = 'all'
       return edge
     })
   }
@@ -490,7 +492,8 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
           target: edge.target,
           label: data.label,
           when: data.when,
-          isDefault: data.isDefault
+          isDefault: data.isDefault,
+          matchMode: data.matchMode
         })
         setEdgeEditOpen(true)
       },
@@ -505,7 +508,8 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
           const data: Partial<WorkflowCanvasEdge> = {
             label: patch.label,
             when: patch.when,
-            isDefault: patch.isDefault
+            isDefault: patch.isDefault,
+            matchMode: patch.matchMode
           }
           const model: WorkflowCanvasEdge = {
             id: e.id,

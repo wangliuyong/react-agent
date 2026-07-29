@@ -40,6 +40,8 @@ interface PlanFormValues {
   workflowIds: string[]
   /** 计划结束后汇总通知 */
   notifyChannels: PublishChannelId[]
+  /** 预设用户输入：有值时跳过流程中的输入节点等待 */
+  presetUserInput?: string
 }
 
 function matchPlanQuery(plan: PublishPlan, query: string): boolean {
@@ -90,7 +92,8 @@ function PlanEditModal({
       description: initialPlan.description,
       kind: initialPlan.kind ?? 'normal',
       workflowIds: normalizePublishPlanWorkflowIds(initialPlan),
-      notifyChannels: initialPlan.notifyChannels ?? []
+      notifyChannels: initialPlan.notifyChannels ?? [],
+      presetUserInput: initialPlan.presetUserInput ?? ''
     })
   }, [open, initialPlan, form])
 
@@ -108,6 +111,7 @@ function PlanEditModal({
         workflowIds: nextKind === 'workflow' ? values.workflowIds ?? [] : [],
         workflowId: undefined,
         notifyChannels: values.notifyChannels ?? [],
+        presetUserInput: values.presetUserInput?.trim() || undefined,
         // 切到流程任务时清空子任务，避免与关联流程混淆
         subTasks: nextKind === 'workflow' ? [] : initialPlan.subTasks
       })
@@ -193,6 +197,18 @@ function PlanEditModal({
             allowClear
             placeholder="可选，选择通知渠道"
             options={notifyChannelOptions}
+          />
+        </Form.Item>
+        <Form.Item
+          label="预设用户输入"
+          name="presetUserInput"
+          extra="有值时，执行本任务碰到流程「输入」节点直接采用该内容，不再等待人工输入（「等待确认」仍会暂停）"
+        >
+          <Input.TextArea
+            rows={3}
+            placeholder={'例如：长江电力\n留空则仍按输入节点等待用户填写'}
+            maxLength={2000}
+            showCount
           />
         </Form.Item>
         <Form.Item label="说明" name="description">
@@ -320,7 +336,9 @@ export function PublishWorkbench(): React.ReactElement {
         return
       }
       // 普通 / 流程任务均以计划 id 运行（保存时已同步组合或镜像工作流）
-      const { sessionId } = await postRunWorkflow(plan.id)
+      const { sessionId } = await postRunWorkflow(plan.id, {
+        presetUserInput: plan.presetUserInput
+      })
       await hydrateSessions()
       beginExternalRun(sessionId)
       setView('chat')

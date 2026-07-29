@@ -4,7 +4,9 @@
 export {
   queryAnalyzeStockChart,
   queryApplyLiveQuote,
+  queryBuildRealtimeAnalysisContext,
   queryExtractTradeSignals,
   queryFormatAnalysisReport,
-  queryPredictPrice
+  queryPredictPrice,
+  queryScoreOverallSignal
 } from '../../../shared/stock-analysis'

@@ -14,6 +14,7 @@ import type {
   WorkflowToastNode,
   WorkflowToolNode
 } from '@shared/types'
+import { queryDefaultCollectPrompt } from '@shared/workflow-collect-defaults'
 
 export function createStartNode(partial?: Partial<WorkflowStartNode>): WorkflowStartNode {
   return {
@@ -61,18 +62,23 @@ export function createAgentNode(partial?: Partial<WorkflowAgentNode>): WorkflowA
     title: partial?.title ?? 'Agent 步骤',
     prompt: partial?.prompt ?? '',
     toolWhitelist: partial?.toolWhitelist,
-    outputKeys: partial?.outputKeys
+    outputKeys: partial?.outputKeys,
+    collectPrompt:
+      partial?.collectPrompt ?? queryDefaultCollectPrompt('agent')
   }
 }
 
 export function createToolNode(partial?: Partial<WorkflowToolNode>): WorkflowToolNode {
+  const toolName = partial?.toolName ?? ''
   return {
     id: crypto.randomUUID(),
     type: 'tool',
     title: partial?.title ?? '工具步骤',
-    toolName: partial?.toolName ?? '',
+    toolName,
     argsTemplate: partial?.argsTemplate ?? {},
-    outputKeys: partial?.outputKeys
+    outputKeys: partial?.outputKeys,
+    collectPrompt:
+      partial?.collectPrompt ?? queryDefaultCollectPrompt('tool', toolName)
   }
 }
 
@@ -81,7 +87,9 @@ export function createAwaitNode(partial?: Partial<WorkflowAwaitNode>): WorkflowA
     id: crypto.randomUUID(),
     type: 'await_user',
     title: partial?.title ?? '等待确认',
-    reason: partial?.reason ?? '请确认后继续'
+    reason: partial?.reason ?? '请确认后继续',
+    // 确认节点默认不跑数据采集，避免确认前多余 Agent 调用
+    collectPrompt: partial?.collectPrompt
   }
 }
 
@@ -111,7 +119,9 @@ export function createNotifyNode(partial?: Partial<WorkflowNotifyNode>): Workflo
     imageKey: partial?.imageKey,
     shareChatId: partial?.shareChatId,
     inputKeys: partial?.inputKeys,
-    outputKeys: partial?.outputKeys
+    outputKeys: partial?.outputKeys,
+    collectPrompt:
+      partial?.collectPrompt ?? queryDefaultCollectPrompt('notify')
   }
 }
 
@@ -125,7 +135,8 @@ export function createToastNode(partial?: Partial<WorkflowToastNode>): WorkflowN
     toastLevel: partial?.level ?? 'info',
     contentTemplate: partial?.contentTemplate ?? '{{summary}}',
     inputKeys: partial?.inputKeys,
-    outputKeys: partial?.outputKeys
+    outputKeys: partial?.outputKeys,
+    collectPrompt: partial?.collectPrompt
   })
 }
 
@@ -138,7 +149,9 @@ export function createInputNode(partial?: Partial<WorkflowInputNode>): WorkflowI
     prompt: partial?.prompt ?? '请输入内容后继续流程',
     inputKinds: partial?.inputKinds?.length ? [...partial.inputKinds] : ['text'],
     inputKeys: partial?.inputKeys,
-    outputKeys: partial?.outputKeys
+    outputKeys: partial?.outputKeys,
+    collectPrompt:
+      partial?.collectPrompt ?? queryDefaultCollectPrompt('input')
   }
 }
 
@@ -153,7 +166,9 @@ export function createOutputNode(partial?: Partial<WorkflowOutputNode>): Workflo
     fileNameTemplate: partial?.fileNameTemplate ?? 'output',
     contentTemplate: partial?.contentTemplate ?? '{{summary}}',
     inputKeys: partial?.inputKeys,
-    outputKeys: partial?.outputKeys
+    outputKeys: partial?.outputKeys,
+    collectPrompt:
+      partial?.collectPrompt ?? queryDefaultCollectPrompt('output')
   }
 }
 
@@ -184,7 +199,8 @@ export function createConditionNode(
           { key: 'true', label: '是', nodes: [] },
           { key: 'false', label: '否', nodes: [] }
         ],
-    defaultKey: partial?.defaultKey
+    defaultKey: partial?.defaultKey,
+    matchMode: partial?.matchMode
   }
 }
 

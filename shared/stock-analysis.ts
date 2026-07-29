@@ -246,17 +246,78 @@ export function queryPredictPrice(
   }
 }
 
-function queryOverallSignal(
+/** 综合信号打分结果（正偏买、负偏卖，中间带观望） */
+export interface StockSignalScore {
+  score: number
+  overallSignal: StockSignalType
+  /** 简要得分理由，写入 summary 供 Agent 引用 */
+  reason: string
+}
+
+/**
+ * 近窗加权打分：近 3 条交易信号 + 趋势 + 预测 + MA 排列。
+ * 阈值对称，|score| < 1.2 → hold，避免单条信号轻易翻转。
+ */
+export function queryScoreOverallSignal(
   tradeSignals: StockTradeSignal[],
   trend: StockAnalysisResult['trend'],
-  prediction: StockPricePrediction
-): StockSignalType {
-  const last = tradeSignals[tradeSignals.length - 1]
-  if (last?.type === 'buy' && trend !== 'bearish') return 'buy'
-  if (last?.type === 'sell' && trend !== 'bullish') return 'sell'
-  if (prediction.direction === 'up' && prediction.confidence >= 55) return 'buy'
-  if (prediction.direction === 'down' && prediction.confidence >= 55) return 'sell'
-  return 'hold'
+  prediction: StockPricePrediction,
+  indicators: StockIndicatorSnapshot
+): StockSignalScore {
+  let score = 0
+  const reasons: string[] = []
+
+  const recent = tradeSignals.slice(-3)
+  const weights = [0.5, 0.8, 1.2]
+  recent.forEach((sig, i) => {
+    const w = weights[weights.length - recent.length + i] ?? 0.5
+    if (sig.type === 'buy') {
+      score += w
+      reasons.push(`近信号买入+${w}`)
+    } else {
+      score -= w
+      reasons.push(`近信号卖出-${w}`)
+    }
+  })
+
+  if (trend === 'bullish') {
+    score += 1
+    reasons.push('均线多头+1')
+  } else if (trend === 'bearish') {
+    score -= 1
+    reasons.push('均线空头-1')
+  }
+
+  if (prediction.direction === 'up') {
+    const w = prediction.confidence >= 55 ? 1.2 : 0.5
+    score += w
+    reasons.push(`预测看涨+${w}`)
+  } else if (prediction.direction === 'down') {
+    const w = prediction.confidence >= 55 ? 1.2 : 0.5
+    score -= w
+    reasons.push(`预测看跌-${w}`)
+  }
+
+  if (indicators.ma5 != null && indicators.ma20 != null) {
+    if (indicators.ma5 > indicators.ma20) {
+      score += 0.4
+      reasons.push('MA5>MA20+0.4')
+    } else if (indicators.ma5 < indicators.ma20) {
+      score -= 0.4
+      reasons.push('MA5<MA20-0.4')
+    }
+  }
+
+  let overallSignal: StockSignalType = 'hold'
+  if (score >= 1.2) overallSignal = 'buy'
+  else if (score <= -1.2) overallSignal = 'sell'
+
+  const reason =
+    reasons.length > 0
+      ? `得分 ${score.toFixed(1)} → ${overallSignal}（${reasons.slice(0, 4).join('；')}）`
+      : `得分 ${score.toFixed(1)} → hold`
+
+  return { score, overallSignal, reason }
 }
 
 function queryBuildSummary(
@@ -265,7 +326,8 @@ function queryBuildSummary(
   indicators: StockIndicatorSnapshot,
   prediction: StockPricePrediction,
   overallSignal: StockSignalType,
-  tradeSignals: StockTradeSignal[]
+  tradeSignals: StockTradeSignal[],
+  scoreReason?: string
 ): string {
   const trendLabel = { bullish: '偏多', bearish: '偏空', neutral: '震荡' }[trend]
   const signalLabel = { buy: '买入', sell: '卖出', hold: '观望' }[overallSignal]
@@ -275,6 +337,7 @@ function queryBuildSummary(
   const lines = [
     `【${chart.name}（${chart.symbol}）】`,
     `- 趋势：${trendLabel}；综合信号：**${signalLabel}**`,
+    scoreReason ? `- 打分：${scoreReason}` : '',
     `- 预测：${dirLabel}（置信度 ${prediction.confidence}%），${prediction.horizon}`,
     prediction.targetPrice != null
       ? `- 参考目标价 ${prediction.targetPrice}，止损参考 ${prediction.stopLoss}`
@@ -332,7 +395,8 @@ export function queryAnalyzeStockChart(chart: StockChartPayload): StockAnalysisR
 
   const tradeSignals = queryExtractTradeSignals(bars, ma5, ma20, rsi, hist)
   const prediction = queryPredictPrice(bars, indicators, trend)
-  const overallSignal = queryOverallSignal(tradeSignals, trend, prediction)
+  const scored = queryScoreOverallSignal(tradeSignals, trend, prediction, indicators)
+  const overallSignal = scored.overallSignal
 
   return {
     symbol: chart.symbol,
@@ -348,7 +412,8 @@ export function queryAnalyzeStockChart(chart: StockChartPayload): StockAnalysisR
       indicators,
       prediction,
       overallSignal,
-      tradeSignals
+      tradeSignals,
+      scored.reason
     )
   }
 }
@@ -358,6 +423,53 @@ export function queryFormatAnalysisReport(charts: StockChartPayload[]): string {
   return charts
     .map((c) => c.analysis?.summary ?? `${c.name}（${c.symbol}）暂无分析`)
     .join('\n\n')
+}
+
+/**
+ * 从已分析的 charts 生成流程 context：按 overallSignal 分组，
+ * 支持买卖观望多分支同时命中（stockHas* = '1'/'0'）。
+ * stockSignal 取多数票，平票优先 hold。
+ */
+export function queryBuildRealtimeAnalysisContext(
+  charts: StockChartPayload[]
+): Record<string, string> {
+  const buy: StockChartPayload[] = []
+  const sell: StockChartPayload[] = []
+  const hold: StockChartPayload[] = []
+
+  for (const c of charts) {
+    const sig = c.analysis?.overallSignal ?? 'hold'
+    if (sig === 'buy') buy.push(c)
+    else if (sig === 'sell') sell.push(c)
+    else hold.push(c)
+  }
+
+  const fmt = (list: StockChartPayload[]): string =>
+    list
+      .map((c) => c.analysis?.summary ?? `${c.name}（${c.symbol}）暂无分析`)
+      .join('\n\n')
+
+  const buyN = buy.length
+  const sellN = sell.length
+  const holdN = hold.length
+  let stockSignal: StockSignalType = 'hold'
+  if (buyN > sellN && buyN > holdN) stockSignal = 'buy'
+  else if (sellN > buyN && sellN > holdN) stockSignal = 'sell'
+  // 平票或 hold 最多 → hold
+
+  return {
+    stockHasBuy: buyN > 0 ? '1' : '0',
+    stockHasSell: sellN > 0 ? '1' : '0',
+    stockHasHold: holdN > 0 ? '1' : '0',
+    stockBuySymbols: buy.map((c) => c.symbol).join(','),
+    stockSellSymbols: sell.map((c) => c.symbol).join(','),
+    stockHoldSymbols: hold.map((c) => c.symbol).join(','),
+    stockBuyReport: fmt(buy),
+    stockSellReport: fmt(sell),
+    stockHoldReport: fmt(hold),
+    stockSignal,
+    stockAnalysisReport: queryFormatAnalysisReport(charts)
+  }
 }
 
 /** 从实时行情补充最新价 */

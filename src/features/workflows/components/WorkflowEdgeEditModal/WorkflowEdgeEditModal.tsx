@@ -4,6 +4,8 @@ export interface WorkflowEdgeEditValue {
   label?: string
   when?: WorkflowConditionWhen
   isDefault?: boolean
+  /** all = 同 source 条件出边可多路同时命中 */
+  matchMode?: 'first' | 'all'
 }
 
 interface WorkflowEdgeEditModalProps {
@@ -18,6 +20,7 @@ interface WorkflowEdgeEditModalProps {
 interface FormValues {
   label?: string
   isDefault?: boolean
+  matchAll?: boolean
   useAdvancedExpression?: boolean
   expression?: string
   contextKey?: string
@@ -45,6 +48,7 @@ export function WorkflowEdgeEditModal({
     form.setFieldsValue({
       label: edge.label ?? '',
       isDefault: Boolean(edge.isDefault),
+      matchAll: edge.matchMode === 'all',
       useAdvancedExpression: Boolean(when?.expression?.trim()),
       expression: when?.expression ?? '',
       contextKey: when?.contextKey ?? '',
@@ -60,10 +64,12 @@ export function WorkflowEdgeEditModal({
         onOk({
           label: values.label?.trim() || '默认',
           isDefault: true,
-          when: undefined
+          when: undefined,
+          matchMode: undefined
         })
         return
       }
+      const matchMode: 'all' | undefined = values.matchAll ? 'all' : undefined
       let when: WorkflowConditionWhen | undefined
       if (values.useAdvancedExpression) {
         const expression = (values.expression ?? '').trim()
@@ -86,14 +92,16 @@ export function WorkflowEdgeEditModal({
         onOk({
           label: values.label?.trim() || undefined,
           isDefault: false,
-          when: undefined
+          when: undefined,
+          matchMode: undefined
         })
         return
       }
       onOk({
         label: values.label?.trim() || undefined,
         isDefault: false,
-        when
+        when,
+        matchMode
       })
     } catch {
       /* validateFields */
@@ -131,6 +139,14 @@ export function WorkflowEdgeEditModal({
 
         {!isDefault && (
           <>
+            <Form.Item
+              name="matchAll"
+              label="允许多分支同时命中"
+              valuePropName="checked"
+              tooltip="开启后，同起点所有 when 为真的条件边都会执行（非互斥 XOR）"
+            >
+              <Switch />
+            </Form.Item>
             <Form.Item
               name="useAdvancedExpression"
               label="高级表达式"
@@ -176,7 +192,7 @@ export function WorkflowEdgeEditModal({
         )}
 
         <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          同一节点上：全部无条件多出线 = 并行；任一带条件/默认 = 条件分支（只走一路）。
+          同一节点上：全部无条件多出线 = 并行；带条件 = 条件分支（默认只走一路；勾选「多分支同时命中」则可并行出多条）。
         </Typography.Paragraph>
       </Form>
     </Modal>

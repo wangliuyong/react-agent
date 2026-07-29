@@ -1801,6 +1801,11 @@ export interface PublishPlan {
    * 与子任务 notifyChannels 独立：可叠加。
    */
   notifyChannels?: PublishChannelId[]
+  /**
+   * 预设用户输入：非空时，执行关联流程碰到「输入」节点直接采用该值，不再等待人工输入。
+   * 「等待确认」节点不受影响。
+   */
+  presetUserInput?: string
   subTasks: PublishSubTask[]
   createdAt: number
   updatedAt: number
@@ -1868,6 +1873,12 @@ export interface ScheduledTask {
    * 缺省为 true（兼容旧数据）。
    */
   runInBackground?: boolean
+  /**
+   * 预设用户输入：非空时，执行关联工作流/发布计划碰到「输入」节点直接采用该值。
+   * 定时触发 publish_plan 时优先于发布计划自身的 presetUserInput。
+   * custom_prompt 动作不走工作流，本字段无效。
+   */
+  presetUserInput?: string
   createdAt: number
   updatedAt: number
 }
@@ -2168,6 +2179,8 @@ export interface WorkflowAgentNode {
   inputKeys?: WorkflowContextKey[]
   /** 写入 context 的键名，默认 summary */
   outputKeys?: WorkflowContextKey[]
+  /** Agent 取值说明；非空则节点主体执行前先跑取值步 */
+  collectPrompt?: string
 }
 
 /** 确定性工具节点：参数支持 {{contextKey}} 插值 */
@@ -2180,6 +2193,8 @@ export interface WorkflowToolNode {
   /** 声明需要从上游 context 读取的键；留空则从 argsTemplate 中 {{key}} 自动推断 */
   inputKeys?: WorkflowContextKey[]
   outputKeys?: WorkflowContextKey[]
+  /** Agent 取值说明；非空则调工具前先跑取值步写入 context */
+  collectPrompt?: string
 }
 
 /** 人工确认节点：复用 await_user / continue；用户补充说明写入 context */
@@ -2194,6 +2209,8 @@ export interface WorkflowAwaitNode {
   outputKeys?: WorkflowContextKey[]
   /** 可选结构化方案；有值时 UI 展示按钮组 */
   choices?: UserChoiceOption[]
+  /** Agent 取值说明；非空则确认前先跑取值步 */
+  collectPrompt?: string
 }
 
 /** Toast 级别，对应 Ant Design message */
@@ -2243,6 +2260,8 @@ export interface WorkflowNotifyNode {
   inputKeys?: WorkflowContextKey[]
   /** 可选：将发送结果摘要写入 context */
   outputKeys?: WorkflowContextKey[]
+  /** Agent 取值说明；非空则通知前先跑取值步 */
+  collectPrompt?: string
 }
 
 /**
@@ -2259,6 +2278,7 @@ export interface WorkflowToastNode {
   inputKeys?: WorkflowContextKey[]
   /** 可选：将展示内容写入 context */
   outputKeys?: WorkflowContextKey[]
+  collectPrompt?: string
 }
 
 /** 输入节点可采集的用户内容类型 */
@@ -2278,6 +2298,8 @@ export interface WorkflowInputNode {
   inputKeys?: WorkflowContextKey[]
   /** 写入 context 的键名：文字默认 userInput；附件类默认 attachmentPaths */
   outputKeys?: WorkflowContextKey[]
+  /** Agent 取值说明；用户提交后非空则解析 userInput 写入业务键 */
+  collectPrompt?: string
 }
 
 /** 输出节点写入磁盘的格式 */
@@ -2302,6 +2324,8 @@ export interface WorkflowOutputNode {
   inputKeys?: WorkflowContextKey[]
   /** 将输出文件路径写入 context，默认 outputPath */
   outputKeys?: WorkflowContextKey[]
+  /** Agent 取值说明；非空则写出前先跑取值步 */
+  collectPrompt?: string
 }
 
 /**
@@ -2349,8 +2373,9 @@ export interface WorkflowConditionCase {
 }
 
 /**
- * 条件分支（XOR）：引擎内部编译产物；画布侧不再编辑此节点，条件在连线上。
+ * 条件分支：引擎内部编译产物；画布侧不再编辑此节点，条件在连线上。
  * mode=expression + cases[].when 为现行默认；agent 模式仅兼容旧数据。
+ * matchMode=first（默认）XOR 只走一路；all 则所有 when 为真的支路都执行。
  */
 export interface WorkflowConditionNode {
   id: string
@@ -2362,6 +2387,8 @@ export interface WorkflowConditionNode {
   toolWhitelist?: string[]
   cases: WorkflowConditionCase[]
   defaultKey?: string
+  /** first=XOR（默认）；all=多路同时命中 */
+  matchMode?: 'first' | 'all'
 }
 
 /** 流程开始（每流程恰好一个；画布不可删） */
@@ -2402,6 +2429,11 @@ export interface WorkflowCanvasEdge {
   when?: WorkflowConditionWhen
   /** else 兜底；同一 source 最多一条 */
   isDefault?: boolean
+  /**
+   * 同 source 条件出边：任一条为 all 则编译为多路匹配。
+   * first（默认）= XOR。
+   */
+  matchMode?: 'first' | 'all'
   /** @deprecated 旧 condition 画布字段；迁移后清除 */
   branchKey?: string
 }
@@ -2462,6 +2494,12 @@ export interface WorkflowRunStartResult {
  */
 export interface RunWorkflowOptions {
   silent?: boolean
+  /**
+   * 预设用户输入：写入 run.context，输入节点有值时跳过人工等待。
+   */
+  presetUserInput?: string
+  /** 额外初始 context（会与 presetUserInput 合并） */
+  initialContext?: Record<string, unknown>
 }
 
 /** Preload 暴露给 window.api 的类型 */

@@ -7,7 +7,10 @@ import {
   queryFormatKlineSummary,
   queryParseAshareSymbols
 } from '../../net/ashare-kline'
-import { queryAnalyzeStockChart, queryFormatAnalysisReport } from '../../net/stock-analysis'
+import {
+  queryAnalyzeStockChart,
+  queryBuildRealtimeAnalysisContext
+} from '../../net/stock-analysis'
 import { queryEncodeWorkflowCtxResult } from './hot-topics'
 import type { AgentTool } from './types'
 
@@ -147,10 +150,11 @@ export const queryAshareRealtimeAnalysisTool: AgentTool = {
   name: 'query_ashare_realtime_analysis',
   description:
     '获取 A 股实时 K 线、技术指标综合分析、买入/卖出信号与短期涨跌预测，并在聊天界面可交互预览。' +
-    'symbols：股票代码，多个英文逗号分隔；' +
+    'symbols：股票代码，多个英文逗号分隔；每只股票独立分析；' +
     'range：today（当天）/ week（本周）/ month（本月）/ custom（自定义，需 startDate/endDate）；' +
     'preloadRanges=true 时预加载今天/本周/本月三套数据供聊天内切换；' +
-    '输出 stockSignal（buy/sell/hold）供流程条件分支。',
+    '输出 stockHasBuy/stockHasSell/stockHasHold（1/0）与分组报告，供多分支同时命中；' +
+    '另输出 stockSignal（多数票，平票 hold）兼容旧 XOR 条件。',
   permission: 'safe',
   parameters: {
     type: 'object',
@@ -194,6 +198,10 @@ export const queryAshareRealtimeAnalysisTool: AgentTool = {
       return queryEncodeWorkflowCtxResult('请提供至少一个 A 股股票代码（英文逗号分隔）。', {
         stockAnalysisOk: '0',
         stockSignal: 'hold',
+        stockHasBuy: '0',
+        stockHasSell: '0',
+        stockHasHold: '1',
+        stockHoldReport: '未提供股票代码，无法分析。',
         stockSymbols: ''
       })
     }
@@ -201,7 +209,15 @@ export const queryAshareRealtimeAnalysisTool: AgentTool = {
     if (range === 'custom' && (!startDate || !endDate)) {
       return queryEncodeWorkflowCtxResult(
         'range=custom 时请同时提供 startDate 与 endDate（YYYY-MM-DD）。',
-        { stockAnalysisOk: '0', stockSignal: 'hold', stockSymbols: symbols.join(',') }
+        {
+          stockAnalysisOk: '0',
+          stockSignal: 'hold',
+          stockHasBuy: '0',
+          stockHasSell: '0',
+          stockHasHold: '1',
+          stockHoldReport: '自定义区间缺少 startDate/endDate。',
+          stockSymbols: symbols.join(',')
+        }
       )
     }
 
@@ -217,11 +233,16 @@ export const queryAshareRealtimeAnalysisTool: AgentTool = {
       return queryEncodeWorkflowCtxResult(`实时 K 线分析失败：${errText}`, {
         stockAnalysisOk: '0',
         stockSignal: 'hold',
+        stockHasBuy: '0',
+        stockHasSell: '0',
+        stockHasHold: '1',
+        stockHoldReport: `分析失败：${errText}`,
         stockSymbols: symbols.join(',')
       })
     }
 
-    const analysisReport = queryFormatAnalysisReport(charts)
+    const signalCtx = queryBuildRealtimeAnalysisContext(charts)
+    const analysisReport = signalCtx.stockAnalysisReport
     const summaryLines = [
       `已分析 ${charts.length} 只股票（范围：${range}）：`,
       queryFormatKlineSummary(charts),
@@ -231,7 +252,6 @@ export const queryAshareRealtimeAnalysisTool: AgentTool = {
     ]
     if (errors.length) summaryLines.push('', `部分失败：${errors.join('；')}`)
 
-    const primarySignal = charts[0].analysis?.overallSignal ?? 'hold'
     const signalSummary = charts
       .map(
         (c) =>
@@ -248,8 +268,7 @@ export const queryAshareRealtimeAnalysisTool: AgentTool = {
       stockAnalysisOk: '1',
       stockSymbols: charts.map((c) => c.symbol).join(','),
       stockKlineSummary: summaryLines.join('\n'),
-      stockAnalysisReport: analysisReport,
-      stockSignal: primarySignal,
+      ...signalCtx,
       stockSignalSummary: signalSummary,
       stockChartJson: JSON.stringify({ charts, liveRefresh }),
       stockRange: range,

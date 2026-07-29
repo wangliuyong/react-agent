@@ -65,6 +65,10 @@ function normalizeLeaf(
     id: String(raw.id || '').trim() || crypto.randomUUID(),
     title: String(raw.title || '').trim() || '未命名步骤'
   }
+  const collectPrompt =
+    'collectPrompt' in raw && raw.collectPrompt != null
+      ? String(raw.collectPrompt).trim() || undefined
+      : undefined
 
   if (raw.type === 'agent') {
     return {
@@ -75,7 +79,8 @@ function normalizeLeaf(
         ? raw.toolWhitelist.map(String).filter(Boolean)
         : undefined,
       inputKeys: normalizeKeyList(raw.inputKeys),
-      outputKeys: normalizeKeyList(raw.outputKeys)
+      outputKeys: normalizeKeyList(raw.outputKeys),
+      collectPrompt
     }
   }
 
@@ -89,7 +94,8 @@ function normalizeLeaf(
           ? (raw.argsTemplate as Record<string, unknown>)
           : {},
       inputKeys: normalizeKeyList(raw.inputKeys),
-      outputKeys: normalizeKeyList(raw.outputKeys)
+      outputKeys: normalizeKeyList(raw.outputKeys),
+      collectPrompt
     }
   }
 
@@ -128,7 +134,8 @@ function normalizeLeaf(
       failSoft: notify.failSoft !== false,
       toastLevel: targets.includes('toast') ? validToastLevel : undefined,
       inputKeys: normalizeKeyList(notify.inputKeys),
-      outputKeys: normalizeKeyList(notify.outputKeys)
+      outputKeys: normalizeKeyList(notify.outputKeys),
+      collectPrompt
     }
   }
 
@@ -146,7 +153,8 @@ function normalizeLeaf(
       contentTemplate: String(toast.contentTemplate || '').trim() || '{{summary}}',
       toastLevel: validLevel,
       inputKeys: normalizeKeyList(toast.inputKeys),
-      outputKeys: normalizeKeyList(toast.outputKeys)
+      outputKeys: normalizeKeyList(toast.outputKeys),
+      collectPrompt
     }
   }
 
@@ -164,7 +172,8 @@ function normalizeLeaf(
       prompt: String(inputNode.prompt || '').trim() || '请输入内容后继续流程',
       inputKinds: kinds.length ? kinds : ['text'],
       inputKeys: normalizeKeyList(inputNode.inputKeys),
-      outputKeys: normalizeKeyList(inputNode.outputKeys)
+      outputKeys: normalizeKeyList(inputNode.outputKeys),
+      collectPrompt
     }
   }
 
@@ -184,7 +193,8 @@ function normalizeLeaf(
         outputNode.fileNameTemplate != null ? String(outputNode.fileNameTemplate) : 'output',
       contentTemplate: String(outputNode.contentTemplate || '').trim() || '{{summary}}',
       inputKeys: normalizeKeyList(outputNode.inputKeys),
-      outputKeys: normalizeKeyList(outputNode.outputKeys)
+      outputKeys: normalizeKeyList(outputNode.outputKeys),
+      collectPrompt
     }
   }
 
@@ -196,14 +206,16 @@ function normalizeLeaf(
       reason: String(awaitNode.reason || '').trim() || '请确认后继续',
       inputKeys: normalizeKeyList(awaitNode.inputKeys),
       outputKeys: normalizeKeyList(awaitNode.outputKeys),
-      choices: Array.isArray(awaitNode.choices) ? awaitNode.choices : undefined
+      choices: Array.isArray(awaitNode.choices) ? awaitNode.choices : undefined,
+      collectPrompt
     }
   }
 
   return {
     ...base,
     type: 'await_user',
-    reason: String((raw as WorkflowAwaitNode).reason || '').trim() || '请确认后继续'
+    reason: String((raw as WorkflowAwaitNode).reason || '').trim() || '请确认后继续',
+    collectPrompt
   }
 }
 
@@ -252,7 +264,8 @@ function normalizeCondition(raw: WorkflowConditionNode): WorkflowConditionNode {
           { key: 'true', label: '是', nodes: [] },
           { key: 'false', label: '否', nodes: [] }
         ],
-    defaultKey: raw.defaultKey != null ? String(raw.defaultKey) : undefined
+    defaultKey: raw.defaultKey != null ? String(raw.defaultKey) : undefined,
+    matchMode: raw.matchMode === 'all' ? 'all' : undefined
   }
 }
 
@@ -320,6 +333,7 @@ function normalizeCanvas(raw: WorkflowCanvas | undefined): WorkflowCanvas | unde
           const when = normalizeWhen(e.when)
           if (when && (when.expression || when.contextKey)) edge.when = when
           if (e.isDefault === true) edge.isDefault = true
+          if (e.matchMode === 'all') edge.matchMode = 'all'
           // 保留旧 branchKey 供前端迁移
           if (e.branchKey != null && String(e.branchKey).trim()) {
             edge.branchKey = String(e.branchKey).trim()
@@ -389,11 +403,11 @@ function writeWorkflows(list: WorkflowDefinition[]): WorkflowDefinition[] {
   return normalized
 }
 
-/** 读：全部工作流定义（首次会合并预置模板） */
+/** 读：全部工作流定义（首次合并缺失预置模板；旧 A 股 XOR 模板一次性升级） */
 export function queryWorkflows(): WorkflowDefinition[] {
   const existing = readWorkflowsFromDisk()
-  const { list, added } = mergeBuiltinWorkflowTemplates(existing)
-  if (added > 0) {
+  const { list, added, refreshed } = mergeBuiltinWorkflowTemplates(existing)
+  if (added > 0 || refreshed > 0) {
     return writeWorkflows(list)
   }
   return list

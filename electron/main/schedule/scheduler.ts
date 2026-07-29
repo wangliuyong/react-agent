@@ -6,6 +6,7 @@ import {
 } from '../../../shared/schedule-utils'
 import { formatRunSessionTitle } from '../../../shared/session-run-title'
 import { normalizeNotifyChannelIds } from '../../../shared/publish-normalize'
+import { queryNormalizePresetUserInput } from '../../../shared/workflow-preset-input'
 import { queryPublishPlan } from '../store/plans'
 import { queryPublishPlanRunnableWorkflowId } from '../workflow/migrate-publish'
 import { postSession } from '../store/sessions'
@@ -224,8 +225,19 @@ export async function triggerScheduledTask(
   emitScheduleUpdate()
 
   try {
+    // 定时预设优先；publish_plan 时可回落到发布计划预设
+    const taskPreset = queryNormalizePresetUserInput(task.presetUserInput)
+    const planPreset =
+      task.actionType === 'publish_plan' && task.publishPlanId
+        ? queryNormalizePresetUserInput(
+            queryPublishPlan(task.publishPlanId)?.presetUserInput
+          )
+        : undefined
     // session 已落盘；postRunWorkflow 仅在会话不存在时 emit，此处保持与 silent 一致
-    await postRunWorkflow(workflowId, { session })
+    await postRunWorkflow(workflowId, {
+      session,
+      presetUserInput: taskPreset ?? planPreset
+    })
   } catch {
     return markTaskFailed({ ...running, lastRunStatus: 'failed' })
   }

@@ -264,7 +264,7 @@ function queryPickDefault(
 }
 
 /**
- * 选出要执行的 case.key。
+ * 选出要执行的 case.key（XOR / first 模式）。
  * - 边条件模型：cases[].when 各自求值，第一个为真者胜出，否则 defaultKey
  * - 旧节点级 when：布尔/枚举映射 true/false 或 case.key
  * - agent：兼容旧数据
@@ -274,27 +274,56 @@ export function queryConditionCaseKey(
   context: Record<string, unknown>,
   agentSelectedKey?: string
 ): { key: string } | { error: string } {
+  const multi = queryConditionCaseKeys(node, context, agentSelectedKey)
+  if ('error' in multi) return multi
+  if (!multi.keys.length) return { error: '条件无匹配分支' }
+  return { key: multi.keys[0] }
+}
+
+/**
+ * 选出要执行的 case.key 列表。
+ * matchMode=first（默认）：至多一个；all：所有 when 为真的支路（无命中才走 default）。
+ */
+export function queryConditionCaseKeys(
+  node: WorkflowConditionNode,
+  context: Record<string, unknown>,
+  agentSelectedKey?: string
+): { keys: string[] } | { error: string } {
   if (!node.cases.length) return { error: '条件节点没有任何分支' }
 
   if (node.mode === 'agent') {
     const raw = (agentSelectedKey ?? '').trim()
-    if (node.cases.some((c) => c.key === raw)) return { key: raw }
-    return queryPickDefault(node)
+    if (node.cases.some((c) => c.key === raw)) return { keys: [raw] }
+    const def = queryPickDefault(node)
+    if ('error' in def) return def
+    return { keys: [def.key] }
   }
 
-  // 边条件：按 case.when 顺序匹配
+  const matchAll = node.matchMode === 'all'
+
+  // 边条件：按 case.when 求值
   const edged = node.cases.filter((c) => c.when != null)
   if (edged.length > 0) {
+    const matched: string[] = []
     for (const c of edged) {
       const evaluated = queryEvaluateWhen(c.when, context)
       if ('error' in evaluated) {
         return { error: `分支「${c.label || c.key}」：${evaluated.error}` }
       }
-      if (evaluated.value) return { key: c.key }
+      if (evaluated.value) {
+        matched.push(c.key)
+        if (!matchAll) break
+      }
     }
-    return queryPickDefault(node)
+    if (matched.length) return { keys: matched }
+    // matchMode=all 且无 default：允许零命中（跳过全部支路），避免标志缺失时硬失败
+    if (matchAll && !node.defaultKey) return { keys: [] }
+    const def = queryPickDefault(node)
+    if ('error' in def) return def
+    return { keys: [def.key] }
   }
 
+  // 旧节点级 when（仅 first 语义）
   const evaluated = queryEvaluateWhen(node.when, context)
   if ('error' in evaluated) return evaluated
 
@@ -302,17 +331,19 @@ export function queryConditionCaseKey(
   const keys = new Set(node.cases.map((c) => c.key))
 
   if (typeof v === 'boolean' && keys.has(String(v))) {
-    return { key: String(v) }
+    return { keys: [String(v)] }
   }
 
   if (typeof v === 'string' || typeof v === 'number') {
     const asKey = String(v)
-    if (keys.has(asKey)) return { key: asKey }
+    if (keys.has(asKey)) return { keys: [asKey] }
   }
 
   if (keys.has('true') && keys.has('false')) {
-    return { key: v ? 'true' : 'false' }
+    return { keys: [v ? 'true' : 'false'] }
   }
 
-  return queryPickDefault(node)
+  const def = queryPickDefault(node)
+  if ('error' in def) return def
+  return { keys: [def.key] }
 }

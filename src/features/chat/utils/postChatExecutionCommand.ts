@@ -198,7 +198,9 @@ async function postRunPublishPlanFromChat(
   plan: PublishPlan
 ): Promise<ChatExecutionCommandResult> {
   try {
-    const { sessionId } = await postRunWorkflow(plan.id)
+    const { sessionId } = await postRunWorkflow(plan.id, {
+      presetUserInput: plan.presetUserInput
+    })
     const kind = plan.kind ?? 'normal'
     return {
       handled: true,

@@ -200,6 +200,10 @@ function buildScheduledTaskFromArgs(args: Record<string, unknown>): ScheduledTas
       args.runInBackground !== undefined
         ? Boolean(args.runInBackground)
         : queryRunInBackground(base),
+    presetUserInput:
+      args.presetUserInput != null
+        ? String(args.presetUserInput).trim() || undefined
+        : base.presetUserInput,
     updatedAt: now
   }
 }
@@ -287,7 +291,11 @@ export const postScheduledTaskTool: AgentTool = {
       customPrompt: { type: 'string' },
       notifyChannels: { type: 'array', items: { type: 'string' } },
       runInBackground: { type: 'boolean', description: '默认 true' },
-      enabled: { type: 'boolean', description: '默认 false，避免误触发' }
+      enabled: { type: 'boolean', description: '默认 false，避免误触发' },
+      presetUserInput: {
+        type: 'string',
+        description: '预设用户输入；有值时跳过流程输入节点等待'
+      }
     },
     required: ['title', 'repeat', 'actionType']
   },
@@ -339,6 +347,10 @@ export const postPublishPlanTool: AgentTool = {
       kind: { type: 'string', enum: ['normal', 'workflow'] },
       workflowIds: { type: 'array', items: { type: 'string' }, description: 'kind=workflow 时必填' },
       notifyChannels: { type: 'array', items: { type: 'string' } },
+      presetUserInput: {
+        type: 'string',
+        description: '预设用户输入；有值时跳过流程输入节点等待'
+      },
       subTasks: {
         type: 'array',
         description: 'normal 类型子任务列表',
@@ -389,6 +401,10 @@ export const postPublishPlanTool: AgentTool = {
         workflowIds,
         workflowId: workflowIds[0],
         notifyChannels: parseStringArray(args.notifyChannels ?? existing?.notifyChannels),
+        presetUserInput:
+          args.presetUserInput != null
+            ? String(args.presetUserInput).trim() || undefined
+            : existing?.presetUserInput,
         subTasks,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now
@@ -411,6 +427,10 @@ export const postPublishPlanTool: AgentTool = {
       kind: 'normal',
       workflowIds: [],
       notifyChannels: parseStringArray(args.notifyChannels ?? existing?.notifyChannels),
+      presetUserInput:
+        args.presetUserInput != null
+          ? String(args.presetUserInput).trim() || undefined
+          : existing?.presetUserInput,
       subTasks,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now

@@ -12,3 +12,19 @@ export class AgentUserCancelledError extends Error {
 export function queryIsAgentUserCancelledError(err: unknown): boolean {
   return err instanceof AgentUserCancelledError
 }
+
+/**
+ * 判断是否为 AbortSignal / fetch 中止（含超时合并信号触发的 AbortError）。
+ * 浏览器/Node 常见文案：This operation was aborted。
+ */
+export function queryIsAbortError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const e = err as { name?: string; message?: string }
+  if (e.name === 'AbortError') return true
+  const msg = String(e.message ?? '')
+  return (
+    /operation was aborted/i.test(msg) ||
+    /The operation was aborted/i.test(msg) ||
+    /signal is aborted/i.test(msg)
+  )
+}

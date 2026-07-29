@@ -29,12 +29,29 @@ export class HttpError extends Error {
   }
 }
 
+/** 请求超时（与用户主动中止区分，避免冒泡成 This operation was aborted） */
+export class HttpTimeoutError extends Error {
+  readonly url: string
+  readonly timeoutMs: number
+
+  constructor(url: string, timeoutMs: number) {
+    super(`请求超时（${Math.round(timeoutMs / 1000)}s）：${url}`)
+    this.name = 'HttpTimeoutError'
+    this.url = url
+    this.timeoutMs = timeoutMs
+  }
+}
+
 function queryMergeSignal(
   timeoutMs: number,
   external?: AbortSignal
-): { signal: AbortSignal; cleanup: () => void } {
+): { signal: AbortSignal; cleanup: () => void; timedOut: () => boolean } {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeoutMs)
   const onExternalAbort = (): void => controller.abort()
   if (external) {
     if (external.aborted) {
@@ -45,6 +62,7 @@ function queryMergeSignal(
   }
   return {
     signal: controller.signal,
+    timedOut: () => timedOut,
     cleanup: () => {
       clearTimeout(timer)
       external?.removeEventListener('abort', onExternalAbort)
@@ -57,7 +75,7 @@ async function queryFetchOnce(
   options: HttpRequestOptions
 ): Promise<Response> {
   const timeoutMs = options.timeoutMs ?? 20_000
-  const { signal, cleanup } = queryMergeSignal(timeoutMs, options.signal)
+  const { signal, cleanup, timedOut } = queryMergeSignal(timeoutMs, options.signal)
   try {
     const body =
       options.body == null
@@ -82,6 +100,11 @@ async function queryFetchOnce(
       signal
     })
     return res
+  } catch (err) {
+    if (timedOut()) {
+      throw new HttpTimeoutError(url, timeoutMs)
+    }
+    throw err
   } finally {
     cleanup()
   }
