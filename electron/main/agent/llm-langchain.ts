@@ -64,7 +64,7 @@ export function createChatModel(
   purpose?: ModelRoleKey,
   capability?: ModelCapability
 ): ChatOpenAI {
-  const config = queryChatModelConfig(settings, purpose, capability)
+  const config = queryChatModelConfig(settings, purpose, capability) ?? {}
   const prevFetch = config.configuration?.fetch as typeof fetch | undefined
   return new ChatOpenAI({
     ...config,
@@ -89,10 +89,10 @@ export function createCapabilityRoutedModel(
     const raw = queryCapability()
     const capability =
       raw === 'chat' ||
-      raw === 'reasoning' ||
-      raw === 'vision' ||
-      raw === 'longContext' ||
-      raw === 'creative'
+        raw === 'reasoning' ||
+        raw === 'vision' ||
+        raw === 'longContext' ||
+        raw === 'creative'
         ? raw
         : undefined
     return createChatModel(settings, role, capability)
