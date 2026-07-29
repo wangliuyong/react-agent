@@ -336,13 +336,13 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
         ? values.useAdvancedExpression
           ? { expression: (values.expression ?? '').trim() }
           : {
-              contextKey: (values.contextKey ?? '').trim(),
-              op: values.op ?? 'truthy',
-              value:
-                values.op === 'eq' || values.op === 'neq'
-                  ? (values.value ?? '').trim()
-                  : undefined
-            }
+            contextKey: (values.contextKey ?? '').trim(),
+            op: values.op ?? 'truthy',
+            value:
+              values.op === 'eq' || values.op === 'neq'
+                ? (values.value ?? '').trim()
+                : undefined
+          }
         : undefined
     if (
       values.mode === 'expression' &&
@@ -478,9 +478,9 @@ function buildNodeFromValues(values: FormValues, prev: WorkflowNode | null): Wor
     const toastLevel = values.toastLevel ?? 'info'
     const validLevel: WorkflowToastLevel =
       toastLevel === 'success' ||
-      toastLevel === 'error' ||
-      toastLevel === 'warning' ||
-      toastLevel === 'info'
+        toastLevel === 'error' ||
+        toastLevel === 'warning' ||
+        toastLevel === 'info'
         ? toastLevel
         : 'info'
     const msgType = wantsChannel
@@ -667,14 +667,14 @@ export function WorkflowNodeEditModal({
             : values.type === 'output'
               ? createOutputNode()
               : values.type === 'await_user'
-            ? createAwaitNode()
-            : values.type === 'notify'
-              ? createNotifyNode()
-              : values.type === 'parallel'
-                  ? createParallelNode()
-                  : values.type === 'condition'
-                    ? createConditionNode()
-                    : createAgentNode())
+                ? createAwaitNode()
+                : values.type === 'notify'
+                  ? createNotifyNode()
+                  : values.type === 'parallel'
+                    ? createParallelNode()
+                    : values.type === 'condition'
+                      ? createConditionNode()
+                      : createAgentNode())
       const next = buildNodeFromValues(values, node ?? basePrev)
       if (leafOnly && !isLeafNode(next) && next.type !== 'condition') {
         message.error('此处只能添加叶子步骤或条件分支')
@@ -1110,6 +1110,13 @@ export function WorkflowNodeEditModal({
               />
             </Form.Item>
             <Form.Item
+              name="titleTemplate"
+              label="推送标题"
+              tooltip="支持 {{contextKey}} 引用上游节点 outputKeys 写入的字段"
+            >
+              <Input placeholder="例如：{{workflowTitle}}" />
+            </Form.Item>
+            <Form.Item
               name="contentTemplate"
               label="通知内容"
               rules={[
@@ -1157,13 +1164,7 @@ export function WorkflowNodeEditModal({
                     notFoundContent="请先在设置 → 渠道中配置并启用通知渠道"
                   />
                 </Form.Item>
-                <Form.Item
-                  name="titleTemplate"
-                  label="推送标题"
-                  tooltip="支持 {{contextKey}} 引用上游节点 outputKeys 写入的字段"
-                >
-                  <Input placeholder="例如：{{workflowTitle}}" />
-                </Form.Item>
+
                 {notifyChannelId === 'feishu' ? (
                   <Form.Item
                     name="msgType"
