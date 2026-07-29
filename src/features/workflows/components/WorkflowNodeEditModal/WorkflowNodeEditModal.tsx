@@ -890,19 +890,20 @@ export function WorkflowNodeEditModal({
                 {(fields, { add, remove }) => (
                   <div>
                     <div style={{ marginBottom: 8 }}>分支列表</div>
-                    {fields.map((field) => (
-                      <Space key={field.key} align="baseline" style={{ display: 'flex' }}>
+                    {/* key 须单独传给 JSX，不可经 {...field} 展开（React 19） */}
+                    {fields.map(({ key, name, ...restField }) => (
+                      <Space key={key} align="baseline" style={{ display: 'flex' }}>
                         <Form.Item
-                          {...field}
-                          name={[field.name, 'key']}
+                          {...restField}
+                          name={[name, 'key']}
                           rules={[{ required: true, message: 'key' }]}
                         >
                           <Input placeholder="key" style={{ width: 120 }} />
                         </Form.Item>
-                        <Form.Item {...field} name={[field.name, 'label']}>
+                        <Form.Item {...restField} name={[name, 'label']}>
                           <Input placeholder="标签" style={{ width: 120 }} />
                         </Form.Item>
-                        <Button type="link" danger onClick={() => remove(field.name)}>
+                        <Button type="link" danger onClick={() => remove(name)}>
                           删除
                         </Button>
                       </Space>

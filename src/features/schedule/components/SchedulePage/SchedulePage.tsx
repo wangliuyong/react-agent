@@ -341,11 +341,13 @@ function TaskEditModal({
                 <div className={styles.timesOfDayList}>
                   <div className={styles.timesOfDayListWrap}>
 
-                    {fields.map((field) => (
-                      <Space key={field.key} align="baseline" className={styles.timesOfDayRow}>
+                    {/* key 须单独传给 JSX，不可经 {...field} 展开（React 19） */}
+                    {fields.map(({ key, name, ...restField }) => (
+                      <Space key={key} align="baseline" className={styles.timesOfDayRow}>
                         <Form.Item
-                          {...field}
-                          label={fields.length > 1 ? `时刻 ${field.name + 1}` : '时刻'}
+                          {...restField}
+                          name={name}
+                          label={fields.length > 1 ? `时刻 ${name + 1}` : '时刻'}
                           rules={[{ required: true, message: '请选择时刻' }]}
                           className={styles.timesOfDayItem}
                         >
@@ -357,7 +359,7 @@ function TaskEditModal({
                             danger
                             icon={<MinusCircleOutlined />}
                             aria-label="删除时刻"
-                            onClick={() => remove(field.name)}
+                            onClick={() => remove(name)}
                           />
                         ) : null}
                       </Space>

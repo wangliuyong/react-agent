@@ -12,6 +12,8 @@ import {
   Background,
   Controls,
   addEdge,
+  applyEdgeChanges,
+  applyNodeChanges,
   useEdgesState,
   useNodesState,
   type Connection,
@@ -299,6 +301,11 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
     const [rfEdges, setEdges, onEdgesChangeInternal] = useEdgesState(
       toRfEdges(initialCanvas, activeNodeIds, nodeStatuses)
     )
+    /** 供 emitChange 在 setState updater 外读取最新图，避免渲染期更新父组件 */
+    const rfNodesRef = useRef(rfNodes)
+    const rfEdgesRef = useRef(rfEdges)
+    rfNodesRef.current = rfNodes
+    rfEdgesRef.current = rfEdges
 
     /**
      * 执行进度变化时，只更新入边的流动态，避免整图重置拖拽/选中。
@@ -387,6 +394,8 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
         const nextNodes = prev.filter((n) => n.id !== id)
         setEdges((eds) => {
           const nextEdges = eds.filter((e) => e.source !== id && e.target !== id)
+          rfNodesRef.current = nextNodes
+          rfEdgesRef.current = nextEdges
           queueMicrotask(() => emitChange(nextNodes, nextEdges))
           return nextEdges
         })
@@ -418,7 +427,7 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
         // 阻止删除开始/结束
         const filtered = changes.filter((c) => {
           if (c.type !== 'remove') return true
-          const n = rfNodes.find((x) => x.id === c.id)
+          const n = rfNodesRef.current.find((x) => x.id === c.id)
           return n?.type !== 'workflowTerminal'
         })
         if (filtered.length !== changes.length) {
@@ -431,34 +440,25 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
             c.type === 'remove'
         )
         if (!shouldPersist) return
-        queueMicrotask(() => {
-          setNodes((ns) => {
-            setEdges((es) => {
-              emitChange(ns, es)
-              return es
-            })
-            return ns
-          })
-        })
+        // 在 updater 外计算下一帧图并回写父级，避免渲染期 setState(WorkflowsPage)
+        const nextNodes = applyNodeChanges(filtered, rfNodesRef.current) as WorkflowCanvasRfNode[]
+        const nextEdges = rfEdgesRef.current
+        rfNodesRef.current = nextNodes
+        queueMicrotask(() => emitChange(nextNodes, nextEdges))
       },
-      [onNodesChangeInternal, emitChange, setNodes, setEdges, rfNodes]
+      [onNodesChangeInternal, emitChange]
     )
 
     const onEdgesChange: OnEdgesChange = useCallback(
       (changes) => {
         onEdgesChangeInternal(changes)
         if (!changes.some((c) => c.type === 'remove' || c.type === 'add')) return
-        queueMicrotask(() => {
-          setNodes((ns) => {
-            setEdges((es) => {
-              emitChange(ns, es)
-              return es
-            })
-            return ns
-          })
-        })
+        const nextEdges = applyEdgeChanges(changes, rfEdgesRef.current)
+        const nextNodes = rfNodesRef.current
+        rfEdgesRef.current = nextEdges
+        queueMicrotask(() => emitChange(nextNodes, nextEdges))
       },
-      [onEdgesChangeInternal, emitChange, setNodes, setEdges]
+      [onEdgesChangeInternal, emitChange]
     )
 
     const onConnect: OnConnect = useCallback(
@@ -474,6 +474,8 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
               },
               eds
             )
+            rfNodesRef.current = ns
+            rfEdgesRef.current = next
             queueMicrotask(() => emitChange(ns, next))
             return next
           })
@@ -526,12 +528,9 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
             ...queryEdgeStyle(conditional)
           }
         })
-        queueMicrotask(() => {
-          setNodes((ns) => {
-            emitChange(ns, next)
-            return ns
-          })
-        })
+        rfEdgesRef.current = next
+        // emitChange 必须在 updater 外执行，否则会在渲染期更新 WorkflowsPage
+        queueMicrotask(() => emitChange(rfNodesRef.current, next))
         return next
       })
       setEdgeEditOpen(false)
@@ -552,11 +551,12 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
             }
           }
           const next = [...ns, rfNode]
-          queueMicrotask(() => emitChange(next, rfEdges))
+          rfNodesRef.current = next
+          queueMicrotask(() => emitChange(next, rfEdgesRef.current))
           return next
         })
       },
-      [rfEdges, setNodes, emitChange]
+      [setNodes, emitChange]
     )
 
     useImperativeHandle(
@@ -600,7 +600,8 @@ export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle, WorkflowCanvasPro
                 }
               }
             ]
-        queueMicrotask(() => emitChange(next, rfEdges))
+        rfNodesRef.current = next
+        queueMicrotask(() => emitChange(next, rfEdgesRef.current))
         return next
       })
       setEditOpen(false)
