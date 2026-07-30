@@ -1,4 +1,5 @@
 import type {
+  AgentActiveRun,
   AgentContinuePayload,
   AppSettings,
   ModelOption,
@@ -42,8 +43,16 @@ export async function postAgentAbort(sessionId: string): Promise<void> {
   return window.api.postAgentAbort(sessionId)
 }
 
-/** 渲染进程冷启动 / 刷新后与主进程执行态对齐 */
-export async function postAgentResyncRenderer(): Promise<void> {
+/**
+ * 渲染进程冷启动 / 刷新后与主进程执行态对齐。
+ * 返回仍在执行的会话快照；不中止主进程 Agent。
+ */
+export async function queryAgentActiveRuns(): Promise<AgentActiveRun[]> {
+  return window.api.queryAgentActiveRuns()
+}
+
+/** @deprecated 请用 queryAgentActiveRuns */
+export async function postAgentResyncRenderer(): Promise<AgentActiveRun[]> {
   return window.api.postAgentResyncRenderer()
 }
 

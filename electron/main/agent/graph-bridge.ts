@@ -18,6 +18,7 @@ import {
 } from '@langchain/langgraph'
 import { pauseRunningTasks, queryHasRunningTasks } from '../../../shared/pause-running-tasks'
 import type {
+  AgentActiveRun,
   AgentContinuePayload,
   AgentEvent,
   AgentRoleName,
@@ -29,7 +30,7 @@ import type {
   UserChoiceOption
 } from '../../../shared/types'
 import { querySettings } from '../store/settings'
-import { querySession, querySessions, postSession } from '../store/sessions'
+import { querySession, postSession } from '../store/sessions'
 import { getMainWindow } from '../window'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
 import { queryWaitThinkingSettled, postResetThinkingGate, postThinkingReasoningComplete } from './thinking-gate'
@@ -259,20 +260,34 @@ export function pauseRunningSessionTasks(sessionId: string): void {
 }
 
 /**
- * 渲染进程刷新 / 冷启动后同步主进程执行态。
- * 中止仍在内存中的 LangGraph 运行，并将落盘仍为 running 的任务重置为 pending，
- * 避免前端 hydrate 误判「执行中」导致输入框长期禁用。
+ * 查询主进程内存中仍在执行的 Agent 会话。
+ * abortMap / continueWaiters / pendingAwait 任一存在即视为 active。
  */
-export function postGraphResyncAfterRendererLoad(): void {
-  for (const sessionId of Array.from(abortMap.keys())) {
-    postGraphAbort(sessionId)
-  }
-  for (const session of querySessions()) {
-    if (!queryHasRunningTasks(session.tasks ?? [])) continue
-    session.tasks = pauseRunningTasks(session.tasks ?? [])
-    postSession(session)
-    emitAgentEvent({ type: 'task_update', sessionId: session.id, tasks: session.tasks })
-  }
+export function queryGraphActiveRuns(): AgentActiveRun[] {
+  const sessionIds = new Set<string>([
+    ...abortMap.keys(),
+    ...continueWaiters.keys(),
+    ...pendingAwaitBySession.keys()
+  ])
+  return Array.from(sessionIds).map((sessionId) => {
+    const pending = pendingAwaitBySession.get(sessionId)
+    const awaitingUser = Boolean(pending) || continueWaiters.has(sessionId)
+    return {
+      sessionId,
+      awaitingUser,
+      awaitReason: pending?.reason,
+      awaitChoices: pending?.choices
+    }
+  })
+}
+
+/**
+ * 渲染进程刷新 / 冷启动后与主进程执行态对齐。
+ * 不中止正在运行的 LangGraph：Agent 在主进程继续执行，仅返回 active 快照供 UI 重连。
+ * 落盘仍为 running、但主进程已无执行标记的任务，由前端 hydrate 侧 pause 展示。
+ */
+export function postGraphResyncAfterRendererLoad(): AgentActiveRun[] {
+  return queryGraphActiveRuns()
 }
 
 export function postGraphAbort(sessionId: string): void {

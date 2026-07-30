@@ -17,9 +17,9 @@ import {
   postAgentAbort,
   postAgentChat,
   postAgentContinue,
-  postAgentResyncRenderer,
   postCreateSession,
   postDeleteSession,
+  queryAgentActiveRuns,
   querySession,
   querySessions
 } from '../api'
@@ -290,7 +290,7 @@ function queryHasIncompleteTasks(tasks: TaskItem[]): boolean {
 
 /**
  * 非执行中且任务清单仍有未完成项时，应展示「继续」。
- * 刷新后进程内 abort/await 状态会丢，只能从落盘的 tasks 恢复该按钮。
+ * 主进程已无执行标记时，只能从落盘的 tasks 恢复该按钮。
  */
 function queryCanResumeFromSession(
   session: Session | null | undefined,
@@ -476,9 +476,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   hydrate: async () => {
     const isColdStart = !sessionStoreHydratedOnce
-    if (isColdStart) {
-      await postAgentResyncRenderer()
-    }
+    // 冷启动 / 刷新：向主进程查询仍在执行的会话并重连，不中止 Agent
+    const activeRuns = isColdStart ? await queryAgentActiveRuns() : []
 
     const sessions = await querySessions()
     const prevId = get().activeSessionId
@@ -488,22 +487,49 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       sessions[0]?.id ??
       null
     const sessionIdSet = new Set(sessions.map((s) => s.id))
-    // 仅保留进程内仍在执行的会话；刷新后由 postAgentResyncRenderer 清理落盘 running
+
+    // 合并：内存中已有的 running + 主进程仍 active 的会话
     const runningSessionIds = new Set<string>()
     for (const id of Array.from(get().runningSessionIds)) {
       if (sessionIdSet.has(id)) runningSessionIds.add(id)
     }
+    for (const run of activeRuns) {
+      if (sessionIdSet.has(run.sessionId)) runningSessionIds.add(run.sessionId)
+    }
+
+    // 从主进程 pendingAwait 回填确认条（刷新后 Zustand 已清空）
+    let pendingAwaitReasons = get().pendingAwaitReasons
+    let pendingAwaitChoices = get().pendingAwaitChoices
+    for (const run of activeRuns) {
+      if (!run.awaitingUser) continue
+      if (run.awaitReason) {
+        pendingAwaitReasons = withPendingAwaitReason(
+          pendingAwaitReasons,
+          run.sessionId,
+          run.awaitReason
+        )
+      }
+      if (run.awaitChoices?.length) {
+        pendingAwaitChoices = withPendingAwaitChoices(
+          pendingAwaitChoices,
+          run.sessionId,
+          run.awaitChoices
+        )
+      }
+    }
+
     sessionStoreHydratedOnce = true
+    // 落盘仍为 running、但主进程已无执行标记 → 展示为 pause，避免输入框误锁
     const normalizedSessions = querySessionsWithStaleRunningPaused(sessions, runningSessionIds)
     const activeNormalized = normalizedSessions.find((s) => s.id === activeSessionId)
     const running = syncActiveRunning(activeSessionId, runningSessionIds)
-    const pendingAwaitReasons = get().pendingAwaitReasons
-    const pendingAwaitChoices = get().pendingAwaitChoices
     set({
       sessions: normalizedSessions,
       activeSessionId,
       runningSessionIds,
       running,
+      pendingAwaitReasons,
+      pendingAwaitChoices,
       ...syncActiveAwaitState(
         activeSessionId,
         activeNormalized,

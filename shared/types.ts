@@ -37,7 +37,13 @@ export const IpcChannels = {
   // Agent
   postAgentChat: 'post:agent:chat',
   postAgentAbort: 'post:agent:abort',
+  /**
+   * 渲染进程冷启动 / 刷新后与主进程对齐：返回仍在执行的会话快照，不中止 Agent。
+   * @deprecated 优先使用 queryAgentActiveRuns；保留通道以兼容旧 preload
+   */
   postAgentResyncRenderer: 'post:agent:resync-renderer',
+  /** 查询主进程内存中仍在执行 / 等待确认的 Agent 会话 */
+  queryAgentActiveRuns: 'query:agent:active-runs',
   postAgentContinue: 'post:agent:continue',
   // 浏览器
   queryBrowserStatus: 'query:browser:status',
@@ -2019,6 +2025,18 @@ export interface AgentChatRequest {
   attachmentPaths?: string[]
 }
 
+/**
+ * 主进程仍在执行 / 等待用户确认的会话快照。
+ * 渲染进程刷新后据此重连 UI，不中断主进程 Agent。
+ */
+export interface AgentActiveRun {
+  sessionId: string
+  /** 是否正挂起在 await_user */
+  awaitingUser: boolean
+  awaitReason?: string
+  awaitChoices?: UserChoiceOption[]
+}
+
 /** 技能摘要（来自 resources/skills/<id>/SKILL.md） */
 export interface ProjectSkill {
   id: string
@@ -2532,7 +2550,10 @@ export interface ElectronApi {
   postImportBuiltinScheduledTasks: () => Promise<ScheduledTask[]>
   postAgentChat: (req: AgentChatRequest) => Promise<void>
   postAgentAbort: (sessionId: string) => Promise<void>
-  postAgentResyncRenderer: () => Promise<void>
+  /** @deprecated 请用 queryAgentActiveRuns；行为相同：返回 active 快照且不中止 Agent */
+  postAgentResyncRenderer: () => Promise<AgentActiveRun[]>
+  /** 查询主进程仍在执行 / 等待确认的会话，供刷新后 UI 重连 */
+  queryAgentActiveRuns: () => Promise<AgentActiveRun[]>
   postAgentContinue: (
     sessionId: string,
     payload?: AgentContinuePayload | string

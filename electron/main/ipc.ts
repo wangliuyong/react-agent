@@ -47,7 +47,8 @@ import {
   runLangGraphChat,
   postGraphAbort,
   postGraphContinue,
-  postGraphResyncAfterRendererLoad
+  postGraphResyncAfterRendererLoad,
+  queryGraphActiveRuns
 } from './agent/graph-bridge'
 import { getBrowserService } from './browser/service'
 import { getBrowserProfileDir } from './store/paths'
@@ -207,7 +208,10 @@ export function registerIpcHandlers(): void {
     postGraphAbort(sessionId)
   })
   ipcMain.handle(IpcChannels.postAgentResyncRenderer, () => {
-    postGraphResyncAfterRendererLoad()
+    return postGraphResyncAfterRendererLoad()
+  })
+  ipcMain.handle(IpcChannels.queryAgentActiveRuns, () => {
+    return queryGraphActiveRuns()
   })
   ipcMain.handle(
     IpcChannels.postAgentContinue,

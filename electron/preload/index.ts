@@ -60,6 +60,7 @@ const api: ElectronApi = {
   postAgentAbort: (sessionId: string) =>
     ipcRenderer.invoke(IpcChannels.postAgentAbort, sessionId),
   postAgentResyncRenderer: () => ipcRenderer.invoke(IpcChannels.postAgentResyncRenderer),
+  queryAgentActiveRuns: () => ipcRenderer.invoke(IpcChannels.queryAgentActiveRuns),
   postAgentContinue: (
     sessionId: string,
     payload?: import('../../shared/types').AgentContinuePayload | string
