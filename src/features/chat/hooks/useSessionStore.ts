@@ -19,6 +19,7 @@ import {
   postAgentContinue,
   postCreateSession,
   postDeleteSession,
+  postSession,
   queryAgentActiveRuns,
   querySession,
   querySessions
@@ -255,6 +256,8 @@ interface SessionState {
   setActive: (id: string | null) => void
   createSession: (type?: SessionType) => Promise<Session>
   removeSession: (id: string) => Promise<void>
+  /** 更新当前会话选用的自定义技能 id 并落盘 */
+  postSelectedSkillIds: (skillIds: string[]) => Promise<void>
   sendMessage: (content: string, attachmentPaths?: string[]) => Promise<void>
   abort: () => Promise<void>
   continueRun: (payload?: AgentContinuePayload) => Promise<void>
@@ -607,6 +610,26 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         )
       }
     })
+  },
+
+  postSelectedSkillIds: async (skillIds) => {
+    const state = get()
+    const id = state.activeSessionId
+    if (!id) return
+    const session = state.sessions.find((s) => s.id === id)
+    if (!session) return
+    const selectedSkillIds = Array.from(
+      new Set(skillIds.map((s) => s.trim()).filter(Boolean))
+    )
+    const next: Session = {
+      ...session,
+      selectedSkillIds,
+      updatedAt: Date.now()
+    }
+    await postSession(next)
+    set((s) => ({
+      sessions: patchSession(s.sessions, id, () => next)
+    }))
   },
 
   sendMessage: async (content, attachmentPaths) => {

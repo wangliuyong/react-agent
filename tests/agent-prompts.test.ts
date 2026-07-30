@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const promptMocks = vi.hoisted(() => ({
   queryEnabledRulePrompt: vi.fn(() => '用户规则'),
-  queryEnabledSkillPrompt: vi.fn(() => '项目技能')
+  queryInjectableSkillPrompt: vi.fn(() => '项目技能')
 }))
 
 vi.mock('../electron/main/store/rules', () => ({
@@ -10,7 +10,7 @@ vi.mock('../electron/main/store/rules', () => ({
 }))
 
 vi.mock('../electron/main/store/skills', () => ({
-  queryEnabledSkillPrompt: promptMocks.queryEnabledSkillPrompt
+  queryInjectableSkillPrompt: promptMocks.queryInjectableSkillPrompt
 }))
 
 import { buildRoleSystemPrompt } from '../electron/main/agent/graph/prompts'
@@ -26,19 +26,33 @@ describe('角色提示词 Token 预算', () => {
     expect(prompt).not.toContain('用户规则')
     expect(prompt).not.toContain('项目技能')
     expect(promptMocks.queryEnabledRulePrompt).not.toHaveBeenCalled()
-    expect(promptMocks.queryEnabledSkillPrompt).not.toHaveBeenCalled()
+    expect(promptMocks.queryInjectableSkillPrompt).not.toHaveBeenCalled()
   })
 
   it('普通角色使用受限的规则和技能字符预算', () => {
     const prompt = buildRoleSystemPrompt('general')
 
     expect(promptMocks.queryEnabledRulePrompt).toHaveBeenCalledWith(4_000)
-    expect(promptMocks.queryEnabledSkillPrompt).toHaveBeenCalledWith(4_000)
+    expect(promptMocks.queryInjectableSkillPrompt).toHaveBeenCalledWith(4_000, {
+      sessionSkillIds: [],
+      roleSkillIds: []
+    })
     expect(prompt).toContain('可用技能目录')
     expect(prompt).toContain('use_skill')
     expect(prompt).toContain('思考推理过程')
     expect(prompt).toContain('适用于全部模型输出')
     expect(prompt).toContain('执行模式：需确认')
+  })
+
+  it('传入 skillCtx 时合并会话与角色技能', () => {
+    buildRoleSystemPrompt('general', undefined, undefined, {
+      sessionSkillIds: ['a'],
+      roleSkillIds: ['b']
+    })
+    expect(promptMocks.queryInjectableSkillPrompt).toHaveBeenCalledWith(4_000, {
+      sessionSkillIds: ['a'],
+      roleSkillIds: ['b']
+    })
   })
 
   it('非 supervisor 角色在 system prompt 末尾强制简体中文（含思考）', () => {

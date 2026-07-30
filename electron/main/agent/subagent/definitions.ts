@@ -11,6 +11,7 @@ import type {
 import { buildRoleSystemPrompt } from '../graph/prompts'
 import { queryDefaultRoleToolWhitelist } from '../graph/role-tools'
 import { querySettings } from '../../store/settings'
+import type { SkillInjectContext } from '../../store/skills'
 
 type BuiltinSubagentRole = Exclude<BuiltinAgentRoleName, 'supervisor'>
 
@@ -37,8 +38,12 @@ const BUILTIN_SUBAGENT_LABELS: Record<string, string> = {
 
 /**
  * 按 agentType 解析子 Agent 定义；未知类型返回 null。
+ * @param skillCtx 可选；传入时注入会话选用技能（子 Agent runner 应传入）
  */
-export function querySubagentDefinition(agentType: string): SubagentDefinition | null {
+export function querySubagentDefinition(
+  agentType: string,
+  skillCtx?: SkillInjectContext
+): SubagentDefinition | null {
   const settings = querySettings()
 
   if (queryIsCustomAgentRoleId(agentType)) {
@@ -50,7 +55,8 @@ export function querySubagentDefinition(agentType: string): SubagentDefinition |
       systemPrompt: buildRoleSystemPrompt(
         custom.id,
         settings.rolePromptOverrides,
-        settings
+        settings,
+        skillCtx
       ),
       toolAllowlist: custom.toolWhitelist,
       toolDenylist: ['task'],
@@ -64,7 +70,7 @@ export function querySubagentDefinition(agentType: string): SubagentDefinition |
   return {
     id: agentType,
     name: BUILTIN_SUBAGENT_LABELS[agentType] ?? agentType,
-    systemPrompt: buildRoleSystemPrompt(role, settings.rolePromptOverrides, settings),
+    systemPrompt: buildRoleSystemPrompt(role, settings.rolePromptOverrides, settings, skillCtx),
     toolAllowlist: queryDefaultRoleToolWhitelist(role),
     toolDenylist: ['task'],
     modelRole: role as ModelRoleKey

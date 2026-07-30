@@ -31,6 +31,7 @@ const SAVED_SETTINGS: AppSettings = {
   roleModelMap: {},
   rolePromptOverrides: {},
   roleToolWhitelistOverrides: {},
+  roleSkillIds: {},
   customAgentRoles: [],
   fullAccess: true,
   thinkingEnabled: false,

@@ -37,6 +37,7 @@ export function ChatPage(): React.ReactElement {
   const continueRun = useSessionStore((s) => s.continueRun)
   const resumeRun = useSessionStore((s) => s.resumeRun)
   const canResume = useSessionStore((s) => s.canResume)
+  const postSelectedSkillIds = useSessionStore((s) => s.postSelectedSkillIds)
   const reconcileActiveExecutionState = useSessionStore((s) => s.reconcileActiveExecutionState)
   const createSession = useSessionStore((s) => s.createSession)
   const settings = useSettingsStore((s) => s.settings)
@@ -224,6 +225,8 @@ export function ChatPage(): React.ReactElement {
         awaitUserReason={awaitUserReason}
         awaitUserChoices={awaitUserChoices}
         tokenUsed={session?.tokenUsed ?? 0}
+        selectedSkillIds={session?.selectedSkillIds ?? []}
+        onSelectedSkillIdsChange={(ids) => void postSelectedSkillIds(ids)}
         onSend={(text, paths) => void sendMessage(text, paths)}
         onAbort={() => void abort()}
         onContinue={(userInput, choiceId) => void continueRun({ userInput, choiceId })}

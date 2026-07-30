@@ -6,6 +6,7 @@ import {
   queryMergeDefaultRolePromptOverrides,
   queryNormalizeCustomProviders,
   queryNormalizeProviderModelCatalog,
+  queryNormalizeRoleSkillIds,
   queryNormalizeRoleToolWhitelistOverrides,
   queryProviderOption,
   querySeedDefaultConnections,
@@ -186,6 +187,8 @@ export function normalizeSettings(
     raw.roleToolWhitelistOverrides
   )
 
+  const roleSkillIds = queryNormalizeRoleSkillIds(raw.roleSkillIds)
+
   const customAgentRoles = queryNormalizeCustomAgentRoles(raw.customAgentRoles)
 
   const draftForSync: AppSettings = {
@@ -199,6 +202,7 @@ export function normalizeSettings(
     roleModelMap,
     rolePromptOverrides,
     roleToolWhitelistOverrides,
+    roleSkillIds,
     customAgentRoles,
     customProviders
   }
@@ -214,6 +218,7 @@ export function normalizeSettings(
     roleModelMap,
     rolePromptOverrides,
     roleToolWhitelistOverrides,
+    roleSkillIds,
     customAgentRoles,
     fullAccess: Boolean(merged.fullAccess),
     thinkingEnabled: Boolean(merged.thinkingEnabled),

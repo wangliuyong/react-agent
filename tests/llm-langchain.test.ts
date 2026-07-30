@@ -3,6 +3,7 @@ import type { AppSettings, ModelProvider } from '../shared/types'
 import {
   DEFAULT_CONNECTION,
   DEFAULT_CONNECTION_ID,
+  DEFAULT_SETTINGS,
   queryThinkingModelKwargs
 } from '../shared/types'
 import { queryChatModelConfig } from '../electron/main/agent/llm-langchain'
@@ -22,6 +23,7 @@ function querySettingsWithConnection(opts: {
       : 'https://dashscope.aliyuncs.com/compatible-mode/v1')
   const model = opts.model ?? (provider === 'deepseek' ? 'deepseek-v4-flash' : 'qwen-plus')
   return {
+    ...DEFAULT_SETTINGS,
     provider,
     apiKey,
     baseUrl,

@@ -129,38 +129,89 @@ previewKind: hot-news-wide
     )
   })
 
-  it('提示词只暴露已启用技能目录，正文仅在显式使用技能时读取', async () => {
+  it('内置始终注入；自定义可全局开关或会话/角色选中', async () => {
     const {
       postProjectSkill,
       postSkillStates,
       queryEnabledSkillContent,
-      queryEnabledSkillPrompt
+      queryEnabledSkillPrompt,
+      queryInjectableSkillContent,
+      queryInjectableSkillPrompt,
+      queryInjectableSkills
     } = await import('../electron/main/store/skills')
 
+    // 内置技能（react-agent- 前缀）：始终注入，即使写入 enabled=false 也被忽略
     postProjectSkill({
-      id: 'writing-guide',
+      id: 'react-agent-writing',
       name: '写作指南',
       description: '在撰写营销文案时使用',
       content: '# 私有正文\n\n先提炼卖点，再组织文案。',
       examplesContent: '# 示例\n\n一条示例文案'
     })
+    postSkillStates({ 'react-agent-writing': { enabled: false } })
+
+    // 自定义：全局启用则进入无上下文目录
+    postProjectSkill({
+      id: 'custom-guide',
+      name: '自定义指南',
+      description: '可全局注入',
+      content: '# 自定义正文'
+    })
+    postSkillStates({ 'custom-guide': { enabled: true } })
+
     postProjectSkill({
       id: 'disabled-guide',
       name: '停用指南',
-      description: '不应提供给 Agent',
+      description: '不应全局提供给 Agent',
       content: '# 停用正文'
     })
     postSkillStates({ 'disabled-guide': { enabled: false } })
 
     const prompt = queryEnabledSkillPrompt()
-
-    expect(prompt).toContain('writing-guide')
+    expect(prompt).toContain('react-agent-writing')
     expect(prompt).toContain('在撰写营销文案时使用')
     expect(prompt).not.toContain('先提炼卖点')
+    expect(prompt).toContain('custom-guide')
     expect(prompt).not.toContain('disabled-guide')
-    expect(queryEnabledSkillContent('writing-guide')).toContain('先提炼卖点')
-    expect(queryEnabledSkillContent('writing-guide')).toContain('一条示例文案')
+    expect(queryEnabledSkillContent('react-agent-writing')).toContain('先提炼卖点')
+    expect(queryEnabledSkillContent('custom-guide')).toContain('自定义正文')
     expect(queryEnabledSkillContent('disabled-guide')).toBeNull()
+
+    // 未全局启用的自定义：会话选中后进入并集
+    const withSession = queryInjectableSkillPrompt(12_000, {
+      sessionSkillIds: ['disabled-guide']
+    })
+    expect(withSession).toContain('react-agent-writing')
+    expect(withSession).toContain('custom-guide')
+    expect(withSession).toContain('disabled-guide')
+    expect(
+      queryInjectableSkillContent('disabled-guide', { sessionSkillIds: ['disabled-guide'] })
+    ).toContain('停用正文')
+
+    // 角色关联与会话并集去重
+    const union = queryInjectableSkills({
+      sessionSkillIds: ['disabled-guide'],
+      roleSkillIds: ['disabled-guide', 'missing-skill']
+    })
+    expect(union.map((s) => s.id).sort()).toEqual([
+      'custom-guide',
+      'disabled-guide',
+      'react-agent-writing'
+    ])
+  })
+
+  it('新建自定义技能默认 enabled=false，不进入无上下文目录', async () => {
+    const { postProjectSkill, queryEnabledSkillPrompt, queryProjectSkills } = await import(
+      '../electron/main/store/skills'
+    )
+    postProjectSkill({
+      id: 'brand-new',
+      name: '新技能',
+      description: '新建',
+      content: 'body'
+    })
+    expect(queryProjectSkills().find((s) => s.id === 'brand-new')?.enabled).toBe(false)
+    expect(queryEnabledSkillPrompt()).not.toContain('brand-new')
   })
 
   it('启动时安装缺失的 Remotion 技能并默认启用（不覆盖手动禁用）', async () => {
@@ -196,28 +247,33 @@ previewKind: hot-news-wide
 
     postSkillStates({ 'remotion-create': { enabled: false } })
     postEnsureRemotionSkillsEnabled()
-    expect(queryProjectSkills().find((s) => s.id === 'remotion-create')?.enabled).toBe(false)
+    // 内置技能禁用全局开关：postSkillStates 忽略内置 enabled 变更
+    expect(queryProjectSkills().find((s) => s.id === 'remotion-create')?.enabled).toBe(true)
   })
 
   it('技能目录达到预算时不会截断单条技能信息', async () => {
-    const { postProjectSkill, queryEnabledSkillPrompt } = await import(
+    const { postProjectSkill, postSkillStates, queryInjectableSkillPrompt } = await import(
       '../electron/main/store/skills'
     )
     postProjectSkill({
-      id: 'alpha',
+      id: 'react-agent-alpha',
       name: 'A',
       description: 'first',
       content: 'alpha content'
     })
     postProjectSkill({
-      id: 'beta',
+      id: 'react-agent-beta',
       name: 'B',
       description: 'second',
       content: 'beta content'
     })
+    postSkillStates({
+      'react-agent-alpha': { enabled: true },
+      'react-agent-beta': { enabled: true }
+    })
 
-    const firstEntry = '- `alpha`：A — first'
-    const prompt = queryEnabledSkillPrompt(firstEntry.length + 5)
+    const firstEntry = '- `react-agent-alpha`：A — first'
+    const prompt = queryInjectableSkillPrompt(firstEntry.length + 5, {})
 
     expect(prompt).toContain(firstEntry)
     expect(prompt).not.toContain('\n- `')

@@ -76,12 +76,15 @@ function sortTemplates(list: SkillTemplate[], sort: SkillSort): SkillTemplate[] 
   return next.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
 }
 
-/** 技能卡片状态标签：未启用显示草稿，已启用显示状态（样式对齐实体卡片） */
+/** 技能卡片状态标签：内置始终全局注入；自定义看全局开关 */
 function SkillStatusTag({ skill }: { skill: ProjectSkill }): React.ReactElement {
-  if (!skill.enabled) {
-    return <Tag className={cardStyles.warningTag}>草稿</Tag>
+  if (skill.isBuiltin) {
+    return <Tag className={cardStyles.successTag}>已全局注入</Tag>
   }
-  return <Tag className={cardStyles.successTag}>已启用</Tag>
+  if (!skill.enabled) {
+    return <Tag className={cardStyles.warningTag}>未全局注入</Tag>
+  }
+  return <Tag className={cardStyles.successTag}>已全局注入</Tag>
 }
 
 /** 技能市场：卡片网格浏览、筛选、详情弹窗与新建/编辑抽屉 CRUD */
@@ -153,16 +156,17 @@ export function SkillsPage(): React.ReactElement {
   const tabCount = useMemo(() => {
     if (tab === 'market') return templates.length
     if (tab === 'all') return skills.length
-    if (tab === 'active') return skills.filter((s) => s.enabled).length
-    if (tab === 'archived') return skills.filter((s) => !s.enabled).length
+    if (tab === 'active') return skills.filter((s) => s.isBuiltin || s.enabled).length
+    if (tab === 'archived') return skills.filter((s) => !s.isBuiltin && !s.enabled).length
     return skills.filter((s) => !s.isBuiltin).length
   }, [tab, skills, templates])
 
   /** 经过 Tab、范围、搜索、排序后的技能列表 */
   const filteredSkills = useMemo(() => {
     let list = skills
-    if (tab === 'active') list = list.filter((s) => s.enabled)
-    else if (tab === 'archived') list = list.filter((s) => !s.enabled)
+    // active：内置全部 + 已全局注入的自定义；archived：未全局注入的自定义
+    if (tab === 'active') list = list.filter((s) => s.isBuiltin || s.enabled)
+    else if (tab === 'archived') list = list.filter((s) => !s.isBuiltin && !s.enabled)
     else if (tab === 'mine') list = list.filter((s) => !s.isBuiltin)
     // tab === 'all'：不过滤启用状态，展示全部技能
 
@@ -494,7 +498,7 @@ export function SkillsPage(): React.ReactElement {
         icon={<ThunderboltOutlined />}
         title="技能"
         badge={skills.length}
-        description="将领域知识注入 Agent 系统提示"
+        description="内置技能始终全局注入；自定义技能可开全局注入，或在聊天框/角色设定中选用"
         extra={
           <Space wrap>
             <Button icon={<ImportOutlined />} onClick={openImportModal}>
@@ -771,13 +775,19 @@ export function SkillsPage(): React.ReactElement {
                       删除
                     </Button>
                   </Popconfirm>
-                  <div className={styles.injectToggle}>
-                    <span className={styles.injectLabel}>注入 Agent</span>
-                    <Switch
-                      checked={detail.enabled}
-                      onChange={(v) => void toggleEnabled(detail.id, v)}
-                    />
-                  </div>
+                  {detail.isBuiltin ? (
+                    <Text type="secondary" className={styles.injectLabel}>
+                      内置技能始终全局注入（不可关闭）
+                    </Text>
+                  ) : (
+                    <div className={styles.injectToggle}>
+                      <span className={styles.injectLabel}>注入 Agent</span>
+                      <Switch
+                        checked={detail.enabled}
+                        onChange={(v) => void toggleEnabled(detail.id, v)}
+                      />
+                    </div>
+                  )}
                 </Space>
               </div>
 

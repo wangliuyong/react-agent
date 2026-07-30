@@ -1,4 +1,4 @@
-import { queryEnabledSkillPrompt } from '../../store/skills'
+import { queryInjectableSkillPrompt, type SkillInjectContext } from '../../store/skills'
 import { queryEnabledRulePrompt } from '../../store/rules'
 import { queryCustomAgentRole, queryIsCustomAgentRoleId } from '../../../../shared/agent-role-registry'
 import type {
@@ -204,14 +204,24 @@ const ROLE_CONTEXT_BUDGETS: Record<
 
 /**
  * 组装角色 system prompt：角色说明 + 访问模式 + 用户规则 + 技能目录 + 可选用户角色设定。
+ * @param skillCtx 会话选用 + 角色关联的自定义技能；缺省仅注入已启用内置技能
  */
 export function buildRoleSystemPrompt(
   role: AgentRoleName,
   rolePromptOverrides?: Partial<Record<ModelRoleKey, string>>,
-  settings?: Pick<AppSettings, 'customAgentRoles' | 'fullAccess'>
+  settings?: Partial<Pick<AppSettings, 'customAgentRoles' | 'fullAccess' | 'roleSkillIds'>>,
+  skillCtx?: SkillInjectContext
 ): string {
   const fullAccess = Boolean(settings?.fullAccess)
   const modeBlock = queryFullAccessModeBlock(fullAccess)
+  // 角色关联技能并入上下文（调用方也可直接传入完整 skillCtx.roleSkillIds）
+  const resolvedSkillCtx: SkillInjectContext = {
+    sessionSkillIds: skillCtx?.sessionSkillIds ?? [],
+    roleSkillIds:
+      skillCtx?.roleSkillIds ??
+      settings?.roleSkillIds?.[role as ModelRoleKey] ??
+      []
+  }
 
   if (role === 'supervisor') {
     let prompt = ROLE_PROMPTS.supervisor
@@ -243,7 +253,7 @@ export function buildRoleSystemPrompt(
     }
     const budget = ROLE_CONTEXT_BUDGETS.general
     const ruleBlock = queryEnabledRulePrompt(budget.ruleChars)
-    const skillBlock = queryEnabledSkillPrompt(budget.skillChars)
+    const skillBlock = queryInjectableSkillPrompt(budget.skillChars, resolvedSkillCtx)
     if (ruleBlock) {
       parts.push(
         `## 用户规则（必须优先遵循）\n\n以下规则适用于全部模型输出，包括思考推理过程与对用户的正式回复：\n\n${ruleBlock}`
@@ -267,7 +277,7 @@ export function buildRoleSystemPrompt(
   }
   const budget = ROLE_CONTEXT_BUDGETS[builtin as Exclude<BuiltinAgentRoleName, 'supervisor'>]
   const ruleBlock = queryEnabledRulePrompt(budget.ruleChars)
-  const skillBlock = queryEnabledSkillPrompt(budget.skillChars)
+  const skillBlock = queryInjectableSkillPrompt(budget.skillChars, resolvedSkillCtx)
   if (ruleBlock) {
     parts.push(
       `## 用户规则（必须优先遵循）\n\n以下规则适用于全部模型输出，包括思考推理过程与对用户的正式回复：\n\n${ruleBlock}`

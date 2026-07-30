@@ -10,6 +10,7 @@ import {
   type UserChoiceOption
 } from '@shared/types'
 import { useSettingsStore } from '@/features/settings'
+import { useSkillsStore } from '@/features/skills'
 import { useChatAttachments } from '../../hooks/useChatAttachments'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
 import { AttachmentPreviewList } from '../AttachmentPreviewList'
@@ -41,12 +42,16 @@ interface ChatInputProps {
   /** 挂起确认时的可选方案 */
   awaitUserChoices?: UserChoiceOption[] | null
   tokenUsed?: number
+  /** 本会话已选用的自定义技能 id */
+  selectedSkillIds?: string[]
+  /** 更新会话选用技能 */
+  onSelectedSkillIdsChange?: (ids: string[]) => void
   onSend: (text: string, paths: string[]) => void
   onAbort: () => void
   onContinue: (userInput?: string, choiceId?: string) => void
 }
 
-/** 底部输入条：附件 / 完全访问 / 模型 / 发送 */
+/** 底部输入条：附件 / 学习技能 / 完全访问 / 模型 / 发送 */
 export function ChatInput({
   disabled,
   sendDisabledHint,
@@ -60,12 +65,15 @@ export function ChatInput({
   awaitUserReason,
   awaitUserChoices = null,
   tokenUsed = 0,
+  selectedSkillIds = [],
+  onSelectedSkillIdsChange,
   onSend,
   onAbort,
   onContinue
 }: ChatInputProps): React.ReactElement {
   const [text, setText] = useState('')
   const [modelSwitching, setModelSwitching] = useState(false)
+  const [skillPopoverOpen, setSkillPopoverOpen] = useState(false)
   const {
     attachments,
     paths,
@@ -75,6 +83,16 @@ export function ChatInput({
   } = useChatAttachments()
   const settings = useSettingsStore((s) => s.settings)
   const postSettings = useSettingsStore((s) => s.postSettings)
+  const skills = useSkillsStore((s) => s.skills)
+  const hydrateSkills = useSkillsStore((s) => s.hydrate)
+
+  useEffect(() => {
+    void hydrateSkills()
+  }, [hydrateSkills])
+
+  const customSkills = useMemo(() => skills.filter((s) => !s.isBuiltin), [skills])
+  /** 内置技能始终全局注入，弹层只读提示 */
+  const builtinSkills = useMemo(() => skills.filter((s) => s.isBuiltin), [skills])
 
   /** 主聊天实际调用的默认连接（可能与顶层 settings.model 不同步） */
   const generalChatConnection = useMemo(
@@ -301,6 +319,65 @@ export function ChatInput({
               >
                 <Button type="text" icon={<PaperClipOutlined />} disabled={running} />
               </Dropdown>
+              <Popover
+                trigger="click"
+                open={skillPopoverOpen}
+                onOpenChange={setSkillPopoverOpen}
+                placement="topLeft"
+                title="学习技能"
+                content={
+                  <div className={styles.skillPicker}>
+                    {builtinSkills.length > 0 ? (
+                      <Text type="secondary" className={styles.skillPickerHint}>
+                        已全局注入 {builtinSkills.length} 个内置技能
+                        {builtinSkills.length <= 4
+                          ? `：${builtinSkills.map((s) => s.name).join('、')}`
+                          : ''}
+                      </Text>
+                    ) : (
+                      <Text type="secondary" className={styles.skillPickerHint}>
+                        当前无内置技能
+                      </Text>
+                    )}
+                    <Text type="secondary" className={styles.skillPickerHint}>
+                      自定义技能可在技能市场开全局注入，或在此勾选后注入本会话
+                    </Text>
+                    <Select
+                      mode="multiple"
+                      allowClear
+                      showSearch
+                      placeholder={
+                        customSkills.length ? '选择要注入的自定义技能' : '暂无自定义技能'
+                      }
+                      disabled={!onSelectedSkillIdsChange || customSkills.length === 0}
+                      value={selectedSkillIds}
+                      optionFilterProp="label"
+                      style={{ width: 320 }}
+                      options={customSkills.map((s) => ({
+                        value: s.id,
+                        label: s.name,
+                        title: s.description
+                      }))}
+                      onChange={(ids) => onSelectedSkillIdsChange?.(ids as string[])}
+                    />
+                  </div>
+                }
+              >
+                <Tooltip title="学习技能：为本会话选用自定义技能">
+                  <Badge
+                    count={selectedSkillIds.length}
+                    size="small"
+                    offset={[-2, 2]}
+                    overflowCount={99}
+                  >
+                    <Button
+                      type="text"
+                      icon={<ThunderboltOutlined />}
+                      disabled={running || disabled}
+                    />
+                  </Badge>
+                </Tooltip>
+              </Popover>
               <Dropdown
                 menu={{
                   items: [

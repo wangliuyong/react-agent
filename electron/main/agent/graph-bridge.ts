@@ -448,6 +448,10 @@ function buildToolContext(
     signal,
     activeRole: 'supervisor',
     agentName: 'supervisor',
+    skillInjectCtx: {
+      sessionSkillIds: querySession(sessionId)?.selectedSkillIds ?? [],
+      roleSkillIds: []
+    },
     emitAwaitUser: async (reason, choices?, options?) => {
       return waitForGraphUserContinue(sessionId, {
         reason,
@@ -995,6 +999,11 @@ export async function runLangGraphStep(params: {
     true,
     capabilityBox
   )
+  const skillCtx = {
+    sessionSkillIds: session.selectedSkillIds ?? [],
+    roleSkillIds: settings.roleSkillIds?.general ?? []
+  }
+  toolCtx.skillInjectCtx = skillCtx
 
   let agent
   try {
@@ -1004,7 +1013,7 @@ export async function runLangGraphStep(params: {
       systemPrompt: buildRoleSystemPrompt('general', undefined, {
         ...settings,
         fullAccess: true
-      }),
+      }, skillCtx),
       toolWhitelist,
       stepPrompt: prompt,
       attachmentPaths,

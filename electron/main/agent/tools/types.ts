@@ -1,5 +1,6 @@
 import type { ModelCapability, TaskItem, ToolProgressPayload, UserChoiceOption } from '../../../../shared/types'
 import type { UserContinueResult } from '../choice-resolver'
+import type { SkillInjectContext } from '../../store/skills'
 
 /** 工具权限级别：敏感操作需用户确认或完全访问模式 */
 export type ToolPermission = 'safe' | 'sensitive' | 'dangerous'
@@ -43,6 +44,10 @@ export interface ToolContext {
    * 当前子图 / Agent 名称（如 role_researcher）；进入角色节点时写入。
    */
   agentName?: string
+  /**
+   * 当前可注入技能上下文（会话选用 ∪ 角色关联）；use_skill 按此白名单读取。
+   */
+  skillInjectCtx?: SkillInjectContext
 }
 
 export interface AgentTool {

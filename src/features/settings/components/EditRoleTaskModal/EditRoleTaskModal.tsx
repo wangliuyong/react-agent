@@ -16,6 +16,8 @@ export interface EditRoleTaskFormValues {
   /** true = 注入全部已注册工具 */
   toolInjectAll: boolean
   toolNames: string[]
+  /** 角色关联的自定义技能 id */
+  skillIds: string[]
 }
 
 export interface EditRoleTaskModalProps {
@@ -39,6 +41,10 @@ export interface EditRoleTaskModalProps {
   toolWhitelistCustomized?: boolean
   /** 自定义角色：编辑主系统说明（仅自定义角色展示） */
   customSystemPrompt?: string
+  /** 角色关联的自定义技能 id */
+  skillIds?: string[]
+  /** 可选自定义技能列表（value=id, label=name） */
+  skillOptions?: { value: string; label: string }[]
   connections: ModelConnection[]
   /** 自定义角色可删除；内置角色为 false */
   canDeleteRole?: boolean
@@ -54,6 +60,8 @@ export interface EditRoleTaskModalProps {
      * - string[]：显式白名单
      */
     toolWhitelist?: string[] | null | 'default'
+    /** 仅聊天管线角色：关联的自定义技能 id */
+    skillIds?: string[]
     customSystemPrompt?: string
   }) => void
   onDelete?: () => void
@@ -84,6 +92,8 @@ export function EditRoleTaskModal({
   defaultToolWhitelist = null,
   toolWhitelistCustomized = false,
   customSystemPrompt,
+  skillIds = [],
+  skillOptions = [],
   connections,
   canDeleteRole = false,
   onCancel,
@@ -105,7 +115,8 @@ export function EditRoleTaskModal({
       promptOverride: promptOverride ?? '',
       customSystemPrompt: customSystemPrompt ?? '',
       toolInjectAll: canEditTools ? toolWhitelist === null : false,
-      toolNames: canEditTools && Array.isArray(toolWhitelist) ? [...toolWhitelist] : []
+      toolNames: canEditTools && Array.isArray(toolWhitelist) ? [...toolWhitelist] : [],
+      skillIds: canEditTools ? [...skillIds] : []
     })
   }, [
     open,
@@ -114,6 +125,7 @@ export function EditRoleTaskModal({
     promptOverride,
     customSystemPrompt,
     toolWhitelist,
+    skillIds,
     canEditTools,
     form
   ])
@@ -166,6 +178,11 @@ export function EditRoleTaskModal({
       connectionId: values.connectionId,
       promptOverride: values.promptOverride.trim(),
       toolWhitelist: nextTools,
+      skillIds: canEditTools
+        ? Array.from(
+            new Set((values.skillIds ?? []).map((id) => String(id).trim()).filter(Boolean))
+          )
+        : undefined,
       customSystemPrompt: canDeleteRole ? String(values.customSystemPrompt ?? '').trim() : undefined
     })
   }
@@ -301,6 +318,23 @@ export function EditRoleTaskModal({
                 />
               </Form.Item>
             }
+
+            <Form.Item
+              label="关联技能"
+              name="skillIds"
+              extra="选用该角色时注入这些自定义技能（与会话「学习技能」、自定义全局注入取并集）。内置技能始终全局注入。"
+            >
+              <Select
+                mode="multiple"
+                allowClear
+                showSearch
+                placeholder={skillOptions.length ? '选择自定义技能' : '暂无自定义技能'}
+                disabled={skillOptions.length === 0}
+                options={skillOptions}
+                optionFilterProp="label"
+                maxTagCount="responsive"
+              />
+            </Form.Item>
 
           </>
         ) : null}

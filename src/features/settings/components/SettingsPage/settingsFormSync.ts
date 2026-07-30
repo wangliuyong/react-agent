@@ -38,6 +38,7 @@ export function querySettingsFormValues(settings: AppSettings): AppSettings {
     roleModelMap: settings.roleModelMap ?? {},
     rolePromptOverrides: settings.rolePromptOverrides ?? {},
     roleToolWhitelistOverrides: settings.roleToolWhitelistOverrides ?? {},
+    roleSkillIds: settings.roleSkillIds ?? {},
     customAgentRoles: settings.customAgentRoles ?? [],
     fullAccess: settings.fullAccess,
     thinkingEnabled: settings.thinkingEnabled,

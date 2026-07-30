@@ -125,11 +125,15 @@ export function queryPruneRoleSettingsForDeletedRole(
     roleModelMap: Record<string, string | undefined>
     rolePromptOverrides: Record<string, string | undefined>
     roleToolWhitelistOverrides: Record<string, string[] | null | undefined>
+    roleSkillIds?: Record<string, string[] | undefined>
   }
 ): void {
   delete patch.roleModelMap[roleId]
   delete patch.rolePromptOverrides[roleId]
   delete patch.roleToolWhitelistOverrides[roleId]
+  if (patch.roleSkillIds) {
+    delete patch.roleSkillIds[roleId]
+  }
 }
 
 export interface RoleTaskCardMeta {

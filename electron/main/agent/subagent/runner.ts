@@ -336,9 +336,18 @@ async function runSubagentJob(params: Required<
   })
 
   const settings = querySettings()
+  const parentSession = querySession(parentSessionId)
+  const roleKey = (def.modelRole ?? def.id) as string
+  const skillCtx = {
+    sessionSkillIds: parentSession?.selectedSkillIds ?? [],
+    roleSkillIds: settings.roleSkillIds?.[roleKey as keyof typeof settings.roleSkillIds] ?? []
+  }
+  // 带会话/角色技能上下文重建定义（首次 query 无会话上下文）
+  const defWithSkills = querySubagentDefinition(agentType, skillCtx) ?? def
+
   const tools = queryToolsForSubagent({
-    allowlist: def.toolAllowlist,
-    denylist: def.toolDenylist,
+    allowlist: defWithSkills.toolAllowlist,
+    denylist: defWithSkills.toolDenylist,
     forceDenyTask: true
   })
   const toolWhitelist = tools.map((t) => t.name)
@@ -349,8 +358,9 @@ async function runSubagentJob(params: Required<
     fullAccess: true,
     attachmentPaths,
     signal: parentSignal,
-    activeRole: def.modelRole ?? def.id,
-    agentName: def.name,
+    activeRole: defWithSkills.modelRole ?? defWithSkills.id,
+    agentName: defWithSkills.name,
+    skillInjectCtx: skillCtx,
     emitAwaitUser: async (reason, choices) => {
       return waitForGraphUserContinue(parentSessionId, { reason, choices })
     },
@@ -375,8 +385,8 @@ async function runSubagentJob(params: Required<
       ? '\n\n## 运行模式\n你继承了父会话的部分对话上下文（fork）。请聚焦当前任务，完成后输出精炼摘要。'
       : '\n\n## 运行模式\n你处于隔离上下文（isolated）。任务说明已自包含；完成后输出精炼摘要供主 Agent 使用。'
 
-  const systemPrompt = `${def.systemPrompt}${modeHint}`
-  const maxTurns = def.maxTurns ?? settings.maxTurns
+  const systemPrompt = `${defWithSkills.systemPrompt}${modeHint}`
+  const maxTurns = defWithSkills.maxTurns ?? settings.maxTurns
 
   let agent
   try {

@@ -1,4 +1,4 @@
-import { queryEnabledSkillContent } from '../../store/skills'
+import { queryInjectableSkillContent } from '../../store/skills'
 import type { AgentTool } from './types'
 
 /**
@@ -8,7 +8,7 @@ import type { AgentTool } from './types'
 export const useSkillTool: AgentTool = {
   name: 'use_skill',
   description:
-    '读取一个已启用技能的完整操作说明。仅当用户任务与可用技能目录中的描述明确匹配时调用。',
+    '读取一个已注入技能的完整操作说明。仅当用户任务与可用技能目录中的描述明确匹配时调用。',
   permission: 'safe',
   parameters: {
     type: 'object',
@@ -20,11 +20,11 @@ export const useSkillTool: AgentTool = {
     },
     required: ['skillId']
   },
-  async execute(args) {
+  async execute(args, ctx) {
     const skillId = String(args.skillId ?? '').trim()
     if (!skillId) return '请提供要使用的技能 id'
 
-    const content = queryEnabledSkillContent(skillId)
-    return content ?? `技能「${skillId}」未启用或不存在`
+    const content = queryInjectableSkillContent(skillId, ctx.skillInjectCtx ?? {})
+    return content ?? `技能「${skillId}」未注入或不存在（请在聊天框「学习技能」或角色设定中选用）`
   }
 }

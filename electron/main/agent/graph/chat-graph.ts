@@ -24,6 +24,8 @@ import {
   querySanitizeModelCapability,
   type SupervisorNextTarget
 } from '../model-router'
+import { querySession } from '../../store/sessions'
+import type { SkillInjectContext } from '../../store/skills'
 
 /** 进程内唯一 checkpointer；thread_id = sessionId */
 export const chatCheckpointer = new MemorySaver()
@@ -47,6 +49,19 @@ export interface BuildChatGraphParams {
 }
 
 type PipelineRole = Exclude<AgentRoleName, 'supervisor'>
+
+/** 组装当前角色的技能注入上下文（会话选中 ∪ 角色关联） */
+function querySkillCtxForRole(
+  role: AgentRoleName,
+  settings: AppSettings,
+  sessionId: string
+): SkillInjectContext {
+  const session = querySession(sessionId)
+  return {
+    sessionSkillIds: session?.selectedSkillIds ?? [],
+    roleSkillIds: settings.roleSkillIds?.[role as ModelRoleKey] ?? []
+  }
+}
 
 /**
  * 构建聊天多智能体协作图：
@@ -96,6 +111,8 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     // 报错上下文：工具失败 / LLM 失败时带上角色与 Agent 名
     toolCtx.activeRole = role
     toolCtx.agentName = `role_${role}`
+    const skillCtx = querySkillCtxForRole(role, settings, toolCtx.sessionId)
+    toolCtx.skillInjectCtx = skillCtx
 
     const tools = adaptAgentTools(
       queryToolsForRole(
@@ -112,7 +129,8 @@ export function buildChatGraph(params: BuildChatGraphParams) {
       systemPrompt: buildRoleSystemPrompt(
         role,
         settings.rolePromptOverrides,
-        settings
+        settings,
+        skillCtx
       ),
       name: `role_${role}`
     })

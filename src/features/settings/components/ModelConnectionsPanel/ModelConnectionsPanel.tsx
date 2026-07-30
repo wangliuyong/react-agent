@@ -12,6 +12,7 @@ import {
   type ModelRoleKey,
   type RoleModelMap,
   type RolePromptOverrides,
+  type RoleSkillIds,
   type RoleToolWhitelistOverrides
 } from '@shared/types'
 import {
@@ -21,6 +22,7 @@ import {
   queryRoleTaskCardMetaList
 } from '@shared/agent-role-registry'
 import { useSettingsStore } from '../../hooks/useSettingsStore'
+import { useSkillsStore } from '@/features/skills'
 import { queryAgentToolsCatalog } from '../../api'
 import { AddCustomRoleModal } from '../AddCustomRoleModal'
 import { EditModelConnectionModal } from '../EditModelConnectionModal'
@@ -61,6 +63,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
   )
   const [roleToolWhitelistOverrides, setRoleToolWhitelistOverrides] =
     useState<RoleToolWhitelistOverrides>(settings.roleToolWhitelistOverrides ?? {})
+  const [roleSkillIds, setRoleSkillIds] = useState<RoleSkillIds>(settings.roleSkillIds ?? {})
   const [customAgentRoles, setCustomAgentRoles] = useState<CustomAgentRole[]>(
     settings.customAgentRoles ?? []
   )
@@ -68,6 +71,20 @@ export function ModelConnectionsPanel(): React.ReactElement {
   const [editingConnection, setEditingConnection] = useState<ModelConnection | null>(null)
   const [editingRole, setEditingRole] = useState<ModelRoleKey | null>(null)
   const [addingRole, setAddingRole] = useState(false)
+  const skills = useSkillsStore((s) => s.skills)
+  const hydrateSkills = useSkillsStore((s) => s.hydrate)
+
+  const customSkillOptions = useMemo(
+    () =>
+      skills
+        .filter((s) => !s.isBuiltin)
+        .map((s) => ({ value: s.id, label: s.name })),
+    [skills]
+  )
+
+  useEffect(() => {
+    void hydrateSkills()
+  }, [hydrateSkills])
 
   const providerLabelById = useMemo(() => {
     const map = new Map<string, string>()
@@ -94,6 +111,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
     setRoleModelMap(settings.roleModelMap ?? {})
     setRolePromptOverrides(settings.rolePromptOverrides ?? {})
     setRoleToolWhitelistOverrides(settings.roleToolWhitelistOverrides ?? {})
+    setRoleSkillIds(settings.roleSkillIds ?? {})
     setCustomAgentRoles(settings.customAgentRoles ?? [])
   }, [
     settings.connections,
@@ -101,6 +119,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
     settings.roleModelMap,
     settings.rolePromptOverrides,
     settings.roleToolWhitelistOverrides,
+    settings.roleSkillIds,
     settings.customAgentRoles,
     settings.apiKey,
     settings.provider,
@@ -141,6 +160,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
         roleModelMap,
         rolePromptOverrides,
         roleToolWhitelistOverrides,
+        roleSkillIds,
         customAgentRoles
       })
       message.success('模型连接已保存')
@@ -199,6 +219,11 @@ export function ModelConnectionsPanel(): React.ReactElement {
           return next
         })
         setRoleToolWhitelistOverrides((prev) => {
+          const next = { ...prev }
+          delete next[roleId]
+          return next
+        })
+        setRoleSkillIds((prev) => {
           const next = { ...prev }
           delete next[roleId]
           return next
@@ -381,6 +406,7 @@ export function ModelConnectionsPanel(): React.ReactElement {
               roleToolWhitelistOverrides,
               role.value
             )
+            const linkedSkills = roleSkillIds[role.value] ?? []
 
             return (
               <button
@@ -415,6 +441,9 @@ export function ModelConnectionsPanel(): React.ReactElement {
                   ) : null}
                   {toolsCustomized ? (
                     <Tag className={styles.customPromptTag}>已自定义工具</Tag>
+                  ) : null}
+                  {linkedSkills.length > 0 ? (
+                    <Tag className={styles.customPromptTag}>技能 {linkedSkills.length}</Tag>
                   ) : null}
                 </div>
               </button>
@@ -466,11 +495,13 @@ export function ModelConnectionsPanel(): React.ReactElement {
           editingRole &&
             Object.prototype.hasOwnProperty.call(roleToolWhitelistOverrides, editingRole)
         )}
+        skillIds={editingRole ? roleSkillIds[editingRole] ?? [] : []}
+        skillOptions={customSkillOptions}
         connections={connections}
         canDeleteRole={Boolean(editingRole && queryIsCustomAgentRoleId(editingRole))}
         onCancel={() => setEditingRole(null)}
         onDelete={handleDeleteEditingRole}
-        onSubmit={({ connectionId, promptOverride, toolWhitelist, customSystemPrompt }) => {
+        onSubmit={({ connectionId, promptOverride, toolWhitelist, skillIds, customSystemPrompt }) => {
           if (!editingRole) return
           setRoleModelMap((prev) => {
             const next = { ...prev }
@@ -492,6 +523,14 @@ export function ModelConnectionsPanel(): React.ReactElement {
               } else {
                 next[editingRole] = toolWhitelist
               }
+              return next
+            })
+          }
+          if (skillIds !== undefined && queryIsChatPipelineRole(editingRole)) {
+            setRoleSkillIds((prev) => {
+              const next = { ...prev }
+              if (!skillIds.length) delete next[editingRole]
+              else next[editingRole] = skillIds
               return next
             })
           }

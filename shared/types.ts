@@ -244,6 +244,29 @@ export function queryNormalizeRoleToolWhitelistOverrides(
   return out
 }
 
+/**
+ * 聊天管线角色关联的自定义技能 id 列表。
+ * 与会话 selectedSkillIds、自定义全局 enabled、内置技能取并集后注入 Agent。
+ */
+export type RoleSkillIds = Partial<Record<ModelRoleKey, string[]>>
+
+/** 归一化角色关联技能；仅保留聊天管线角色与非空 id */
+export function queryNormalizeRoleSkillIds(raw: unknown): RoleSkillIds {
+  if (!raw || typeof raw !== 'object') return {}
+  const out: RoleSkillIds = {}
+  for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (!queryIsChatPipelineRole(key as ModelRoleKey)) continue
+    if (!Array.isArray(val)) continue
+    const ids = Array.from(
+      new Set(val.map((item) => String(item).trim()).filter(Boolean))
+    )
+    if (ids.length > 0) {
+      out[key as ModelRoleKey] = ids
+    }
+  }
+  return out
+}
+
 export interface AppSettings {
   /**
    * @deprecated 兼容旧单模型字段；归一化后同步到 connections[0]
@@ -265,6 +288,11 @@ export interface AppSettings {
   rolePromptOverrides: RolePromptOverrides
   /** 用户自定义聊天管线角色工具白名单（相对内置 ROLE_WHITELIST） */
   roleToolWhitelistOverrides: RoleToolWhitelistOverrides
+  /**
+   * 角色关联的自定义技能 id（使用该角色时注入）。
+   * 内置技能始终全局注入；自定义可开全局注入，或会话/角色勾选。
+   */
+  roleSkillIds: RoleSkillIds
   /** 用户新增的自定义聊天角色（内置角色不可删） */
   customAgentRoles: CustomAgentRole[]
   /** 完全访问：跳过敏感确认与方案选择；自动发布/流程连续执行（确认节点、扫码、渲染除外） */
@@ -644,6 +672,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   roleModelMap: { ...DEFAULT_ROLE_MODEL_MAP },
   rolePromptOverrides: { ...DEFAULT_ROLE_PROMPT_OVERRIDES },
   roleToolWhitelistOverrides: {},
+  roleSkillIds: {},
   customAgentRoles: [],
   fullAccess: false,
   thinkingEnabled: false,
@@ -1743,6 +1772,11 @@ export interface Session {
   type?: SessionType
   /** 子 Agent 运行记录（仅父会话） */
   subagentRuns?: SubagentRunMeta[]
+  /**
+   * 本会话手动选用的自定义技能 id（聊天框「学习技能」）。
+   * 与自定义全局 enabled、角色关联、内置技能取并集后注入。
+   */
+  selectedSkillIds?: string[]
   /** 累计估算 token（展示用） */
   tokenUsed: number
   createdAt: number

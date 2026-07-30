@@ -37,8 +37,13 @@ function getSkillTemplatesDir(): string {
 }
 
 /** 是否为项目内置技能 id（平台技能，含 Remotion 套件） */
-function isBuiltinSkillId(id: string): boolean {
+export function queryIsBuiltinSkillId(id: string): boolean {
   return id.startsWith('react-agent-') || id.startsWith('remotion-')
+}
+
+/** @deprecated 使用 queryIsBuiltinSkillId */
+function isBuiltinSkillId(id: string): boolean {
+  return queryIsBuiltinSkillId(id)
 }
 
 /** 启动时默认启用的 Remotion 相关技能（仅在未写入状态时设为启用，不覆盖用户手动关闭） */
@@ -240,7 +245,10 @@ export function queryProjectSkills(): ProjectSkill[] {
         description,
         existsSync(examplesPath),
         stat.mtimeMs,
-        states[entry.name]?.enabled ?? true
+        // 内置始终视为已注入；自定义缺省不全局注入
+        queryIsBuiltinSkillId(entry.name)
+          ? true
+          : (states[entry.name]?.enabled ?? false)
       )
     )
   }
@@ -266,7 +274,7 @@ export function queryProjectSkillDetail(id: string): ProjectSkillDetail | null {
       description,
       existsSync(examplesPath),
       statSync(skillPath).mtimeMs,
-      states[id]?.enabled ?? true
+      queryIsBuiltinSkillId(id) ? true : (states[id]?.enabled ?? false)
     ),
     content: body,
     examplesContent: existsSync(examplesPath)
@@ -309,6 +317,16 @@ export function postProjectSkill(input: SkillUpsertInput): ProjectSkillDetail {
 
   const detail = queryProjectSkillDetail(input.id)
   if (!detail) throw new Error('技能保存后读取失败')
+
+  // 新建自定义技能默认不写入全局注入；内置仍由 Remotion 启动逻辑控制
+  if (!queryIsBuiltinSkillId(input.id)) {
+    const states = readSkillStates()
+    if (states[input.id] === undefined) {
+      states[input.id] = { enabled: false }
+      writeSkillStates(states)
+    }
+  }
+
   return detail
 }
 
@@ -423,22 +441,59 @@ export function postInstallSkillTemplate(
 
   const detail = queryProjectSkillDetail(id)
   if (!detail) throw new Error('模板安装后读取失败')
+
+  // 非内置目标 id：默认不全局注入
+  if (!queryIsBuiltinSkillId(id)) {
+    const states = readSkillStates()
+    if (states[id] === undefined) {
+      states[id] = { enabled: false }
+      writeSkillStates(states)
+    }
+  }
+
   return detail
 }
 
-/** 更新技能启用状态 */
+/** 更新技能启用状态（仅自定义技能有意义；内置忽略写入） */
 export function postSkillStates(states: SkillStates): SkillStates {
-  const merged = { ...readSkillStates(), ...states }
+  const merged = { ...readSkillStates() }
+  for (const [id, state] of Object.entries(states)) {
+    // 内置技能禁用全局注入开关：不持久化其 enabled 变更
+    if (queryIsBuiltinSkillId(id)) continue
+    merged[id] = state
+  }
   writeSkillStates(merged)
   return merged
 }
 
 /**
- * 获取已启用技能的轻量目录，供 Agent 判断当前任务是否需要某项技能。
- * 完整正文不进入固定 system prompt，只有 Agent 调用 use_skill 时才读取。
+ * 技能注入上下文：会话选用 + 当前角色关联的自定义技能。
+ * 内置技能始终全局注入（无开关）；自定义可全局 enabled，或通过会话/角色勾选。
  */
-export function queryEnabledSkillPrompt(maxChars = 12000): string {
-  const skills = queryProjectSkills().filter((s) => s.enabled)
+export interface SkillInjectContext {
+  sessionSkillIds?: string[]
+  roleSkillIds?: string[]
+}
+
+function querySelectedCustomSkillIdSet(ctx: SkillInjectContext): Set<string> {
+  const ids = [...(ctx.sessionSkillIds ?? []), ...(ctx.roleSkillIds ?? [])]
+  return new Set(ids.map((id) => id.trim()).filter(Boolean))
+}
+
+/**
+ * 可注入技能并集：
+ * - 内置：始终注入（禁用全局开关，无法关闭）
+ * - 自定义：全局 enabled，或出现在会话选中 / 角色关联中
+ */
+export function queryInjectableSkills(ctx: SkillInjectContext = {}): ProjectSkill[] {
+  const selected = querySelectedCustomSkillIdSet(ctx)
+  return queryProjectSkills().filter((skill) => {
+    if (skill.isBuiltin) return true
+    return skill.enabled || selected.has(skill.id)
+  })
+}
+
+function queryBuildSkillCatalogPrompt(skills: ProjectSkill[], maxChars: number): string {
   if (!skills.length) return ''
 
   const entries = skills.map(
@@ -461,17 +516,18 @@ export function queryEnabledSkillPrompt(maxChars = 12000): string {
     : catalog
 }
 
-/**
- * 按 id 读取单个已启用技能的完整说明。
- * 未启用和不存在的技能统一返回 null，避免绕过技能市场的启用状态。
- */
-export function queryEnabledSkillContent(id: string, maxChars = 12000): string | null {
-  const skill = queryProjectSkills().find((item) => item.id === id && item.enabled)
-  if (!skill) return null
+/** 可注入技能的轻量目录，供 system prompt 使用 */
+export function queryInjectableSkillPrompt(
+  maxChars = 12000,
+  ctx: SkillInjectContext = {}
+): string {
+  return queryBuildSkillCatalogPrompt(queryInjectableSkills(ctx), maxChars)
+}
 
-  const detail = queryProjectSkillDetail(skill.id)
-  if (!detail) return null
-
+function queryFormatSkillContent(
+  detail: ProjectSkillDetail,
+  maxChars: number
+): string {
   const sections = [
     `# 技能：${detail.name}`,
     detail.description ? `> ${detail.description}` : '',
@@ -483,4 +539,38 @@ export function queryEnabledSkillContent(id: string, maxChars = 12000): string |
   return content.length > maxChars
     ? `${content.slice(0, Math.max(0, maxChars))}\n\n...(技能内容已截断)`
     : content
+}
+
+/**
+ * 按 id 读取可注入技能的完整说明。
+ * 不在注入白名单内的技能返回 null。
+ */
+export function queryInjectableSkillContent(
+  id: string,
+  ctx: SkillInjectContext = {},
+  maxChars = 12000
+): string | null {
+  const skill = queryInjectableSkills(ctx).find((item) => item.id === id)
+  if (!skill) return null
+
+  const detail = queryProjectSkillDetail(skill.id)
+  if (!detail) return null
+
+  return queryFormatSkillContent(detail, maxChars)
+}
+
+/**
+ * 无会话/角色上下文时：内置全部 + 已全局启用的自定义技能。
+ * 完整正文不进入固定 system prompt，只有 Agent 调用 use_skill 时才读取。
+ */
+export function queryEnabledSkillPrompt(maxChars = 12000): string {
+  return queryInjectableSkillPrompt(maxChars, {})
+}
+
+/**
+ * 按 id 读取单个可注入技能的完整说明（无上下文时：内置全部 + 自定义 enabled）。
+ * 未启用和不存在的技能统一返回 null。
+ */
+export function queryEnabledSkillContent(id: string, maxChars = 12000): string | null {
+  return queryInjectableSkillContent(id, {}, maxChars)
 }
