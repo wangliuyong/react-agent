@@ -159,6 +159,38 @@ export function SettingsPage(): React.ReactElement {
               <div className={cardStyles.cardHead}>
                 <div className={cardStyles.cardIdentity}>
                   <span className={cardStyles.cardIcon}>
+                    <MinusCircleOutlined />
+                  </span>
+                  <div className={cardStyles.cardTitleBlock}>
+                    <span className={cardStyles.cardTitle}>关闭到托盘</span>
+                    <Tag className={cardStyles.primaryTag}>托盘</Tag>
+                  </div>
+                </div>
+              </div>
+              <p className={cardStyles.cardDescription}>
+                关闭主窗口时隐藏到状态栏托盘，进程继续运行；可从托盘图标重新打开或彻底退出
+              </p>
+              <div className={cardStyles.cardFooter}>
+                <span className={cardStyles.footerHint}>本机偏好 · 即时生效</span>
+                <Switch
+                  checked={settings.closeToTray}
+                  disabled={!loaded}
+                  onChange={async (checked) => {
+                    try {
+                      await postSettings({ closeToTray: checked })
+                      message.success(checked ? '已开启关闭到托盘' : '已关闭：关闭窗口将退出应用')
+                    } catch {
+                      message.error('更新托盘偏好失败，请重试')
+                    }
+                  }}
+                />
+              </div>
+            </Card>
+
+            <Card variant="borderless" className={cardStyles.card} style={{ '--card-index': 2 } as CSSProperties}>
+              <div className={cardStyles.cardHead}>
+                <div className={cardStyles.cardIdentity}>
+                  <span className={cardStyles.cardIcon}>
                     <RocketOutlined />
                   </span>
                   <div className={cardStyles.cardTitleBlock}>

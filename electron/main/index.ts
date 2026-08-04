@@ -17,6 +17,12 @@ import { postStopRemotionStudios } from './media/remotion-service'
 import { querySettings } from './store/settings'
 import { postLaunchAtLogin } from './store/launch-at-login'
 import {
+  postCreateTray,
+  postDestroyTray,
+  postHandleWindowClose,
+  postShowMainWindow
+} from './tray'
+import {
   postRegisterMediaProtocolHandler,
   registerMediaScheme
 } from './store/register-media-protocol'
@@ -25,6 +31,8 @@ import {
 registerMediaScheme()
 
 let mainWindow: BrowserWindow | null = null
+/** 为 true 时允许窗口真正关闭（托盘「退出」或系统退出） */
+let isQuitting = false
 
 /** 解析应用图标：开发期读仓库 resources，安装版读 extraResources */
 function resolveAppIconPath(): string {
@@ -73,6 +81,12 @@ function createWindow(): void {
 
   setMainWindow(mainWindow)
 
+  // 关闭按钮：默认隐藏到托盘，进程继续跑定时任务 / 渠道
+  mainWindow.on('close', (event) => {
+    if (!mainWindow) return
+    postHandleWindowClose(event, mainWindow, () => isQuitting)
+  })
+
   if (process.env.ELECTRON_RENDERER_URL) {
     // 本地开发：加载 Vite 开发服务器
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -99,6 +113,8 @@ app.whenReady().then(() => {
   postRegisterMediaProtocolHandler()
   registerIpcHandlers()
   createWindow()
+  // 状态栏托盘：关闭窗口后仍可通过图标唤起
+  postCreateTray(createWindow)
 
   // 非关键初始化延后到下一事件循环，不阻塞首屏
   void Promise.resolve().then(async () => {
@@ -118,20 +134,22 @@ app.whenReady().then(() => {
   })
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-    }
+    // Dock / 任务栏点击：显示已有窗口或重建
+    postShowMainWindow(createWindow)
   })
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  // 启用关闭到托盘时进程常驻；否则非 macOS 随最后窗口退出
+  if (process.platform === 'darwin') return
+  if (querySettings().closeToTray) return
+  app.quit()
 })
 
 // 退出时关闭 Playwright，避免 SingletonLock 残留导致下次「正在现有的浏览器会话中打开」
 app.on('before-quit', () => {
+  isQuitting = true
+  postDestroyTray()
   postStopRemotionStudios()
   void getBrowserService().close()
   releaseBrowserProfileLock()

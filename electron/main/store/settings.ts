@@ -224,6 +224,8 @@ export function normalizeSettings(
     thinkingEnabled: Boolean(merged.thinkingEnabled),
     maxTurns: Number(merged.maxTurns) || DEFAULT_SETTINGS.maxTurns,
     launchAtLogin: Boolean(merged.launchAtLogin),
+    // 缺省 true：关闭窗口进托盘，与状态栏图标能力配套
+    closeToTray: merged.closeToTray == null ? true : Boolean(merged.closeToTray),
     customProviders,
     providerModelCatalog: queryNormalizeProviderModelCatalog(raw.providerModelCatalog)
   }

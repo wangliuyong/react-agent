@@ -37,6 +37,7 @@ const SAVED_SETTINGS: AppSettings = {
   thinkingEnabled: false,
   maxTurns: 28,
   launchAtLogin: false,
+  closeToTray: true,
   customProviders: [],
   providerModelCatalog: {}
 }

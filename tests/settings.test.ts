@@ -83,6 +83,27 @@ describe('模型设置归一化', () => {
     ).toBe(true)
   })
 
+  it('缺省 closeToTray 时默认为 true', () => {
+    expect(
+      normalizeSettings({
+        apiKey: 'k',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        model: 'qwen-plus'
+      }).closeToTray
+    ).toBe(true)
+  })
+
+  it('保留显式设置的 closeToTray', () => {
+    expect(
+      normalizeSettings({
+        closeToTray: false,
+        apiKey: 'k',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        model: 'qwen-plus'
+      }).closeToTray
+    ).toBe(false)
+  })
+
   it('顶层当前选用供应商可与默认连接 provider 不同', () => {
     const settings = normalizeSettings({
       provider: 'dashscope',

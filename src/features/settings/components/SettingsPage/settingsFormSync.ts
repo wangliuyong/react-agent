@@ -44,6 +44,7 @@ export function querySettingsFormValues(settings: AppSettings): AppSettings {
     thinkingEnabled: settings.thinkingEnabled,
     maxTurns: settings.maxTurns,
     launchAtLogin: settings.launchAtLogin,
+    closeToTray: settings.closeToTray,
     customProviders: settings.customProviders ?? [],
     providerModelCatalog: settings.providerModelCatalog ?? {}
   }

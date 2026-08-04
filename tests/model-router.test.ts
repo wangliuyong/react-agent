@@ -36,6 +36,7 @@ function queryTestSettings(overrides?: Partial<AppSettings>): AppSettings {
     thinkingEnabled: false,
     maxTurns: 40,
     launchAtLogin: false,
+    closeToTray: true,
     customProviders: [],
     ...overrides
   }

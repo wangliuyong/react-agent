@@ -303,6 +303,11 @@ export interface AppSettings {
   maxTurns: number
   /** 登录系统后自动启动应用 */
   launchAtLogin: boolean
+  /**
+   * 关闭主窗口时隐藏到状态栏托盘（不退出进程）。
+   * 便于定时任务、渠道登录态在后台保持。
+   */
+  closeToTray: boolean
   /** 用户自定义模型供应商列表 */
   customProviders: CustomModelProvider[]
   /**
@@ -678,6 +683,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   thinkingEnabled: false,
   maxTurns: 40,
   launchAtLogin: false,
+  closeToTray: true,
   customProviders: [],
   providerModelCatalog: {}
 }
