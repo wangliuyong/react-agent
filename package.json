@@ -1,6 +1,6 @@
 {
   "name": "lingxi",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "灵犀 · AI助手",
   "main": "./out/main/index.js",
   "build": {
