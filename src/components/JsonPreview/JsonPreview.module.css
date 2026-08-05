@@ -30,6 +30,8 @@
 }
 
 .tree {
+  /* 占满工具栏下方剩余空间，长 JSON 在此区域滚动 */
+  flex: 1;
   overflow: auto;
   min-height: 0;
   font-family: 'SF Mono', ui-monospace, Menlo, monospace;
@@ -39,6 +41,8 @@
 
 .fallback {
   margin: 0;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   font-family: 'SF Mono', ui-monospace, Menlo, monospace;
   font-size: 12px;
