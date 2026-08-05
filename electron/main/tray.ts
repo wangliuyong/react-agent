@@ -54,13 +54,32 @@ export function postShowMainWindow(createWindow?: () => void): void {
 }
 
 /**
+ * 安全隐藏窗口。
+ * macOS 全屏下直接 hide() 会打断 Space 转场，留下整屏黑屏（AppKit / Electron 已知限制）；
+ * 需先退出全屏，等 leave-full-screen 后再 hide。
+ */
+export function postHideWindowSafely(win: BrowserWindow): void {
+  if (win.isDestroyed()) return
+
+  if (win.isFullScreen()) {
+    win.once('leave-full-screen', () => {
+      if (!win.isDestroyed()) win.hide()
+    })
+    win.setFullScreen(false)
+    return
+  }
+
+  win.hide()
+}
+
+/**
  * 隐藏主窗口到托盘（不退出进程）。
  * 定时任务、渠道会话等后台能力依赖进程继续存活。
  */
 export function postHideMainWindowToTray(): void {
   const win = getMainWindow()
   if (!win || win.isDestroyed()) return
-  win.hide()
+  postHideWindowSafely(win)
 }
 
 /** 是否启用「关闭窗口时最小化到托盘」 */
@@ -137,6 +156,6 @@ export function postHandleWindowClose(
   if (!tray || tray.isDestroyed()) return false
 
   event.preventDefault()
-  win.hide()
+  postHideWindowSafely(win)
   return true
 }
