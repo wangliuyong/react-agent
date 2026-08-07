@@ -18,6 +18,15 @@ type BuiltinPipelineRole = Exclude<BuiltinAgentRoleName, 'supervisor'>
 /**
  * 各角色工具白名单默认值；general 为全量（null）。
  * 用户可在设置 → 角色卡片中覆盖，写入 AppSettings.roleToolWhitelistOverrides。
+ *
+ * 设计约定：
+ * - 所有角色都保留 use_skill / switch_model / update_task_list / list_attachments 等基础工具；
+ * - researcher 覆盖全部调研能力（热点、天气、行情、搜索、网页、配图、浏览器）；
+ * - writer 面向内容创作（搜索、正文解析、配图、文生图、Remotion 模板）；
+ * - publisher 面向发布（配图 + 双端发布 + 通知 + 浏览器拟人操作）；
+ * - scriptwriter 面向视频选题与脚本（热点、搜索、脚本、分镜、Remotion 模板）；
+ * - videographer 面向画面生产（文生图、场景素材、Remotion 全流程、浏览器参考）；
+ * - editor 面向成片（合成、Remotion 渲染、通知）。
  */
 const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
   general: null,
@@ -35,14 +44,21 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
     'read_file',
     'update_task_list',
     'browser_navigate',
-    'browser_snapshot'
+    'browser_snapshot',
+    'browser_click',
+    'browser_type',
+    'browser_upload',
+    'browser_wait'
   ],
   writer: [
     'use_skill',
     'switch_model',
     'update_task_list',
     'present_plan_choices',
+    'web_search',
     'query_web_data',
+    'fetch_web_images',
+    'query_weather',
     'read_file',
     'write_file',
     'generate_image',
@@ -55,6 +71,7 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
   publisher: [
     'use_skill',
     'switch_model',
+    'fetch_web_images',
     'xhs_publish_note',
     'douyin_publish_note',
     'notify_message',
@@ -96,7 +113,10 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
     'query_web_data',
     'read_file',
     'write_file',
+    'generate_image',
     'generate_scene_assets',
+    'browser_navigate',
+    'browser_snapshot',
     'remotion_init_project',
     'remotion_apply_template_skill',
     'remotion_enable_sfx',
@@ -110,6 +130,7 @@ const ROLE_WHITELIST: Record<BuiltinPipelineRole, string[] | null> = {
     'switch_model',
     'query_web_data',
     'compose_video',
+    'remotion_init_project',
     'remotion_apply_template_skill',
     'remotion_enable_sfx',
     'remotion_studio',
