@@ -29,6 +29,7 @@ import {
   queryAwaitUserReasonFromMessages
 } from '../utils/queryAwaitUserReasonFromMessages'
 import { querySessionType } from '../utils/querySessionType'
+import { queryIsFreshChatSession } from '../utils/queryIsFreshChatSession'
 import { queryShouldResumeViaWorkflow } from '../utils/queryShouldResumeViaWorkflow'
 import { postChatExecutionCommand } from '../utils/postChatExecutionCommand'
 import { queryToolArgsRecord } from '../utils/agent-status'
@@ -568,6 +569,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   createSession: async (type: SessionType = 'chat') => {
+    // 普通聊天：全局只允许一个「新对话」空会话；再次点击则跳转到已有空会话
+    if (type === 'chat') {
+      const existingFresh = get().sessions.find((s) => queryIsFreshChatSession(s))
+      if (existingFresh) {
+        get().setActive(existingFresh.id)
+        useAppStore.getState().setView('chat')
+        return existingFresh
+      }
+    }
+
     const session = await postCreateSession(type)
     set((state) => ({
       sessions: [session, ...state.sessions],
