@@ -33,7 +33,12 @@ import { querySettings } from '../store/settings'
 import { querySession, postSession } from '../store/sessions'
 import { getMainWindow } from '../window'
 import { handleScheduleAgentDone } from '../schedule/agent-hook'
-import { queryWaitThinkingSettled, postResetThinkingGate, postThinkingReasoningComplete } from './thinking-gate'
+import {
+  postBindThinkingStallAbort,
+  postResetThinkingGate,
+  postThinkingReasoningComplete,
+  queryWaitThinkingSettled
+} from './thinking-gate'
 import type { ToolContext } from './tools/types'
 import {
   buildChatGraph,
@@ -88,6 +93,14 @@ const continueWaiters = new Map<
   string,
   { resolve: (result: UserContinueResult) => void; reject: (e: Error) => void }
 >()
+
+/**
+ * thinking stall 超时：仅 abort 进行中的 LLM/工具流，解锁挂死的 for-await。
+ * 不走 postGraphAbort 全量清理（避免误拒 await_user / 误暂停任务）。
+ */
+postBindThinkingStallAbort((sessionId) => {
+  abortMap.get(sessionId)?.abort()
+})
 
 function uuidv4(): string {
   return crypto.randomUUID()
@@ -832,6 +845,7 @@ export async function runLangGraphChat(params: {
     // eslint-disable-next-line no-constant-condition
     while (true) {
       if (controller.signal.aborted) {
+        postResetThinkingGate(sessionId)
         emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
         return
       }
@@ -847,6 +861,7 @@ export async function runLangGraphChat(params: {
         })
         for await (const state of stream) {
           if (controller.signal.aborted) {
+            postResetThinkingGate(sessionId)
             emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
             return
           }
@@ -855,6 +870,7 @@ export async function runLangGraphChat(params: {
           if (chunkReason) {
             resumeCommand = await waitForGraphUserResumeCommand(sessionId, chunkReason)
             if (controller.signal.aborted) {
+              postResetThinkingGate(sessionId)
               emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
               return
             }
@@ -878,6 +894,7 @@ export async function runLangGraphChat(params: {
         if (reason) {
           const cmd = await waitForGraphUserResumeCommand(sessionId, reason)
           if (controller.signal.aborted) {
+            postResetThinkingGate(sessionId)
             emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
             return
           }
@@ -893,6 +910,7 @@ export async function runLangGraphChat(params: {
       if (interruptReason) {
         const cmd = await waitForGraphUserResumeCommand(sessionId, interruptReason)
         if (controller.signal.aborted) {
+          postResetThinkingGate(sessionId)
           emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
           return
         }
@@ -912,6 +930,7 @@ export async function runLangGraphChat(params: {
           capability: toolCtx.queryActiveCapability?.(),
           messages: finalMessages
         })
+        postResetThinkingGate(sessionId)
         emitAgentEvent({ type: 'done', sessionId, reason: 'error' })
         return
       }
@@ -927,6 +946,7 @@ export async function runLangGraphChat(params: {
       queryIsAgentUserCancelledError(e) ||
       queryIsAbortError(e)
     ) {
+      postResetThinkingGate(sessionId)
       emitAgentEvent({ type: 'done', sessionId, reason: 'aborted' })
       return
     }
@@ -938,6 +958,7 @@ export async function runLangGraphChat(params: {
         capability: toolCtx.queryActiveCapability?.(),
         messages: lastGraphMessages
       })
+      postResetThinkingGate(sessionId)
       emitAgentEvent({ type: 'done', sessionId, reason: 'max_turns' })
       return
     }
@@ -947,6 +968,7 @@ export async function runLangGraphChat(params: {
       capability: toolCtx.queryActiveCapability?.(),
       messages: lastGraphMessages
     })
+    postResetThinkingGate(sessionId)
     emitAgentEvent({ type: 'done', sessionId, reason: 'error' })
   } finally {
     abortMap.delete(sessionId)
@@ -1058,7 +1080,10 @@ export async function runLangGraphStep(params: {
   try {
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      if (controller.signal.aborted) return 'aborted'
+      if (controller.signal.aborted) {
+        postResetThinkingGate(sessionId)
+        return 'aborted'
+      }
       let resumeCommand: Command | null = null
       try {
         const stream = await agent.stream(input as Parameters<typeof agent.stream>[0], {
@@ -1066,11 +1091,17 @@ export async function runLangGraphStep(params: {
           streamMode: 'values'
         })
         for await (const state of stream) {
-          if (controller.signal.aborted) return 'aborted'
+          if (controller.signal.aborted) {
+            postResetThinkingGate(sessionId)
+            return 'aborted'
+          }
           const chunkReason = queryInterruptReasonFromChunk(state)
           if (chunkReason) {
             resumeCommand = await waitForGraphUserResumeCommand(sessionId, chunkReason)
-            if (controller.signal.aborted) return 'aborted'
+            if (controller.signal.aborted) {
+              postResetThinkingGate(sessionId)
+              return 'aborted'
+            }
             break
           }
           if (state && typeof state === 'object' && 'messages' in state) {
@@ -1087,7 +1118,10 @@ export async function runLangGraphStep(params: {
         const reason = extractInterruptReason(streamErr)
         if (reason) {
           const cmd = await waitForGraphUserResumeCommand(sessionId, reason)
-          if (controller.signal.aborted) return 'aborted'
+          if (controller.signal.aborted) {
+            postResetThinkingGate(sessionId)
+            return 'aborted'
+          }
           input = cmd
           continue
         }
@@ -1098,7 +1132,10 @@ export async function runLangGraphStep(params: {
       const interruptReason = queryInterruptReasonFromState(snap)
       if (interruptReason) {
         const cmd = await waitForGraphUserResumeCommand(sessionId, interruptReason)
-        if (controller.signal.aborted) return 'aborted'
+        if (controller.signal.aborted) {
+          postResetThinkingGate(sessionId)
+          return 'aborted'
+        }
         input = cmd
         continue
       }
@@ -1119,6 +1156,7 @@ export async function runLangGraphStep(params: {
             messages: finalMessages
           }
         )
+        postResetThinkingGate(sessionId)
         return 'error'
       }
       await queryWaitThinkingSettled(sessionId)
@@ -1131,16 +1169,21 @@ export async function runLangGraphStep(params: {
       queryIsAgentUserCancelledError(e) ||
       queryIsAbortError(e)
     ) {
+      postResetThinkingGate(sessionId)
       return 'aborted'
     }
     const message = e instanceof Error ? e.message : String(e)
-    if (/recursion/i.test(message)) return 'max_turns'
+    if (/recursion/i.test(message)) {
+      postResetThinkingGate(sessionId)
+      return 'max_turns'
+    }
     postEmitAgentError(sessionId, message, {
       roleId: toolCtx.activeRole,
       agentName: toolCtx.agentName,
       capability: toolCtx.queryActiveCapability?.(),
       messages: lastStepMessages
     })
+    postResetThinkingGate(sessionId)
     return 'error'
   }
 }

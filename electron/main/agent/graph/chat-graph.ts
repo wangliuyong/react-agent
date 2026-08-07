@@ -195,18 +195,30 @@ export function buildChatGraph(params: BuildChatGraphParams) {
   const customRoles = settings.customAgentRoles ?? []
   // LangGraph 对动态节点名的泛型较严；自定义角色在运行时注册，此处用宽松构建再 compile
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // 以 AgentGraphAnnotation 定义状态 schema，创建可链式注册节点的 StateGraph 构建器
   let builder: any = new StateGraph(AgentGraphAnnotation)
+    // 注册调度节点：解析用户意图并决定下一步进入哪个角色
     .addNode('supervisor', supervisorNode)
+    // 通用对话角色：直接回答，不进入后续流水线
     .addNode('general', async (state) => runRoleAgent('general', state))
+    // 调研角色：收集资料，通常衔接到 writer
     .addNode('researcher', async (state) => runRoleAgent('researcher', state))
+    // 写作角色：基于调研结果产出文案
     .addNode('writer', async (state) => runRoleAgent('writer', state))
+    // 发布角色：在 publish 流水线中执行平台发布
     .addNode('publisher', async (state) => runRoleAgent('publisher', state))
+    // 脚本角色：撰写视频脚本，进入视频流水线
     .addNode('scriptwriter', async (state) => runRoleAgent('scriptwriter', state))
+    // 拍摄/成片角色：按脚本生成或处理视频素材
     .addNode('videographer', async (state) => runRoleAgent('videographer', state))
+    // 剪辑角色：视频流水线末端，完成剪辑后结束
     .addNode('editor', async (state) => runRoleAgent('editor', state))
 
+  // 遍历用户自定义 Agent 角色，动态挂到同一张图上
   for (const cr of customRoles) {
+    // 将自定义角色 id 视为 PipelineRole，供 runRoleAgent 与边路由使用
     const roleId = cr.id as PipelineRole
+    // 以角色 id 为节点名注册；执行时复用统一的 runRoleAgent 入口
     builder = builder.addNode(cr.id, async (state: AgentGraphState) =>
       runRoleAgent(roleId, state)
     )

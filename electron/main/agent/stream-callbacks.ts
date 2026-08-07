@@ -52,7 +52,11 @@ export function createSessionStreamHandler(sessionId: string): BaseCallbackHandl
   let reasoningStarted = false
 
   const postReasoningStart = (): void => {
-    if (reasoningStarted) return
+    if (reasoningStarted) {
+      // 已在推理中：刷新 stall，避免正文生成阶段被误判超时
+      postThinkingReasoningStart(sessionId)
+      return
+    }
     reasoningStarted = true
     postThinkingReasoningStart(sessionId)
   }
@@ -78,8 +82,12 @@ export function createSessionStreamHandler(sessionId: string): BaseCallbackHandl
         postReasoningStart()
         streamedReasoningLen += reasoningDelta.length
         emitAgentEvent({ type: 'thinking_delta', sessionId, delta: reasoningDelta })
+        return
       }
-      void token
+      // 正文 token：若本轮已开启思考，仅刷新 stall，防止长回答阶段误超时
+      if (reasoningStarted && token) {
+        postThinkingReasoningStart(sessionId)
+      }
     },
     handleLLMEnd(output: LLMResult) {
       const fullReasoning = queryReasoningFromLlmResult(output)
@@ -96,6 +104,10 @@ export function createSessionStreamHandler(sessionId: string): BaseCallbackHandl
           streamedReasoningLen = fullReasoning.length
         }
       }
+      postReasoningEnd()
+    },
+    /** 流失败时对称收尾，避免 gate 卡在 reasoning=true */
+    handleLLMError() {
       postReasoningEnd()
     }
   })

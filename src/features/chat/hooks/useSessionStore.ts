@@ -1074,6 +1074,17 @@ export const useSessionStore = create<SessionState>((set, get) => ({
                   // 回答已落盘后清空临时思考，避免跑到列表末尾
                   thinkingText:
                     incoming.role === 'assistant' ? '' : state.thinkingText,
+                  // 漏发 thinking_complete 时兜底：解除「思考中」以免隐藏回答/工具
+                  ...(incoming.role === 'assistant'
+                    ? {
+                        thinkingInProgress: false,
+                        pendingStreamingText: '',
+                        pendingToolName: null,
+                        pendingToolArgs: null,
+                        activeToolName: state.pendingToolName ?? state.activeToolName,
+                        activeToolArgs: state.pendingToolArgs ?? state.activeToolArgs
+                      }
+                    : {}),
                   ...(incoming.role === 'assistant' &&
                   /流程执行完毕/.test(incoming.content)
                     ? {
