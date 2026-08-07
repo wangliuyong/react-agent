@@ -189,7 +189,7 @@ export function WorkbenchCharts({
       {/* <ChartHost
         className={styles.wide}
         title="Token 消耗排行"
-        subtitle="累计估算值，Top 8 会话"
+        subtitle="模型交互累计，Top 8 会话"
         onMount={tokenMount}
       /> */}
     </div>

@@ -366,7 +366,7 @@ export function WorkbenchPage(): React.ReactElement {
           <div className={styles.sectionHead}>
             <h2 className={styles.sectionTitle}>使用统计</h2>
             <Text type="secondary" className={styles.sectionDesc}>
-              基于本地会话数据聚合；Token 为 LLM 回调估算累计值
+              基于本地会话数据聚合；Token 仅统计与模型交互（优先 usage，否则按中英文字符估算）
             </Text>
           </div>
           <Suspense

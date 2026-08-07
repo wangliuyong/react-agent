@@ -1783,7 +1783,10 @@ export interface Session {
    * 与自定义全局 enabled、角色关联、内置技能取并集后注入。
    */
   selectedSkillIds?: string[]
-  /** 累计估算 token（展示用） */
+  /**
+   * 累计模型交互 token（展示用）。
+   * 优先累加各次 LLM 返回的 usage；无 usage 时按中文≈0.6 / 英文≈0.3 字符估算。
+   */
   tokenUsed: number
   createdAt: number
   updatedAt: number
