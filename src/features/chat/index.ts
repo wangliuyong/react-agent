@@ -3,5 +3,10 @@ export * from './api'
 export * from './types'
 export { querySessionType } from './utils/querySessionType'
 export { queryIsFreshChatSession } from './utils/queryIsFreshChatSession'
+export {
+  queryExistingFreshChatSession,
+  queryHistorySessions,
+  queryPromoteSessionToFront
+} from './utils/queryFreshChatSession'
 export { queryIsSessionRunning } from './utils/queryIsSessionRunning'
 export { queryIsTaskWorkflowSucceeded } from './utils/queryIsTaskWorkflowSucceeded'

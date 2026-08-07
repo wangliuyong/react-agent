@@ -29,6 +29,10 @@ import {
   queryAwaitUserReasonFromMessages
 } from '../utils/queryAwaitUserReasonFromMessages'
 import { querySessionType } from '../utils/querySessionType'
+import {
+  queryExistingFreshChatSession,
+  queryPromoteSessionToFront
+} from '../utils/queryFreshChatSession'
 import { queryIsFreshChatSession } from '../utils/queryIsFreshChatSession'
 import { queryShouldResumeViaWorkflow } from '../utils/queryShouldResumeViaWorkflow'
 import { postChatExecutionCommand } from '../utils/postChatExecutionCommand'
@@ -569,13 +573,38 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   createSession: async (type: SessionType = 'chat') => {
-    // 普通聊天：全局只允许一个「新对话」空会话；再次点击则跳转到已有空会话
+    // 普通聊天：全局只允许一个「新对话」空会话；再次点击则复用最新空会话并置顶
     if (type === 'chat') {
-      const existingFresh = get().sessions.find((s) => queryIsFreshChatSession(s))
+      const existingFresh = queryExistingFreshChatSession(get().sessions)
       if (existingFresh) {
-        get().setActive(existingFresh.id)
+        const now = Date.now()
+        const promoted: Session = { ...existingFresh, updatedAt: now }
+        // 多余空会话一并清理，兑现「只能有一个」，避免历史列表被空会话淹没
+        const duplicateIds = get()
+          .sessions.filter((s) => s.id !== promoted.id && queryIsFreshChatSession(s))
+          .map((s) => s.id)
+
+        set((state) => {
+          const withoutDupes = state.sessions.filter((s) => !duplicateIds.includes(s.id))
+          return {
+            sessions: queryPromoteSessionToFront(withoutDupes, promoted.id, now),
+            activeSessionId: promoted.id,
+            runningSessionIds: withoutRunningSession(state.runningSessionIds, promoted.id),
+            running: false,
+            streamingText: '',
+            awaitUserReason: null,
+            awaitUserChoices: null,
+            canResume: false
+          }
+        })
+
+        await postSession(promoted)
+        if (duplicateIds.length > 0) {
+          await Promise.all(duplicateIds.map((id) => postDeleteSession(id)))
+        }
+
         useAppStore.getState().setView('chat')
-        return existingFresh
+        return promoted
       }
     }
 

@@ -1,6 +1,12 @@
 import type { AppView } from '@/stores/app-store'
 import { useAppStore } from '@/stores/app-store'
-import { useSessionStore, querySessionType, queryIsFreshChatSession, queryIsSessionRunning } from '@/features/chat'
+import {
+  useSessionStore,
+  querySessionType,
+  queryIsFreshChatSession,
+  queryIsSessionRunning,
+  queryHistorySessions
+} from '@/features/chat'
 import type { SessionHistoryItem } from '../types'
 
 interface UseSidebarNavigationOptions {
@@ -48,7 +54,8 @@ export function useSidebarNavigation({ view }: UseSidebarNavigationOptions) {
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null
   const isFreshChatSession = view === 'chat' && queryIsFreshChatSession(activeSession)
 
-  const historyItems: SessionHistoryItem[] = sessions.map((s) => ({
+  // 空「新对话」由顶部入口高亮代表，不进入历史列表
+  const historyItems: SessionHistoryItem[] = queryHistorySessions(sessions).map((s) => ({
     id: s.id,
     title: s.title,
     updatedAt: s.updatedAt,
