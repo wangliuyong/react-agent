@@ -1,6 +1,6 @@
 {
   "name": "lingxi",
-  "version": "0.1.17",
+  "version": "0.1.19",
   "description": "灵犀 · AI助手",
   "main": "./out/main/index.js",
   "build": {
@@ -17,6 +17,31 @@
         "from": "resources",
         "to": "resources"
       }
+    ],
+    "files": [
+      "**/*",
+      "!**/node_modules/@esbuild/linux-*",
+      "!**/node_modules/@esbuild/android-*",
+      "!**/node_modules/@esbuild/freebsd-*",
+      "!**/node_modules/@esbuild/netbsd-*",
+      "!**/node_modules/@esbuild/openbsd-*",
+      "!**/node_modules/@esbuild/sunos-*",
+      "!**/node_modules/@esbuild/aix-*",
+      "!**/node_modules/@esbuild/openharmony-*",
+      "!**/node_modules/@rspack/binding-linux-*",
+      "!**/node_modules/@rspack/binding-wasm32-*",
+      "!**/node_modules/@remotion/compositor-linux-*",
+      "!**/node_modules/.pnpm/@esbuild+linux-*",
+      "!**/node_modules/.pnpm/@esbuild+android-*",
+      "!**/node_modules/.pnpm/@esbuild+freebsd-*",
+      "!**/node_modules/.pnpm/@esbuild+netbsd-*",
+      "!**/node_modules/.pnpm/@esbuild+openbsd-*",
+      "!**/node_modules/.pnpm/@esbuild+sunos-*",
+      "!**/node_modules/.pnpm/@esbuild+aix-*",
+      "!**/node_modules/.pnpm/@esbuild+openharmony-*",
+      "!**/node_modules/.pnpm/@rspack+binding-linux-*",
+      "!**/node_modules/.pnpm/@rspack+binding-wasm32-*",
+      "!**/node_modules/.pnpm/@remotion+compositor-linux-*"
     ]
   },
   "scripts": {
@@ -88,6 +113,14 @@
     ],
     "overrides": {
       "@langchain/core": "1.2.3"
+    },
+    "supportedArchitectures": {
+      "os": [
+        "current"
+      ],
+      "cpu": [
+        "current"
+      ]
     }
   }
 }
