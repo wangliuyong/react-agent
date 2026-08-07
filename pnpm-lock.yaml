@@ -123,6 +123,9 @@ importers:
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@22.20.1)(vite@6.4.3(@types/node@22.20.1)(terser@5.49.0))
+      xmlbuilder:
+        specifier: 15.1.1
+        version: 15.1.1
 
 packages:
 

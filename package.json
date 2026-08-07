@@ -1,6 +1,6 @@
 {
   "name": "lingxi",
-  "version": "0.1.14",
+  "version": "0.1.17",
   "description": "灵犀 · AI助手",
   "main": "./out/main/index.js",
   "build": {
@@ -78,7 +78,8 @@
     "unplugin-auto-import": "^21.0.0",
     "unplugin-auto-import-antd": "^0.0.2",
     "vite": "^6.2.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "xmlbuilder": "15.1.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
