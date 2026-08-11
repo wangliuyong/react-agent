@@ -68,6 +68,15 @@ export async function postSelectImages(): Promise<string[]> {
   return window.api.postSelectImages()
 }
 
+/** 粘贴/拖入：将二进制落盘为聊天附件，返回绝对路径或错误 */
+export async function postSaveChatUpload(input: {
+  name?: string
+  mimeType?: string
+  base64: string
+}): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
+  return window.api.postSaveChatUpload(input)
+}
+
 /** 选择本地文件夹（聊天附件展示完整路径） */
 export async function postSelectDirectory(): Promise<string | null> {
   return window.api.postSelectDirectory()

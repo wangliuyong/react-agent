@@ -26,6 +26,10 @@ import {
 } from '../model-router'
 import { querySession } from '../../store/sessions'
 import type { SkillInjectContext } from '../../store/skills'
+import {
+  queryExtractTextFromContent,
+  queryProjectMessageWithoutImages
+} from '../query-human-message-with-attachments'
 
 /** 进程内唯一 checkpointer；thread_id = sessionId */
 export const chatCheckpointer = new MemorySaver()
@@ -152,11 +156,15 @@ export function buildChatGraph(params: BuildChatGraphParams) {
     toolCtx.agentName = 'supervisor'
     const llm = withSessionTokenUsage(createChatModel(settings, 'supervisor'), toolCtx.sessionId)
     const latestUserMessage = queryLatestHumanMessage(state.messages)
+    // 调度器只用文本：剥离旧版 image_url，避免 DeepSeek 等文本 API 400
+    const latestForRoute = latestUserMessage
+      ? queryProjectMessageWithoutImages(latestUserMessage)
+      : undefined
     const reply = await llm.invoke(
-      latestUserMessage
+      latestForRoute
         ? [
             new SystemMessage(buildRoleSystemPrompt('supervisor', undefined, settings)),
-            latestUserMessage
+            latestForRoute
           ]
         : [new SystemMessage(buildRoleSystemPrompt('supervisor', undefined, settings))]
     )
@@ -266,7 +274,7 @@ export function buildChatGraph(params: BuildChatGraphParams) {
 
 function lastUserText(messages: BaseMessage[]): string {
   const message = queryLatestHumanMessage(messages)
-  return typeof message?.content === 'string' ? message.content : ''
+  return queryExtractTextFromContent(message?.content)
 }
 
 /**

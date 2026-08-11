@@ -308,6 +308,18 @@ function main() {
 
   writePackageVersion(nextVersion)
 
+  // macOS 本机 OCR：打包前编译 Vision 二进制（随 resources 拷贝进安装包）
+  if (platform === 'mac' || platform === 'mac:arm64' || platform === 'mac:x64') {
+    const ocrSwift = join(root, 'resources/ocr/RecognizeText.swift')
+    const ocrBin = join(root, 'resources/ocr/RecognizeText')
+    console.log('[pack] 编译本机 OCR（macOS Vision）')
+    execSync(`swiftc -O -o ${JSON.stringify(ocrBin)} ${JSON.stringify(ocrSwift)}`, {
+      cwd: root,
+      stdio: 'inherit',
+      shell: true
+    })
+  }
+
   // writePackageVersion 已改写 package.json，重新读取以拿到最新 build 配置
   const pkgAfter = JSON.parse(readFileSync(pkgPath, 'utf-8'))
   const ebTail = builderExtraArgs(extraArgs, explicitVersion)

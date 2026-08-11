@@ -13,3 +13,6 @@ playwright/.cache
 .vscode
 .cursor
 artifacts
+# macOS Vision OCR 预编译二进制（pack 时按目标架构生成）
+resources/ocr/RecognizeText
+

@@ -43,8 +43,8 @@ function queryTestSettings(overrides?: Partial<AppSettings>): AppSettings {
 }
 
 describe('queryInferModelCapability', () => {
-  it('图片附件推断 vision', () => {
-    expect(queryInferModelCapability('看看这个', ['/tmp/a.png'])).toBe('vision')
+  it('图片附件不再自动推断 vision（改由本机 OCR 注入文本）', () => {
+    expect(queryInferModelCapability('看看这个', ['/tmp/a.png'])).toBe('chat')
   })
 
   it('看图关键词推断 vision', () => {

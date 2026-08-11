@@ -50,6 +50,16 @@ export function getArtifactsDir(): string {
   return join(getDataRoot(), 'artifacts')
 }
 
+/**
+ * 聊天粘贴/拖入附件落盘目录。
+ * 为什么独立于 artifacts：用户输入附件与 Agent 产出分离，便于清理与权限边界。
+ */
+export function getChatUploadsDir(): string {
+  const dir = join(getDataRoot(), 'chat-uploads')
+  ensureDir(dir)
+  return dir
+}
+
 /** 视频成片与分镜素材输出目录 */
 export function getVideosDir(): string {
   const dir = join(getDataRoot(), 'videos')
