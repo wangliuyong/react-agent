@@ -12,6 +12,7 @@ import {
 import { useSettingsStore } from '@/features/settings'
 import { useSkillsStore } from '@/features/skills'
 import { useChatAttachments } from '../../hooks/useChatAttachments'
+import { useChatPasteDrop } from '../../hooks/useChatPasteDrop'
 import { queryAgentStatusLabel } from '../../utils/agent-status'
 import { AttachmentPreviewList } from '../AttachmentPreviewList'
 import { TypingIndicator } from '../TypingIndicator'
@@ -22,6 +23,12 @@ const { Text } = Typography
 
 /** 下拉可视区高度，避免模型过多撑满屏幕 */
 const MODEL_SELECT_LIST_HEIGHT = 280
+
+/**
+ * 仅附件发送时的默认提示。
+ * 为什么固定文案：无文字时仍需触发 vision/OCR，避免空 human 消息。
+ */
+const ATTACHMENT_ONLY_PROMPT = '请根据附件内容回答（图片文字已由本机系统识别）'
 
 interface ChatInputProps {
   disabled?: boolean
@@ -85,6 +92,16 @@ export function ChatInput({
   const postSettings = useSettingsStore((s) => s.postSettings)
   const skills = useSkillsStore((s) => s.skills)
   const hydrateSkills = useSkillsStore((s) => s.hydrate)
+
+  const awaitingUser = Boolean(awaitUserReason)
+  /** 确认态仍允许输入；普通运行中禁用（含粘贴/拖入） */
+  const inputDisabled = disabled || (running && !awaitingUser)
+  const { onPaste, onDrop, onDragOver } = useChatPasteDrop({
+    disabled: inputDisabled,
+    postAddPaths
+  })
+  /** 有文字或已选附件即可发送 */
+  const canSend = Boolean(text.trim() || paths.length)
 
   useEffect(() => {
     void hydrateSkills()
@@ -191,8 +208,6 @@ export function ChatInput({
     providerMismatch
   ])
 
-  const awaitingUser = Boolean(awaitUserReason)
-
   /** 确认挂起：带上输入框内容继续（空则仅继续） */
   const handleContinue = (choiceId?: string): void => {
     const value = text.trim()
@@ -207,21 +222,20 @@ export function ChatInput({
   }
 
   const handleSend = (): void => {
+    if (disabled) return
     const value = text.trim()
-    if (!value || disabled) return
-    // 确认挂起时：发送说明并继续流程
+    // 确认挂起时：发送说明并继续流程（附件可选）
     if (awaitingUser) {
       handleContinue()
       return
     }
     if (running) return
-    onSend(value, paths)
+    if (!value && !paths.length) return
+    // 仅附件：补默认识图提示，触发 vision / OCR
+    onSend(value || ATTACHMENT_ONLY_PROMPT, paths)
     setText('')
     postClearAttachments()
   }
-
-  /** 确认态仍允许输入；普通运行中禁用 */
-  const inputDisabled = disabled || (running && !awaitingUser)
 
   return (
     <div className={styles.wrap}>
@@ -261,7 +275,12 @@ export function ChatInput({
           onClear={postClearAttachments}
         />
 
-        <div className={styles.box} data-running={running}>
+        <div
+          className={styles.box}
+          data-running={running}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+        >
           <textarea
             className={styles.textarea}
             placeholder={
@@ -273,12 +292,13 @@ export function ChatInput({
                   ? 'Agent 正在处理，请稍候…'
                   : disabled
                     ? (sendDisabledHint ?? '当前不可发送消息')
-                    : '描述你的任务，Enter 发送，Shift+Enter 换行…'
+                    : '描述任务，可粘贴/拖入图片或文件；Enter 发送，Shift+Enter 换行…'
             }
             value={text}
             rows={2}
             disabled={inputDisabled}
             onChange={(e) => setText(e.target.value)}
+            onPaste={onPaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
@@ -460,11 +480,11 @@ export function ChatInput({
                     disabled
                       ? (sendDisabledHint ?? '当前不可发送消息')
                       : awaitingUser
-                        ? !text.trim()
-                          ? '输入说明后发送并继续'
+                        ? !text.trim() && !paths.length
+                          ? '可输入说明或直接继续'
                           : '发送并继续'
-                        : !text.trim()
-                          ? '请输入消息内容'
+                        : !canSend
+                          ? '请输入消息或添加附件'
                           : '发送'
                   }
                 >
@@ -473,7 +493,7 @@ export function ChatInput({
                     shape="circle"
                     className={styles.sendBtn}
                     icon={<SendOutlined />}
-                    disabled={!text.trim() || disabled || (running && !awaitingUser)}
+                    disabled={!canSend || disabled || (running && !awaitingUser)}
                     onClick={handleSend}
                   />
                 </Tooltip>

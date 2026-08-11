@@ -104,6 +104,7 @@ const api: ElectronApi = {
     ipcRenderer.invoke(IpcChannels.queryLocalImageDataUrl, filePath),
   queryLocalMediaUrl: (filePath: string) =>
     ipcRenderer.invoke(IpcChannels.queryLocalMediaUrl, filePath),
+  postSaveChatUpload: (input) => ipcRenderer.invoke(IpcChannels.postSaveChatUpload, input),
   queryLocalPathExists: (filePath: string) =>
     ipcRenderer.invoke(IpcChannels.queryLocalPathExists, filePath),
   queryAshareKlineRefresh: (req) =>

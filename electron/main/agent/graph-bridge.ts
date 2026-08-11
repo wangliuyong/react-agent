@@ -17,6 +17,11 @@ import {
   isInterrupted
 } from '@langchain/langgraph'
 import { pauseRunningTasks, queryHasRunningTasks } from '../../../shared/pause-running-tasks'
+import {
+  queryBuildHumanMessageFromStoredContent,
+  queryEnrichContentWithLocalOcr,
+  queryProjectMessageWithoutImages
+} from './query-human-message-with-attachments'
 import type {
   AgentActiveRun,
   AgentContinuePayload,
@@ -504,7 +509,8 @@ function sessionToLcMessages(session: Session): BaseMessage[] {
   const out: BaseMessage[] = []
   for (const m of session.messages) {
     if (m.role === 'user') {
-      out.push(new HumanMessage(m.content))
+      // 落盘文案已含本机 OCR；兼容旧 checkpoint 中可能残留的 image_url
+      out.push(queryProjectMessageWithoutImages(queryBuildHumanMessageFromStoredContent(m.content)))
       continue
     }
 
@@ -736,12 +742,13 @@ export async function runLangGraphChat(params: {
 
   const controller = bindGraphSessionAbort(sessionId)
 
+  // 本机 OCR 写入文案，避免向文本模型发送 image_url
+  const enrichedContent = await queryEnrichContentWithLocalOcr(content, attachmentPaths)
+
   const userMsg = appendMessage(session, {
     role: 'user',
-    content:
-      attachmentPaths.length > 0
-        ? `${content}\n\n[附件]\n${attachmentPaths.join('\n')}`
-        : content,
+    // enriched 已含 OCR + [附件] 路径列表
+    content: enrichedContent,
     attachmentPaths: attachmentPaths.length > 0 ? attachmentPaths : undefined
   })
   if (session.title === '新对话' || session.title === '新会话') {
@@ -790,11 +797,8 @@ export async function runLangGraphChat(params: {
   const history = sessionToLcMessages(querySession(sessionId)!)
   // 当前 user 已写入 session；prior 为不含本轮 human 的历史（供 checkpoint 冷启动回填）
   const prior = history.slice(0, -1)
-  const human = new HumanMessage(
-    attachmentPaths.length > 0
-      ? `${content}\n\n[附件]\n${attachmentPaths.join('\n')}`
-      : content
-  )
+  // 直接使用已 OCR 的落盘文案，勿再嵌 image_url
+  const human = queryBuildHumanMessageFromStoredContent(enrichedContent)
 
   const config = {
     configurable: { thread_id: sessionId },
@@ -999,12 +1003,11 @@ export async function runLangGraphStep(params: {
     abortMap.set(sessionId, controller)
   }
 
+  const enrichedPrompt = await queryEnrichContentWithLocalOcr(prompt, attachmentPaths)
+
   const userMsg = appendMessage(session, {
     role: 'user',
-    content:
-      attachmentPaths.length > 0
-        ? `${prompt}\n\n[附件]\n${attachmentPaths.join('\n')}`
-        : prompt,
+    content: enrichedPrompt,
     attachmentPaths: attachmentPaths.length > 0 ? attachmentPaths : undefined,
     // 过程注入 prompt：落盘但不在用户侧气泡展示
     ...(hideFromUi ? { hidden: true } : {})
@@ -1067,11 +1070,7 @@ export async function runLangGraphStep(params: {
     signal: controller.signal
   }
 
-  const human = new HumanMessage(
-    attachmentPaths.length > 0
-      ? `${prompt}\n\n[附件]\n${attachmentPaths.join('\n')}`
-      : prompt
-  )
+  const human = queryBuildHumanMessageFromStoredContent(enrichedPrompt)
 
   let synced = 0
   let input: { messages: BaseMessage[] } | Command = { messages: [human] }

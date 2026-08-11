@@ -19,8 +19,6 @@ export const MODEL_CAPABILITIES: readonly ModelCapability[] = [
 /** 长文阈值：超过则倾向 longContext 连接 */
 export const LONG_CONTEXT_CHAR_THRESHOLD = 12_000
 
-const IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif|bmp|heic|heif|svg)$/i
-
 const REASONING_RE =
   /推理|分析|证明|调试|排障|根因|算法|复杂度|对比方案|为什么|怎么实现|排查|定位问题/
 
@@ -63,19 +61,20 @@ export function querySanitizeModelCapability(
 }
 
 /**
- * 按附件类型、文本长度与关键词推断模型能力。
- * 优先级：creative（明确文生图/图生视频）→ vision（附件/看图）→ longContext → reasoning → chat。
+ * 按文本长度与关键词推断模型能力。
+ * 优先级：creative（明确文生图/图生视频）→ vision（显式看图提示）→ longContext → reasoning → chat。
+ * 注意：图片附件由本机 OCR 注入文本，不再因有图附件自动选 vision。
  */
 export function queryInferModelCapability(
   text: string,
-  attachmentPaths: string[] = []
+  _attachmentPaths: string[] = []
 ): ModelCapability {
   // 文生图/图生成视频优先于「这张图」等看图提示，避免 I2V 被误判为 vision
   if (queryHasExplicitCreativeMediaIntent(text)) {
     return 'creative'
   }
-  const hasImageAttachment = attachmentPaths.some((p) => IMAGE_EXT_RE.test(p))
-  if (hasImageAttachment || VISION_HINT_RE.test(text)) {
+  // 图片附件改由本机 OCR 注入文本，不再因有图强制 vision（避免文本模型收到 image_url 400）
+  if (VISION_HINT_RE.test(text)) {
     return 'vision'
   }
   if (text.length >= LONG_CONTEXT_CHAR_THRESHOLD) {

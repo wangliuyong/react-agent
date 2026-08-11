@@ -22,6 +22,11 @@ import type {
   SubagentRunMeta,
   TaskItem
 } from '../../../../shared/types'
+import {
+  queryBuildHumanMessageFromStoredContent,
+  queryEnrichContentWithLocalOcr,
+  queryProjectMessageWithoutImages
+} from '../query-human-message-with-attachments'
 import { querySubagentDefinition } from './definitions'
 import { querySettings } from '../../store/settings'
 import { querySession, postSession } from '../../store/sessions'
@@ -129,7 +134,7 @@ function sessionMessagesToLc(messages: ChatMessage[]): BaseMessage[] {
   const out: BaseMessage[] = []
   for (const m of messages) {
     if (m.role === 'user') {
-      out.push(new HumanMessage(m.content))
+      out.push(queryProjectMessageWithoutImages(queryBuildHumanMessageFromStoredContent(m.content)))
       continue
     }
 
@@ -418,11 +423,6 @@ async function runSubagentJob(params: Required<
     signal: parentSignal
   }
 
-  const humanContent =
-    attachmentPaths.length > 0
-      ? `${prompt}\n\n[附件]\n${attachmentPaths.join('\n')}`
-      : prompt
-
   let seedMessages: BaseMessage[] = []
   if (mode === 'fork') {
     const session = querySession(parentSessionId)
@@ -430,7 +430,11 @@ async function runSubagentJob(params: Required<
       seedMessages = sessionMessagesToLc(session.messages)
     }
   }
-  seedMessages = [...seedMessages, new HumanMessage(humanContent)]
+  const enrichedPrompt = await queryEnrichContentWithLocalOcr(prompt, attachmentPaths)
+  seedMessages = [
+    ...seedMessages,
+    queryBuildHumanMessageFromStoredContent(enrichedPrompt)
+  ]
 
   let synced = 0
   let input: { messages: BaseMessage[] } | Command = { messages: seedMessages }

@@ -122,6 +122,18 @@ function main() {
 
   writePackageVersion(nextVersion)
 
+  // macOS 本机 OCR：打包前编译 Vision 二进制（随 resources 拷贝进安装包）
+  if (platform === 'mac' || platform === 'mac:arm64' || platform === 'mac:x64') {
+    const ocrSwift = join(root, 'resources/ocr/RecognizeText.swift')
+    const ocrBin = join(root, 'resources/ocr/RecognizeText')
+    console.log('[pack] 编译本机 OCR（macOS Vision）')
+    execSync(`swiftc -O -o ${JSON.stringify(ocrBin)} ${JSON.stringify(ocrSwift)}`, {
+      cwd: root,
+      stdio: 'inherit',
+      shell: true
+    })
+  }
+
   const ebTail = builderExtraArgs(extraArgs, explicitVersion)
   const builderCmd = ['electron-builder', ...builderPlatformArgs, ...ebTail]
     .map((part) => (/\s/.test(part) ? JSON.stringify(part) : part))

@@ -82,7 +82,7 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
 - chat(普通对话)：普通对话、撰稿文案、工具编排（含「生成一张图」等单步工具）
 - reasoning(深度分析)：深度分析、调试排障、复杂推理
 - creative(文生图/图生成视频)：仅当用户明确要求文生图、图生成视频、图生视频、文生视频时选用对应媒体连接；普通创作/撰稿禁止选 creative
-- vision(看图理解)：看图、识图、截图理解（仅当用户附带图片需理解时；文生图不要选 vision）
+- vision(看图理解)：看图、识图、OCR、截图理解（仅当用户附带图片需理解时；文生图不要选 vision；图片可能已内嵌在用户消息中）
 - longContext(长文本阅读)：超长文本阅读/摘要
 
 不要调用工具，不要输出其它说明。`,
@@ -103,7 +103,7 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
 10. 用户要求「生成/画一张图」且不要网图时：必须调用 generate_image；禁止用 fetch_web_images；禁止未拿到工具成功结果就声称已生成
 11. generate_image 成功后，回复中保留工具返回的本地 png 路径，便于界面预览
 12. 汇总/发布前后的「配图预览」须写出本地绝对路径（或 Markdown 图片），禁止只写「图1」占位；表格推荐：| 预览 | 路径 | 说明 |，路径列填 fetch_web_images / generate_image 返回的绝对路径，便于界面内联查看
-13. switch_model 的 vision 仅用于理解用户附件图片，不能代替文生图
+13. 用户消息中的 [本机识字] 段来自 macOS Vision 本地识别；请直接使用，无需 read_file 读图，也无需为此 switch_model 为 vision
 14. 若任务类型中途明显变化（如从闲聊转为深度推理/文生图或图生成视频/看图），可调用 switch_model 切换模型能力；普通撰稿保持 chat，不要切 creative
 15. 用户要用 Remotion / React 代码做动效、字幕、数据可视化视频时：先 use_skill 加载 react-agent-remotion 或 remotion-best-practices；若选用内置成片模版（remotion-template-*）则调用 remotion_apply_template_skill 拼装 template/ 与 props，再 remotion_studio 预览（可选）→ remotion_render；自由创作时 remotion_init_project → write_file；禁止未渲染成功就声称成片已生成
 16. fetch_web_images 必须传 topic（搜索/创作主题）；下载媒体只保留与主题相关的图视频，禁止不传主题就整页狂下
@@ -143,7 +143,7 @@ const ROLE_PROMPTS: Record<BuiltinAgentRoleName, string> = {
 流程：
 1. 热点选题：优先 fetch_hot_topics（tophub/weibo/baidu/douyin 等）；需要打开报道页时用 browser_navigate + browser_snapshot
 2. 关键词查背景/出处：优先 web_search（Bing→百度）；用户粘贴 http(s) 文章/网页链接时：先 query_web_data（传 url）读取标题与正文，勿臆造；掘金/知乎等 SPA 可 preferBrowser=true；需要页面媒体传 mediaTypes；需要配图可 fetch_web_images
-3. 若有本地附件，再 list_attachments / read_file 读取
+3. 若有本地附件，再 list_attachments；图片文字见消息中的 [本机识字] 段，勿用 read_file 读二进制
 4. 明确主题、用途、时长、画幅（默认竖版 9:16）、整体风格
 5. 扩写完整剧本后调用 generate_script 落盘
 6. 拆成 4～8 镜，调用 generate_storyboard。每镜必须填写：

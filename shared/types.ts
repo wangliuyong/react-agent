@@ -75,6 +75,8 @@ export const IpcChannels = {
   queryLocalImageDataUrl: 'query:local-image-data-url',
   /** 本地音视频 → media:// URL，供聊天内联播放 */
   queryLocalMediaUrl: 'query:local-media-url',
+  /** 聊天粘贴/拖入：将二进制落盘到 chat-uploads */
+  postSaveChatUpload: 'post:chat-upload:save',
   /** 校验本地文件/目录是否存在（产物按钮展示前过滤） */
   queryLocalPathExists: 'query:local-path-exists',
   /** A 股 K 线实时刷新（聊天预览轮询） */
@@ -2628,6 +2630,15 @@ export interface ElectronApi {
   postSummarizeSkillFromSession: (sessionId: string) => Promise<SkillUpsertInput>
   queryLocalImageDataUrl: (filePath: string) => Promise<string | null>
   queryLocalMediaUrl: (filePath: string) => Promise<string | null>
+  /**
+   * 聊天粘贴/拖入附件落盘。
+   * base64 为纯编码（不含 data: 前缀）；成功返回绝对路径。
+   */
+  postSaveChatUpload: (input: {
+    name?: string
+    mimeType?: string
+    base64: string
+  }) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
   /** 校验本地路径是否存在 */
   queryLocalPathExists: (filePath: string) => Promise<boolean>
   queryAshareKlineRefresh: (req: import('./stock-chart').AshareKlineRefreshRequest) => Promise<import('./stock-chart').StockChartPayload | null>

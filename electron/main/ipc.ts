@@ -66,6 +66,7 @@ import {
 import { querySkillImportPreview, postImportSkillFromUrl } from './store/skill-import'
 import { postSummarizeSkillFromSession } from './store/skill-summarize'
 import { queryLocalImageDataUrl } from './store/local-image'
+import { postSaveChatUpload } from './store/chat-upload'
 import { queryLocalMediaUrl } from './store/local-media'
 import {
   queryAllChannelLoginStatuses,
@@ -337,6 +338,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.queryLocalMediaUrl, (_e, filePath: string) =>
     queryLocalMediaUrl(filePath)
   )
+  ipcMain.handle(IpcChannels.postSaveChatUpload, (_e, input) => postSaveChatUpload(input))
   ipcMain.handle(IpcChannels.queryLocalPathExists, (_e, filePath: string) => {
     const raw = String(filePath ?? '').trim()
     if (!raw) return false
