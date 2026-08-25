@@ -1,0 +1,695 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CLIPLoader",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1009",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "VAELoader",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "AudioEncoderLoader",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "WanSoundImageToVideo",
+      "inputs": {
+        "positive": [
+          "1011",
+          0
+        ],
+        "negative": [
+          "1003",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ],
+        "audio_encoder_output": [
+          "1016",
+          0
+        ],
+        "ref_image": [
+          "1023",
+          0
+        ],
+        "length": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "ImageFromBatch",
+      "inputs": {
+        "image": [
+          "1002",
+          0
+        ],
+        "batch_index": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "LatentConcat",
+      "inputs": {
+        "samples1": [
+          "1010",
+          0
+        ],
+        "samples2": [
+          "1030",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "LatentCut",
+      "inputs": {
+        "samples": [
+          "1030",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1013": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1008",
+          0
+        ],
+        "audio": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1016": {
+      "class_type": "AudioEncoderEncode",
+      "inputs": {
+        "audio_encoder": [
+          "1005",
+          0
+        ],
+        "audio": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1019": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {}
+    },
+    "1020": {
+      "class_type": "UNETLoader",
+      "inputs": {}
+    },
+    "1021": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1007",
+          0
+        ],
+        "positive": [
+          "1006",
+          0
+        ],
+        "negative": [
+          "1006",
+          1
+        ],
+        "latent_image": [
+          "1006",
+          2
+        ],
+        "steps": [
+          "1018",
+          0
+        ],
+        "cfg": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "LoadAudio",
+      "inputs": {}
+    },
+    "1023": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1024": {
+      "class_type": "LatentConcat",
+      "inputs": {
+        "samples1": [
+          "79",
+          0
+        ],
+        "samples2": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "54",
+          0
+        ],
+        "positive": [
+          "1026",
+          0
+        ],
+        "negative": [
+          "1026",
+          1
+        ],
+        "latent_image": [
+          "1026",
+          2
+        ],
+        "seed": [
+          "103",
+          0
+        ],
+        "steps": [
+          "105",
+          0
+        ],
+        "cfg": [
+          "104",
+          0
+        ],
+        "sampler_name": null,
+        "scheduler": null
+      }
+    },
+    "1026": {
+      "class_type": "WanSoundImageToVideoExtend",
+      "inputs": {
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "vae": [
+          "39",
+          0
+        ],
+        "video_latent": [
+          "79",
+          0
+        ],
+        "audio_encoder_output": [
+          "56",
+          0
+        ],
+        "ref_image": [
+          "52",
+          0
+        ],
+        "control_video": null,
+        "length": null
+      }
+    },
+    "1027": {
+      "class_type": "LatentConcat",
+      "inputs": {
+        "samples1": [
+          "3",
+          0
+        ],
+        "samples2": [
+          "1028",
+          0
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "54",
+          0
+        ],
+        "positive": [
+          "1029",
+          0
+        ],
+        "negative": [
+          "1029",
+          1
+        ],
+        "latent_image": [
+          "1029",
+          2
+        ],
+        "seed": [
+          "103",
+          0
+        ],
+        "steps": [
+          "105",
+          0
+        ],
+        "cfg": [
+          "104",
+          0
+        ],
+        "sampler_name": null,
+        "scheduler": null
+      }
+    },
+    "1029": {
+      "class_type": "WanSoundImageToVideoExtend",
+      "inputs": {
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "vae": [
+          "39",
+          0
+        ],
+        "video_latent": [
+          "3",
+          0
+        ],
+        "audio_encoder_output": [
+          "56",
+          0
+        ],
+        "ref_image": [
+          "52",
+          0
+        ],
+        "control_video": null,
+        "length": null
+      }
+    },
+    "1030": {
+      "class_type": "LatentConcat",
+      "inputs": {
+        "samples1": [
+          "85",
+          0
+        ],
+        "samples2": [
+          "1031",
+          0
+        ]
+      }
+    },
+    "1031": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "54",
+          0
+        ],
+        "positive": [
+          "1032",
+          0
+        ],
+        "negative": [
+          "1032",
+          1
+        ],
+        "latent_image": [
+          "1032",
+          2
+        ],
+        "seed": [
+          "103",
+          0
+        ],
+        "steps": [
+          "105",
+          0
+        ],
+        "cfg": [
+          "104",
+          0
+        ],
+        "sampler_name": null,
+        "scheduler": null
+      }
+    },
+    "1032": {
+      "class_type": "WanSoundImageToVideoExtend",
+      "inputs": {
+        "positive": [
+          "6",
+          0
+        ],
+        "negative": [
+          "7",
+          0
+        ],
+        "vae": [
+          "39",
+          0
+        ],
+        "video_latent": [
+          "85",
+          0
+        ],
+        "audio_encoder_output": [
+          "56",
+          0
+        ],
+        "ref_image": [
+          "52",
+          0
+        ],
+        "control_video": null,
+        "length": null
+      }
+    },
+    "1033": {
+      "class_type": "LatentConcat",
+      "inputs": {
+        "samples1": [
+          "172",
+          0
+        ],
+        "samples2": [
+          "1034",
+          0
+        ]
+      }
+    },
+    "1034": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "154",
+          0
+        ],
+        "positive": [
+          "1035",
+          0
+        ],
+        "negative": [
+          "1035",
+          1
+        ],
+        "latent_image": [
+          "1035",
+          2
+        ],
+        "seed": [
+          "177",
+          0
+        ],
+        "steps": [
+          "178",
+          0
+        ],
+        "cfg": [
+          "166",
+          0
+        ],
+        "sampler_name": null,
+        "scheduler": null
+      }
+    },
+    "1035": {
+      "class_type": "WanSoundImageToVideoExtend",
+      "inputs": {
+        "positive": [
+          "159",
+          0
+        ],
+        "negative": [
+          "149",
+          0
+        ],
+        "vae": [
+          "150",
+          0
+        ],
+        "video_latent": [
+          "172",
+          0
+        ],
+        "audio_encoder_output": [
+          "173",
+          0
+        ],
+        "ref_image": [
+          "160",
+          0
+        ],
+        "control_video": null,
+        "length": null
+      }
+    },
+    "1036": {
+      "class_type": "LatentConcat",
+      "inputs": {
+        "samples1": [
+          "152",
+          0
+        ],
+        "samples2": [
+          "1037",
+          0
+        ]
+      }
+    },
+    "1037": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "154",
+          0
+        ],
+        "positive": [
+          "1038",
+          0
+        ],
+        "negative": [
+          "1038",
+          1
+        ],
+        "latent_image": [
+          "1038",
+          2
+        ],
+        "seed": [
+          "177",
+          0
+        ],
+        "steps": [
+          "178",
+          0
+        ],
+        "cfg": [
+          "166",
+          0
+        ],
+        "sampler_name": null,
+        "scheduler": null
+      }
+    },
+    "1038": {
+      "class_type": "WanSoundImageToVideoExtend",
+      "inputs": {
+        "positive": [
+          "159",
+          0
+        ],
+        "negative": [
+          "149",
+          0
+        ],
+        "vae": [
+          "150",
+          0
+        ],
+        "video_latent": [
+          "152",
+          0
+        ],
+        "audio_encoder_output": [
+          "173",
+          0
+        ],
+        "ref_image": [
+          "160",
+          0
+        ],
+        "control_video": null,
+        "length": null
+      }
+    },
+    "1039": {
+      "class_type": "LatentConcat",
+      "inputs": {
+        "samples1": [
+          "165",
+          0
+        ],
+        "samples2": [
+          "1040",
+          0
+        ]
+      }
+    },
+    "1040": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "154",
+          0
+        ],
+        "positive": [
+          "1041",
+          0
+        ],
+        "negative": [
+          "1041",
+          1
+        ],
+        "latent_image": [
+          "1041",
+          2
+        ],
+        "seed": [
+          "177",
+          0
+        ],
+        "steps": [
+          "178",
+          0
+        ],
+        "cfg": [
+          "166",
+          0
+        ],
+        "sampler_name": null,
+        "scheduler": null
+      }
+    },
+    "1041": {
+      "class_type": "WanSoundImageToVideoExtend",
+      "inputs": {
+        "positive": [
+          "159",
+          0
+        ],
+        "negative": [
+          "149",
+          0
+        ],
+        "vae": [
+          "150",
+          0
+        ],
+        "video_latent": [
+          "165",
+          0
+        ],
+        "audio_encoder_output": [
+          "173",
+          0
+        ],
+        "ref_image": [
+          "160",
+          0
+        ],
+        "control_video": null,
+        "length": null
+      }
+    }
+  }
+}

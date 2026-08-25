@@ -1,0 +1,201 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "EmptyFlux2LatentImage",
+      "inputs": {
+        "width": null,
+        "height": null
+      }
+    },
+    "1003": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1004": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1005",
+          0
+        ],
+        "vae": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1003",
+          0
+        ],
+        "positive": [
+          "1006",
+          0
+        ],
+        "negative": [
+          "1007",
+          0
+        ],
+        "latent_image": [
+          "1002",
+          0
+        ],
+        "seed": null,
+        "steps": null,
+        "cfg": null
+      }
+    },
+    "1006": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1013",
+          0
+        ],
+        "text": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "replace": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1010": {
+      "class_type": "TextGenerate",
+      "inputs": {
+        "clip": [
+          "1015",
+          0
+        ],
+        "prompt": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1012": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1009",
+          0
+        ],
+        "on_true": [
+          "1010",
+          0
+        ],
+        "switch": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1014": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1015": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1016": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": null
+      }
+    },
+    "1017": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": null
+      }
+    },
+    "1018": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": [
+          "1008",
+          0
+        ],
+        "replace": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": [
+          "1018",
+          0
+        ],
+        "replace": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1012",
+          0
+        ]
+      }
+    }
+  }
+}

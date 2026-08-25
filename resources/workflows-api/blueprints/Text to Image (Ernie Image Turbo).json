@@ -1,0 +1,216 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "EmptyFlux2LatentImage",
+      "inputs": {
+        "width": null,
+        "height": null,
+        "batch_size": 1
+      }
+    },
+    "1002": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1003": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1004",
+          0
+        ],
+        "vae": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1002",
+          0
+        ],
+        "positive": [
+          "1005",
+          0
+        ],
+        "negative": [
+          "1008",
+          0
+        ],
+        "latent_image": [
+          "1001",
+          0
+        ],
+        "seed": null,
+        "steps": 8,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    "1005": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "text": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "flux2",
+        "device": "default"
+      }
+    },
+    "1007": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1008": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": "<s>[SYSTEM_PROMPT]你是一个专业的文生图 Prompt 增强助手。你将收到用户的简短图片描述及目标生成分辨率，请据此扩写为一段内容丰富、细节充分的视觉描述，以帮助文生图模型生成高质量的图片。仅输出增强后的描述，不要包含任何解释或前缀。[/SYSTEM_PROMPT][INST]{\"prompt\": \"{prompt}\", \"width\": {width}, \"height\": {height}}[/INST]",
+        "find": "{prompt}",
+        "replace": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1011": {
+      "class_type": "TextGenerate",
+      "inputs": {
+        "clip": [
+          "1014",
+          0
+        ],
+        "prompt": [
+          "1018",
+          0
+        ],
+        "max_length": 2048,
+        "sampling_mode": "on",
+        "sampling_mode.temperature": 0.6,
+        "sampling_mode.top_k": 64,
+        "sampling_mode.top_p": 0.8,
+        "sampling_mode.min_p": 0.05,
+        "sampling_mode.repetition_penalty": 1.05,
+        "sampling_mode.seed": 0,
+        "sampling_mode.presence_penalty": 0,
+        "thinking": false,
+        "use_default_template": true
+      }
+    },
+    "1012": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1013": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1010",
+          0
+        ],
+        "on_true": [
+          "1011",
+          0
+        ],
+        "switch": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "flux2",
+        "device": "default"
+      }
+    },
+    "1015": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": null
+      }
+    },
+    "1016": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": null
+      }
+    },
+    "1017": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": [
+          "1009",
+          0
+        ],
+        "find": "{width}",
+        "replace": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": [
+          "1017",
+          0
+        ],
+        "find": "{height}",
+        "replace": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1013",
+          0
+        ]
+      }
+    }
+  }
+}

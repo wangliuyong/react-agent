@@ -1,0 +1,147 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "text": ""
+      }
+    },
+    "1002": {
+      "class_type": "ImageUpscaleWithModel",
+      "inputs": {
+        "upscale_model": [
+          "1009",
+          0
+        ],
+        "image": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1004",
+          0
+        ],
+        "vae": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "ImageScaleBy",
+      "inputs": {
+        "image": [
+          "1002",
+          0
+        ],
+        "upscale_method": "lanczos",
+        "scale_by": 0.5
+      }
+    },
+    "1005": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1006": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "lumina2",
+        "device": "default"
+      }
+    },
+    "1007": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "text": "masterpiece, 8k"
+      }
+    },
+    "1008": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": 0.33
+      }
+    },
+    "1009": {
+      "class_type": "UpscaleModelLoader",
+      "inputs": {
+        "model_name": "z_image_turbo_bf16.safetensors"
+      }
+    },
+    "1010": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "shift": 3
+      }
+    },
+    "1011": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1013",
+          0
+        ],
+        "vae": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": null,
+        "upscale_method": "lanczos",
+        "megapixels": 1,
+        "resolution_steps": 1
+      }
+    },
+    "1013": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1010",
+          0
+        ],
+        "positive": [
+          "1007",
+          0
+        ],
+        "negative": [
+          "1001",
+          0
+        ],
+        "latent_image": [
+          "1003",
+          0
+        ],
+        "seed": 1098688918602660,
+        "steps": 5,
+        "cfg": 1,
+        "sampler_name": "dpmpp_2m_sde",
+        "scheduler": "beta",
+        "denoise": "qwen_3_4b.safetensors"
+      }
+    }
+  }
+}

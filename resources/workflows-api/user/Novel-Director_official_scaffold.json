@@ -1,0 +1,117 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": "{\n  \"role_list\": [\n    {\"name\": \"旁白\", \"instruct\": \"深沉男声，语速适中\", \"text\": \"故事开始了\"},\n    {\"name\": \"李明\", \"instruct\": \"年轻男声，语气激动\", \"text\": \"快看那边！\"}\n  ],\n  \"juben\": \"旁白:天色渐晚。\\n李明:我们得赶紧回家。\\n旁白:两人加快了脚步。\"\n}"
+      }
+    },
+    "1002": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": "{\n  \"storyboard_list\": [\n    {\"prompt\": \"Dark sky, evening, street light, cinematic\", \"main_character\": []},\n    {\"prompt\": \"Two boys running on the street, night\", \"main_character\": [\"李明\"]},\n    {\"prompt\": \"Boys walking faster under street lights\", \"main_character\": [\"李明\"]}\n  ]\n}"
+      }
+    },
+    "1003": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": "{\n  \"video_prompts\": [\n    \"Static camera, cinematic lighting\",\n    \"Camera tracking shot, running motion\",\n    \"Slow push-in, cinematic lighting\"\n  ]\n}"
+      }
+    },
+    "1004": {
+      "class_type": "DirectorCasting",
+      "inputs": {
+        "char1_name": "李明",
+        "char2_name": "",
+        "char3_name": "",
+        "char4_name": "",
+        "char5_name": "",
+        "char6_name": ""
+      }
+    },
+    "1005": {
+      "class_type": "DirectorAudioScriptLoader",
+      "inputs": {
+        "audio_json": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "DirectorVisualStoryboardLoader",
+      "inputs": {
+        "visual_json": [
+          "1002",
+          0
+        ],
+        "cast_dict": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "DirectorVideoPromptLoader",
+      "inputs": {
+        "video_json": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "DirectorSceneIterator",
+      "inputs": {
+        "scene_index": [
+          "1005",
+          4
+        ],
+        "role_list": [
+          "1005",
+          0
+        ],
+        "instruct_list": [
+          "1005",
+          1
+        ],
+        "text_list": [
+          "1005",
+          2
+        ],
+        "visual_prompts": [
+          "1006",
+          0
+        ],
+        "video_prompts": [
+          "1007",
+          0
+        ],
+        "char_img1_list": [
+          "1006",
+          1
+        ],
+        "char_img2_list": [
+          "1006",
+          2
+        ],
+        "char_img3_list": [
+          "1006",
+          3
+        ],
+        "char_img4_list": [
+          "1006",
+          4
+        ],
+        "char_img5_list": [
+          "1006",
+          5
+        ],
+        "char_img6_list": [
+          "1006",
+          6
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,255 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "ControlNetLoader",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1004",
+          1
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ],
+        "positive": [
+          "1010",
+          0
+        ],
+        "negative": [
+          "1010",
+          1
+        ],
+        "latent_image": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1007",
+          0
+        ],
+        "vae": [
+          "1004",
+          2
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1021",
+          0
+        ],
+        "vae": [
+          "1004",
+          2
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "ControlNetApplyAdvanced",
+      "inputs": {
+        "positive": [
+          "1006",
+          0
+        ],
+        "negative": [
+          "1003",
+          0
+        ],
+        "control_net": [
+          "1001",
+          0
+        ],
+        "image": [
+          "1021",
+          0
+        ],
+        "vae": [
+          "1004",
+          2
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {}
+    },
+    "1012": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1019",
+          0
+        ],
+        "guider": [
+          "1015",
+          0
+        ],
+        "sampler": [
+          "1025",
+          0
+        ],
+        "sigmas": [
+          "1024",
+          0
+        ],
+        "latent_image": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": [
+          "1023",
+          0
+        ],
+        "conditioning": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1023",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "LotusConditioning",
+      "inputs": {}
+    },
+    "1018": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "70",
+          0
+        ],
+        "vae": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "DisableNoise",
+      "inputs": {}
+    },
+    "1020": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1014",
+          0
+        ],
+        "vae": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "ImageInvert",
+      "inputs": {
+        "image": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "lotus-depth-d-v1-1.safetensors"
+      }
+    },
+    "1023": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": 10000
+      }
+    },
+    "1024": {
+      "class_type": "SetFirstSigma",
+      "inputs": {
+        "sigmas": [
+          "1016",
+          0
+        ],
+        "sigma": "euler"
+      }
+    },
+    "1025": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": null
+      }
+    }
+  }
+}

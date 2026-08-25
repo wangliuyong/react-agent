@@ -1,0 +1,39 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "TopazImageEnhanceV2",
+      "inputs": {
+        "image": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "SaveImageAdvanced",
+      "inputs": {
+        "images": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "ImageCompare",
+      "inputs": {
+        "image_a": [
+          "1002",
+          0
+        ],
+        "image_b": [
+          "1003",
+          0
+        ]
+      }
+    }
+  }
+}

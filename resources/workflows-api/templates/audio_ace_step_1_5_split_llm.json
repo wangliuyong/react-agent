@@ -1,0 +1,167 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "SaveAudioMP3",
+      "inputs": {
+        "audio": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "RegexExtract",
+      "inputs": {
+        "string": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "RegexExtract",
+      "inputs": {
+        "string": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "GeminiNode",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "DualCLIPLoader",
+      "inputs": {
+        "clip_name1": null,
+        "clip_name2": null
+      }
+    },
+    "1007": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1008": {
+      "class_type": "EmptyAceStep1.5LatentAudio",
+      "inputs": {
+        "seconds": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1011",
+          0
+        ],
+        "positive": [
+          "1013",
+          0
+        ],
+        "negative": [
+          "1009",
+          0
+        ],
+        "latent_image": [
+          "1008",
+          0
+        ],
+        "seed": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "VAEDecodeAudio",
+      "inputs": {
+        "samples": [
+          "1010",
+          0
+        ],
+        "vae": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "TextEncodeAceStepAudio1.5",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "tags": [
+          "18",
+          0
+        ],
+        "lyrics": [
+          "19",
+          0
+        ],
+        "seed": [
+          "1015",
+          0
+        ],
+        "duration": [
+          "1016",
+          0
+        ],
+        "timesignature": null,
+        "language": null,
+        "keyscale": null,
+        "generate_audio_codes": null,
+        "cfg_scale": null,
+        "temperature": null,
+        "top_p": null,
+        "top_k": null
+      }
+    },
+    "1014": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1016": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": null
+      }
+    }
+  }
+}

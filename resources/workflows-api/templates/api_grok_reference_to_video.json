@@ -1,0 +1,34 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "GrokVideoReferenceNode",
+      "inputs": {
+        "model.reference_images.reference_0": [
+          "1001",
+          0
+        ],
+        "model.reference_images.reference_1": [
+          "1002",
+          0
+        ]
+      }
+    }
+  }
+}

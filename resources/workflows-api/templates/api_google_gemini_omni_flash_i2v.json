@@ -1,0 +1,109 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1005",
+          1
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "GeminiVideoOmni",
+      "inputs": {
+        "model.prompt": [
+          "1012",
+          0
+        ],
+        "model.images.image_1": [
+          "1003",
+          0
+        ],
+        "model.images.image_2": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": null
+      }
+    },
+    "1007": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": null
+      }
+    },
+    "1008": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_b": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_b": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_a": [
+          "1008",
+          0
+        ],
+        "string_b": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1012": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_a": [
+          "1011",
+          0
+        ],
+        "string_b": [
+          "1010",
+          0
+        ]
+      }
+    }
+  }
+}

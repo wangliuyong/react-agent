@@ -1,0 +1,161 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CLIPVisionLoader",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "VAELoader",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "CLIPLoader",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "UNETLoader",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1006",
+          0
+        ],
+        "positive": [
+          "1014",
+          0
+        ],
+        "negative": [
+          "1014",
+          1
+        ],
+        "latent_image": [
+          "1014",
+          2
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "1001",
+          0
+        ],
+        "image": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1007",
+          0
+        ],
+        "vae": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "WanCameraEmbedding",
+      "inputs": {}
+    },
+    "1013": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "WanCameraImageToVideo",
+      "inputs": {
+        "positive": [
+          "1013",
+          0
+        ],
+        "negative": [
+          "1015",
+          0
+        ],
+        "vae": [
+          "1002",
+          0
+        ],
+        "clip_vision_output": [
+          "1008",
+          0
+        ],
+        "start_image": [
+          "1005",
+          0
+        ],
+        "camera_conditions": [
+          "1012",
+          0
+        ],
+        "width": [
+          "1012",
+          1
+        ],
+        "height": [
+          "1012",
+          2
+        ],
+        "length": [
+          "1012",
+          3
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1003",
+          0
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1002",
+          0
+        ],
+        "images.image1": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "KlingOmniProImageNode",
+      "inputs": {
+        "reference_images": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "HappyHorseTextToVideoApi",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

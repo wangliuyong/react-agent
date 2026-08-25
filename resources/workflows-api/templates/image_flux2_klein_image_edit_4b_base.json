@@ -1,0 +1,439 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "Flux2Scheduler",
+      "inputs": {
+        "width": [
+          "1017",
+          0
+        ],
+        "height": [
+          "1017",
+          1
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1010",
+          0
+        ],
+        "positive": [
+          "1020",
+          0
+        ],
+        "negative": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1009",
+          0
+        ],
+        "guider": [
+          "1006",
+          0
+        ],
+        "sampler": [
+          "1004",
+          0
+        ],
+        "sigmas": [
+          "1005",
+          0
+        ],
+        "latent_image": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1007",
+          0
+        ],
+        "vae": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": null
+      }
+    },
+    "1010": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "flux-2-klein-base-4b-fp8.safetensors"
+      }
+    },
+    "1011": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": [
+          "76",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1011",
+          0
+        ],
+        "text": "Change the background to a cozy, softly lit interior space with warm beige tones, soft natural window light filtering through, and a relaxed, intimate atmosphere similar to the original image's mood. Keep the person in the exact same position, scale, and pose. Maintain identical camera angle, framing, and perspective. The lighting should be soft, even, and warm - not harsh or bright. Only replace the room environment, preserving all facial features, hairstyle, expression, clothing, and pose exactly as they are."
+      }
+    },
+    "1013": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "full_encoder_small_decoder.safetensors"
+      }
+    },
+    "1015": {
+      "class_type": "EmptyFlux2LatentImage",
+      "inputs": {
+        "width": [
+          "1017",
+          0
+        ],
+        "height": [
+          "1017",
+          1
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": 1111443136920027
+      }
+    },
+    "1017": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1013",
+          0
+        ],
+        "latent": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1016",
+          0
+        ],
+        "vae": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1012",
+          0
+        ],
+        "latent": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1022": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1024",
+          0
+        ],
+        "guider": [
+          "1034",
+          0
+        ],
+        "sampler": [
+          "1021",
+          0
+        ],
+        "sigmas": [
+          "1035",
+          0
+        ],
+        "latent_image": [
+          "1028",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1022",
+          0
+        ],
+        "vae": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": null
+      }
+    },
+    "1025": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "flux-2-klein-base-4b-fp8.safetensors"
+      }
+    },
+    "1026": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": [
+          "81",
+          0
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1029",
+          0
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "EmptyFlux2LatentImage",
+      "inputs": {
+        "width": [
+          "1027",
+          0
+        ],
+        "height": [
+          "1027",
+          1
+        ]
+      }
+    },
+    "1029": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": 133932424540642
+      }
+    },
+    "1030": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": null
+      }
+    },
+    "1031": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": [
+          "76",
+          0
+        ]
+      }
+    },
+    "1032": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1031",
+          0
+        ],
+        "text": "A stylish young woman with dark skin wearing a plush deep emerald green bathrobe, light pink towel turban, and red heart-shaped sunglasses, seated on a light-colored rattan chair with soft pink cushions, positioned in front of a textured dusty rose pink wall with an arched alcove, large tropical plants with broad dark green leaves framing both sides, woven straw baskets on the floor, remove any existing shoes from the background, only the woman's beige woven sandals visible in the foreground, soft natural lighting casting gentle shadows, warm bohemian chic aesthetic, professional fashion photography"
+      }
+    },
+    "1033": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1031",
+          0
+        ]
+      }
+    },
+    "1034": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1025",
+          0
+        ],
+        "positive": [
+          "1041",
+          0
+        ],
+        "negative": [
+          "1039",
+          0
+        ]
+      }
+    },
+    "1035": {
+      "class_type": "Flux2Scheduler",
+      "inputs": {
+        "width": [
+          "1027",
+          0
+        ],
+        "height": [
+          "1027",
+          1
+        ]
+      }
+    },
+    "1036": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1033",
+          0
+        ],
+        "latent": [
+          "1037",
+          0
+        ]
+      }
+    },
+    "1037": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1029",
+          0
+        ],
+        "vae": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1038": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1032",
+          0
+        ],
+        "latent": [
+          "1037",
+          0
+        ]
+      }
+    },
+    "1039": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1036",
+          0
+        ],
+        "latent": [
+          "1040",
+          0
+        ]
+      }
+    },
+    "1040": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1030",
+          0
+        ],
+        "vae": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1041": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1038",
+          0
+        ],
+        "latent": [
+          "1040",
+          0
+        ]
+      }
+    }
+  }
+}

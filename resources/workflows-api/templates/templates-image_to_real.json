@@ -1,0 +1,156 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen_image_vae.safetensors"
+      }
+    },
+    "1004": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1005": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors"
+      }
+    },
+    "1006": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "1003",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ],
+        "image1": [
+          "14",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "lora_name": "qwen_image_edit_2509_fp8_e4m3fn.safetensors"
+      }
+    },
+    "1008": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1013",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "14",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1007",
+          0
+        ],
+        "lora_name": "Qwen-Image-Edit-2509-Anything2RealAlpha.safetensors"
+      }
+    },
+    "1013": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1011",
+          0
+        ],
+        "positive": [
+          "1014",
+          0
+        ],
+        "negative": [
+          "1006",
+          0
+        ],
+        "latent_image": [
+          "1009",
+          0
+        ],
+        "seed": "Qwen-Image-Edit-2509-Lightning-8steps-V1.0-bf16.safetensors"
+      }
+    },
+    "1014": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "1003",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ],
+        "image1": [
+          "14",
+          0
+        ],
+        "prompt": 27584544029937
+      }
+    }
+  }
+}

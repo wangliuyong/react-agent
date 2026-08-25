@@ -1,0 +1,393 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LTXVScheduler",
+      "inputs": {
+        "latent": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "LTXAVTextEncoderLoader",
+      "inputs": {
+        "text_encoder": "gemma_3_12B_it_fp4_mixed.safetensors",
+        "ckpt_name": "ltx-2-19b-dev-fp8.safetensors"
+      }
+    },
+    "1004": {
+      "class_type": "ManualSigmas",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "LatentUpscaleModelLoader",
+      "inputs": {
+        "model_name": "ltx-2-spatial-upscaler-x2-1.0.safetensors"
+      }
+    },
+    "1006": {
+      "class_type": "LTXVCropGuides",
+      "inputs": {
+        "positive": [
+          "1011",
+          0
+        ],
+        "negative": [
+          "1011",
+          1
+        ],
+        "latent": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1037",
+          0
+        ],
+        "positive": [
+          "1006",
+          0
+        ],
+        "negative": [
+          "1006",
+          1
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "ImageScaleBy",
+      "inputs": {
+        "image": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "LTXVEmptyLatentAudio",
+      "inputs": {
+        "audio_vae": [
+          "1027",
+          0
+        ],
+        "frames_number": [
+          "1016",
+          0
+        ],
+        "frame_rate": [
+          "1034",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "LTXVConditioning",
+      "inputs": {
+        "positive": [
+          "1025",
+          0
+        ],
+        "negative": [
+          "1014",
+          0
+        ],
+        "frame_rate": [
+          "1033",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "EmptyLTXVLatentVideo",
+      "inputs": {
+        "width": [
+          "1009",
+          0
+        ],
+        "height": [
+          "1009",
+          1
+        ],
+        "length": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": [
+          "1012",
+          0
+        ],
+        "audio_latent": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "EmptyImage",
+      "inputs": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    "1016": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 121
+      }
+    },
+    "1017": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1019",
+          0
+        ],
+        "guider": [
+          "1032",
+          0
+        ],
+        "sampler": [
+          "1039",
+          0
+        ],
+        "sigmas": [
+          "1002",
+          0
+        ],
+        "latent_image": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "RandomNoise",
+      "inputs": {}
+    },
+    "1019": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": 10
+      }
+    },
+    "1020": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": [
+          "1022",
+          0
+        ],
+        "audio_latent": [
+          "1020",
+          1
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "LTXVLatentUpsampler",
+      "inputs": {
+        "samples": [
+          "1006",
+          2
+        ],
+        "upscale_model": [
+          "1005",
+          0
+        ],
+        "vae": [
+          "1024",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1018",
+          0
+        ],
+        "guider": [
+          "1007",
+          0
+        ],
+        "sampler": [
+          "1040",
+          0
+        ],
+        "sigmas": [
+          "1004",
+          0
+        ],
+        "latent_image": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1003",
+          0
+        ],
+        "text": "A close-up of a cheerful girl puppet with curly auburn yarn hair and wide button eyes, holding a small red umbrella above her head. Rain falls gently around her. She looks upward and begins to sing with joy in English: \"It's raining, it's raining, I love it when its raining.\" Her fabric mouth opening and closing to a melodic tune. Her hands grip the umbrella handle as she sways slightly from side to side in rhythm. The camera holds steady as the rain sparkles against the soft lighting. Her eyes blink occasionally as she sings."
+      }
+    },
+    "1026": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1030",
+          0
+        ],
+        "audio": [
+          "1031",
+          0
+        ],
+        "fps": [
+          "1033",
+          0
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "LTXVAudioVAELoader",
+      "inputs": {
+        "ckpt_name": "ltx-2-19b-dev-fp8.safetensors"
+      }
+    },
+    "1028": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": [
+          "1023",
+          1
+        ]
+      }
+    },
+    "1030": {
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "samples": [
+          "1028",
+          0
+        ],
+        "vae": [
+          "1042",
+          2
+        ]
+      }
+    },
+    "1031": {
+      "class_type": "LTXVAudioVAEDecode",
+      "inputs": {
+        "samples": [
+          "1028",
+          1
+        ],
+        "audio_vae": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1032": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1038",
+          0
+        ],
+        "positive": [
+          "1011",
+          0
+        ],
+        "negative": [
+          "1011",
+          1
+        ]
+      }
+    },
+    "1033": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {}
+    },
+    "1034": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1036": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1042",
+          0
+        ],
+        "lora_name": "ltx-2-19b-distilled-lora-384.safetensors"
+      }
+    },
+    "1039": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1040": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1042": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "ltx-2-19b-dev-fp8.safetensors"
+      }
+    }
+  }
+}

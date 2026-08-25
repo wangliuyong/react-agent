@@ -1,0 +1,244 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "VAEEncodeTiled",
+      "inputs": {
+        "pixels": [
+          "1009",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1005": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1006": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "positive": [
+          "1011",
+          0
+        ],
+        "negative": [
+          "1011",
+          1
+        ],
+        "latent_image": [
+          "1018",
+          0
+        ],
+        "seed": null,
+        "sampler_name": null,
+        "scheduler": null,
+        "denoise": null
+      }
+    },
+    "1007": {
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "samples": [
+          "1019",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1012",
+          0
+        ],
+        "resize_type.multiplier": null
+      }
+    },
+    "1009": {
+      "class_type": "SeedVR2Preprocess",
+      "inputs": {
+        "resized_images": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "SeedVR2PostProcessing",
+      "inputs": {
+        "images": [
+          "1007",
+          0
+        ],
+        "original_resized_images": [
+          "1008",
+          0
+        ],
+        "color_correction_method": null
+      }
+    },
+    "1011": {
+      "class_type": "SeedVR2Conditioning",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "vae_conditioning": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ],
+        "audio": [
+          "1012",
+          1
+        ],
+        "fps": [
+          "1012",
+          2
+        ],
+        "bit_depth": [
+          "1012",
+          3
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "Video Slice",
+      "inputs": {
+        "video": [
+          "73",
+          0
+        ],
+        "start_time": null,
+        "duration": null
+      }
+    },
+    "1015": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "73",
+          0
+        ],
+        "on_true": [
+          "1014",
+          0
+        ],
+        "switch": null
+      }
+    },
+    "1016": {
+      "class_type": "SeedVR2TemporalChunk",
+      "inputs": {
+        "latent": [
+          "1003",
+          0
+        ],
+        "temporal_overlap": null
+      }
+    },
+    "1017": {
+      "class_type": "SeedVR2TemporalMerge",
+      "inputs": {
+        "latents": [
+          "1006",
+          0
+        ],
+        "temporal_overlap": [
+          "1016",
+          1
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1003",
+          0
+        ],
+        "on_true": [
+          "1016",
+          0
+        ],
+        "switch": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1006",
+          0
+        ],
+        "on_true": [
+          "1017",
+          0
+        ],
+        "switch": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    }
+  }
+}

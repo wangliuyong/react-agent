@@ -1,0 +1,22 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveSVGNode",
+      "inputs": {
+        "svg": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "RecraftV4TextToVectorNode",
+      "inputs": {
+        "recraft_controls": [
+          "4",
+          0
+        ]
+      }
+    }
+  }
+}

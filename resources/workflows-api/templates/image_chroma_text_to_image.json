@@ -1,0 +1,137 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1012",
+          0
+        ],
+        "vae": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ],
+        "positive": [
+          "1014",
+          0
+        ],
+        "negative": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "VAELoader",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "RandomNoise",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "CLIPLoader",
+      "inputs": {}
+    },
+    "1008": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {}
+    },
+    "1010": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "T5TokenizerOptions",
+      "inputs": {
+        "clip": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1006",
+          0
+        ],
+        "guider": [
+          "1002",
+          0
+        ],
+        "sampler": [
+          "1003",
+          0
+        ],
+        "sigmas": [
+          "1008",
+          0
+        ],
+        "latent_image": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "UNETLoader",
+      "inputs": {}
+    }
+  }
+}

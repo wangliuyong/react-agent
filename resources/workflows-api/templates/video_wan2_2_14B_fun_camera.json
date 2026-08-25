@@ -1,0 +1,174 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "WanCameraImageToVideo",
+      "inputs": {
+        "positive": [
+          "1009",
+          0
+        ],
+        "negative": [
+          "1003",
+          0
+        ],
+        "vae": [
+          "1006",
+          0
+        ],
+        "start_image": [
+          "1001",
+          0
+        ],
+        "camera_conditions": [
+          "1008",
+          0
+        ],
+        "width": [
+          "1008",
+          1
+        ],
+        "height": [
+          "1008",
+          2
+        ],
+        "length": [
+          "1008",
+          3
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "UNETLoader",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "UNETLoader",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "VAELoader",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "CLIPLoader",
+      "inputs": {}
+    },
+    "1008": {
+      "class_type": "WanCameraEmbedding",
+      "inputs": {}
+    },
+    "1009": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1013",
+          0
+        ],
+        "vae": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1015",
+          0
+        ],
+        "positive": [
+          "1002",
+          0
+        ],
+        "negative": [
+          "1002",
+          1
+        ],
+        "latent_image": [
+          "1002",
+          2
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1014",
+          0
+        ],
+        "positive": [
+          "1002",
+          0
+        ],
+        "negative": [
+          "1002",
+          1
+        ],
+        "latent_image": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1011",
+          0
+        ]
+      }
+    }
+  }
+}

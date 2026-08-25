@@ -1,0 +1,102 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "lumina2",
+        "device": "default"
+      }
+    },
+    "1002": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1003": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1009",
+          0
+        ],
+        "vae": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1006": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1007": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": null,
+        "height": null,
+        "batch_size": 1
+      }
+    },
+    "1008": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "shift": 3
+      }
+    },
+    "1009": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1008",
+          0
+        ],
+        "positive": [
+          "1006",
+          0
+        ],
+        "negative": [
+          "1003",
+          0
+        ],
+        "latent_image": [
+          "1007",
+          0
+        ],
+        "seed": null,
+        "steps": null,
+        "cfg": 1,
+        "sampler_name": "res_multistep",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    }
+  }
+}

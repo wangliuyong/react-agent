@@ -1,0 +1,52 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "BriaTransparentVideoBackground",
+      "inputs": {
+        "video": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "JoinImageWithAlpha",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ],
+        "alpha": [
+          "1001",
+          1
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "SaveWEBM",
+      "inputs": {
+        "images": [
+          "1003",
+          0
+        ],
+        "fps": [
+          "1005",
+          2
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1002",
+          0
+        ]
+      }
+    }
+  }
+}

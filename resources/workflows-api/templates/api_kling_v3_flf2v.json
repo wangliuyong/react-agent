@@ -1,0 +1,34 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "KlingFirstLastFrameNode",
+      "inputs": {
+        "first_frame": [
+          "1001",
+          0
+        ],
+        "end_frame": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    }
+  }
+}

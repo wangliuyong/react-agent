@@ -1,0 +1,443 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "wan",
+        "device": "default"
+      }
+    },
+    "1002": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1003": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1009",
+          0
+        ],
+        "lora_name": null,
+        "strength_model": 1.5
+      }
+    },
+    "1004": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ],
+        "text": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"
+      }
+    },
+    "1005": {
+      "class_type": "SplitSigmas",
+      "inputs": {
+        "sigmas": [
+          "1013",
+          0
+        ],
+        "step": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "res_multistep"
+      }
+    },
+    "1007": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1008": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1007",
+          0
+        ],
+        "lora_name": null,
+        "strength_model": 3
+      }
+    },
+    "1009": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1010": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1014",
+          0
+        ],
+        "vae": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ],
+        "audio": [
+          "1016",
+          1
+        ],
+        "fps": [
+          "1016",
+          2
+        ],
+        "bit_depth": 8
+      }
+    },
+    "1012": {
+      "class_type": "SamplerCustom",
+      "inputs": {
+        "model": [
+          "1032",
+          0
+        ],
+        "positive": [
+          "1015",
+          0
+        ],
+        "negative": [
+          "1015",
+          1
+        ],
+        "sampler": [
+          "1006",
+          0
+        ],
+        "sigmas": [
+          "1005",
+          0
+        ],
+        "latent_image": [
+          "1015",
+          2
+        ],
+        "add_noise": true,
+        "noise_seed": null,
+        "cfg": [
+          "1028",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1009",
+          0
+        ],
+        "scheduler": "simple",
+        "steps": [
+          "1024",
+          0
+        ],
+        "denoise": 1
+      }
+    },
+    "1014": {
+      "class_type": "SamplerCustom",
+      "inputs": {
+        "model": [
+          "1018",
+          0
+        ],
+        "positive": [
+          "1015",
+          0
+        ],
+        "negative": [
+          "1015",
+          1
+        ],
+        "sampler": [
+          "1006",
+          0
+        ],
+        "sigmas": [
+          "1005",
+          1
+        ],
+        "latent_image": [
+          "1012",
+          0
+        ],
+        "add_noise": false,
+        "noise_seed": 0,
+        "cfg": [
+          "1028",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "BerniniConditioning",
+      "inputs": {
+        "positive": [
+          "1017",
+          0
+        ],
+        "negative": [
+          "1004",
+          0
+        ],
+        "vae": [
+          "1002",
+          0
+        ],
+        "source_video": [
+          "1016",
+          0
+        ],
+        "reference_video": null,
+        "reference_images.reference_image_0": null,
+        "width": null,
+        "height": null,
+        "length": null,
+        "batch_size": 1,
+        "ref_max_size": null
+      }
+    },
+    "1016": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": null
+      }
+    },
+    "1017": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ],
+        "text": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1009",
+          0
+        ],
+        "on_true": [
+          "1003",
+          0
+        ],
+        "switch": [
+          "1031",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": null
+      }
+    },
+    "1021": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_a": [
+          "1020",
+          0
+        ],
+        "string_b": [
+          "1034",
+          0
+        ],
+        "delimiter": ""
+      }
+    },
+    "1022": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 40
+      }
+    },
+    "1023": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 6
+      }
+    },
+    "1024": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1022",
+          0
+        ],
+        "on_true": [
+          "1023",
+          0
+        ],
+        "switch": [
+          "1031",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 20
+      }
+    },
+    "1026": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 3
+      }
+    },
+    "1027": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1025",
+          0
+        ],
+        "on_true": [
+          "1026",
+          0
+        ],
+        "switch": [
+          "1031",
+          0
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1030",
+          0
+        ],
+        "on_true": [
+          "1029",
+          0
+        ],
+        "switch": [
+          "1031",
+          0
+        ]
+      }
+    },
+    "1029": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 1
+      }
+    },
+    "1030": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 5
+      }
+    },
+    "1031": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1032": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1007",
+          0
+        ],
+        "on_true": [
+          "1008",
+          0
+        ],
+        "switch": [
+          "1031",
+          0
+        ]
+      }
+    },
+    "1034": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1035": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1037",
+          0
+        ]
+      }
+    },
+    "1036": {
+      "class_type": "RegexExtract",
+      "inputs": {
+        "string": null,
+        "regex_pattern": [
+          "1038",
+          0
+        ],
+        "mode": "First Group",
+        "case_insensitive": false,
+        "multiline": false,
+        "dotall": false,
+        "group_index": 1
+      }
+    },
+    "1037": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": [
+          "356",
+          1
+        ]
+      }
+    },
+    "1038": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": "^(?:[^\\n]*\\n){index}([^\\n]*)(?:\\n|$)",
+        "find": "index",
+        "replace": [
+          "1035",
+          0
+        ]
+      }
+    }
+  }
+}

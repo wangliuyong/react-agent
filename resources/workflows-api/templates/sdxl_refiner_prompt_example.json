@@ -1,0 +1,132 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          1
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          1
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1002",
+          1
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1002",
+          1
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {}
+    },
+    "1008": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1002",
+          0
+        ],
+        "positive": [
+          "1005",
+          0
+        ],
+        "negative": [
+          "1006",
+          0
+        ],
+        "latent_image": [
+          "1007",
+          0
+        ],
+        "steps": [
+          "45",
+          0
+        ],
+        "end_at_step": [
+          "47",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1001",
+          0
+        ],
+        "positive": [
+          "1004",
+          0
+        ],
+        "negative": [
+          "1003",
+          0
+        ],
+        "latent_image": [
+          "1008",
+          0
+        ],
+        "steps": [
+          "45",
+          0
+        ],
+        "start_at_step": [
+          "47",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1009",
+          0
+        ],
+        "vae": [
+          "1001",
+          2
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ]
+      }
+    }
+  }
+}

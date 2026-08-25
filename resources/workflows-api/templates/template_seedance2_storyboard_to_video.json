@@ -1,0 +1,100 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "OpenAIGPTImageNodeV2",
+      "inputs": {
+        "prompt": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "GeminiNode",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "ByteDance2ReferenceNode",
+      "inputs": {
+        "model.prompt": [
+          "1011",
+          0
+        ],
+        "model.reference_images.image_1": [
+          "1008",
+          0
+        ],
+        "model.reference_images.image_2": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "GeminiNode",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1009": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "ImageStitch",
+      "inputs": {
+        "image1": [
+          "1008",
+          0
+        ],
+        "image2": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_a": [
+          "1005",
+          0
+        ]
+      }
+    }
+  }
+}

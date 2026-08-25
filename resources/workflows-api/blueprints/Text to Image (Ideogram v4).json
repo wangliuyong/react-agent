@@ -1,0 +1,290 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1002": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "EmptyFlux2LatentImage",
+      "inputs": {
+        "width": [
+          "1014",
+          1
+        ],
+        "height": [
+          "1015",
+          1
+        ],
+        "batch_size": 1
+      }
+    },
+    "1004": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1008",
+          0
+        ],
+        "guider": [
+          "1025",
+          0
+        ],
+        "sampler": [
+          "1006",
+          0
+        ],
+        "sigmas": [
+          "1007",
+          0
+        ],
+        "latent_image": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1004",
+          0
+        ],
+        "vae": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler"
+      }
+    },
+    "1007": {
+      "class_type": "Ideogram4Scheduler",
+      "inputs": {
+        "steps": [
+          "1023",
+          1
+        ],
+        "width": [
+          "1014",
+          1
+        ],
+        "height": [
+          "1015",
+          1
+        ],
+        "mu": [
+          "1016",
+          0
+        ],
+        "std": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": null
+      }
+    },
+    "1009": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1010": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1011",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1011": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "ideogram4",
+        "device": "default"
+      }
+    },
+    "1012": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1013": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1014": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1012",
+          0
+        ],
+        "expression": "max(((a + 15) // 16) * 16, 256)"
+      }
+    },
+    "1015": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1013",
+          0
+        ],
+        "expression": "max(((a + 15) // 16) * 16, 256)"
+      }
+    },
+    "1016": {
+      "class_type": "ComfyNumberConvert",
+      "inputs": {
+        "value": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "JsonExtractString",
+      "inputs": {
+        "json_string": [
+          "1020",
+          0
+        ],
+        "key": "mu"
+      }
+    },
+    "1018": {
+      "class_type": "ComfyNumberConvert",
+      "inputs": {
+        "value": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "JsonExtractString",
+      "inputs": {
+        "json_string": "{\n  \"Quality\": {\n    \"num_steps\": 48,\n    \"mu\": 0.0,\n    \"std\": 1.5,\n    \"preset_id\": \"V4_QUALITY_48\"\n  },\n  \"Default\": {\n    \"num_steps\": 20,\n    \"mu\": 0.0,\n    \"std\": 1.75,\n    \"preset_id\": \"V4_DEFAULT_20\"\n  },\n  \"Turbo\": {\n    \"num_steps\": 12,\n    \"mu\": 0.5,\n    \"std\": 1.75,\n    \"preset_id\": \"V4_TURBO_12\"\n  }\n}",
+        "key": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": [
+          "1019",
+          0
+        ],
+        "find": "'",
+        "replace": "\""
+      }
+    },
+    "1021": {
+      "class_type": "JsonExtractString",
+      "inputs": {
+        "json_string": [
+          "1020",
+          0
+        ],
+        "key": "num_steps"
+      }
+    },
+    "1022": {
+      "class_type": "JsonExtractString",
+      "inputs": {
+        "json_string": [
+          "1020",
+          0
+        ],
+        "key": "std"
+      }
+    },
+    "1023": {
+      "class_type": "ComfyNumberConvert",
+      "inputs": {
+        "value": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1025": {
+      "class_type": "DualModelGuider",
+      "inputs": {
+        "model": [
+          "1027",
+          0
+        ],
+        "positive": [
+          "1010",
+          0
+        ],
+        "model_negative": [
+          "1024",
+          0
+        ],
+        "negative": [
+          "1002",
+          0
+        ],
+        "cfg": 7
+      }
+    },
+    "1026": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": null
+      }
+    },
+    "1027": {
+      "class_type": "CFGOverride",
+      "inputs": {
+        "model": [
+          "1009",
+          0
+        ],
+        "cfg": 3,
+        "start_percent": 0.7,
+        "end_percent": 1
+      }
+    }
+  }
+}

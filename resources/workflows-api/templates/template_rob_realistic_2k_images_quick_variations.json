@@ -1,0 +1,209 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "ImageCompare",
+      "inputs": {
+        "image_a": [
+          "1005",
+          0
+        ],
+        "image_b": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "GrokImageNode",
+      "inputs": {
+        "prompt": [
+          "1024",
+          0
+        ],
+        "seed": ""
+      }
+    },
+    "1006": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1024",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "ImageUpscaleWithModel",
+      "inputs": {
+        "upscale_model": [
+          "1016",
+          0
+        ],
+        "image": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1010",
+          0
+        ],
+        "vae": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "ImageScaleBy",
+      "inputs": {
+        "image": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ],
+        "positive": [
+          "1014",
+          0
+        ],
+        "negative": [
+          "1007",
+          0
+        ],
+        "latent_image": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": [
+          "126",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1014": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1013",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1015": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1016": {
+      "class_type": "UpscaleModelLoader",
+      "inputs": {
+        "model_name": null
+      }
+    },
+    "1017": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1011",
+          0
+        ],
+        "vae": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_b": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_a": [
+          "1023",
+          0
+        ]
+      }
+    }
+  }
+}

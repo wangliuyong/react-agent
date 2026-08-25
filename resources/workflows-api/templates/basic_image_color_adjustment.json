@@ -1,0 +1,756 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1069",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1041",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1030",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1048",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1049",
+          3
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1049",
+          2
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1049",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1049",
+          1
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1054",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1066",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": [
+          "180",
+          0
+        ],
+        "floats.u_float0": [
+          "1016",
+          0
+        ],
+        "floats.u_float1": [
+          "1017",
+          0
+        ],
+        "floats.u_float2": [
+          "1018",
+          0
+        ],
+        "ints.u_int0": [
+          "1020",
+          1
+        ],
+        "ints.u_int1": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 2
+      }
+    },
+    "1017": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 29
+      }
+    },
+    "1018": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 100
+      }
+    },
+    "1019": {
+      "class_type": "ColorToRGBInt",
+      "inputs": {
+        "color": "#0a9299"
+      }
+    },
+    "1020": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": "screen"
+      }
+    },
+    "1021": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": [
+          "180",
+          0
+        ],
+        "floats.u_float0": [
+          "1023",
+          0
+        ],
+        "floats.u_float1": [
+          "1024",
+          0
+        ],
+        "floats.u_float2": [
+          "1025",
+          0
+        ],
+        "floats.u_float3": [
+          "1026",
+          0
+        ],
+        "ints.u_int0": [
+          "1022",
+          1
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": "Smooth"
+      }
+    },
+    "1023": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0.75
+      }
+    },
+    "1024": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0.45
+      }
+    },
+    "1025": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0.35
+      }
+    },
+    "1026": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0.15
+      }
+    },
+    "1027": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": [
+          "180",
+          0
+        ],
+        "floats.u_float0": [
+          "1028",
+          0
+        ],
+        "ints.u_int0": [
+          "1029",
+          1
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 31
+      }
+    },
+    "1029": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": "Linear"
+      }
+    },
+    "1030": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": [
+          "180",
+          0
+        ],
+        "floats.u_float0": [
+          "1034",
+          0
+        ],
+        "floats.u_float1": [
+          "1033",
+          0
+        ],
+        "floats.u_float2": [
+          "1031",
+          0
+        ],
+        "floats.u_float3": [
+          "1032",
+          0
+        ]
+      }
+    },
+    "1031": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1032": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1033": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1034": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1035": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": "RGB"
+      }
+    },
+    "1036": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 36
+      }
+    },
+    "1037": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 85
+      }
+    },
+    "1038": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 255
+      }
+    },
+    "1039": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 4.33
+      }
+    },
+    "1040": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 201
+      }
+    },
+    "1041": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": [
+          "180",
+          0
+        ],
+        "floats.u_float0": [
+          "1037",
+          0
+        ],
+        "floats.u_float1": [
+          "1038",
+          0
+        ],
+        "floats.u_float2": [
+          "1039",
+          0
+        ],
+        "floats.u_float3": [
+          "1036",
+          0
+        ],
+        "floats.u_float4": [
+          "1040",
+          0
+        ],
+        "ints.u_int0": [
+          "1035",
+          1
+        ]
+      }
+    },
+    "1042": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": "HSL"
+      }
+    },
+    "1043": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": "Master"
+      }
+    },
+    "1044": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 50
+      }
+    },
+    "1045": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1046": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1047": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 3.9
+      }
+    },
+    "1048": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": [
+          "180",
+          0
+        ],
+        "floats.u_float0": [
+          "1047",
+          0
+        ],
+        "floats.u_float1": [
+          "1046",
+          0
+        ],
+        "floats.u_float2": [
+          "1045",
+          0
+        ],
+        "floats.u_float3": [
+          "1044",
+          0
+        ],
+        "ints.u_int0": [
+          "1043",
+          1
+        ],
+        "ints.u_int1": [
+          "1042",
+          1
+        ]
+      }
+    },
+    "1049": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": [
+          "180",
+          0
+        ]
+      }
+    },
+    "1050": {
+      "class_type": "CurveEditor",
+      "inputs": {
+        "histogram": [
+          "1055",
+          0
+        ],
+        "curve": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              0.3890328631875253,
+              0.5266163706133749
+            ],
+            [
+              0.7358435323017858,
+              0.4499509575506062
+            ],
+            [
+              1,
+              1
+            ]
+          ],
+          "interpolation": "monotone_cubic"
+        }
+      }
+    },
+    "1051": {
+      "class_type": "CurveEditor",
+      "inputs": {
+        "histogram": [
+          "1055",
+          2
+        ],
+        "curve": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              0.5142255201011272,
+              0.5774399905293097
+            ],
+            [
+              0.6955375075900738,
+              0.4189873777462001
+            ],
+            [
+              1,
+              1
+            ]
+          ],
+          "interpolation": "monotone_cubic"
+        }
+      }
+    },
+    "1052": {
+      "class_type": "CurveEditor",
+      "inputs": {
+        "histogram": [
+          "1055",
+          3
+        ],
+        "curve": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              0.4243823305151788,
+              0.6834676161170985
+            ],
+            [
+              0.648385876985464,
+              0.6135687127234282
+            ],
+            [
+              0.7751285241199568,
+              0.5661072416153683
+            ],
+            [
+              1,
+              1
+            ]
+          ],
+          "interpolation": "monotone_cubic"
+        }
+      }
+    },
+    "1053": {
+      "class_type": "CurveEditor",
+      "inputs": {
+        "histogram": [
+          "1055",
+          4
+        ],
+        "curve": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ]
+          ],
+          "interpolation": "monotone_cubic"
+        }
+      }
+    },
+    "1054": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": [
+          "180",
+          0
+        ],
+        "curves.u_curve0": [
+          "1050",
+          0
+        ],
+        "curves.u_curve1": [
+          "1051",
+          0
+        ],
+        "curves.u_curve2": [
+          "1052",
+          0
+        ],
+        "curves.u_curve3": [
+          "1053",
+          0
+        ]
+      }
+    },
+    "1055": {
+      "class_type": "ImageHistogram",
+      "inputs": {
+        "image": [
+          "180",
+          0
+        ]
+      }
+    },
+    "1056": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": -100
+      }
+    },
+    "1057": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 47
+      }
+    },
+    "1058": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 6
+      }
+    },
+    "1059": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": -6
+      }
+    },
+    "1060": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 7
+      }
+    },
+    "1061": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1062": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1063": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1064": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 58
+      }
+    },
+    "1065": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": true
+      }
+    },
+    "1066": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": [
+          "180",
+          0
+        ],
+        "floats.u_float0": [
+          "1056",
+          0
+        ],
+        "floats.u_float1": [
+          "1057",
+          0
+        ],
+        "floats.u_float2": [
+          "1058",
+          0
+        ],
+        "floats.u_float3": [
+          "1059",
+          0
+        ],
+        "floats.u_float4": [
+          "1060",
+          0
+        ],
+        "floats.u_float5": [
+          "1061",
+          0
+        ],
+        "floats.u_float6": [
+          "1062",
+          0
+        ],
+        "floats.u_float7": [
+          "1063",
+          0
+        ],
+        "floats.u_float8": [
+          "1064",
+          0
+        ],
+        "bools.u_bool0": [
+          "1065",
+          0
+        ]
+      }
+    },
+    "1067": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 13
+      }
+    },
+    "1068": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 51
+      }
+    },
+    "1069": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": [
+          "180",
+          0
+        ],
+        "floats.u_float0": [
+          "1067",
+          0
+        ],
+        "floats.u_float1": [
+          "1068",
+          0
+        ]
+      }
+    }
+  }
+}

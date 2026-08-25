@@ -1,0 +1,63 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "ImageCompare",
+      "inputs": {
+        "image_a": [
+          "1003",
+          0
+        ],
+        "image_b": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "DA3Render",
+      "inputs": {
+        "da3_geometry": [
+          "1005",
+          0
+        ],
+        "output": null,
+        "output.normalization": null,
+        "output.apply_sky_clip": null
+      }
+    },
+    "1005": {
+      "class_type": "DA3Inference",
+      "inputs": {
+        "da3_model": [
+          "1006",
+          0
+        ],
+        "image": [
+          "85",
+          0
+        ],
+        "resolution": null,
+        "resize_method": null
+      }
+    },
+    "1006": {
+      "class_type": "LoadDA3Model",
+      "inputs": {
+        "model_name": null
+      }
+    }
+  }
+}

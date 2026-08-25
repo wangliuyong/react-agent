@@ -1,0 +1,141 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CLIPLoader",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "LTXVConditioning",
+      "inputs": {
+        "positive": [
+          "1013",
+          0
+        ],
+        "negative": [
+          "1013",
+          1
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "LTXVScheduler",
+      "inputs": {
+        "latent": [
+          "1013",
+          2
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "SamplerCustom",
+      "inputs": {
+        "model": [
+          "1008",
+          0
+        ],
+        "positive": [
+          "1002",
+          0
+        ],
+        "negative": [
+          "1002",
+          1
+        ],
+        "sampler": [
+          "1005",
+          0
+        ],
+        "sigmas": [
+          "1004",
+          0
+        ],
+        "latent_image": [
+          "1013",
+          2
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {}
+    },
+    "1009": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1006",
+          0
+        ],
+        "vae": [
+          "1008",
+          2
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1013": {
+      "class_type": "LTXVImgToVideo",
+      "inputs": {
+        "positive": [
+          "1011",
+          0
+        ],
+        "negative": [
+          "1003",
+          0
+        ],
+        "vae": [
+          "1008",
+          2
+        ],
+        "image": [
+          "1012",
+          0
+        ]
+      }
+    }
+  }
+}

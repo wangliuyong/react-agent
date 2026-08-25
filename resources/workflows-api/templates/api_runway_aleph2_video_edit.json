@@ -1,0 +1,52 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "RunwayAleph2VideoToVideoNode",
+      "inputs": {
+        "video": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "RunwayAleph2PromptImageNode",
+      "inputs": {
+        "image": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "RunwayAleph2KeyframeNode",
+      "inputs": {
+        "image": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

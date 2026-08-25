@@ -1,0 +1,283 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "FluxKontextImageScale",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1008",
+          0
+        ],
+        "vae": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "UNETLoader",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "VAELoader",
+      "inputs": {}
+    },
+    "1008": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1009",
+          0
+        ],
+        "guider": [
+          "1010",
+          0
+        ],
+        "sampler": [
+          "1012",
+          0
+        ],
+        "sigmas": [
+          "1015",
+          0
+        ],
+        "latent_image": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "DisableNoise",
+      "inputs": {}
+    },
+    "1010": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": [
+          "1006",
+          0
+        ],
+        "conditioning": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1013": {
+      "class_type": "ImageInvert",
+      "inputs": {
+        "image": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "113",
+          0
+        ],
+        "vae": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "SetFirstSigma",
+      "inputs": {
+        "sigmas": [
+          "1011",
+          0
+        ],
+        "sigma": null
+      }
+    },
+    "1016": {
+      "class_type": "LotusConditioning",
+      "inputs": {}
+    },
+    "1017": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen_image_vae.safetensors"
+      }
+    },
+    "1019": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "Qwen-Image-InstantX-ControlNet-Union.safetensors"
+      }
+    },
+    "1020": {
+      "class_type": "ControlNetLoader",
+      "inputs": {
+        "control_net_name": "Qwen-Image-Lightning-4steps-V1.0.safetensors"
+      }
+    },
+    "1021": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors"
+      }
+    },
+    "1022": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1027",
+          0
+        ],
+        "vae": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1018",
+          0
+        ],
+        "text": 498544006715206
+      }
+    },
+    "1026": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1021",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1027": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1028",
+          0
+        ],
+        "positive": [
+          "1029",
+          0
+        ],
+        "negative": [
+          "1029",
+          1
+        ],
+        "latent_image": [
+          "1030",
+          0
+        ],
+        "seed": "qwen_image_fp8_e4m3fn.safetensors"
+      }
+    },
+    "1028": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1029": {
+      "class_type": "ControlNetApplyAdvanced",
+      "inputs": {
+        "positive": [
+          "1025",
+          0
+        ],
+        "negative": [
+          "1017",
+          0
+        ],
+        "control_net": [
+          "1020",
+          0
+        ],
+        "image": [
+          "112",
+          0
+        ],
+        "vae": [
+          "1019",
+          0
+        ],
+        "strength": "Post-apocalyptic style clothing, long wavy hair, rough texture, exotic woman, tattered coarse-woven linen fabric, wearing a hood, mechanical aesthetics, mainly in dark gray tones, low-saturation earthy yellow, sense of impact and rebellion, doomsday aesthetics, grotesque aesthetics, works of art, backlighting, film photography, professional photography works, clear visible face, emotional and atmospheric dynamic photography, Fujichrome color positive film, shot with a 17mm Hasselblad ultra-wide-angle lens, f/1.2 large aperture, side backlighting, artistic light, hair light, Rembrandt light, 8K high-definition image quality, delicate real human skin texture."
+      }
+    },
+    "1030": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "112",
+          0
+        ],
+        "vae": [
+          "1019",
+          0
+        ]
+      }
+    }
+  }
+}

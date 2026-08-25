@@ -1,0 +1,72 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "MediaPipeFaceLandmarker",
+      "inputs": {
+        "face_detection_model": [
+          "1002",
+          0
+        ],
+        "image": [
+          "1004",
+          0
+        ],
+        "detector_variant": null,
+        "num_faces": null,
+        "min_confidence": 0.5,
+        "missing_frame_fallback": "empty",
+        "face_landmarker": null
+      }
+    },
+    "1002": {
+      "class_type": "LoadMediaPipeFaceLandmarker",
+      "inputs": {
+        "model_name": null
+      }
+    },
+    "1003": {
+      "class_type": "MediaPipeFaceMask",
+      "inputs": {
+        "face_landmarks": [
+          "1001",
+          0
+        ],
+        "regions": "custom",
+        "regions.face_oval": null,
+        "regions.lips": null,
+        "regions.left_eye": null,
+        "regions.right_eye": null,
+        "regions.irises": null
+      }
+    },
+    "1004": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "Video Slice",
+      "inputs": {
+        "video": null,
+        "start_time": null,
+        "duration": null,
+        "strict_duration": false
+      }
+    },
+    "1006": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": null,
+        "on_true": [
+          "1005",
+          0
+        ],
+        "switch": null
+      }
+    }
+  }
+}

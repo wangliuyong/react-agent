@@ -86,6 +86,13 @@ const QUICK_ENTRIES: QuickEntry[] = [
     description: '模板化成片、分类管理与批量渲染',
     icon: <VideoCameraOutlined />,
     tone: 'neutral'
+  },
+  {
+    key: 'ai-video',
+    title: 'AI 视频画布',
+    description: 'ComfyUI 无限画布：编剧到成片',
+    icon: <PlaySquareOutlined />,
+    tone: 'neutral'
   }
 ]
 

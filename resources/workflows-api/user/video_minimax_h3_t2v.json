@@ -1,0 +1,198 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1012",
+          0
+        ],
+        "filename_prefix": "video/MiniMax_H3",
+        "format": "auto",
+        "codec": "auto"
+      }
+    },
+    "1002": {
+      "class_type": "ResolutionSelector",
+      "inputs": {
+        "aspect_ratio": "16:9 (Widescreen)",
+        "megapixels": 0.8,
+        "multiple": 32
+      }
+    },
+    "1003": {
+      "class_type": "VAEDecodeAudio",
+      "inputs": {
+        "samples": [
+          "1007",
+          0
+        ],
+        "vae": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1007",
+          0
+        ],
+        "vae": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "res_multistep"
+      }
+    },
+    "1006": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1009",
+          0
+        ],
+        "scheduler": "simple",
+        "steps": 20,
+        "denoise": 1
+      }
+    },
+    "1007": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1011",
+          0
+        ],
+        "guider": [
+          "1008",
+          0
+        ],
+        "sampler": [
+          "1005",
+          0
+        ],
+        "sigmas": [
+          "1006",
+          0
+        ],
+        "latent_image": [
+          "1013",
+          1
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": [
+          "1009",
+          0
+        ],
+        "conditioning": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "minimax_h3_video_vae_fp16.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "1010": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "minimax_h3_audio_vae_fp32.safetensors",
+        "type": "minimax",
+        "device": "default"
+      }
+    },
+    "1011": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+      }
+    },
+    "1012": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ],
+        "audio": [
+          "1003",
+          0
+        ],
+        "fps": 24,
+        "bit_depth": 8
+      }
+    },
+    "1013": {
+      "class_type": "MiniMaxH3ImageToVideo",
+      "inputs": {
+        "clip": [
+          "1010",
+          0
+        ],
+        "vae": [
+          "1016",
+          0
+        ],
+        "first_frame": "High-quality 2D anime cinematic style, Cardcaptor Sakura transformation\nsequence compilation: cel-animated look with premium sakuga polish, glowing\npastel palette, sakura petals and star particles in the air, sparkling magic\ncircles, anamorphic lens feel, shallow depth of field, film grain, volumetric\nlight rays, restrained grading for a premium feel, powerful dynamic motion.\n\nScene overview: a rapid-fire montage of the protagonist's transformation\nforms, each transformation bursting from a magic circle — classic yellow\nClow-style circle, pink Star Wand circle, and the crystal-blue Clear Card\ncircle — every switch landing hard on the musical beat, escalating to an\necstatic finale.\n\nStoryboard (each shot a separate scene, rapid cuts, all landing on the\nmusical beats):\n[0s-1.5s] Shot 1: a magic circle ignites beneath her feet on the dark\nground, glowing runes spiraling outward, slow-motion start.\n[1.5s-3s] Shot 2: transformation begins — a pink light cocoon wraps her,\nfeathery wings burst open behind her, costume materializing in ribbons of\nlight.\n[3s-4.5s] Shot 3: she spins and raises her wand, a tarot-like card spinning\non her fingertip, star sparkles exploding at the beat.\n[4.5s-6s] Shot 4: Star Wand held high overhead, a starburst of gold and\npink light erupts, the wand tip blooming into the star form.\n[6s-7.5s] Shot 5: moonlit variant — silver-blue glow, crescent moon motif,\nher silhouette framed against a giant lunar circle.\n[7.5s-9s] Shot 6: Clear Card form — crystalline, diamond-transparent light,\nshards of prismatic glass swirling around her.\n[9s-10.5s] Shot 7: rapid-cut montage — three transformation silhouettes\nflipping in and out of their magic circles on consecutive beats.\n[10.5s-12s] Shot 8: all magic circles overlap in a spiral vortex, flying\ncards orbiting her like a galaxy ring.\n[12s-15s] Shot 9: finale freeze — she stands at the center of a giant\nresplendent magic circle, cards forming a halo ring around her, golden\nlight bursting outward as the score climaxes.\n\nCamera: each shot its own angle, cuts clean and hard, no dissolves, a slight\nframe kick on every transformation beat.\n\nAudio: soaring orchestral score with electronic bass drops, sparkling\nchime effects, an accent hit on every transformation, the score bursting at\n12s, closing the last 1s.\n\nAnime style 2D cel shading, no text, subtitles, logos or watermarks, no 3D\nrender look, keep the hand-drawn anime texture and vibrant magic-girl glow.",
+        "last_frame": 1344,
+        "prompt": 768,
+        "width": [
+          "115",
+          0
+        ],
+        "height": [
+          "115",
+          1
+        ],
+        "length": [
+          "1014",
+          1
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1015",
+          0
+        ],
+        "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17"
+      }
+    },
+    "1015": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": "minimax_h3_fl2va_pruned_int8_convrot.safetensors"
+      }
+    },
+    "1016": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1017": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    }
+  }
+}

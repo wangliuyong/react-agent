@@ -1,0 +1,26 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "Preview3D",
+      "inputs": {
+        "model_file": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "Rodin3D_Regular",
+      "inputs": {
+        "Images": [
+          "62",
+          0
+        ]
+      }
+    }
+  }
+}

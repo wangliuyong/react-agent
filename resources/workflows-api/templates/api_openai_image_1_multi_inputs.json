@@ -1,0 +1,34 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "SaveImageAdvanced",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "OpenAIGPTImageNodeV2",
+      "inputs": {
+        "model.images.image_1": [
+          "1002",
+          0
+        ],
+        "model.images.image_2": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

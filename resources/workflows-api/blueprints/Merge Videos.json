@@ -1,0 +1,142 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1002": {
+      "class_type": "EmptyAudio",
+      "inputs": {
+        "duration": 60,
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "1003": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1006",
+          0
+        ],
+        "on_true": [
+          "1002",
+          0
+        ],
+        "switch": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "ResizeAndPadImage",
+      "inputs": {
+        "image": [
+          "1007",
+          0
+        ],
+        "target_width": [
+          "1010",
+          0
+        ],
+        "target_height": [
+          "1010",
+          1
+        ],
+        "padding_color": null,
+        "interpolation": null
+      }
+    },
+    "1005": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1012",
+          0
+        ],
+        "audio": [
+          "1003",
+          0
+        ],
+        "fps": [
+          "1009",
+          2
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "AudioMerge",
+      "inputs": {
+        "audio1": [
+          "1007",
+          1
+        ],
+        "audio2": [
+          "1009",
+          1
+        ],
+        "merge_method": "add"
+      }
+    },
+    "1007": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": null
+      }
+    },
+    "1008": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1007",
+          0
+        ],
+        "on_true": [
+          "1004",
+          0
+        ],
+        "switch": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": null
+      }
+    },
+    "1010": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1012": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1009",
+          0
+        ],
+        "images.image1": [
+          "1008",
+          0
+        ]
+      }
+    }
+  }
+}

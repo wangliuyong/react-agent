@@ -1,0 +1,259 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "FluxGuidance",
+      "inputs": {
+        "conditioning": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "InstructPixToPixConditioning",
+      "inputs": {
+        "positive": [
+          "1003",
+          0
+        ],
+        "negative": [
+          "1014",
+          0
+        ],
+        "vae": [
+          "1013",
+          0
+        ],
+        "pixels": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1011",
+          0
+        ],
+        "positive": [
+          "1004",
+          0
+        ],
+        "negative": [
+          "1004",
+          1
+        ],
+        "latent_image": [
+          "1004",
+          2
+        ],
+        "seed": null,
+        "steps": null,
+        "cfg": null
+      }
+    },
+    "1007": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1005",
+          0
+        ],
+        "vae": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1012",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1010": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1011": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1010",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1012": {
+      "class_type": "DualCLIPLoader",
+      "inputs": {
+        "clip_name1": null,
+        "clip_name2": null
+      }
+    },
+    "1013": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1014": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "17",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1021",
+          0
+        ],
+        "guider": [
+          "1017",
+          0
+        ],
+        "sampler": [
+          "1027",
+          0
+        ],
+        "sigmas": [
+          "1026",
+          0
+        ],
+        "latent_image": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": [
+          "1025",
+          0
+        ],
+        "conditioning": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "LotusConditioning",
+      "inputs": {}
+    },
+    "1020": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "107",
+          0
+        ],
+        "vae": [
+          "1024",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "DisableNoise",
+      "inputs": {}
+    },
+    "1022": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1016",
+          0
+        ],
+        "vae": [
+          "1024",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "ImageInvert",
+      "inputs": {
+        "image": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1025": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1026": {
+      "class_type": "SetFirstSigma",
+      "inputs": {
+        "sigmas": [
+          "1018",
+          0
+        ],
+        "sigma": null
+      }
+    },
+    "1027": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": null
+      }
+    }
+  }
+}

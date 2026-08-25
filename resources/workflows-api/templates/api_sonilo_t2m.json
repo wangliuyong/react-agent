@@ -1,0 +1,17 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SoniloTextToMusic",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveAudioAdvanced",
+      "inputs": {
+        "audio": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

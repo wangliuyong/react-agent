@@ -1,0 +1,145 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "ByteDanceFirstLastFrameNode",
+      "inputs": {
+        "first_frame": [
+          "1014",
+          0
+        ],
+        "last_frame": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "ByteDanceFirstLastFrameNode",
+      "inputs": {
+        "first_frame": [
+          "1013",
+          0
+        ],
+        "last_frame": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1009",
+          0
+        ],
+        "images.image1": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1011",
+          0
+        ],
+        "audio": [
+          "1009",
+          1
+        ],
+        "fps": [
+          "1009",
+          2
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "GeminiNanoBanana2V2",
+      "inputs": {
+        "model.images.image_1": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "GeminiNanoBanana2V2",
+      "inputs": {
+        "model.images.image_1": [
+          "1013",
+          0
+        ]
+      }
+    }
+  }
+}

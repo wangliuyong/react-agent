@@ -1,0 +1,69 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "ImageCompare",
+      "inputs": {
+        "image_a": [
+          "1004",
+          0
+        ],
+        "image_b": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "ImageScaleBy",
+      "inputs": {
+        "image": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "TopazImageEnhance",
+      "inputs": {
+        "image": [
+          "1006",
+          0
+        ],
+        "output_width": [
+          "1005",
+          0
+        ],
+        "output_height": [
+          "1005",
+          1
+        ],
+        "creativity": [
+          "7",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    }
+  }
+}

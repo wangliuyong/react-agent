@@ -1,0 +1,113 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ],
+        "filename_prefix": "ComfyUI"
+      }
+    },
+    "1002": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen_3_4b.safetensors",
+        "type": "lumina2",
+        "device": "default"
+      }
+    },
+    "1003": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "ae.safetensors"
+      }
+    },
+    "1004": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1009",
+          0
+        ],
+        "vae": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "z_image_turbo_bf16.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "1006": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1002",
+          0
+        ],
+        "text": "anime RPG game style, cute anime girl with gigantic fennec ears and a big fluffy fox tail with long wavy blonde hair and large blue eyes blonde colored eyelashes wearing a pink sweater a large oversized gold trimmed black winter coat and a long blue maxi skirt and a red scarf, she is sitting beside a campfire in the wilderness at night playing guitar with a milky way galaxy sky"
+      }
+    },
+    "1007": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    "1008": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "shift": 3
+      }
+    },
+    "1009": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1008",
+          0
+        ],
+        "positive": [
+          "1006",
+          0
+        ],
+        "negative": [
+          "1010",
+          0
+        ],
+        "latent_image": [
+          "1007",
+          0
+        ],
+        "seed": 42,
+        "steps": 8,
+        "cfg": 1,
+        "sampler_name": "res_multistep",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    "1010": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1002",
+          0
+        ],
+        "text": "low quality, bad anatomy, extra digits, missing digits, extra limbs, missing limbs"
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LumaImageNode2",
+      "inputs": {
+        "model.image_ref.image_1": [
+          "33",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

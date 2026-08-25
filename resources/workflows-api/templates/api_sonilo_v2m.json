@@ -1,0 +1,94 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SoniloVideoToMusic",
+      "inputs": {
+        "video": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "SaveAudioAdvanced",
+      "inputs": {
+        "audio": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "705",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1005",
+          0
+        ],
+        "audio": [
+          "1008",
+          0
+        ],
+        "fps": [
+          "1005",
+          2
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "AudioAdjustVolume",
+      "inputs": {
+        "audio": [
+          "728",
+          0
+        ],
+        "volume": null
+      }
+    },
+    "1008": {
+      "class_type": "AudioMerge",
+      "inputs": {
+        "audio1": [
+          "1009",
+          0
+        ],
+        "audio2": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "AudioAdjustVolume",
+      "inputs": {
+        "audio": [
+          "1005",
+          1
+        ],
+        "volume": null
+      }
+    }
+  }
+}

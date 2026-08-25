@@ -227,7 +227,20 @@ export function normalizeSettings(
     // 缺省 true：关闭窗口进托盘，与状态栏图标能力配套
     closeToTray: merged.closeToTray == null ? true : Boolean(merged.closeToTray),
     customProviders,
-    providerModelCatalog: queryNormalizeProviderModelCatalog(raw.providerModelCatalog)
+    providerModelCatalog: queryNormalizeProviderModelCatalog(raw.providerModelCatalog),
+    comfyUi: queryNormalizeComfyUi(raw.comfyUi ?? merged.comfyUi)
+  }
+}
+
+/** 归一化 ComfyUI 连接配置 */
+function queryNormalizeComfyUi(raw: unknown): AppSettings['comfyUi'] {
+  const fallback = DEFAULT_SETTINGS.comfyUi
+  if (!raw || typeof raw !== 'object') return { ...fallback }
+  const obj = raw as Record<string, unknown>
+  const baseUrl = String(obj.baseUrl ?? fallback.baseUrl).trim() || fallback.baseUrl
+  return {
+    baseUrl: baseUrl.replace(/\/+$/, ''),
+    enabled: obj.enabled == null ? true : Boolean(obj.enabled)
   }
 }
 

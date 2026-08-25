@@ -1,0 +1,94 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "ImageBatch",
+      "inputs": {
+        "image1": [
+          "1003",
+          0
+        ],
+        "image2": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "ResizeAndPadImage",
+      "inputs": {
+        "image": [
+          "1002",
+          0
+        ],
+        "target_width": [
+          "1004",
+          0
+        ],
+        "target_height": [
+          "1004",
+          1
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "RegexReplace",
+      "inputs": {
+        "string": [
+          "1006",
+          0
+        ],
+        "replace": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1009": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "GeminiImage2Node",
+      "inputs": {
+        "images": [
+          "1001",
+          0
+        ],
+        "prompt": [
+          "1007",
+          0
+        ]
+      }
+    }
+  }
+}

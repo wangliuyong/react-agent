@@ -1,0 +1,183 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "DrawBBoxes",
+      "inputs": {
+        "bboxes": [
+          "1015",
+          0
+        ],
+        "image": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1008",
+          0
+        ],
+        "resize_type.longer_size": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "ImageBlend",
+      "inputs": {
+        "image1": [
+          "1001",
+          0
+        ],
+        "image2": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ],
+        "audio": [
+          "1016",
+          1
+        ],
+        "fps": [
+          "1016",
+          2
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "SDPoseKeypointExtractor",
+      "inputs": {
+        "model": [
+          "1013",
+          0
+        ],
+        "vae": [
+          "1013",
+          2
+        ],
+        "image": [
+          "1011",
+          0
+        ],
+        "bboxes": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1016",
+          0
+        ],
+        "resize_type.longer_size": [
+          "688",
+          0
+        ],
+        "scale_method": "lanczos"
+      }
+    },
+    "1012": {
+      "class_type": "SDPoseDrawKeypoints",
+      "inputs": {
+        "keypoints": [
+          "1010",
+          0
+        ],
+        "draw_body": true,
+        "draw_hands": [
+          "694",
+          0
+        ],
+        "draw_face": true,
+        "draw_feet": true,
+        "stick_width": 4,
+        "face_point_size": 2,
+        "score_threshold": 0.5
+      }
+    },
+    "1013": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "sdpose_wholebody_fp16.safetensors"
+      }
+    },
+    "1014": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "rt_detr_v4-x-hgnet_fp16.safetensors"
+      }
+    },
+    "1015": {
+      "class_type": "RTDETR_detect",
+      "inputs": {
+        "model": [
+          "1014",
+          0
+        ],
+        "image": [
+          "1011",
+          0
+        ],
+        "threshold": 0.5,
+        "class_name": "person",
+        "max_detections": 2
+      }
+    },
+    "1016": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": null
+      }
+    }
+  }
+}

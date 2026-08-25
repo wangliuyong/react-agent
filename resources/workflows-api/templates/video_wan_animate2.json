@@ -1,0 +1,931 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1038",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1001",
+          0
+        ],
+        "audio": [
+          "1005",
+          1
+        ],
+        "fps": [
+          "1005",
+          2
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1070",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1009",
+          2
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "clip_vision_h.safetensors"
+      }
+    },
+    "1012": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1011",
+          0
+        ],
+        "lora_name": "Wan2_1_VAE_bf16.safetensors"
+      }
+    },
+    "1013": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1014": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1013",
+          0
+        ],
+        "text": 1
+      }
+    },
+    "1016": {
+      "class_type": "CLIPVisionLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1017": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1018": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1013",
+          0
+        ],
+        "text": 1
+      }
+    },
+    "1019": {
+      "class_type": "ContextWindowsManual",
+      "inputs": {
+        "model": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "WanAnimate2ToVideo",
+      "inputs": {
+        "positive": [
+          "1015",
+          0
+        ],
+        "negative": [
+          "1014",
+          0
+        ],
+        "vae": [
+          "1017",
+          0
+        ],
+        "reference_image": [
+          "1023",
+          0
+        ],
+        "pose_video": [
+          "1033",
+          0
+        ],
+        "clip_vision_output": [
+          "1022",
+          0
+        ],
+        "positive_pose": [
+          "1018",
+          0
+        ],
+        "clip_vision_output_pose": [
+          "1031",
+          0
+        ],
+        "continue_motion": 1,
+        "width": [
+          "1029",
+          0
+        ],
+        "height": [
+          "1029",
+          1
+        ],
+        "length": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "video_frame_offset": "A girl doing energetic street dance with rhythmic steps and dynamic arm gestures, background stationary",
+        "pose_strength": false,
+        "pose_start_percent": "gpu",
+        "pose_end_percent": "int8",
+        "reference_image_strength": 0
+      }
+    },
+    "1021": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1012",
+          0
+        ],
+        "on_true": [
+          "1019",
+          0
+        ],
+        "switch": false
+      }
+    },
+    "1022": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "1016",
+          0
+        ],
+        "image": [
+          "1023",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "189",
+          0
+        ],
+        "resize_type.width": [
+          "1029",
+          0
+        ],
+        "resize_type.height": [
+          "1029",
+          1
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1026": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1027": {
+      "class_type": "WanAnimate2Cache",
+      "inputs": {
+        "model": [
+          "1021",
+          0
+        ],
+        "device": 482,
+        "dtype": 854
+      }
+    },
+    "1028": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "240",
+          0
+        ]
+      }
+    },
+    "1029": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1033",
+          0
+        ]
+      }
+    },
+    "1030": {
+      "class_type": "SamplerCustom",
+      "inputs": {
+        "model": [
+          "1025",
+          0
+        ],
+        "positive": [
+          "1020",
+          0
+        ],
+        "negative": [
+          "1020",
+          1
+        ],
+        "sampler": [
+          "1026",
+          0
+        ],
+        "sigmas": [
+          "1024",
+          0
+        ],
+        "latent_image": [
+          "1020",
+          2
+        ],
+        "noise_seed": "lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors"
+      }
+    },
+    "1031": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "1016",
+          0
+        ],
+        "image": [
+          "1032",
+          0
+        ]
+      }
+    },
+    "1032": {
+      "class_type": "ImageFromBatch",
+      "inputs": {
+        "image": [
+          "1033",
+          0
+        ]
+      }
+    },
+    "1033": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1028",
+          0
+        ],
+        "resize_type.width": 81,
+        "resize_type.height": "wan_animate_2_int8_convrot.safetensors"
+      }
+    },
+    "1034": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1035",
+          0
+        ],
+        "vae": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1035": {
+      "class_type": "TrimVideoLatent",
+      "inputs": {
+        "samples": [
+          "1030",
+          0
+        ],
+        "trim_amount": [
+          "1020",
+          3
+        ]
+      }
+    },
+    "1036": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": 951677846216619
+      }
+    },
+    "1037": {
+      "class_type": "ImageFromBatch",
+      "inputs": {
+        "image": [
+          "1034",
+          0
+        ]
+      }
+    },
+    "1038": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1034",
+          0
+        ],
+        "on_true": [
+          "1037",
+          0
+        ],
+        "switch": [
+          "1036",
+          0
+        ]
+      }
+    },
+    "1039": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "clip_vision_h.safetensors"
+      }
+    },
+    "1040": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1039",
+          0
+        ],
+        "lora_name": "Wan2_1_VAE_bf16.safetensors"
+      }
+    },
+    "1041": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1042": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1041",
+          0
+        ]
+      }
+    },
+    "1043": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1041",
+          0
+        ],
+        "text": 1
+      }
+    },
+    "1044": {
+      "class_type": "CLIPVisionLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1045": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1046": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1041",
+          0
+        ],
+        "text": 1
+      }
+    },
+    "1047": {
+      "class_type": "ContextWindowsManual",
+      "inputs": {
+        "model": [
+          "1040",
+          0
+        ]
+      }
+    },
+    "1048": {
+      "class_type": "WanAnimate2ToVideo",
+      "inputs": {
+        "positive": [
+          "1043",
+          0
+        ],
+        "negative": [
+          "1042",
+          0
+        ],
+        "vae": [
+          "1045",
+          0
+        ],
+        "reference_image": [
+          "1051",
+          0
+        ],
+        "pose_video": [
+          "1061",
+          0
+        ],
+        "clip_vision_output": [
+          "1050",
+          0
+        ],
+        "positive_pose": [
+          "1046",
+          0
+        ],
+        "clip_vision_output_pose": [
+          "1059",
+          0
+        ],
+        "continue_motion": [
+          "261",
+          0
+        ],
+        "width": [
+          "1057",
+          0
+        ],
+        "height": [
+          "1057",
+          1
+        ],
+        "length": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "video_frame_offset": [
+          "261",
+          1
+        ],
+        "pose_strength": false,
+        "pose_start_percent": "gpu",
+        "pose_end_percent": "int8",
+        "reference_image_strength": 0
+      }
+    },
+    "1049": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1040",
+          0
+        ],
+        "on_true": [
+          "1047",
+          0
+        ],
+        "switch": true
+      }
+    },
+    "1050": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "1044",
+          0
+        ],
+        "image": [
+          "1051",
+          0
+        ]
+      }
+    },
+    "1051": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "189",
+          0
+        ],
+        "resize_type.width": [
+          "1057",
+          0
+        ],
+        "resize_type.height": [
+          "1057",
+          1
+        ]
+      }
+    },
+    "1052": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1055",
+          0
+        ]
+      }
+    },
+    "1053": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1055",
+          0
+        ]
+      }
+    },
+    "1054": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1055": {
+      "class_type": "WanAnimate2Cache",
+      "inputs": {
+        "model": [
+          "1049",
+          0
+        ],
+        "device": 482,
+        "dtype": 854
+      }
+    },
+    "1056": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "240",
+          0
+        ]
+      }
+    },
+    "1057": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1061",
+          0
+        ]
+      }
+    },
+    "1058": {
+      "class_type": "SamplerCustom",
+      "inputs": {
+        "model": [
+          "1053",
+          0
+        ],
+        "positive": [
+          "1048",
+          0
+        ],
+        "negative": [
+          "1048",
+          1
+        ],
+        "sampler": [
+          "1054",
+          0
+        ],
+        "sigmas": [
+          "1052",
+          0
+        ],
+        "latent_image": [
+          "1048",
+          2
+        ],
+        "noise_seed": "lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors"
+      }
+    },
+    "1059": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "1044",
+          0
+        ],
+        "image": [
+          "1060",
+          0
+        ]
+      }
+    },
+    "1060": {
+      "class_type": "ImageFromBatch",
+      "inputs": {
+        "image": [
+          "1061",
+          0
+        ]
+      }
+    },
+    "1061": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1056",
+          0
+        ],
+        "resize_type.width": 81,
+        "resize_type.height": "wan_animate_2_int8_convrot.safetensors"
+      }
+    },
+    "1062": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1063",
+          0
+        ],
+        "vae": [
+          "1045",
+          0
+        ]
+      }
+    },
+    "1063": {
+      "class_type": "TrimVideoLatent",
+      "inputs": {
+        "samples": [
+          "1058",
+          0
+        ],
+        "trim_amount": [
+          "1048",
+          3
+        ]
+      }
+    },
+    "1064": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": 2
+      }
+    },
+    "1065": {
+      "class_type": "ImageFromBatch",
+      "inputs": {
+        "image": [
+          "1062",
+          0
+        ]
+      }
+    },
+    "1066": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1062",
+          0
+        ],
+        "on_true": [
+          "1065",
+          0
+        ],
+        "switch": [
+          "1064",
+          0
+        ]
+      }
+    },
+    "1067": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "240",
+          0
+        ]
+      }
+    },
+    "1068": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "246",
+          0
+        ]
+      }
+    },
+    "1069": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1073",
+          0
+        ]
+      }
+    },
+    "1070": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1074",
+          0
+        ],
+        "audio": [
+          "1068",
+          1
+        ],
+        "fps": [
+          "1068",
+          2
+        ]
+      }
+    },
+    "1071": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1069",
+          0
+        ]
+      }
+    },
+    "1072": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1069",
+          1
+        ]
+      }
+    },
+    "1073": {
+      "class_type": "ImageStitch",
+      "inputs": {
+        "image1": [
+          "1076",
+          0
+        ],
+        "image2": [
+          "1079",
+          0
+        ],
+        "direction": 0,
+        "match_image_size": "white",
+        "spacing_width": null,
+        "spacing_color": null
+      }
+    },
+    "1074": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1073",
+          0
+        ],
+        "resize_type.width": [
+          "1071",
+          1
+        ],
+        "resize_type.height": [
+          "1072",
+          1
+        ]
+      }
+    },
+    "1075": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1068",
+          0
+        ]
+      }
+    },
+    "1076": {
+      "class_type": "ImageFromBatch",
+      "inputs": {
+        "image": [
+          "1068",
+          0
+        ],
+        "length": [
+          "1078",
+          1
+        ]
+      }
+    },
+    "1077": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1067",
+          0
+        ]
+      }
+    },
+    "1078": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1075",
+          2
+        ],
+        "values.b": [
+          "1077",
+          2
+        ]
+      }
+    },
+    "1079": {
+      "class_type": "ImageFromBatch",
+      "inputs": {
+        "image": [
+          "1067",
+          0
+        ],
+        "length": [
+          "1078",
+          1
+        ]
+      }
+    }
+  }
+}

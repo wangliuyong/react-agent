@@ -1,0 +1,87 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ],
+        "audio": [
+          "1007",
+          1
+        ],
+        "fps": [
+          "1007",
+          2
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "DA3Render",
+      "inputs": {
+        "da3_geometry": [
+          "1005",
+          0
+        ],
+        "output": null,
+        "output.normalization": null,
+        "output.apply_sky_clip": null
+      }
+    },
+    "1005": {
+      "class_type": "DA3Inference",
+      "inputs": {
+        "da3_model": [
+          "1006",
+          0
+        ],
+        "image": [
+          "1007",
+          0
+        ],
+        "resolution": null,
+        "resize_method": null
+      }
+    },
+    "1006": {
+      "class_type": "LoadDA3Model",
+      "inputs": {
+        "model_name": null
+      }
+    },
+    "1007": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "Video Slice",
+      "inputs": {
+        "video": [
+          "87",
+          0
+        ],
+        "start_time": null,
+        "duration": null
+      }
+    }
+  }
+}

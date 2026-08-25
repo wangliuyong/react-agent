@@ -1,0 +1,69 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "FluxKontextProImageNode",
+      "inputs": {
+        "input_image": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "ImageStitch",
+      "inputs": {
+        "image1": [
+          "1001",
+          0
+        ],
+        "image2": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "ImageStitch",
+      "inputs": {
+        "image1": [
+          "1006",
+          0
+        ],
+        "image2": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1007",
+          0
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "angle_1.png"
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "angle_2.png"
+      }
+    },
+    "1003": {
+      "class_type": "ImageStitch",
+      "inputs": {
+        "image1": [
+          "1001",
+          0
+        ],
+        "image2": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "ImageStitch",
+      "inputs": {
+        "image1": [
+          "1003",
+          0
+        ],
+        "image2": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "ImageStitch",
+      "inputs": {
+        "image1": [
+          "1008",
+          0
+        ],
+        "image2": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "angle_3.png"
+      }
+    },
+    "1009": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "angle_4.png"
+      }
+    }
+  }
+}

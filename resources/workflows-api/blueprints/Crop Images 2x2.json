@@ -1,0 +1,205 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1002",
+          0
+        ],
+        "values.b": [
+          "1003",
+          0
+        ],
+        "expression": "max(1, int(a/b))"
+      }
+    },
+    "1002": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": null
+      }
+    },
+    "1003": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 2
+      }
+    },
+    "1004": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": 0,
+        "y": 0,
+        "width": [
+          "1001",
+          1
+        ],
+        "height": [
+          "1006",
+          1
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1002",
+          1
+        ],
+        "values.b": [
+          "1003",
+          0
+        ],
+        "expression": "max(1, int(a/b))"
+      }
+    },
+    "1007": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1002",
+          0
+        ],
+        "values.b": [
+          "1001",
+          1
+        ],
+        "expression": "max(1, a - b)"
+      }
+    },
+    "1008": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1002",
+          1
+        ],
+        "values.b": [
+          "1006",
+          1
+        ],
+        "expression": "max(1, a - b)"
+      }
+    },
+    "1009": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": 0,
+        "y": [
+          "1006",
+          1
+        ],
+        "width": [
+          "1001",
+          1
+        ],
+        "height": [
+          "1008",
+          1
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": [
+          "1001",
+          1
+        ],
+        "y": 0,
+        "width": [
+          "1007",
+          1
+        ],
+        "height": [
+          "1006",
+          1
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": [
+          "1001",
+          1
+        ],
+        "y": [
+          "1006",
+          1
+        ],
+        "width": [
+          "1007",
+          1
+        ],
+        "height": [
+          "1008",
+          1
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1004",
+          0
+        ],
+        "images.image1": [
+          "1012",
+          0
+        ],
+        "images.image2": [
+          "1009",
+          0
+        ],
+        "images.image3": [
+          "1013",
+          0
+        ]
+      }
+    }
+  }
+}

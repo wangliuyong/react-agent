@@ -1,0 +1,280 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1024",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "krea2_reference_image.png"
+      }
+    },
+    "1003": {
+      "class_type": "ResolutionSelector",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": [
+          "71",
+          0
+        ],
+        "height": [
+          "71",
+          1
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1006": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1007": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1008": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "lora_name": "qwen3vl_4b_fp8_scaled.safetensors",
+        "strength_model": "qwen_image_vae.safetensors"
+      }
+    },
+    "1010": {
+      "class_type": "TextGenerate",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "prompt": [
+          "1011",
+          0
+        ],
+        "max_length": 251161685108094,
+        "thinking": 1024
+      }
+    },
+    "1011": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_a": [
+          "1012",
+          0
+        ],
+        "string_b": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1013": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": 512
+      }
+    },
+    "1014": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1013",
+          0
+        ],
+        "on_true": [
+          "1010",
+          0
+        ],
+        "switch": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": 1024
+      }
+    },
+    "1017": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "vae": [
+          "1007",
+          0
+        ],
+        "image1": [
+          "69",
+          0
+        ],
+        "image2": false,
+        "image3": false,
+        "prompt": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "FluxKontextMultiReferenceLatentMethod",
+      "inputs": {
+        "conditioning": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1026",
+          0
+        ],
+        "positive": [
+          "1018",
+          0
+        ],
+        "negative": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1025",
+          0
+        ],
+        "guider": [
+          "1019",
+          0
+        ],
+        "sampler": [
+          "1021",
+          0
+        ],
+        "sigmas": [
+          "1022",
+          0
+        ],
+        "latent_image": [
+          "1023",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1022": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": [
+          "71",
+          0
+        ],
+        "height": [
+          "71",
+          1
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1020",
+          0
+        ],
+        "vae": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": "krea2_turbo_int8_convrot.safetensors"
+      }
+    },
+    "1026": {
+      "class_type": "ModelSamplingFlux",
+      "inputs": {
+        "model": [
+          "1009",
+          0
+        ],
+        "width": [
+          "71",
+          0
+        ],
+        "height": [
+          "71",
+          1
+        ]
+      }
+    }
+  }
+}

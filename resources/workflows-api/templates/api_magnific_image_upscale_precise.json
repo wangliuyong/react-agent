@@ -1,0 +1,39 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "ImageCompare",
+      "inputs": {
+        "image_a": [
+          "1001",
+          0
+        ],
+        "image_b": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "MagnificImageUpscalerPreciseV2Node",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1003",
+          0
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "KlingMotionControl",
+      "inputs": {
+        "reference_image": [
+          "1001",
+          0
+        ],
+        "reference_video": [
+          "1003",
+          0
+        ]
+      }
+    }
+  }
+}

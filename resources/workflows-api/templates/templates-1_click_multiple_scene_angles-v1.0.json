@@ -1,0 +1,1126 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1043",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1045",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1044",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1042",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1046",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1039",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1040",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1041",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1010": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1011": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1012": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1013": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1014": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1015": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1016": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1017": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1018": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "qwen_image_vae.safetensors"
+      }
+    },
+    "1019": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors"
+      }
+    },
+    "1020": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "qwen_image_edit_2509_fp8_e4m3fn.safetensors"
+      }
+    },
+    "1021": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1022",
+          0
+        ],
+        "lora_name": "Qwen-Edit-2509-Multiple-angles.safetensors"
+      }
+    },
+    "1022": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1020",
+          0
+        ],
+        "lora_name": "Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors"
+      }
+    },
+    "1047": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1048",
+          0
+        ]
+      }
+    },
+    "1048": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "51",
+          0
+        ]
+      }
+    },
+    "1049": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1053",
+          0
+        ],
+        "vae": [
+          "49",
+          0
+        ]
+      }
+    },
+    "1050": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "50",
+          0
+        ],
+        "vae": [
+          "49",
+          0
+        ],
+        "image1": [
+          "1053",
+          0
+        ]
+      }
+    },
+    "1051": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1052",
+          0
+        ],
+        "vae": [
+          "49",
+          0
+        ]
+      }
+    },
+    "1052": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1047",
+          0
+        ],
+        "positive": [
+          "1055",
+          0
+        ],
+        "negative": [
+          "1050",
+          0
+        ],
+        "latent_image": [
+          "1049",
+          0
+        ],
+        "seed": null
+      }
+    },
+    "1053": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "52",
+          0
+        ]
+      }
+    },
+    "1054": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1051",
+          0
+        ]
+      }
+    },
+    "1055": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "50",
+          0
+        ],
+        "vae": [
+          "49",
+          0
+        ],
+        "image1": [
+          "1053",
+          0
+        ],
+        "prompt": [
+          "-10",
+          5
+        ]
+      }
+    },
+    "1056": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1057",
+          0
+        ]
+      }
+    },
+    "1057": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "61",
+          0
+        ]
+      }
+    },
+    "1058": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1062",
+          0
+        ],
+        "vae": [
+          "62",
+          0
+        ]
+      }
+    },
+    "1059": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "63",
+          0
+        ],
+        "vae": [
+          "62",
+          0
+        ],
+        "image1": [
+          "1062",
+          0
+        ]
+      }
+    },
+    "1060": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1061",
+          0
+        ],
+        "vae": [
+          "62",
+          0
+        ]
+      }
+    },
+    "1061": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1056",
+          0
+        ],
+        "positive": [
+          "1064",
+          0
+        ],
+        "negative": [
+          "1059",
+          0
+        ],
+        "latent_image": [
+          "1058",
+          0
+        ],
+        "seed": null
+      }
+    },
+    "1062": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "64",
+          0
+        ]
+      }
+    },
+    "1063": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1060",
+          0
+        ]
+      }
+    },
+    "1064": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "63",
+          0
+        ],
+        "vae": [
+          "62",
+          0
+        ],
+        "image1": [
+          "1062",
+          0
+        ],
+        "prompt": [
+          "-10",
+          6
+        ]
+      }
+    },
+    "1065": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1066",
+          0
+        ]
+      }
+    },
+    "1066": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "61",
+          0
+        ]
+      }
+    },
+    "1067": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1071",
+          0
+        ],
+        "vae": [
+          "62",
+          0
+        ]
+      }
+    },
+    "1068": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "63",
+          0
+        ],
+        "vae": [
+          "62",
+          0
+        ],
+        "image1": [
+          "1071",
+          0
+        ]
+      }
+    },
+    "1069": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1070",
+          0
+        ],
+        "vae": [
+          "62",
+          0
+        ]
+      }
+    },
+    "1070": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1065",
+          0
+        ],
+        "positive": [
+          "1073",
+          0
+        ],
+        "negative": [
+          "1068",
+          0
+        ],
+        "latent_image": [
+          "1067",
+          0
+        ],
+        "seed": null
+      }
+    },
+    "1071": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "64",
+          0
+        ]
+      }
+    },
+    "1072": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1069",
+          0
+        ]
+      }
+    },
+    "1073": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "63",
+          0
+        ],
+        "vae": [
+          "62",
+          0
+        ],
+        "image1": [
+          "1071",
+          0
+        ],
+        "prompt": [
+          "-10",
+          7
+        ]
+      }
+    },
+    "1074": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1075",
+          0
+        ]
+      }
+    },
+    "1075": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "53",
+          0
+        ]
+      }
+    },
+    "1076": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1080",
+          0
+        ],
+        "vae": [
+          "54",
+          0
+        ]
+      }
+    },
+    "1077": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "55",
+          0
+        ],
+        "vae": [
+          "54",
+          0
+        ],
+        "image1": [
+          "1080",
+          0
+        ]
+      }
+    },
+    "1078": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1079",
+          0
+        ],
+        "vae": [
+          "54",
+          0
+        ]
+      }
+    },
+    "1079": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1074",
+          0
+        ],
+        "positive": [
+          "1082",
+          0
+        ],
+        "negative": [
+          "1077",
+          0
+        ],
+        "latent_image": [
+          "1076",
+          0
+        ],
+        "seed": null
+      }
+    },
+    "1080": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "56",
+          0
+        ]
+      }
+    },
+    "1081": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1078",
+          0
+        ]
+      }
+    },
+    "1082": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "55",
+          0
+        ],
+        "vae": [
+          "54",
+          0
+        ],
+        "image1": [
+          "1080",
+          0
+        ],
+        "prompt": [
+          "-10",
+          8
+        ]
+      }
+    },
+    "1083": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1084",
+          0
+        ]
+      }
+    },
+    "1084": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "53",
+          0
+        ]
+      }
+    },
+    "1085": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1089",
+          0
+        ],
+        "vae": [
+          "54",
+          0
+        ]
+      }
+    },
+    "1086": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "55",
+          0
+        ],
+        "vae": [
+          "54",
+          0
+        ],
+        "image1": [
+          "1089",
+          0
+        ]
+      }
+    },
+    "1087": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1088",
+          0
+        ],
+        "vae": [
+          "54",
+          0
+        ]
+      }
+    },
+    "1088": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1083",
+          0
+        ],
+        "positive": [
+          "1090",
+          0
+        ],
+        "negative": [
+          "1086",
+          0
+        ],
+        "latent_image": [
+          "1085",
+          0
+        ],
+        "seed": null
+      }
+    },
+    "1089": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "56",
+          0
+        ]
+      }
+    },
+    "1090": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "55",
+          0
+        ],
+        "vae": [
+          "54",
+          0
+        ],
+        "image1": [
+          "1089",
+          0
+        ],
+        "prompt": [
+          "-10",
+          9
+        ]
+      }
+    },
+    "1091": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1087",
+          0
+        ]
+      }
+    },
+    "1092": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1093",
+          0
+        ]
+      }
+    },
+    "1093": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "57",
+          0
+        ]
+      }
+    },
+    "1094": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1097",
+          0
+        ],
+        "vae": [
+          "58",
+          0
+        ]
+      }
+    },
+    "1095": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "59",
+          0
+        ],
+        "vae": [
+          "58",
+          0
+        ],
+        "image1": [
+          "1097",
+          0
+        ]
+      }
+    },
+    "1096": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1100",
+          0
+        ],
+        "vae": [
+          "58",
+          0
+        ]
+      }
+    },
+    "1097": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "60",
+          0
+        ]
+      }
+    },
+    "1098": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1096",
+          0
+        ]
+      }
+    },
+    "1099": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "59",
+          0
+        ],
+        "vae": [
+          "58",
+          0
+        ],
+        "image1": [
+          "1097",
+          0
+        ],
+        "prompt": [
+          "-10",
+          10
+        ]
+      }
+    },
+    "1100": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1092",
+          0
+        ],
+        "positive": [
+          "1099",
+          0
+        ],
+        "negative": [
+          "1095",
+          0
+        ],
+        "latent_image": [
+          "1094",
+          0
+        ],
+        "seed": null
+      }
+    },
+    "1101": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1102",
+          0
+        ]
+      }
+    },
+    "1102": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "57",
+          0
+        ]
+      }
+    },
+    "1103": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1107",
+          0
+        ],
+        "vae": [
+          "58",
+          0
+        ]
+      }
+    },
+    "1104": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "59",
+          0
+        ],
+        "vae": [
+          "58",
+          0
+        ],
+        "image1": [
+          "1107",
+          0
+        ]
+      }
+    },
+    "1105": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1106",
+          0
+        ],
+        "vae": [
+          "58",
+          0
+        ]
+      }
+    },
+    "1106": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1101",
+          0
+        ],
+        "positive": [
+          "1109",
+          0
+        ],
+        "negative": [
+          "1104",
+          0
+        ],
+        "latent_image": [
+          "1103",
+          0
+        ],
+        "seed": null
+      }
+    },
+    "1107": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "60",
+          0
+        ]
+      }
+    },
+    "1108": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1105",
+          0
+        ]
+      }
+    },
+    "1109": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "59",
+          0
+        ],
+        "vae": [
+          "58",
+          0
+        ],
+        "image1": [
+          "1107",
+          0
+        ],
+        "prompt": [
+          "-10",
+          11
+        ]
+      }
+    },
+    "1110": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1111",
+          0
+        ]
+      }
+    },
+    "1111": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "51",
+          0
+        ]
+      }
+    },
+    "1112": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1116",
+          0
+        ],
+        "vae": [
+          "49",
+          0
+        ]
+      }
+    },
+    "1113": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "50",
+          0
+        ],
+        "vae": [
+          "49",
+          0
+        ],
+        "image1": [
+          "1116",
+          0
+        ]
+      }
+    },
+    "1114": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1115",
+          0
+        ],
+        "vae": [
+          "49",
+          0
+        ]
+      }
+    },
+    "1115": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1110",
+          0
+        ],
+        "positive": [
+          "1118",
+          0
+        ],
+        "negative": [
+          "1113",
+          0
+        ],
+        "latent_image": [
+          "1112",
+          0
+        ],
+        "seed": null
+      }
+    },
+    "1116": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "52",
+          0
+        ]
+      }
+    },
+    "1117": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1114",
+          0
+        ]
+      }
+    },
+    "1118": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "50",
+          0
+        ],
+        "vae": [
+          "49",
+          0
+        ],
+        "image1": [
+          "1116",
+          0
+        ],
+        "prompt": [
+          "-10",
+          4
+        ]
+      }
+    }
+  }
+}

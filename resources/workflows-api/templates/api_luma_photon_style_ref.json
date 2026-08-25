@@ -1,0 +1,51 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "LumaReferenceNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ],
+        "luma_ref": [
+          "39",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "LumaImageNode",
+      "inputs": {
+        "image_luma_ref": [
+          "1003",
+          0
+        ],
+        "style_image": [
+          "1002",
+          0
+        ],
+        "character_image": [
+          "56",
+          0
+        ]
+      }
+    }
+  }
+}

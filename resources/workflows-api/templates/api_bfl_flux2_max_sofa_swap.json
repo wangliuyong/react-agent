@@ -1,0 +1,68 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "Flux2MaxImageNode",
+      "inputs": {
+        "images": [
+          "1007",
+          0
+        ],
+        "width": [
+          "1004",
+          0
+        ],
+        "height": [
+          "1004",
+          1
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1003",
+          0
+        ],
+        "images.image1": [
+          "1002",
+          0
+        ],
+        "images.image2": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "ImagePadForOutpaint",
+      "inputs": {
+        "image": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "BriaImageEditNode",
+      "inputs": {
+        "image": [
+          "1003",
+          0
+        ],
+        "mask": [
+          "1003",
+          1
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1003",
+          0
+        ]
+      }
+    }
+  }
+}

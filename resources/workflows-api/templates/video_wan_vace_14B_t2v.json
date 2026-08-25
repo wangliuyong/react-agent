@@ -1,0 +1,138 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ],
+        "positive": [
+          "1003",
+          0
+        ],
+        "negative": [
+          "1003",
+          1
+        ],
+        "latent_image": [
+          "1003",
+          2
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "WanVaceToVideo",
+      "inputs": {
+        "positive": [
+          "1010",
+          0
+        ],
+        "negative": [
+          "1011",
+          0
+        ],
+        "vae": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "VAELoader",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "TrimVideoLatent",
+      "inputs": {
+        "samples": [
+          "1002",
+          0
+        ],
+        "trim_amount": [
+          "1003",
+          3
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1006",
+          0
+        ],
+        "vae": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "CLIPLoader",
+      "inputs": {}
+    },
+    "1009": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "model": [
+          "1013",
+          0
+        ],
+        "clip": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1009",
+          1
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1009",
+          1
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "UNETLoader",
+      "inputs": {}
+    }
+  }
+}

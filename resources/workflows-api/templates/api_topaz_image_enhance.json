@@ -1,0 +1,42 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "TopazImageEnhance",
+      "inputs": {
+        "image": [
+          "1004",
+          0
+        ],
+        "output_width": [
+          "1002",
+          0
+        ],
+        "output_height": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1003",
+          0
+        ]
+      }
+    }
+  }
+}

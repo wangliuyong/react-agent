@@ -1,0 +1,319 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CLIPLoader",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "UNETLoader",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "ControlNetLoader",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "VAELoader",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "80",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "ControlNetInpaintingAliMamaApply",
+      "inputs": {
+        "positive": [
+          "1015",
+          0
+        ],
+        "negative": [
+          "1003",
+          0
+        ],
+        "control_net": [
+          "1004",
+          0
+        ],
+        "vae": [
+          "1005",
+          0
+        ],
+        "image": [
+          "1011",
+          0
+        ],
+        "mask": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1011",
+          0
+        ],
+        "vae": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "SetLatentNoiseMask",
+      "inputs": {
+        "samples": [
+          "1008",
+          0
+        ],
+        "mask": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "MaskPreview",
+      "inputs": {
+        "mask": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "ImageScaleToMaxDimension",
+      "inputs": {
+        "image": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1016",
+          0
+        ],
+        "vae": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "ImageCompositeMasked",
+      "inputs": {
+        "destination": [
+          "1011",
+          0
+        ],
+        "source": [
+          "1012",
+          0
+        ],
+        "mask": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1015": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1006",
+          0
+        ],
+        "positive": [
+          "1007",
+          0
+        ],
+        "negative": [
+          "1007",
+          1
+        ],
+        "latent_image": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "ImageToMask",
+      "inputs": {
+        "image": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "MaskToImage",
+      "inputs": {
+        "mask": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "GrowMask",
+      "inputs": {
+        "mask": [
+          "71",
+          1
+        ],
+        "expand": null
+      }
+    },
+    "1022": {
+      "class_type": "ImageBlur",
+      "inputs": {
+        "image": [
+          "1020",
+          0
+        ],
+        "blur_radius": null
+      }
+    },
+    "1023": {
+      "class_type": "ImageToMask",
+      "inputs": {
+        "image": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "MaskToImage",
+      "inputs": {
+        "mask": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "GrowMask",
+      "inputs": {
+        "mask": [
+          "219",
+          0
+        ],
+        "expand": null
+      }
+    },
+    "1026": {
+      "class_type": "ImageBlur",
+      "inputs": {
+        "image": [
+          "1024",
+          0
+        ],
+        "blur_radius": null
+      }
+    },
+    "1027": {
+      "class_type": "ImageToMask",
+      "inputs": {
+        "image": [
+          "1028",
+          0
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "ImageScaleToMaxDimension",
+      "inputs": {
+        "image": [
+          "1029",
+          0
+        ],
+        "largest_size": [
+          "1031",
+          0
+        ]
+      }
+    },
+    "1029": {
+      "class_type": "MaskToImage",
+      "inputs": {
+        "mask": [
+          "202",
+          1
+        ]
+      }
+    },
+    "1030": {
+      "class_type": "ImageScaleToMaxDimension",
+      "inputs": {
+        "image": [
+          "202",
+          0
+        ],
+        "largest_size": [
+          "1031",
+          0
+        ]
+      }
+    },
+    "1031": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    }
+  }
+}

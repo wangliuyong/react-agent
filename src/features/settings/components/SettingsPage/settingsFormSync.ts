@@ -46,7 +46,11 @@ export function querySettingsFormValues(settings: AppSettings): AppSettings {
     launchAtLogin: settings.launchAtLogin,
     closeToTray: settings.closeToTray,
     customProviders: settings.customProviders ?? [],
-    providerModelCatalog: settings.providerModelCatalog ?? {}
+    providerModelCatalog: settings.providerModelCatalog ?? {},
+    comfyUi: settings.comfyUi ?? {
+      baseUrl: 'http://127.0.0.1:8188',
+      enabled: true
+    }
   }
 }
 

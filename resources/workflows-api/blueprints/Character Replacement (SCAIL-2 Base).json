@@ -1,0 +1,487 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1042",
+          0
+        ],
+        "lora_name": null,
+        "strength_model": 0.8
+      }
+    },
+    "1002": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1003": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1020",
+          0
+        ],
+        "resize_type": "scale dimensions",
+        "resize_type.width": [
+          "1023",
+          1
+        ],
+        "resize_type.height": [
+          "1024",
+          1
+        ],
+        "resize_type.crop": "center",
+        "scale_method": "area"
+      }
+    },
+    "1004": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": null
+      }
+    },
+    "1005": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "wan",
+        "device": "default"
+      }
+    },
+    "1007": {
+      "class_type": "CLIPVisionLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1008": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1009": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ],
+        "shift": 5
+      }
+    },
+    "1010": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler"
+      }
+    },
+    "1011": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1001",
+          0
+        ],
+        "scheduler": "simple",
+        "steps": [
+          "1018",
+          0
+        ],
+        "denoise": 1
+      }
+    },
+    "1012": {
+      "class_type": "SamplerCustom",
+      "inputs": {
+        "model": [
+          "1009",
+          0
+        ],
+        "positive": [
+          "1040",
+          0
+        ],
+        "negative": [
+          "1040",
+          1
+        ],
+        "sampler": [
+          "1010",
+          0
+        ],
+        "sigmas": [
+          "1011",
+          0
+        ],
+        "latent_image": [
+          "1040",
+          2
+        ],
+        "add_noise": true,
+        "noise_seed": null,
+        "cfg": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 6
+      }
+    },
+    "1014": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 1
+      }
+    },
+    "1015": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 40
+      }
+    },
+    "1016": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 5
+      }
+    },
+    "1017": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1042",
+          0
+        ],
+        "on_true": [
+          "1001",
+          0
+        ],
+        "switch": [
+          "1036",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1015",
+          0
+        ],
+        "on_true": [
+          "1013",
+          0
+        ],
+        "switch": [
+          "1036",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1016",
+          0
+        ],
+        "on_true": [
+          "1014",
+          0
+        ],
+        "switch": [
+          "1036",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "ImageFromBatch",
+      "inputs": {
+        "image": [
+          "1004",
+          0
+        ],
+        "batch_index": [
+          "1026",
+          1
+        ],
+        "length": null
+      }
+    },
+    "1021": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1022": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1023": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1021",
+          0
+        ],
+        "expression": "(a // 32) * 32"
+      }
+    },
+    "1024": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1022",
+          0
+        ],
+        "expression": "(a // 32) * 32"
+      }
+    },
+    "1025": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1026": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1025",
+          0
+        ],
+        "values.b": null,
+        "values.c": null,
+        "expression": "(b - c) * (a - 1)"
+      }
+    },
+    "1027": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1028",
+          1
+        ],
+        "text": null
+      }
+    },
+    "1028": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": null
+      }
+    },
+    "1029": {
+      "class_type": "SAM3_VideoTrack",
+      "inputs": {
+        "images": [
+          "1003",
+          0
+        ],
+        "model": [
+          "1028",
+          0
+        ],
+        "conditioning": [
+          "1027",
+          0
+        ],
+        "detection_threshold": 0.5,
+        "max_objects": 4,
+        "detect_interval": 1
+      }
+    },
+    "1030": {
+      "class_type": "SCAIL2ColoredMask",
+      "inputs": {
+        "driving_track_data": [
+          "1029",
+          0
+        ],
+        "ref_track_data": [
+          "1031",
+          0
+        ],
+        "object_indices": "",
+        "sort_by": "left_to_right",
+        "replacement_mode": [
+          "1032",
+          0
+        ]
+      }
+    },
+    "1031": {
+      "class_type": "SAM3_VideoTrack",
+      "inputs": {
+        "images": null,
+        "model": [
+          "1028",
+          0
+        ],
+        "conditioning": [
+          "1041",
+          0
+        ],
+        "detection_threshold": 0.5,
+        "max_objects": 4,
+        "detect_interval": 1
+      }
+    },
+    "1032": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1035": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1012",
+          1
+        ],
+        "vae": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1036": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1037": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "1007",
+          0
+        ],
+        "image": null,
+        "crop": "none"
+      }
+    },
+    "1038": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "text": ""
+      }
+    },
+    "1039": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1040": {
+      "class_type": "WanSCAILToVideo",
+      "inputs": {
+        "positive": [
+          "1039",
+          0
+        ],
+        "negative": [
+          "1038",
+          0
+        ],
+        "vae": [
+          "1002",
+          0
+        ],
+        "pose_video": [
+          "1003",
+          0
+        ],
+        "pose_video_mask": [
+          "1030",
+          0
+        ],
+        "reference_image": null,
+        "reference_image_mask": [
+          "1030",
+          1
+        ],
+        "clip_vision_output": [
+          "1037",
+          0
+        ],
+        "width": [
+          "1005",
+          0
+        ],
+        "height": [
+          "1005",
+          1
+        ],
+        "length": [
+          "1005",
+          2
+        ],
+        "batch_size": 1,
+        "pose_strength": null,
+        "pose_start": null,
+        "pose_end": null,
+        "video_frame_offset": 0,
+        "previous_frame_count": null,
+        "replacement_mode": [
+          "1032",
+          0
+        ]
+      }
+    },
+    "1041": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1028",
+          1
+        ],
+        "text": null
+      }
+    },
+    "1042": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1008",
+          0
+        ],
+        "lora_name": null,
+        "strength_model": 1
+      }
+    }
+  }
+}

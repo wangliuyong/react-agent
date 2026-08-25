@@ -1,0 +1,32 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1002": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1003": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": null,
+        "floats.u_float0": [
+          "1001",
+          0
+        ],
+        "floats.u_float1": [
+          "1002",
+          0
+        ],
+        "fragment_shader": "#version 300 es\nprecision highp float;\n\nuniform sampler2D u_image0;\nuniform float u_float0; // Brightness slider -100..100\nuniform float u_float1; // Contrast slider -100..100\n\nin vec2 v_texCoord;\nout vec4 fragColor;\n\nconst float MID_GRAY = 0.18;  // 18% reflectance\n\n// sRGB gamma 2.2 approximation\nvec3 srgbToLinear(vec3 c) {\n    return pow(max(c, 0.0), vec3(2.2));\n}\n\nvec3 linearToSrgb(vec3 c) {\n    return pow(max(c, 0.0), vec3(1.0/2.2));\n}\n\nfloat mapBrightness(float b) {\n    return clamp(b / 100.0, -1.0, 1.0);\n}\n\nfloat mapContrast(float c) {\n    return clamp(c / 100.0 + 1.0, 0.0, 2.0);\n}\n\nvoid main() {\n    vec4 orig = texture(u_image0, v_texCoord);\n\n    float brightness = mapBrightness(u_float0);\n    float contrast   = mapContrast(u_float1);\n\n    vec3 lin = srgbToLinear(orig.rgb);\n\n    lin = (lin - MID_GRAY) * contrast + brightness + MID_GRAY;\n\n    // Convert back to sRGB\n    vec3 result = linearToSrgb(clamp(lin, 0.0, 1.0));\n\n    fragColor = vec4(result, orig.a);\n}\n",
+        "size_mode": "from_input"
+      }
+    }
+  }
+}

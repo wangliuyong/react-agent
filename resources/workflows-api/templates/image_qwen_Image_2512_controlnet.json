@@ -1,0 +1,269 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "Canny",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1015",
+          0
+        ],
+        "vae": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "ControlNetApplyAdvanced",
+      "inputs": {
+        "positive": [
+          "1024",
+          0
+        ],
+        "negative": [
+          "1023",
+          0
+        ],
+        "control_net": [
+          "1013",
+          0
+        ],
+        "image": 1,
+        "vae": [
+          "1021",
+          0
+        ],
+        "strength": 985578626029454
+      }
+    },
+    "1010": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1026",
+          0
+        ],
+        "on_true": [
+          "1016",
+          0
+        ],
+        "switch": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1027",
+          0
+        ],
+        "on_true": [
+          "1017",
+          0
+        ],
+        "switch": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1019",
+          0
+        ],
+        "on_true": [
+          "1018",
+          0
+        ],
+        "switch": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "ControlNetLoader",
+      "inputs": {
+        "control_net_name": "Qwen-Image-2512-Fun-Controlnet-Union-2602.safetensors"
+      }
+    },
+    "1014": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": [
+          "125",
+          0
+        ],
+        "height": [
+          "125",
+          1
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1007",
+          0
+        ],
+        "positive": [
+          "1009",
+          0
+        ],
+        "negative": [
+          "1009",
+          1
+        ],
+        "latent_image": [
+          "1014",
+          0
+        ],
+        "seed": null,
+        "steps": [
+          "1010",
+          0
+        ],
+        "cfg": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1017": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {}
+    },
+    "1018": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": [
+          "122",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors"
+      }
+    },
+    "1021": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "qwen_image_vae.safetensors"
+      }
+    },
+    "1022": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": false
+      }
+    },
+    "1023": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1020",
+          0
+        ],
+        "text": "A woman with curly hair, wearing orange sunglasses, a white knit sweater with orange accents, and high-waisted orange trousers, stands confidently against a vibrant, clear blue sky. The photo has a warm, sunlit filter that amplifies the rich terracotta and burnt orange tones of her outfit, while the cool, deep blue background is intensified, creating a bold, saturated contrast that feels vivid and cinematic."
+      }
+    },
+    "1026": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1027": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {}
+    }
+  }
+}

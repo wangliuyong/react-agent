@@ -1,0 +1,60 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "Preview3D",
+      "inputs": {
+        "model_file": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "TripoImageToModelNode",
+      "inputs": {
+        "image": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "SaveGLB",
+      "inputs": {
+        "mesh": [
+          "1002",
+          2
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1004",
+          0
+        ],
+        "images.image1": [
+          "1005",
+          0
+        ],
+        "images.image2": [
+          "1006",
+          0
+        ]
+      }
+    }
+  }
+}

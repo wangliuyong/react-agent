@@ -1,0 +1,175 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1004": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "SamplerARVideo",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1007": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": null
+      }
+    },
+    "1008": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1012",
+          0
+        ],
+        "positive": [
+          "1015",
+          0
+        ],
+        "negative": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1007",
+          0
+        ],
+        "guider": [
+          "1009",
+          0
+        ],
+        "sampler": [
+          "1005",
+          0
+        ],
+        "sigmas": [
+          "1008",
+          0
+        ],
+        "latent_image": [
+          "1012",
+          1
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1012": {
+      "class_type": "ARVideoI2V",
+      "inputs": {
+        "model": [
+          "1003",
+          0
+        ],
+        "vae": [
+          "1006",
+          0
+        ],
+        "start_image": [
+          "18",
+          0
+        ],
+        "width": null,
+        "height": null,
+        "length": [
+          "1016",
+          1
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1010",
+          0
+        ],
+        "vae": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1011",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1016": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": null
+      }
+    }
+  }
+}

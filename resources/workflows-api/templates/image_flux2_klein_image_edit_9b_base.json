@@ -1,0 +1,439 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1029",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1007",
+          0
+        ],
+        "guider": [
+          "1017",
+          0
+        ],
+        "sampler": [
+          "1004",
+          0
+        ],
+        "sigmas": [
+          "1018",
+          0
+        ],
+        "latent_image": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1005",
+          0
+        ],
+        "vae": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": null
+      }
+    },
+    "1008": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "flux-2-klein-base-9b-fp8.safetensors"
+      }
+    },
+    "1009": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": [
+          "81",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "EmptyFlux2LatentImage",
+      "inputs": {
+        "width": [
+          "1010",
+          0
+        ],
+        "height": [
+          "1010",
+          1
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": 86928255107192
+      }
+    },
+    "1013": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": null
+      }
+    },
+    "1014": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": [
+          "76",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1014",
+          0
+        ],
+        "text": "Apply the yellow \"C\" logo to the center hub of the steering wheel, and change the steering wheel color to royal blue matching the logo background, while maintaining the same interior style, lighting, camera angle, and all other elements unchanged"
+      }
+    },
+    "1016": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1008",
+          0
+        ],
+        "positive": [
+          "1024",
+          0
+        ],
+        "negative": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "Flux2Scheduler",
+      "inputs": {
+        "width": [
+          "1010",
+          0
+        ],
+        "height": [
+          "1010",
+          1
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1016",
+          0
+        ],
+        "latent": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1012",
+          0
+        ],
+        "vae": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1015",
+          0
+        ],
+        "latent": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1019",
+          0
+        ],
+        "latent": [
+          "1023",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1013",
+          0
+        ],
+        "vae": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1021",
+          0
+        ],
+        "latent": [
+          "1023",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1026": {
+      "class_type": "Flux2Scheduler",
+      "inputs": {
+        "width": [
+          "1038",
+          0
+        ],
+        "height": [
+          "1038",
+          1
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1031",
+          0
+        ],
+        "positive": [
+          "1041",
+          0
+        ],
+        "negative": [
+          "1039",
+          0
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1030",
+          0
+        ],
+        "guider": [
+          "1027",
+          0
+        ],
+        "sampler": [
+          "1025",
+          0
+        ],
+        "sigmas": [
+          "1026",
+          0
+        ],
+        "latent_image": [
+          "1036",
+          0
+        ]
+      }
+    },
+    "1029": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1028",
+          0
+        ],
+        "vae": [
+          "1035",
+          0
+        ]
+      }
+    },
+    "1030": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": null
+      }
+    },
+    "1031": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "flux-2-klein-base-9b-fp8.safetensors"
+      }
+    },
+    "1032": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": [
+          "76",
+          0
+        ]
+      }
+    },
+    "1033": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1032",
+          0
+        ],
+        "text": "Change the camera angle to a first-person driver's perspective looking through the steering wheel at the dashboard and windshield, maintaining the same white minimalist interior style and lighting\n"
+      }
+    },
+    "1034": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1032",
+          0
+        ]
+      }
+    },
+    "1035": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "full_encoder_small_decoder.safetensors"
+      }
+    },
+    "1036": {
+      "class_type": "EmptyFlux2LatentImage",
+      "inputs": {
+        "width": [
+          "1038",
+          0
+        ],
+        "height": [
+          "1038",
+          1
+        ]
+      }
+    },
+    "1037": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": 192774551144773
+      }
+    },
+    "1038": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1037",
+          0
+        ]
+      }
+    },
+    "1039": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1034",
+          0
+        ],
+        "latent": [
+          "1040",
+          0
+        ]
+      }
+    },
+    "1040": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1037",
+          0
+        ],
+        "vae": [
+          "1035",
+          0
+        ]
+      }
+    },
+    "1041": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1033",
+          0
+        ],
+        "latent": [
+          "1040",
+          0
+        ]
+      }
+    }
+  }
+}

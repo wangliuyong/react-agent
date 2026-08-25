@@ -1,0 +1,26 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "GrokVideoEditNode",
+      "inputs": {
+        "video": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

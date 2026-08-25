@@ -1,0 +1,36 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "DA3Render",
+      "inputs": {
+        "da3_geometry": [
+          "1002",
+          0
+        ],
+        "output": null,
+        "output.normalization": null,
+        "output.apply_sky_clip": null
+      }
+    },
+    "1002": {
+      "class_type": "DA3Inference",
+      "inputs": {
+        "da3_model": [
+          "1003",
+          0
+        ],
+        "image": null,
+        "resolution": null,
+        "resize_method": null,
+        "mode": "mono"
+      }
+    },
+    "1003": {
+      "class_type": "LoadDA3Model",
+      "inputs": {
+        "model_name": null,
+        "weight_dtype": "default"
+      }
+    }
+  }
+}

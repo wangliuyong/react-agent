@@ -1,0 +1,127 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": [
+          "1014",
+          0
+        ],
+        "replace": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1009": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1010": {
+      "class_type": "DualCLIPLoader",
+      "inputs": {
+        "clip_name1": null,
+        "clip_name2": null
+      }
+    },
+    "1011": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1013",
+          0
+        ],
+        "vae": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {}
+    },
+    "1013": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1007",
+          0
+        ],
+        "positive": [
+          "1014",
+          0
+        ],
+        "negative": [
+          "1015",
+          0
+        ],
+        "latent_image": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": [
+          "1002",
+          0
+        ],
+        "replace": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1010",
+          0
+        ],
+        "text": null
+      }
+    }
+  }
+}

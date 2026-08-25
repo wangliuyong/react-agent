@@ -1,0 +1,178 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1005": {
+      "class_type": "FluxKontextMultiReferenceLatentMethod",
+      "inputs": {
+        "conditioning": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "FluxKontextMultiReferenceLatentMethod",
+      "inputs": {
+        "conditioning": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "1016",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ],
+        "image1": [
+          "1014",
+          0
+        ],
+        "image2": "Qwen_Image_Edit_2511-SYSTMS_INFL8.safetensors",
+        "image3": 1
+      }
+    },
+    "1011": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1013",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "1016",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ],
+        "image1": [
+          "1014",
+          0
+        ],
+        "image2": "Qwen_Image_Edit_2511-SYSTMS_INFL8.safetensors",
+        "image3": 1,
+        "prompt": 1123448499955428
+      }
+    },
+    "1013": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1007",
+          0
+        ],
+        "positive": [
+          "1006",
+          0
+        ],
+        "negative": [
+          "1005",
+          0
+        ],
+        "latent_image": [
+          "1018",
+          0
+        ],
+        "seed": "qwen_image_vae.safetensors"
+      }
+    },
+    "1014": {
+      "class_type": "FluxKontextImageScale",
+      "inputs": {
+        "image": [
+          "41",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1016": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1017": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1015",
+          0
+        ],
+        "lora_name": "qwen_image_edit_2511_bf16.safetensors",
+        "strength_model": "qwen_2.5_vl_7b_fp8_scaled.safetensors"
+      }
+    },
+    "1018": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1014",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "RegexExtract",
+      "inputs": {
+        "string": null,
+        "regex_pattern": [
+          "1004",
+          0
+        ],
+        "mode": "First Group",
+        "case_insensitive": false,
+        "multiline": false,
+        "dotall": false,
+        "group_index": 1
+      }
+    },
+    "1003": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1004": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": "^(?:[^\\n]*\\n){index}([^\\n]*)(?:\\n|$)",
+        "find": "index",
+        "replace": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

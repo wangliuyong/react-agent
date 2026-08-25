@@ -1,0 +1,201 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1002": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    "1003": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": null,
+        "height": null,
+        "batch_size": 1
+      }
+    },
+    "1004": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1011",
+          0
+        ],
+        "shift": 3.1000000000000005
+      }
+    },
+    "1005": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1006": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1002",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1007": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1002",
+          0
+        ],
+        "text": ""
+      }
+    },
+    "1008": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1010",
+          0
+        ],
+        "vae": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "lora_name": null,
+        "strength_model": 1
+      }
+    },
+    "1010": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ],
+        "positive": [
+          "1006",
+          0
+        ],
+        "negative": [
+          "1007",
+          0
+        ],
+        "latent_image": [
+          "1003",
+          0
+        ],
+        "seed": null,
+        "steps": [
+          "1014",
+          0
+        ],
+        "cfg": [
+          "1015",
+          0
+        ],
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    "1011": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1005",
+          0
+        ],
+        "on_true": [
+          "1009",
+          0
+        ],
+        "switch": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 8
+      }
+    },
+    "1013": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 1
+      }
+    },
+    "1014": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1016",
+          0
+        ],
+        "on_true": [
+          "1012",
+          0
+        ],
+        "switch": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1017",
+          0
+        ],
+        "on_true": [
+          "1013",
+          0
+        ],
+        "switch": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 20
+      }
+    },
+    "1017": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 4
+      }
+    },
+    "1018": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    }
+  }
+}

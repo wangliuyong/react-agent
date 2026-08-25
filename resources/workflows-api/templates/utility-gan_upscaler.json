@@ -1,0 +1,60 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "ImageUpscaleWithModel",
+      "inputs": {
+        "upscale_model": [
+          "1005",
+          0
+        ],
+        "image": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1002",
+          0
+        ],
+        "audio": [
+          "1004",
+          1
+        ],
+        "fps": [
+          "1004",
+          2
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "UpscaleModelLoader",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1003",
+          0
+        ]
+      }
+    }
+  }
+}

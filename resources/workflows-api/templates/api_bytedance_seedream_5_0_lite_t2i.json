@@ -1,0 +1,17 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "ByteDanceSeedreamNode",
+      "inputs": {}
+    }
+  }
+}

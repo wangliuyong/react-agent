@@ -1,0 +1,155 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "ByteDanceSeedreamNode",
+      "inputs": {
+        "image": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "MinimaxHailuoVideoNode",
+      "inputs": {
+        "first_frame_image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "MinimaxHailuoVideoNode",
+      "inputs": {
+        "first_frame_image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "MinimaxHailuoVideoNode",
+      "inputs": {
+        "first_frame_image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1008": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "18",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "20",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "ImageBatch",
+      "inputs": {
+        "image1": [
+          "1015",
+          0
+        ],
+        "image2": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "ImageBatch",
+      "inputs": {
+        "image1": [
+          "1013",
+          0
+        ],
+        "image2": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "5",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1014",
+          0
+        ],
+        "fps": [
+          "1015",
+          2
+        ]
+      }
+    }
+  }
+}

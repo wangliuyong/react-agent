@@ -1,0 +1,88 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "SaveGLB",
+      "inputs": {
+        "mesh": [
+          "1004",
+          2
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "TencentImageToModelNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ],
+        "image_back": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "SaveGLB",
+      "inputs": {
+        "mesh": [
+          "1004",
+          1
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "Preview3D",
+      "inputs": {
+        "model_file": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          3
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          4
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          5
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          6
+        ]
+      }
+    }
+  }
+}

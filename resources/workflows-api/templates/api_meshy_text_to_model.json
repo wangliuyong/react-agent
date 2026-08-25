@@ -1,0 +1,35 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "Preview3D",
+      "inputs": {
+        "model_file": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "SaveGLB",
+      "inputs": {
+        "mesh": [
+          "1004",
+          2
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "SaveGLB",
+      "inputs": {
+        "mesh": [
+          "1004",
+          3
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "MeshyTextToModelNode",
+      "inputs": {}
+    }
+  }
+}

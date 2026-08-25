@@ -1,0 +1,224 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "GrokImageEditNode",
+      "inputs": {
+        "image": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1024",
+          0
+        ]
+      }
+    }
+  }
+}

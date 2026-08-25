@@ -1,0 +1,26 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveAudioMP3",
+      "inputs": {
+        "audio": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "ElevenLabsAudioIsolation",
+      "inputs": {
+        "audio": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "LoadAudio",
+      "inputs": {}
+    }
+  }
+}

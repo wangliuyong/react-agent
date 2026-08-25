@@ -1,0 +1,213 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveAudioMP3",
+      "inputs": {
+        "audio": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "VAEDecodeAudio",
+      "inputs": {
+        "samples": [
+          "1005",
+          0
+        ],
+        "vae": [
+          "1020",
+          2
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "EmptyLatentAudio",
+      "inputs": {
+        "seconds": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1020",
+          0
+        ],
+        "positive": [
+          "1007",
+          0
+        ],
+        "negative": [
+          "1002",
+          0
+        ],
+        "latent_image": [
+          "1004",
+          0
+        ],
+        "seed": null
+      }
+    },
+    "1006": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1007": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1021",
+          0
+        ],
+        "text": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1013",
+          0
+        ],
+        "on_true": [
+          "1012",
+          0
+        ],
+        "switch": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1009",
+          1
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": [
+          "1017",
+          0
+        ],
+        "replace": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "TextGenerate",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "prompt": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1014": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": null
+      }
+    },
+    "1015": {
+      "class_type": "JsonExtractString",
+      "inputs": {
+        "key": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "string": [
+          "1011",
+          0
+        ],
+        "replace": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "replace": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1019": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1020": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": null
+      }
+    },
+    "1021": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    }
+  }
+}

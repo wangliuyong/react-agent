@@ -1,0 +1,245 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1002",
+          0
+        ],
+        "shift": 3.1
+      }
+    },
+    "1002": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1013",
+          0
+        ],
+        "on_true": [
+          "1012",
+          0
+        ],
+        "switch": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 40
+      }
+    },
+    "1004": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1001",
+          0
+        ],
+        "strength": 1
+      }
+    },
+    "1005": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1007",
+          0
+        ],
+        "on_true": [
+          "1008",
+          0
+        ],
+        "switch": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 8
+      }
+    },
+    "1007": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 4
+      }
+    },
+    "1008": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 1
+      }
+    },
+    "1009": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1003",
+          0
+        ],
+        "on_true": [
+          "1006",
+          0
+        ],
+        "switch": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1011": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    "1012": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1013",
+          0
+        ],
+        "lora_name": null,
+        "strength_model": 1
+      }
+    },
+    "1013": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1014": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1020",
+          0
+        ],
+        "vae": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1016": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "1011",
+          0
+        ],
+        "vae": [
+          "1010",
+          0
+        ],
+        "image1": [
+          "1020",
+          0
+        ],
+        "image2": null,
+        "image3": null,
+        "prompt": null
+      }
+    },
+    "1017": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "1011",
+          0
+        ],
+        "vae": [
+          "1010",
+          0
+        ],
+        "image1": [
+          "1020",
+          0
+        ],
+        "image2": null,
+        "image3": null,
+        "prompt": ""
+      }
+    },
+    "1018": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ],
+        "positive": [
+          "1016",
+          0
+        ],
+        "negative": [
+          "1017",
+          0
+        ],
+        "latent_image": [
+          "1014",
+          0
+        ],
+        "seed": null,
+        "steps": [
+          "1009",
+          0
+        ],
+        "cfg": [
+          "1005",
+          0
+        ],
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    "1019": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1018",
+          0
+        ],
+        "vae": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": null,
+        "resize_type": "scale total pixels",
+        "resize_type.megapixels": 1,
+        "scale_method": "lanczos"
+      }
+    }
+  }
+}

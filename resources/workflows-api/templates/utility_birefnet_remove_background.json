@@ -1,0 +1,67 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "MaskPreview",
+      "inputs": {
+        "mask": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "RemoveBackground",
+      "inputs": {
+        "image": [
+          "17",
+          0
+        ],
+        "bg_removal_model": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "LoadBackgroundRemovalModel",
+      "inputs": {
+        "bg_removal_name": null
+      }
+    },
+    "1006": {
+      "class_type": "InvertMask",
+      "inputs": {
+        "mask": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "JoinImageWithAlpha",
+      "inputs": {
+        "image": [
+          "17",
+          0
+        ],
+        "alpha": [
+          "1006",
+          0
+        ]
+      }
+    }
+  }
+}

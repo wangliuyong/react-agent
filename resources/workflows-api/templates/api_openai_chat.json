@@ -1,0 +1,34 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "OpenAIChatConfig",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "OpenAIChatNode",
+      "inputs": {
+        "images": [
+          "1003",
+          0
+        ],
+        "advanced_options": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "SaveText",
+      "inputs": {
+        "text": [
+          "1002",
+          0
+        ]
+      }
+    }
+  }
+}

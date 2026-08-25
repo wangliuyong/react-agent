@@ -1,0 +1,926 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1025",
+          0
+        ],
+        "images.image1": [
+          "1041",
+          0
+        ],
+        "images.image2": [
+          "1057",
+          0
+        ],
+        "images.image3": [
+          "1073",
+          0
+        ],
+        "images.image4": [
+          "1089",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1011": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1014": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1015": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1014",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1017": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1013",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1018": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1015",
+          0
+        ],
+        "positive": [
+          "1022",
+          0
+        ],
+        "negative": [
+          "1022",
+          1
+        ],
+        "latent_image": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1018",
+          0
+        ],
+        "positive": [
+          "1022",
+          0
+        ],
+        "negative": [
+          "1022",
+          1
+        ],
+        "latent_image": [
+          "1022",
+          2
+        ],
+        "noise_seed": null
+      }
+    },
+    "1021": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1022": {
+      "class_type": "WanFirstLastFrameToVideo",
+      "inputs": {
+        "positive": [
+          "1023",
+          0
+        ],
+        "negative": [
+          "1011",
+          0
+        ],
+        "vae": [
+          "1021",
+          0
+        ],
+        "start_image": [
+          "62",
+          0
+        ],
+        "end_image": [
+          "122",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1010",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1025": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1019",
+          0
+        ],
+        "vae": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1026": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1027": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1041",
+          0
+        ]
+      }
+    },
+    "1029": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1030": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1031": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1032",
+          0
+        ]
+      }
+    },
+    "1032": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1030",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1033": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1029",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1034": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1033",
+          0
+        ]
+      }
+    },
+    "1035": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1031",
+          0
+        ],
+        "positive": [
+          "1038",
+          0
+        ],
+        "negative": [
+          "1038",
+          1
+        ],
+        "latent_image": [
+          "1036",
+          0
+        ]
+      }
+    },
+    "1036": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1034",
+          0
+        ],
+        "positive": [
+          "1038",
+          0
+        ],
+        "negative": [
+          "1038",
+          1
+        ],
+        "latent_image": [
+          "1038",
+          2
+        ],
+        "noise_seed": null
+      }
+    },
+    "1037": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1038": {
+      "class_type": "WanFirstLastFrameToVideo",
+      "inputs": {
+        "positive": [
+          "1039",
+          0
+        ],
+        "negative": [
+          "1027",
+          0
+        ],
+        "vae": [
+          "1037",
+          0
+        ],
+        "start_image": [
+          "122",
+          0
+        ],
+        "end_image": [
+          "124",
+          0
+        ]
+      }
+    },
+    "1039": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1026",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1041": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1035",
+          0
+        ],
+        "vae": [
+          "1037",
+          0
+        ]
+      }
+    },
+    "1042": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1043": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1042",
+          0
+        ]
+      }
+    },
+    "1044": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1057",
+          0
+        ]
+      }
+    },
+    "1045": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1046": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1047": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1048",
+          0
+        ]
+      }
+    },
+    "1048": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1046",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1049": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1045",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1050": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1049",
+          0
+        ]
+      }
+    },
+    "1051": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1047",
+          0
+        ],
+        "positive": [
+          "1054",
+          0
+        ],
+        "negative": [
+          "1054",
+          1
+        ],
+        "latent_image": [
+          "1052",
+          0
+        ]
+      }
+    },
+    "1052": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1050",
+          0
+        ],
+        "positive": [
+          "1054",
+          0
+        ],
+        "negative": [
+          "1054",
+          1
+        ],
+        "latent_image": [
+          "1054",
+          2
+        ],
+        "noise_seed": null
+      }
+    },
+    "1053": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1054": {
+      "class_type": "WanFirstLastFrameToVideo",
+      "inputs": {
+        "positive": [
+          "1055",
+          0
+        ],
+        "negative": [
+          "1043",
+          0
+        ],
+        "vae": [
+          "1053",
+          0
+        ],
+        "start_image": [
+          "124",
+          0
+        ],
+        "end_image": [
+          "126",
+          0
+        ]
+      }
+    },
+    "1055": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1042",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1057": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1051",
+          0
+        ],
+        "vae": [
+          "1053",
+          0
+        ]
+      }
+    },
+    "1058": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1059": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1058",
+          0
+        ]
+      }
+    },
+    "1060": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1073",
+          0
+        ]
+      }
+    },
+    "1061": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1062": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1063": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1064",
+          0
+        ]
+      }
+    },
+    "1064": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1062",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1065": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1061",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1066": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1065",
+          0
+        ]
+      }
+    },
+    "1067": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1063",
+          0
+        ],
+        "positive": [
+          "1070",
+          0
+        ],
+        "negative": [
+          "1070",
+          1
+        ],
+        "latent_image": [
+          "1068",
+          0
+        ]
+      }
+    },
+    "1068": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1066",
+          0
+        ],
+        "positive": [
+          "1070",
+          0
+        ],
+        "negative": [
+          "1070",
+          1
+        ],
+        "latent_image": [
+          "1070",
+          2
+        ],
+        "noise_seed": null
+      }
+    },
+    "1069": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1070": {
+      "class_type": "WanFirstLastFrameToVideo",
+      "inputs": {
+        "positive": [
+          "1071",
+          0
+        ],
+        "negative": [
+          "1059",
+          0
+        ],
+        "vae": [
+          "1069",
+          0
+        ],
+        "start_image": [
+          "126",
+          0
+        ],
+        "end_image": [
+          "128",
+          0
+        ]
+      }
+    },
+    "1071": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1058",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1073": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1067",
+          0
+        ],
+        "vae": [
+          "1069",
+          0
+        ]
+      }
+    },
+    "1074": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1075": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1074",
+          0
+        ]
+      }
+    },
+    "1076": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1089",
+          0
+        ]
+      }
+    },
+    "1077": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1078": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1079": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1080",
+          0
+        ]
+      }
+    },
+    "1080": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1078",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1081": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1077",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1082": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1081",
+          0
+        ]
+      }
+    },
+    "1083": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1079",
+          0
+        ],
+        "positive": [
+          "1086",
+          0
+        ],
+        "negative": [
+          "1086",
+          1
+        ],
+        "latent_image": [
+          "1084",
+          0
+        ]
+      }
+    },
+    "1084": {
+      "class_type": "KSamplerAdvanced",
+      "inputs": {
+        "model": [
+          "1082",
+          0
+        ],
+        "positive": [
+          "1086",
+          0
+        ],
+        "negative": [
+          "1086",
+          1
+        ],
+        "latent_image": [
+          "1086",
+          2
+        ],
+        "noise_seed": null
+      }
+    },
+    "1085": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1086": {
+      "class_type": "WanFirstLastFrameToVideo",
+      "inputs": {
+        "positive": [
+          "1087",
+          0
+        ],
+        "negative": [
+          "1075",
+          0
+        ],
+        "vae": [
+          "1085",
+          0
+        ],
+        "start_image": [
+          "128",
+          0
+        ],
+        "end_image": [
+          "130",
+          0
+        ]
+      }
+    },
+    "1087": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1074",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1089": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1083",
+          0
+        ],
+        "vae": [
+          "1085",
+          0
+        ]
+      }
+    }
+  }
+}

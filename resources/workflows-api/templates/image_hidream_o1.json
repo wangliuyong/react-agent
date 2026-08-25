@@ -1,0 +1,342 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SamplerCustom",
+      "inputs": {
+        "model": [
+          "1025",
+          0
+        ],
+        "positive": [
+          "1008",
+          0
+        ],
+        "negative": [
+          "1009",
+          0
+        ],
+        "sampler": [
+          "1024",
+          0
+        ],
+        "sigmas": [
+          "1002",
+          0
+        ],
+        "latent_image": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "ModelNoiseScale",
+      "inputs": {
+        "model": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "HiDreamO1ReferenceImages",
+      "inputs": {
+        "positive": [
+          "1006",
+          0
+        ],
+        "negative": [
+          "1015",
+          0
+        ],
+        "images.image_1": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1003",
+          1
+        ],
+        "text": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1001",
+          0
+        ],
+        "vae": [
+          "1003",
+          2
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1006",
+          0
+        ],
+        "on_true": [
+          "1005",
+          0
+        ],
+        "switch": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1015",
+          0
+        ],
+        "on_true": [
+          "1005",
+          1
+        ],
+        "switch": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1020",
+          0
+        ],
+        "on_true": [
+          "1021",
+          0
+        ],
+        "switch": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "196",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {}
+    },
+    "1013": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1022",
+          0
+        ],
+        "on_true": [
+          "1031",
+          0
+        ],
+        "switch": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {}
+    },
+    "1015": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1003",
+          1
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1017": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1011",
+          1
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "EmptyHiDreamO1LatentImage",
+      "inputs": {}
+    },
+    "1021": {
+      "class_type": "EmptyHiDreamO1LatentImage",
+      "inputs": {
+        "width": [
+          "1017",
+          1
+        ],
+        "height": [
+          "1018",
+          1
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1023": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1025": {
+      "class_type": "HiDreamO1PatchSeamSmoothing",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1026": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1027": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "replace": [
+          "171",
+          0
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_a": [
+          "1026",
+          0
+        ],
+        "string_b": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1029": {
+      "class_type": "TextGenerate",
+      "inputs": {
+        "clip": [
+          "1030",
+          0
+        ],
+        "image": null,
+        "prompt": [
+          "1028",
+          0
+        ]
+      }
+    },
+    "1030": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": [
+          "213",
+          0
+        ]
+      }
+    },
+    "1031": {
+      "class_type": "JsonExtractString",
+      "inputs": {
+        "json_string": [
+          "1035",
+          0
+        ]
+      }
+    },
+    "1034": {
+      "class_type": "RegexReplace",
+      "inputs": {
+        "string": [
+          "1032",
+          0
+        ]
+      }
+    },
+    "1035": {
+      "class_type": "RegexReplace",
+      "inputs": {
+        "string": [
+          "1034",
+          0
+        ]
+      }
+    }
+  }
+}

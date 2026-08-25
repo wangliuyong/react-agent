@@ -1,0 +1,17 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveAudioMP3",
+      "inputs": {
+        "audio": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "ElevenLabsTextToSoundEffects",
+      "inputs": {}
+    }
+  }
+}

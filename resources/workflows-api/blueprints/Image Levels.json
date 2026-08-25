@@ -1,0 +1,72 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": "RGB"
+      }
+    },
+    "1002": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1003": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1004": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 255
+      }
+    },
+    "1005": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 1
+      }
+    },
+    "1006": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 255
+      }
+    },
+    "1007": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": null,
+        "floats.u_float0": [
+          "1003",
+          0
+        ],
+        "floats.u_float1": [
+          "1004",
+          0
+        ],
+        "floats.u_float2": [
+          "1005",
+          0
+        ],
+        "floats.u_float3": [
+          "1002",
+          0
+        ],
+        "floats.u_float4": [
+          "1006",
+          0
+        ],
+        "ints.u_int0": [
+          "1001",
+          1
+        ],
+        "fragment_shader": "#version 300 es\nprecision highp float;\n\n// Levels Adjustment\n// u_int0:   channel      (0=RGB, 1=R, 2=G, 3=B)         default: 0\n// u_float0: input black  (0-255)                        default: 0\n// u_float1: input white  (0-255)                        default: 255\n// u_float2: gamma        (0.01-9.99)                    default: 1.0\n// u_float3: output black (0-255)                        default: 0\n// u_float4: output white (0-255)                        default: 255\n\nuniform sampler2D u_image0;\nuniform int u_int0;\nuniform float u_float0;\nuniform float u_float1;\nuniform float u_float2;\nuniform float u_float3;\nuniform float u_float4;\n\nin vec2 v_texCoord;\nout vec4 fragColor;\n\nvec3 applyLevels(vec3 color, float inBlack, float inWhite, float gamma, float outBlack, float outWhite) {\n    float inRange = max(inWhite - inBlack, 0.0001);\n    vec3 result = clamp((color - inBlack) / inRange, 0.0, 1.0);\n    result = pow(result, vec3(1.0 / gamma));\n    result = mix(vec3(outBlack), vec3(outWhite), result);\n    return result;\n}\n\nfloat applySingleChannel(float value, float inBlack, float inWhite, float gamma, float outBlack, float outWhite) {\n    float inRange = max(inWhite - inBlack, 0.0001);\n    float result = clamp((value - inBlack) / inRange, 0.0, 1.0);\n    result = pow(result, 1.0 / gamma);\n    result = mix(outBlack, outWhite, result);\n    return result;\n}\n\nvoid main() {\n    vec4 texColor = texture(u_image0, v_texCoord);\n    vec3 color = texColor.rgb;\n    \n    float inBlack = u_float0 / 255.0;\n    float inWhite = u_float1 / 255.0;\n    float gamma = u_float2;\n    float outBlack = u_float3 / 255.0;\n    float outWhite = u_float4 / 255.0;\n    \n    vec3 result;\n    \n    if (u_int0 == 0) {\n        result = applyLevels(color, inBlack, inWhite, gamma, outBlack, outWhite);\n    }\n    else if (u_int0 == 1) {\n        result = color;\n        result.r = applySingleChannel(color.r, inBlack, inWhite, gamma, outBlack, outWhite);\n    }\n    else if (u_int0 == 2) {\n        result = color;\n        result.g = applySingleChannel(color.g, inBlack, inWhite, gamma, outBlack, outWhite);\n    }\n    else if (u_int0 == 3) {\n        result = color;\n        result.b = applySingleChannel(color.b, inBlack, inWhite, gamma, outBlack, outWhite);\n    }\n    else {\n        result = color;\n    }\n    \n    fragColor = vec4(result, texColor.a);\n}",
+        "size_mode": "from_input"
+      }
+    }
+  }
+}

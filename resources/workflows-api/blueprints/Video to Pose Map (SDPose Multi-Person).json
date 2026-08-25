@@ -1,0 +1,89 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SDPoseKeypointExtractor",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ],
+        "vae": [
+          "1004",
+          2
+        ],
+        "image": [
+          "1002",
+          0
+        ],
+        "bboxes": [
+          "1006",
+          0
+        ],
+        "batch_size": 16
+      }
+    },
+    "1002": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1007",
+          0
+        ],
+        "resize_type": "scale longer dimension",
+        "resize_type.longer_size": null,
+        "scale_method": null
+      }
+    },
+    "1003": {
+      "class_type": "SDPoseDrawKeypoints",
+      "inputs": {
+        "keypoints": [
+          "1001",
+          0
+        ],
+        "draw_body": null,
+        "draw_hands": null,
+        "draw_face": null,
+        "draw_feet": null,
+        "stick_width": null,
+        "face_point_size": null,
+        "score_threshold": null
+      }
+    },
+    "1004": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": null
+      }
+    },
+    "1005": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1006": {
+      "class_type": "RTDETR_detect",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "image": [
+          "1002",
+          0
+        ],
+        "threshold": null,
+        "class_name": null,
+        "max_detections": null
+      }
+    },
+    "1007": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": null
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-/** 主内容区视图：聊天 / 业务系统 / 工作台 / 发布 / 设置 / 技能 / 规则 / 定时 / 流程 / Remotion 视频 */
+/** 主内容区视图：聊天 / 业务系统 / 工作台 / 发布 / 设置 / 技能 / 规则 / 定时 / 流程 / Remotion 视频 / AI 视频 */
 export type AppView =
   | 'chat'
   | 'business'
@@ -12,6 +12,8 @@ export type AppView =
   | 'schedule'
   | 'workflows'
   | 'remotion-video'
+  | 'ai-video'
+  | 'ai-video-canvas'
 
 const VIEW_STORAGE_KEY = 'lingxi:app-view'
 const SETTINGS_TAB_STORAGE_KEY = 'lingxi:settings-tab'
@@ -26,7 +28,9 @@ const APP_VIEWS: AppView[] = [
   'rules',
   'schedule',
   'workflows',
-  'remotion-video'
+  'remotion-video',
+  'ai-video',
+  'ai-video-canvas'
 ]
 
 /** 从 localStorage 恢复上次停留的主视图（刷新后仍停留在业务系统等页面） */

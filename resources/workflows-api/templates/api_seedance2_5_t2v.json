@@ -1,0 +1,17 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "ByteDance2TextToVideoNode",
+      "inputs": {}
+    }
+  }
+}

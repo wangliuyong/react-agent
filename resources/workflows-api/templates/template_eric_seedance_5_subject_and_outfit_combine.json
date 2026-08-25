@@ -1,0 +1,146 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "RegexReplace",
+      "inputs": {
+        "string": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "RegexReplace",
+      "inputs": {
+        "string": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1008": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1009": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1010": {
+      "class_type": "ByteDanceSeedreamNodeV2",
+      "inputs": {
+        "prompt": [
+          "1003",
+          0
+        ],
+        "model.images.image_1": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "ByteDanceSeedreamNodeV2",
+      "inputs": {
+        "prompt": [
+          "1002",
+          0
+        ],
+        "model.images.image_1": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "ResizeAndPadImage",
+      "inputs": {
+        "image": [
+          "226",
+          0
+        ],
+        "target_width": [
+          "1014",
+          0
+        ],
+        "target_height": [
+          "1014",
+          1
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "ResizeAndPadImage",
+      "inputs": {
+        "image": [
+          "26",
+          0
+        ],
+        "target_width": [
+          "1014",
+          0
+        ],
+        "target_height": [
+          "1014",
+          1
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "16",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "16",
+          0
+        ],
+        "images.image1": [
+          "1012",
+          0
+        ],
+        "images.image2": [
+          "1013",
+          0
+        ]
+      }
+    }
+  }
+}

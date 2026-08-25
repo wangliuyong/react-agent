@@ -1,0 +1,176 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "ImageCompare",
+      "inputs": {
+        "image_a": [
+          "1002",
+          0
+        ],
+        "image_b": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1005": {
+      "class_type": "TextEncodeQwenImageEdit",
+      "inputs": {
+        "clip": [
+          "1016",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ],
+        "image": [
+          "1015",
+          0
+        ],
+        "prompt": null
+      }
+    },
+    "1006": {
+      "class_type": "TextEncodeQwenImageEdit",
+      "inputs": {
+        "clip": [
+          "1016",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ],
+        "image": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "FluxKontextMultiReferenceLatentMethod",
+      "inputs": {
+        "conditioning": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "FluxGuidance",
+      "inputs": {
+        "conditioning": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "FluxGuidance",
+      "inputs": {
+        "conditioning": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "FluxKontextMultiReferenceLatentMethod",
+      "inputs": {
+        "conditioning": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1012",
+          0
+        ],
+        "positive": [
+          "1007",
+          0
+        ],
+        "negative": [
+          "1010",
+          0
+        ],
+        "latent_image": [
+          "1013",
+          0
+        ],
+        "steps": null
+      }
+    },
+    "1012": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1013": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1015",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1011",
+          0
+        ],
+        "vae": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "13",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    }
+  }
+}

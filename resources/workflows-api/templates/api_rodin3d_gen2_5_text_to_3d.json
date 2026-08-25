@@ -1,0 +1,17 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "Rodin3D_Gen25_Text",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveGLB",
+      "inputs": {
+        "mesh": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

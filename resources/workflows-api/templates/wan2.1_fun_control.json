@@ -1,0 +1,203 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1011",
+          0
+        ],
+        "positive": [
+          "1009",
+          0
+        ],
+        "negative": [
+          "1009",
+          1
+        ],
+        "latent_image": [
+          "1009",
+          2
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "UNETLoader",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "CLIPLoader",
+      "inputs": {}
+    },
+    "1006": {
+      "class_type": "VAELoader",
+      "inputs": {}
+    },
+    "1007": {
+      "class_type": "CLIPVisionLoader",
+      "inputs": {}
+    },
+    "1008": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "1007",
+          0
+        ],
+        "image": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "WanFunControlToVideo",
+      "inputs": {
+        "positive": [
+          "1002",
+          0
+        ],
+        "negative": [
+          "1003",
+          0
+        ],
+        "vae": [
+          "1006",
+          0
+        ],
+        "clip_vision_output": [
+          "1008",
+          0
+        ],
+        "start_image": [
+          "1019",
+          0
+        ],
+        "control_video": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "SkipLayerGuidanceDiT",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "CFGZeroStar",
+      "inputs": {
+        "model": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "ModelSamplingSD3",
+      "inputs": {
+        "model": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "UNetTemporalAttentionMultiply",
+      "inputs": {
+        "model": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "Canny",
+      "inputs": {
+        "image": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1001",
+          0
+        ],
+        "vae": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1020": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1021": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1020",
+          0
+        ]
+      }
+    }
+  }
+}

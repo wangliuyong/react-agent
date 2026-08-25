@@ -1,0 +1,394 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1002",
+          0
+        ],
+        "values.b": [
+          "1003",
+          0
+        ],
+        "expression": "max(1, int(a/b))"
+      }
+    },
+    "1002": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": null
+      }
+    },
+    "1003": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 3
+      }
+    },
+    "1004": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": 0,
+        "y": 0,
+        "width": [
+          "1001",
+          1
+        ],
+        "height": [
+          "1006",
+          1
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1002",
+          1
+        ],
+        "values.b": [
+          "1003",
+          0
+        ],
+        "expression": "max(1, int(a/b))"
+      }
+    },
+    "1007": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": 0,
+        "y": [
+          "1006",
+          1
+        ],
+        "width": [
+          "1001",
+          1
+        ],
+        "height": [
+          "1006",
+          1
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": [
+          "1001",
+          1
+        ],
+        "y": 0,
+        "width": [
+          "1001",
+          1
+        ],
+        "height": [
+          "1006",
+          1
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": [
+          "1001",
+          1
+        ],
+        "y": [
+          "1006",
+          1
+        ],
+        "width": [
+          "1001",
+          1
+        ],
+        "height": [
+          "1006",
+          1
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1006",
+          1
+        ],
+        "expression": "2 * a"
+      }
+    },
+    "1014": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": [
+          "1016",
+          1
+        ],
+        "y": [
+          "1006",
+          1
+        ],
+        "width": [
+          "1017",
+          1
+        ],
+        "height": [
+          "1006",
+          1
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1001",
+          1
+        ],
+        "expression": "2 * a"
+      }
+    },
+    "1017": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1002",
+          0
+        ],
+        "values.b": [
+          "1016",
+          1
+        ],
+        "expression": "max(1, a - b)"
+      }
+    },
+    "1018": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1002",
+          1
+        ],
+        "values.b": [
+          "1013",
+          1
+        ],
+        "expression": "max(1, a - b)"
+      }
+    },
+    "1019": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": [
+          "1016",
+          1
+        ],
+        "y": [
+          "1013",
+          1
+        ],
+        "width": [
+          "1017",
+          1
+        ],
+        "height": [
+          "1018",
+          1
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": [
+          "1001",
+          1
+        ],
+        "y": [
+          "1013",
+          1
+        ],
+        "width": [
+          "1001",
+          1
+        ],
+        "height": [
+          "1018",
+          1
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1024",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": 0,
+        "y": [
+          "1013",
+          1
+        ],
+        "width": [
+          "1001",
+          1
+        ],
+        "height": [
+          "1018",
+          1
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "ImageCropV2",
+      "inputs": {
+        "image": null,
+        "crop_region": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1026": {
+      "class_type": "PrimitiveBoundingBox",
+      "inputs": {
+        "x": [
+          "1016",
+          1
+        ],
+        "y": 0,
+        "width": [
+          "1017",
+          1
+        ],
+        "height": [
+          "1006",
+          1
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1004",
+          0
+        ],
+        "images.image1": [
+          "1010",
+          0
+        ],
+        "images.image2": [
+          "1025",
+          0
+        ],
+        "images.image3": [
+          "1007",
+          0
+        ],
+        "images.image4": [
+          "1011",
+          0
+        ],
+        "images.image5": [
+          "1014",
+          0
+        ],
+        "images.image6": [
+          "1023",
+          0
+        ],
+        "images.image7": [
+          "1021",
+          0
+        ],
+        "images.image8": [
+          "1019",
+          0
+        ]
+      }
+    }
+  }
+}

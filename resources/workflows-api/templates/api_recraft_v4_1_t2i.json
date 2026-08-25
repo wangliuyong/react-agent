@@ -1,0 +1,38 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "RecraftColorRGB",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "RecraftControls",
+      "inputs": {
+        "colors": [
+          "1001",
+          0
+        ],
+        "background_color": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "RecraftColorRGB",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "RecraftV4TextToImageNode",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ]
+      }
+    }
+  }
+}

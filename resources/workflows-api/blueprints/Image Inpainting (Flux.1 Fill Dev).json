@@ -1,0 +1,125 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "DualCLIPLoader",
+      "inputs": {
+        "clip_name1": null,
+        "clip_name2": null,
+        "type": "flux",
+        "device": "default"
+      }
+    },
+    "1002": {
+      "class_type": "FluxGuidance",
+      "inputs": {
+        "conditioning": [
+          "1006",
+          0
+        ],
+        "guidance": 30
+      }
+    },
+    "1003": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1004": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1005": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1007": {
+      "class_type": "DifferentialDiffusion",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ],
+        "strength": 1
+      }
+    },
+    "1008": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1010",
+          0
+        ],
+        "vae": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "InpaintModelConditioning",
+      "inputs": {
+        "positive": [
+          "1002",
+          0
+        ],
+        "negative": [
+          "1005",
+          0
+        ],
+        "vae": [
+          "1003",
+          0
+        ],
+        "pixels": null,
+        "mask": null,
+        "noise_mask": true
+      }
+    },
+    "1010": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1007",
+          0
+        ],
+        "positive": [
+          "1009",
+          0
+        ],
+        "negative": [
+          "1009",
+          1
+        ],
+        "latent_image": [
+          "1009",
+          2
+        ],
+        "seed": null,
+        "steps": 20,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1
+      }
+    }
+  }
+}

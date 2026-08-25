@@ -1,0 +1,28 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--db-text-secondary);
+}
+
+.resultBox {
+  margin-top: 12px;
+}
+
+.pre {
+  margin: 0;
+  padding: 10px;
+  max-height: 240px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--db-bg);
+  font-size: 12px;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}

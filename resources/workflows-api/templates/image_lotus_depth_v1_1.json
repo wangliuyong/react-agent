@@ -1,0 +1,133 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1006",
+          0
+        ],
+        "vae": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1005": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1006": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1007",
+          0
+        ],
+        "guider": [
+          "1008",
+          0
+        ],
+        "sampler": [
+          "1010",
+          0
+        ],
+        "sigmas": [
+          "1013",
+          0
+        ],
+        "latent_image": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "DisableNoise",
+      "inputs": {}
+    },
+    "1008": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ],
+        "conditioning": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1011": {
+      "class_type": "ImageInvert",
+      "inputs": {
+        "image": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "12",
+          0
+        ],
+        "vae": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "SetFirstSigma",
+      "inputs": {
+        "sigmas": [
+          "1009",
+          0
+        ],
+        "sigma": null
+      }
+    },
+    "1014": {
+      "class_type": "LotusConditioning",
+      "inputs": {}
+    }
+  }
+}

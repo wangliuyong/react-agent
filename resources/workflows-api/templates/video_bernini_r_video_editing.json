@@ -1,0 +1,475 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "Video Slice",
+      "inputs": {
+        "video": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1007",
+          2
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1010": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1011": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1012": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "SplitSigmas",
+      "inputs": {
+        "sigmas": [
+          "1021",
+          0
+        ],
+        "step": [
+          "1035",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1015": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1016": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1015",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1017": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1018": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1022",
+          0
+        ],
+        "vae": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1018",
+          0
+        ],
+        "audio": [
+          "1024",
+          1
+        ],
+        "fps": [
+          "1024",
+          2
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "SamplerCustom",
+      "inputs": {
+        "model": [
+          "1040",
+          0
+        ],
+        "positive": [
+          "1023",
+          0
+        ],
+        "negative": [
+          "1023",
+          1
+        ],
+        "sampler": [
+          "1014",
+          0
+        ],
+        "sigmas": [
+          "1013",
+          0
+        ],
+        "latent_image": [
+          "1023",
+          2
+        ],
+        "noise_seed": null,
+        "cfg": [
+          "1036",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ],
+        "steps": [
+          "1032",
+          0
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "SamplerCustom",
+      "inputs": {
+        "model": [
+          "1026",
+          0
+        ],
+        "positive": [
+          "1023",
+          0
+        ],
+        "negative": [
+          "1023",
+          1
+        ],
+        "sampler": [
+          "1014",
+          0
+        ],
+        "sigmas": [
+          "1013",
+          1
+        ],
+        "latent_image": [
+          "1020",
+          0
+        ],
+        "cfg": [
+          "1036",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "BerniniConditioning",
+      "inputs": {
+        "positive": [
+          "1025",
+          0
+        ],
+        "negative": [
+          "1012",
+          0
+        ],
+        "vae": [
+          "1010",
+          0
+        ],
+        "source_video": [
+          "1024",
+          0
+        ],
+        "reference_video": null,
+        "reference_images.reference_image_0": null,
+        "width": [
+          "111",
+          2
+        ],
+        "height": null,
+        "length": null,
+        "ref_max_size": null
+      }
+    },
+    "1024": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "109",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1009",
+          0
+        ],
+        "text": [
+          "1029",
+          0
+        ]
+      }
+    },
+    "1026": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1017",
+          0
+        ],
+        "on_true": [
+          "1011",
+          0
+        ],
+        "switch": [
+          "1039",
+          0
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "CustomCombo",
+      "inputs": {
+        "choice": null
+      }
+    },
+    "1029": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_a": [
+          "1028",
+          0
+        ],
+        "string_b": [
+          "1042",
+          0
+        ]
+      }
+    },
+    "1030": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1031": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1032": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1030",
+          0
+        ],
+        "on_true": [
+          "1031",
+          0
+        ],
+        "switch": [
+          "1039",
+          0
+        ]
+      }
+    },
+    "1033": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1034": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1035": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1033",
+          0
+        ],
+        "on_true": [
+          "1034",
+          0
+        ],
+        "switch": [
+          "1039",
+          0
+        ]
+      }
+    },
+    "1036": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1038",
+          0
+        ],
+        "on_true": [
+          "1037",
+          0
+        ],
+        "switch": [
+          "1039",
+          0
+        ]
+      }
+    },
+    "1037": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {}
+    },
+    "1038": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {}
+    },
+    "1039": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1040": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1015",
+          0
+        ],
+        "on_true": [
+          "1016",
+          0
+        ],
+        "switch": [
+          "1039",
+          0
+        ]
+      }
+    },
+    "1042": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1043": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1045",
+          0
+        ]
+      }
+    },
+    "1044": {
+      "class_type": "RegexExtract",
+      "inputs": {
+        "string": [
+          "282",
+          1
+        ],
+        "regex_pattern": [
+          "1046",
+          0
+        ]
+      }
+    },
+    "1045": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1046": {
+      "class_type": "StringReplace",
+      "inputs": {
+        "replace": [
+          "1043",
+          0
+        ]
+      }
+    }
+  }
+}

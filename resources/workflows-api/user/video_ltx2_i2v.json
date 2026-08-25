@@ -1,0 +1,498 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "freckled_curly_girl.png",
+        "upload": "image"
+      }
+    },
+    "1002": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": [
+          "1001",
+          0
+        ],
+        "resize_type": "scale dimensions",
+        "resize_type.width": 1280,
+        "resize_type.height": 720,
+        "resize_type.crop": "center",
+        "scale_method": "lanczos"
+      }
+    },
+    "1003": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1018",
+          0
+        ],
+        "filename_prefix": "video/LTX_2.0_i2v",
+        "format": "auto",
+        "codec": "auto"
+      }
+    },
+    "1004": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler"
+      }
+    },
+    "1005": {
+      "class_type": "LTXVScheduler",
+      "inputs": {
+        "latent": [
+          "1025",
+          0
+        ],
+        "steps": 20,
+        "max_shift": 2.05,
+        "base_shift": 0.95,
+        "stretch": true,
+        "terminal": 0.1
+      }
+    },
+    "1006": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "gradient_estimation"
+      }
+    },
+    "1007": {
+      "class_type": "ManualSigmas",
+      "inputs": {
+        "sigmas": "0.909375, 0.725, 0.421875, 0.0"
+      }
+    },
+    "1008": {
+      "class_type": "LTXVCropGuides",
+      "inputs": {
+        "positive": [
+          "1011",
+          0
+        ],
+        "negative": [
+          "1011",
+          1
+        ],
+        "latent": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1043",
+          0
+        ],
+        "positive": [
+          "1008",
+          0
+        ],
+        "negative": [
+          "1008",
+          1
+        ],
+        "cfg": 1
+      }
+    },
+    "1010": {
+      "class_type": "LTXVEmptyLatentAudio",
+      "inputs": {
+        "audio_vae": [
+          "1024",
+          0
+        ],
+        "frames_number": [
+          "1028",
+          0
+        ],
+        "frame_rate": 25,
+        "batch_size": 1
+      }
+    },
+    "1011": {
+      "class_type": "LTXVConditioning",
+      "inputs": {
+        "positive": [
+          "1017",
+          0
+        ],
+        "negative": [
+          "1012",
+          0
+        ],
+        "frame_rate": 25
+      }
+    },
+    "1012": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1042",
+          0
+        ],
+        "text": "blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles"
+      }
+    },
+    "1013": {
+      "class_type": "EmptyImage",
+      "inputs": {
+        "width": [
+          "1030",
+          0
+        ],
+        "height": [
+          "1030",
+          1
+        ],
+        "batch_size": 1,
+        "color": 0
+      }
+    },
+    "1014": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1016",
+          0
+        ],
+        "guider": [
+          "1036",
+          0
+        ],
+        "sampler": [
+          "1004",
+          0
+        ],
+        "sigmas": [
+          "1005",
+          0
+        ],
+        "latent_image": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": 0
+      }
+    },
+    "1016": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": null
+      }
+    },
+    "1017": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1042",
+          0
+        ],
+        "text": "A close-up shot of a young waitress in a retro 1950s diner, her warm brown eyes meeting the camera with a gentle smile. She wears a black polka-dot dress with an elegant cream lace collar, her reddish-brown hair styled in an elaborate updo with delicate curls framing her freckled face. Soft, warm light from overhead fixtures illuminates her features as she stands behind a yellow counter. The camera begins slightly to her side, then slowly pushes in toward her face, revealing the subtle rosy blush on her cheeks. In the blurred background, the soft teal walls and a glowing red \"Diner\" sign create a nostalgic atmosphere. The ambient sounds of clinking dishes, distant conversations, and the gentle hum of a jukebox fill the air. She tilts her head slightly and says in a friendly, warm voice: \"Welcome to Rosie's. What can I get for you today?\" The mood is inviting, timeless, and full of classic American diner charm."
+      }
+    },
+    "1018": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1020",
+          0
+        ],
+        "audio": [
+          "1023",
+          0
+        ],
+        "fps": 25,
+        "bit_depth": 8
+      }
+    },
+    "1019": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1021",
+          0
+        ],
+        "vae": [
+          "1041",
+          2
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": [
+          "1022",
+          1
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1015",
+          0
+        ],
+        "guider": [
+          "1009",
+          0
+        ],
+        "sampler": [
+          "1006",
+          0
+        ],
+        "sigmas": [
+          "1007",
+          0
+        ],
+        "latent_image": [
+          "1034",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "LTXVAudioVAEDecode",
+      "inputs": {
+        "samples": [
+          "1021",
+          1
+        ],
+        "audio_vae": [
+          "1024",
+          0
+        ]
+      }
+    },
+    "1024": {
+      "class_type": "LTXVAudioVAELoader",
+      "inputs": {
+        "ckpt_name": "gemma_3_12B_it_fp4_mixed.safetensors"
+      }
+    },
+    "1025": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": [
+          "1033",
+          0
+        ],
+        "audio_latent": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1026": {
+      "class_type": "LTXVLatentUpsampler",
+      "inputs": {
+        "samples": [
+          "1008",
+          2
+        ],
+        "upscale_model": [
+          "1044",
+          0
+        ],
+        "vae": [
+          "1041",
+          2
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "ImageScaleBy",
+      "inputs": {
+        "image": [
+          "1013",
+          0
+        ],
+        "upscale_method": "lanczos",
+        "scale_by": 0.5
+      }
+    },
+    "1028": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 121
+      }
+    },
+    "1029": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1030": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "102",
+          0
+        ]
+      }
+    },
+    "1031": {
+      "class_type": "LTXVPreprocess",
+      "inputs": {
+        "image": [
+          "1040",
+          0
+        ],
+        "img_compression": 33
+      }
+    },
+    "1032": {
+      "class_type": "EmptyLTXVLatentVideo",
+      "inputs": {
+        "width": [
+          "1029",
+          0
+        ],
+        "height": [
+          "1029",
+          1
+        ],
+        "length": [
+          "1028",
+          0
+        ],
+        "batch_size": 1
+      }
+    },
+    "1033": {
+      "class_type": "LTXVImgToVideoInplace",
+      "inputs": {
+        "vae": [
+          "1041",
+          2
+        ],
+        "image": [
+          "1031",
+          0
+        ],
+        "latent": [
+          "1032",
+          0
+        ],
+        "strength": 1,
+        "bypass": false
+      }
+    },
+    "1034": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": [
+          "1035",
+          0
+        ],
+        "audio_latent": [
+          "1019",
+          1
+        ]
+      }
+    },
+    "1035": {
+      "class_type": "LTXVImgToVideoInplace",
+      "inputs": {
+        "vae": [
+          "1041",
+          2
+        ],
+        "image": [
+          "1031",
+          0
+        ],
+        "latent": [
+          "1026",
+          0
+        ],
+        "strength": 1,
+        "bypass": false
+      }
+    },
+    "1036": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1037",
+          0
+        ],
+        "positive": [
+          "1011",
+          0
+        ],
+        "negative": [
+          "1011",
+          1
+        ],
+        "cfg": 4
+      }
+    },
+    "1040": {
+      "class_type": "ResizeImagesByLongerEdge",
+      "inputs": {
+        "images": [
+          "102",
+          0
+        ],
+        "longer_edge": 1536
+      }
+    },
+    "1041": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "gemma_3_12B_it_fp4_mixed.safetensors"
+      }
+    },
+    "1042": {
+      "class_type": "LTXAVTextEncoderLoader",
+      "inputs": {
+        "text_encoder": "ltx-2-19b-distilled-lora-384.safetensors",
+        "ckpt_name": "gemma_3_12B_it_fp4_mixed.safetensors",
+        "device": "default"
+      }
+    },
+    "1043": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1038",
+          0
+        ],
+        "lora_name": "ltx-2-spatial-upscaler-x2-1.0.safetensors",
+        "strength_model": 1
+      }
+    },
+    "1044": {
+      "class_type": "LatentUpscaleModelLoader",
+      "inputs": {
+        "model_name": 10
+      }
+    }
+  }
+}

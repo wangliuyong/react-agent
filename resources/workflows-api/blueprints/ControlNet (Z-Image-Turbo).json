@@ -1,0 +1,139 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "lumina2",
+        "device": "default"
+      }
+    },
+    "1002": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1003": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1004": {
+      "class_type": "ModelPatchLoader",
+      "inputs": {
+        "name": null
+      }
+    },
+    "1005": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1007",
+          0
+        ],
+        "vae": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1009",
+          0
+        ],
+        "shift": 3
+      }
+    },
+    "1007": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1006",
+          0
+        ],
+        "positive": [
+          "1011",
+          0
+        ],
+        "negative": [
+          "1008",
+          0
+        ],
+        "latent_image": [
+          "1010",
+          0
+        ],
+        "seed": null,
+        "steps": 8,
+        "cfg": 1,
+        "sampler_name": "res_multistep",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    "1008": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "QwenImageDiffsynthControlnet",
+      "inputs": {
+        "model": [
+          "1002",
+          0
+        ],
+        "model_patch": [
+          "1004",
+          0
+        ],
+        "vae": [
+          "1003",
+          0
+        ],
+        "image": null,
+        "strength": 1
+      }
+    },
+    "1010": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": [
+          "1012",
+          0
+        ],
+        "height": [
+          "1012",
+          1
+        ],
+        "batch_size": 1
+      }
+    },
+    "1011": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1012": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": null
+      }
+    }
+  }
+}

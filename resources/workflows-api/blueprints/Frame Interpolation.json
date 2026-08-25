@@ -1,0 +1,93 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "FrameInterpolationModelLoader",
+      "inputs": {
+        "model_name": null
+      }
+    },
+    "1002": {
+      "class_type": "FrameInterpolate",
+      "inputs": {
+        "interp_model": [
+          "1001",
+          0
+        ],
+        "images": [
+          "1007",
+          0
+        ],
+        "multiplier": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1002",
+          0
+        ],
+        "audio": [
+          "1007",
+          1
+        ],
+        "fps": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1005": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1007",
+          2
+        ],
+        "on_true": [
+          "1008",
+          0
+        ],
+        "switch": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1007": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": null
+      }
+    },
+    "1008": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1007",
+          2
+        ],
+        "values.b": [
+          "1004",
+          0
+        ],
+        "expression": "min(abs(b), 16) * a"
+      }
+    }
+  }
+}

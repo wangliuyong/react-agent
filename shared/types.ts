@@ -119,6 +119,17 @@ export const IpcChannels = {
   /** 业务系统：读取工作流运行记录（含 context） */
   queryWorkflowRuns: 'query:workflow-runs',
   queryLatestWorkflowRunBySession: 'query:workflow-run:by-session',
+  // ComfyUI / AI 视频画布
+  queryComfyUiStatus: 'query:comfyui:status',
+  queryComfyWorkflows: 'query:comfyui:workflows',
+  queryAiVideoProjects: 'query:ai-video:projects',
+  queryAiVideoProject: 'query:ai-video:project',
+  postAiVideoProject: 'post:ai-video:project',
+  postDeleteAiVideoProject: 'post:ai-video:project:delete',
+  postAiVideoNodeRun: 'post:ai-video:node:run',
+  postAiVideoCanvasRun: 'post:ai-video:canvas:run',
+  postAiVideoAbortRun: 'post:ai-video:abort',
+  onAiVideoNodeEvent: 'event:ai-video:node',
   // 事件推送（main → renderer）
   onAgentEvent: 'event:agent',
   onBrowserFrame: 'event:browser-frame',
@@ -317,6 +328,8 @@ export interface AppSettings {
    * 与平台 /models 拉取结果合并后用于设置页与连接下拉。
    */
   providerModelCatalog: ProviderModelCatalog
+  /** ComfyUI 远程服务连接（AI 视频画布） */
+  comfyUi: import('./ai-video').ComfyUiSettings
 }
 
 export const DEFAULT_CONNECTION_ID = 'conn-default'
@@ -687,7 +700,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   launchAtLogin: false,
   closeToTray: true,
   customProviders: [],
-  providerModelCatalog: {}
+  providerModelCatalog: {},
+  comfyUi: {
+    baseUrl: 'http://127.0.0.1:8188',
+    enabled: true
+  }
 }
 
 /**
@@ -2719,6 +2736,26 @@ export interface ElectronApi {
   queryWorkflowRuns: () => Promise<WorkflowRun[]>
   /** 业务系统：按会话取最近一次工作流运行（含节点 context） */
   queryLatestWorkflowRunBySession: (sessionId: string) => Promise<WorkflowRun | null>
+  /** ComfyUI 连接健康检查 */
+  queryComfyUiStatus: () => Promise<import('./ai-video').ComfyUiStatusResult>
+  /** 列举 resources/workflows-api 工作流 */
+  queryComfyWorkflows: () => Promise<import('./ai-video').ComfyWorkflowMeta[]>
+  queryAiVideoProjects: () => Promise<import('./ai-video').AiVideoProject[]>
+  queryAiVideoProject: (id: string) => Promise<import('./ai-video').AiVideoProject | null>
+  postAiVideoProject: (
+    project: import('./ai-video').AiVideoProject
+  ) => Promise<import('./ai-video').AiVideoProject>
+  postDeleteAiVideoProject: (id: string) => Promise<void>
+  postAiVideoNodeRun: (
+    req: import('./ai-video').AiVideoNodeRunRequest
+  ) => Promise<{ ok: boolean; message?: string }>
+  postAiVideoCanvasRun: (
+    req: import('./ai-video').AiVideoCanvasRunRequest
+  ) => Promise<{ ok: boolean; message?: string }>
+  postAiVideoAbortRun: (projectId: string) => Promise<void>
+  onAiVideoNodeEvent: (
+    cb: (event: import('./ai-video').AiVideoNodeEvent) => void
+  ) => () => void
   onAgentEvent: (cb: (event: AgentEvent) => void) => () => void
   onBrowserFrame: (cb: (frame: BrowserFramePayload) => void) => () => void
   onScheduleUpdate: (cb: (tasks: ScheduledTask[]) => void) => () => void

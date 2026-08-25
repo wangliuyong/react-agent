@@ -1,0 +1,17 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveGLB",
+      "inputs": {
+        "mesh": [
+          "1002",
+          2
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "TripoTextToModelNode",
+      "inputs": {}
+    }
+  }
+}

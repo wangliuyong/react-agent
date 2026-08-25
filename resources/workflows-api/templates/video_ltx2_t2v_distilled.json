@@ -1,0 +1,361 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LTXVAudioVAELoader",
+      "inputs": {
+        "ckpt_name": "ltx-2-19b-distilled.safetensors"
+      }
+    },
+    "1003": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1037",
+          0
+        ],
+        "text": [
+          "1033",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "LTXVConditioning",
+      "inputs": {
+        "positive": [
+          "1003",
+          0
+        ],
+        "negative": [
+          "1003",
+          0
+        ],
+        "frame_rate": [
+          "1030",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "LTXVEmptyLatentAudio",
+      "inputs": {
+        "audio_vae": [
+          "1002",
+          0
+        ],
+        "frames_number": [
+          "1028",
+          0
+        ],
+        "frame_rate": [
+          "1029",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "EmptyLTXVLatentVideo",
+      "inputs": {
+        "width": [
+          "1032",
+          0
+        ],
+        "height": [
+          "1032",
+          1
+        ],
+        "length": [
+          "1028",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "ImageScaleBy",
+      "inputs": {
+        "image": [
+          "1031",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "ltx-2-19b-distilled.safetensors"
+      }
+    },
+    "1010": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1008",
+          0
+        ],
+        "positive": [
+          "1004",
+          0
+        ],
+        "negative": [
+          "1004",
+          1
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1012": {
+      "class_type": "ManualSigmas",
+      "inputs": {}
+    },
+    "1013": {
+      "class_type": "ManualSigmas",
+      "inputs": {}
+    },
+    "1014": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1015": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1008",
+          0
+        ],
+        "positive": [
+          "1004",
+          0
+        ],
+        "negative": [
+          "1004",
+          1
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "RandomNoise",
+      "inputs": {}
+    },
+    "1017": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": [
+          "1019",
+          0
+        ],
+        "audio_latent": [
+          "1020",
+          1
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1024",
+          0
+        ],
+        "audio": [
+          "1025",
+          0
+        ],
+        "fps": [
+          "1030",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "LTXVLatentUpsampler",
+      "inputs": {
+        "samples": [
+          "1020",
+          0
+        ],
+        "upscale_model": [
+          "1036",
+          0
+        ],
+        "vae": [
+          "1009",
+          2
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": [
+          "1034",
+          1
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": 45
+      }
+    },
+    "1024": {
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "samples": [
+          "1026",
+          0
+        ],
+        "vae": [
+          "1009",
+          2
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "LTXVAudioVAEDecode",
+      "inputs": {
+        "samples": [
+          "1026",
+          1
+        ],
+        "audio_vae": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1026": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": [
+          "1035",
+          1
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": [
+          "1006",
+          0
+        ],
+        "audio_latent": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 121
+      }
+    },
+    "1029": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1030": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {}
+    },
+    "1031": {
+      "class_type": "EmptyImage",
+      "inputs": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    "1032": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1033": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": "A man in a black tuxedo stands motionless in a small, red-tiled bathroom, facing a mirror. The camera sits just behind his right shoulder, framing both his back and his solemn reflection. Suddenly, he opens his mouth and begins to sing opera in Italian: \"La donna è mobile, qual piuma al vento.\" Rich, resonant notes echo through the space. As his voice climbs in pitch, his brows lift, and his expression becomes more passionate, almost vulnerable. The overhead lighting casts a sharp glow on his face and tuxedo, reflecting in the glossy red tiles around him. The camera is static"
+      }
+    },
+    "1034": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1022",
+          0
+        ],
+        "guider": [
+          "1010",
+          0
+        ],
+        "sampler": [
+          "1011",
+          0
+        ],
+        "sigmas": [
+          "1012",
+          0
+        ],
+        "latent_image": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1035": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1016",
+          0
+        ],
+        "guider": [
+          "1015",
+          0
+        ],
+        "sampler": [
+          "1014",
+          0
+        ],
+        "sigmas": [
+          "1013",
+          0
+        ],
+        "latent_image": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1036": {
+      "class_type": "LatentUpscaleModelLoader",
+      "inputs": {
+        "model_name": "ltx-2-spatial-upscaler-x2-1.0.safetensors"
+      }
+    },
+    "1037": {
+      "class_type": "LTXAVTextEncoderLoader",
+      "inputs": {
+        "text_encoder": "gemma_3_12B_it_fp4_mixed.safetensors",
+        "ckpt_name": "ltx-2-19b-distilled.safetensors"
+      }
+    }
+  }
+}

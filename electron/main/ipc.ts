@@ -97,6 +97,20 @@ import {
   postDeleteWorkflow
 } from './store/workflows'
 import { postRunWorkflow, postResumeWorkflow } from './workflow/engine'
+import { queryComfyUiStatus } from './comfyui/client'
+import { queryComfyWorkflows } from './comfyui/workflows'
+import {
+  queryAiVideoProjects,
+  queryAiVideoProject,
+  postAiVideoProject,
+  postDeleteAiVideoProject
+} from './store/ai-video-projects'
+import {
+  postAiVideoNodeRun,
+  postAiVideoCanvasRun,
+  postAiVideoAbortRun
+} from './ai-video/node-runner'
+import type { AiVideoProject } from '../../shared/ai-video'
 import {
   queryWorkflowRuns,
   queryLatestWorkflowRunBySession
@@ -410,4 +424,27 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.queryLatestWorkflowRunBySession, (_e, sessionId: string) =>
     queryLatestWorkflowRunBySession(sessionId)
   )
+
+  // ComfyUI / AI 视频画布
+  ipcMain.handle(IpcChannels.queryComfyUiStatus, () => queryComfyUiStatus())
+  ipcMain.handle(IpcChannels.queryComfyWorkflows, () => queryComfyWorkflows())
+  ipcMain.handle(IpcChannels.queryAiVideoProjects, () => queryAiVideoProjects())
+  ipcMain.handle(IpcChannels.queryAiVideoProject, (_e, id: string) => queryAiVideoProject(id))
+  ipcMain.handle(IpcChannels.postAiVideoProject, (_e, project: AiVideoProject) =>
+    postAiVideoProject(project)
+  )
+  ipcMain.handle(IpcChannels.postDeleteAiVideoProject, (_e, id: string) =>
+    postDeleteAiVideoProject(id)
+  )
+  ipcMain.handle(
+    IpcChannels.postAiVideoNodeRun,
+    async (_e, req: Parameters<typeof postAiVideoNodeRun>[0]) => postAiVideoNodeRun(req)
+  )
+  ipcMain.handle(
+    IpcChannels.postAiVideoCanvasRun,
+    async (_e, req: Parameters<typeof postAiVideoCanvasRun>[0]) => postAiVideoCanvasRun(req)
+  )
+  ipcMain.handle(IpcChannels.postAiVideoAbortRun, (_e, projectId: string) => {
+    postAiVideoAbortRun(projectId)
+  })
 }

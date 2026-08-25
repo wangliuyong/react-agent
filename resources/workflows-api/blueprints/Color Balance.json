@@ -1,0 +1,112 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1002": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1003": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1004": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1005": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1006": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1007": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1008": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1009": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "1010": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": true
+      }
+    },
+    "1011": {
+      "class_type": "GLSLShader",
+      "inputs": {
+        "images.image0": null,
+        "floats.u_float0": [
+          "1001",
+          0
+        ],
+        "floats.u_float1": [
+          "1002",
+          0
+        ],
+        "floats.u_float2": [
+          "1003",
+          0
+        ],
+        "floats.u_float3": [
+          "1004",
+          0
+        ],
+        "floats.u_float4": [
+          "1005",
+          0
+        ],
+        "floats.u_float5": [
+          "1006",
+          0
+        ],
+        "floats.u_float6": [
+          "1007",
+          0
+        ],
+        "floats.u_float7": [
+          "1008",
+          0
+        ],
+        "floats.u_float8": [
+          "1009",
+          0
+        ],
+        "bools.u_bool0": [
+          "1010",
+          0
+        ],
+        "fragment_shader": "#version 300 es\nprecision highp float;\n\nuniform sampler2D u_image0;\nuniform float u_float0; // shadows red (-100 to 100)\nuniform float u_float1; // shadows green (-100 to 100)\nuniform float u_float2; // shadows blue (-100 to 100)\nuniform float u_float3; // midtones red (-100 to 100)\nuniform float u_float4; // midtones green (-100 to 100)\nuniform float u_float5; // midtones blue (-100 to 100)\nuniform float u_float6; // highlights red (-100 to 100)\nuniform float u_float7; // highlights green (-100 to 100)\nuniform float u_float8; // highlights blue (-100 to 100)\nuniform bool u_bool0;   // preserve luminosity\n\nin vec2 v_texCoord;\nout vec4 fragColor;\n\nvec3 rgb2hsl(vec3 c) {\n    float maxC = max(c.r, max(c.g, c.b));\n    float minC = min(c.r, min(c.g, c.b));\n    float l = (maxC + minC) * 0.5;\n    if (maxC == minC) return vec3(0.0, 0.0, l);\n    float d = maxC - minC;\n    float s = l > 0.5 ? d / (2.0 - maxC - minC) : d / (maxC + minC);\n    float h;\n    if (maxC == c.r) {\n        h = (c.g - c.b) / d + (c.g < c.b ? 6.0 : 0.0);\n    } else if (maxC == c.g) {\n        h = (c.b - c.r) / d + 2.0;\n    } else {\n        h = (c.r - c.g) / d + 4.0;\n    }\n    h /= 6.0;\n    return vec3(h, s, l);\n}\n\nfloat hue2rgb(float p, float q, float t) {\n    if (t < 0.0) t += 1.0;\n    if (t > 1.0) t -= 1.0;\n    if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;\n    if (t < 1.0 / 2.0) return q;\n    if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;\n    return p;\n}\n\nvec3 hsl2rgb(vec3 hsl) {\n    float h = hsl.x, s = hsl.y, l = hsl.z;\n    if (s == 0.0) return vec3(l);\n    float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;\n    float p = 2.0 * l - q;\n    return vec3(\n        hue2rgb(p, q, h + 1.0 / 3.0),\n        hue2rgb(p, q, h),\n        hue2rgb(p, q, h - 1.0 / 3.0)\n    );\n}\n\nvoid main() {\n    vec4 tex = texture(u_image0, v_texCoord);\n    vec3 color = tex.rgb;\n\n    // Build shadows/midtones/highlights vectors (scale -100..100 to -1..1)\n    vec3 shadows = vec3(u_float0, u_float1, u_float2) * 0.01;\n    vec3 midtones = vec3(u_float3, u_float4, u_float5) * 0.01;\n    vec3 highlights = vec3(u_float6, u_float7, u_float8) * 0.01;\n\n    // GIMP: HSL lightness for weight calculation\n    float maxC = max(color.r, max(color.g, color.b));\n    float minC = min(color.r, min(color.g, color.b));\n    float lightness = (maxC + minC) * 0.5;\n\n    // GIMP weight curves: linear ramps with constants a=0.25, b=0.333, scale=0.7\n    const float a = 0.25;\n    const float b = 0.333;\n    const float scale = 0.7;\n\n    float sw = clamp((lightness - b) / -a + 0.5, 0.0, 1.0) * scale;\n    float mw = clamp((lightness - b) / a + 0.5, 0.0, 1.0) *\n               clamp((lightness + b - 1.0) / -a + 0.5, 0.0, 1.0) * scale;\n    float hw = clamp((lightness + b - 1.0) / a + 0.5, 0.0, 1.0) * scale;\n\n    color += sw * shadows + mw * midtones + hw * highlights;\n\n    if (u_bool0) {\n        vec3 hsl = rgb2hsl(clamp(color, 0.0, 1.0));\n        hsl.z = lightness;\n        color = hsl2rgb(hsl);\n    }\n\n    fragColor = vec4(clamp(color, 0.0, 1.0), tex.a);\n}",
+        "size_mode": "from_input"
+      }
+    }
+  }
+}

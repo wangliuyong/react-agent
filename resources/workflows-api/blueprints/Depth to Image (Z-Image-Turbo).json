@@ -1,0 +1,282 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "ae.safetensors",
+        "type": "lumina2",
+        "device": "default"
+      }
+    },
+    "1002": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "qwen_3_4b.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "1003": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "Z-Image-Turbo-Fun-Controlnet-Union.safetensors"
+      }
+    },
+    "1004": {
+      "class_type": "ModelPatchLoader",
+      "inputs": {
+        "name": "lotus-depth-d-v1-1.safetensors"
+      }
+    },
+    "1005": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1010",
+          0
+        ],
+        "shift": 3
+      }
+    },
+    "1006": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "positive": [
+          "1012",
+          0
+        ],
+        "negative": [
+          "1007",
+          0
+        ],
+        "latent_image": [
+          "1008",
+          0
+        ],
+        "seed": 0,
+        "steps": 9,
+        "cfg": 1,
+        "sampler_name": "res_multistep",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    "1007": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": [
+          "1011",
+          0
+        ],
+        "height": [
+          "1011",
+          1
+        ],
+        "batch_size": 1
+      }
+    },
+    "1009": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1006",
+          0
+        ],
+        "vae": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "QwenImageDiffsynthControlnet",
+      "inputs": {
+        "model": [
+          "1002",
+          0
+        ],
+        "model_patch": [
+          "1004",
+          0
+        ],
+        "vae": [
+          "1003",
+          0
+        ],
+        "image": [
+          "1013",
+          0
+        ],
+        "strength": 1
+      }
+    },
+    "1011": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1001",
+          0
+        ],
+        "text": "z_image_turbo_bf16.safetensors"
+      }
+    },
+    "1013": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": "",
+        "upscale_method": "lanczos",
+        "megapixels": 1,
+        "resolution_steps": 1
+      }
+    },
+    "1016": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1019",
+          0
+        ],
+        "vae": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": [
+          "-10",
+          6
+        ],
+        "weight_dtype": "default"
+      }
+    },
+    "1018": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": [
+          "-10",
+          7
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1020",
+          0
+        ],
+        "guider": [
+          "1021",
+          0
+        ],
+        "sampler": [
+          "1023",
+          0
+        ],
+        "sigmas": [
+          "1026",
+          0
+        ],
+        "latent_image": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "DisableNoise",
+      "inputs": {}
+    },
+    "1021": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ],
+        "conditioning": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ],
+        "scheduler": "normal",
+        "steps": 1,
+        "denoise": 1
+      }
+    },
+    "1023": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler"
+      }
+    },
+    "1024": {
+      "class_type": "ImageInvert",
+      "inputs": {
+        "image": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "14",
+          0
+        ],
+        "vae": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1026": {
+      "class_type": "SetFirstSigma",
+      "inputs": {
+        "sigmas": [
+          "1022",
+          0
+        ],
+        "sigma": "lotus-depth-d-v1-1.safetensors"
+      }
+    },
+    "1027": {
+      "class_type": "LotusConditioning",
+      "inputs": {}
+    }
+  }
+}

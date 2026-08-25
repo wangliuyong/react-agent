@@ -11,7 +11,10 @@ import { getBrowserService } from './browser/service'
 import { releaseBrowserProfileLock } from './browser/profile-lock'
 import { startScheduleService } from './schedule/scheduler'
 import { initializeResources } from './store/resources'
-import { postEnsureRemotionSkillsEnabled } from './store/skills'
+import {
+  postEnsureMiniMaxH3SkillsEnabled,
+  postEnsureRemotionSkillsEnabled
+} from './store/skills'
 import { postEnsureRemotionBrowser } from './media/remotion-browser'
 import { postStopRemotionStudios } from './media/remotion-service'
 import { querySettings } from './store/settings'
@@ -123,6 +126,7 @@ app.whenReady().then(() => {
     postWarmAgentTools()
     initializeResources()
     postEnsureRemotionSkillsEnabled()
+    postEnsureMiniMaxH3SkillsEnabled()
     void postEnsureRemotionBrowser().catch(() => {
       /* 首次失败不阻断启动，渲染时会重试 */
     })

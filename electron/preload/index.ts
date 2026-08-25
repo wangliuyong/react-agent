@@ -154,6 +154,30 @@ const api: ElectronApi = {
   queryLatestWorkflowRunBySession: (sessionId: string) =>
     ipcRenderer.invoke(IpcChannels.queryLatestWorkflowRunBySession, sessionId),
 
+  queryComfyUiStatus: () => ipcRenderer.invoke(IpcChannels.queryComfyUiStatus),
+  queryComfyWorkflows: () => ipcRenderer.invoke(IpcChannels.queryComfyWorkflows),
+  queryAiVideoProjects: () => ipcRenderer.invoke(IpcChannels.queryAiVideoProjects),
+  queryAiVideoProject: (id: string) =>
+    ipcRenderer.invoke(IpcChannels.queryAiVideoProject, id),
+  postAiVideoProject: (project) =>
+    ipcRenderer.invoke(IpcChannels.postAiVideoProject, project),
+  postDeleteAiVideoProject: (id: string) =>
+    ipcRenderer.invoke(IpcChannels.postDeleteAiVideoProject, id),
+  postAiVideoNodeRun: (req) => ipcRenderer.invoke(IpcChannels.postAiVideoNodeRun, req),
+  postAiVideoCanvasRun: (req) => ipcRenderer.invoke(IpcChannels.postAiVideoCanvasRun, req),
+  postAiVideoAbortRun: (projectId: string) =>
+    ipcRenderer.invoke(IpcChannels.postAiVideoAbortRun, projectId),
+  onAiVideoNodeEvent: (cb) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      data: import('../../shared/ai-video').AiVideoNodeEvent
+    ): void => {
+      cb(data)
+    }
+    ipcRenderer.on(IpcChannels.onAiVideoNodeEvent, listener)
+    return () => ipcRenderer.removeListener(IpcChannels.onAiVideoNodeEvent, listener)
+  },
+
   onAgentEvent: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, data: AgentEvent): void => {
       cb(data)

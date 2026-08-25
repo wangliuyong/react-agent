@@ -1,0 +1,242 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "CFGNorm",
+      "inputs": {
+        "model": [
+          "1006",
+          0
+        ],
+        "strength": 1
+      }
+    },
+    "1002": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1003": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    "1004": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1005": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "1003",
+          0
+        ],
+        "vae": [
+          "1002",
+          0
+        ],
+        "image1": [
+          "1011",
+          0
+        ],
+        "image2": null,
+        "image3": null,
+        "prompt": ""
+      }
+    },
+    "1006": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ],
+        "shift": 3
+      }
+    },
+    "1007": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "1003",
+          0
+        ],
+        "vae": [
+          "1002",
+          0
+        ],
+        "image1": [
+          "1011",
+          0
+        ],
+        "image2": null,
+        "image3": null,
+        "prompt": null
+      }
+    },
+    "1008": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1011",
+          0
+        ],
+        "vae": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1012",
+          0
+        ],
+        "vae": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1004",
+          0
+        ],
+        "lora_name": "Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
+        "strength_model": 1
+      }
+    },
+    "1011": {
+      "class_type": "FluxKontextImageScale",
+      "inputs": {
+        "image": null
+      }
+    },
+    "1012": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1001",
+          0
+        ],
+        "positive": [
+          "1007",
+          0
+        ],
+        "negative": [
+          "1005",
+          0
+        ],
+        "latent_image": [
+          "1008",
+          0
+        ],
+        "seed": null,
+        "steps": [
+          "1018",
+          0
+        ],
+        "cfg": [
+          "1019",
+          0
+        ],
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    "1013": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 4
+      }
+    },
+    "1014": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 1
+      }
+    },
+    "1015": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 20
+      }
+    },
+    "1016": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {
+        "value": 4
+      }
+    },
+    "1017": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1004",
+          0
+        ],
+        "on_true": [
+          "1010",
+          0
+        ],
+        "switch": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1015",
+          0
+        ],
+        "on_true": [
+          "1013",
+          0
+        ],
+        "switch": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1016",
+          0
+        ],
+        "on_true": [
+          "1014",
+          0
+        ],
+        "switch": [
+          "1020",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    }
+  }
+}

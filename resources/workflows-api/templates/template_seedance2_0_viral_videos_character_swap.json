@@ -1,0 +1,118 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "Video Slice",
+      "inputs": {
+        "video": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "OpenAIGPTImageNodeV2",
+      "inputs": {
+        "model.images.image_1": [
+          "1005",
+          0
+        ],
+        "model.images.image_2": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "ImageFromBatch",
+      "inputs": {
+        "image": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1008": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_b": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "GeminiNode",
+      "inputs": {
+        "images": [
+          "1007",
+          0
+        ],
+        "video": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "ByteDance2ReferenceNode",
+      "inputs": {
+        "model.prompt": [
+          "1010",
+          0
+        ],
+        "model.reference_images.image_1": [
+          "1004",
+          0
+        ],
+        "model.reference_images.image_2": [
+          "1007",
+          0
+        ]
+      }
+    }
+  }
+}

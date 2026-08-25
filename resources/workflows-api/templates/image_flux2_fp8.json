@@ -1,0 +1,284 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "Flux2Scheduler",
+      "inputs": {
+        "steps": [
+          "1027",
+          0
+        ],
+        "width": [
+          "1020",
+          0
+        ],
+        "height": [
+          "1020",
+          1
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": [
+          "1026",
+          0
+        ],
+        "conditioning": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1007": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1009",
+          0
+        ],
+        "vae": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1019",
+          0
+        ],
+        "vae": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "46",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "FluxGuidance",
+      "inputs": {
+        "conditioning": [
+          "1017",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1012",
+          0
+        ],
+        "vae": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1018",
+          0
+        ],
+        "guider": [
+          "1005",
+          0
+        ],
+        "sampler": [
+          "1013",
+          0
+        ],
+        "sigmas": [
+          "1004",
+          0
+        ],
+        "latent_image": [
+          "1021",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1014": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1010",
+          0
+        ],
+        "latent": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "1014",
+          0
+        ],
+        "latent": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null
+      }
+    },
+    "1017": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1022",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1018": {
+      "class_type": "RandomNoise",
+      "inputs": {}
+    },
+    "1019": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "image": [
+          "42",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "EmptyFlux2LatentImage",
+      "inputs": {
+        "width": [
+          "1020",
+          0
+        ],
+        "height": [
+          "1020",
+          1
+        ]
+      }
+    },
+    "1022": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1023": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1016",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1024": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1025": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1026": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1016",
+          0
+        ],
+        "on_true": [
+          "1023",
+          0
+        ],
+        "switch": [
+          "1028",
+          0
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1024",
+          0
+        ],
+        "on_true": [
+          "1025",
+          0
+        ],
+        "switch": [
+          "1028",
+          0
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": null
+      }
+    }
+  }
+}

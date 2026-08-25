@@ -1,0 +1,43 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "LumaImageToVideoNode",
+      "inputs": {
+        "first_image": [
+          "1001",
+          0
+        ],
+        "last_image": [
+          "23",
+          0
+        ],
+        "luma_concepts": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "LumaConceptsNode",
+      "inputs": {
+        "luma_concepts": [
+          "27",
+          0
+        ]
+      }
+    }
+  }
+}

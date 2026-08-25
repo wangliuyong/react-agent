@@ -1,0 +1,373 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "uso-flux1-dit-lora-v1.safetensors"
+      }
+    },
+    "1008": {
+      "class_type": "CLIPVisionLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1009": {
+      "class_type": "ModelPatchLoader",
+      "inputs": {
+        "name": "sigclip_vision_patch14_384.safetensors"
+      }
+    },
+    "1010": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1007",
+          0
+        ],
+        "lora_name": "uso-flux1-projector-v1.safetensors"
+      }
+    },
+    "1011": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "1014",
+          0
+        ],
+        "vae": [
+          "1007",
+          2
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1021",
+          0
+        ],
+        "vae": [
+          "1007",
+          2
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "ImageScaleToMaxDimension",
+      "inputs": {
+        "image": [
+          "47",
+          0
+        ]
+      }
+    },
+    "1019": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1007",
+          1
+        ],
+        "text": 1024
+      }
+    },
+    "1020": {
+      "class_type": "EmptySD3LatentImage",
+      "inputs": {
+        "width": 1024,
+        "height": 1058487910949722
+      }
+    },
+    "1021": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1017",
+          0
+        ],
+        "positive": [
+          "1006",
+          0
+        ],
+        "negative": [
+          "1012",
+          0
+        ],
+        "latent_image": [
+          "1020",
+          0
+        ],
+        "seed": "flux1-dev-fp8.safetensors"
+      }
+    },
+    "1022": {
+      "class_type": "ReferenceLatent",
+      "inputs": {
+        "conditioning": [
+          "6",
+          0
+        ],
+        "latent": [
+          "51",
+          0
+        ]
+      }
+    },
+    "1023": {
+      "class_type": "FluxGuidance",
+      "inputs": {
+        "conditioning": [
+          "1024",
+          0
+        ],
+        "guidance": null
+      }
+    },
+    "1024": {
+      "class_type": "FluxKontextMultiReferenceLatentMethod",
+      "inputs": {
+        "conditioning": [
+          "1022",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "40",
+          0
+        ],
+        "image": [
+          "53",
+          0
+        ],
+        "crop": null
+      }
+    },
+    "1026": {
+      "class_type": "USOStyleReference",
+      "inputs": {
+        "model": [
+          "43",
+          0
+        ],
+        "model_patch": [
+          "39",
+          0
+        ],
+        "clip_vision_output": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "40",
+          0
+        ],
+        "image": [
+          "46",
+          0
+        ],
+        "crop": null
+      }
+    },
+    "1028": {
+      "class_type": "USOStyleReference",
+      "inputs": {
+        "model": [
+          "55",
+          0
+        ],
+        "model_patch": [
+          "39",
+          0
+        ],
+        "clip_vision_output": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1029": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "uso-flux1-projector-v1.safetensors"
+      }
+    },
+    "1030": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1037",
+          0
+        ]
+      }
+    },
+    "1032": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1039",
+          0
+        ],
+        "vae": [
+          "1029",
+          2
+        ]
+      }
+    },
+    "1033": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1029",
+          0
+        ],
+        "lora_name": "sigclip_vision_patch14_384.safetensors"
+      }
+    },
+    "1034": {
+      "class_type": "ModelPatchLoader",
+      "inputs": {
+        "name": null
+      }
+    },
+    "1035": {
+      "class_type": "CLIPVisionLoader",
+      "inputs": {
+        "clip_name": null
+      }
+    },
+    "1037": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1029",
+          1
+        ],
+        "text": 1024
+      }
+    },
+    "1038": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 594838223597516,
+        "height": "flux1-dev-fp8.safetensors"
+      }
+    },
+    "1039": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "1036",
+          0
+        ],
+        "positive": [
+          "1037",
+          0
+        ],
+        "negative": [
+          "1030",
+          0
+        ],
+        "latent_image": [
+          "1038",
+          0
+        ],
+        "seed": "uso-flux1-dit-lora-v1.safetensors"
+      }
+    },
+    "1040": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "74",
+          0
+        ],
+        "image": [
+          "-10",
+          0
+        ],
+        "crop": null
+      }
+    },
+    "1041": {
+      "class_type": "USOStyleReference",
+      "inputs": {
+        "model": [
+          "76",
+          0
+        ],
+        "model_patch": [
+          "75",
+          0
+        ],
+        "clip_vision_output": [
+          "1040",
+          0
+        ]
+      }
+    },
+    "1042": {
+      "class_type": "CLIPVisionEncode",
+      "inputs": {
+        "clip_vision": [
+          "74",
+          0
+        ],
+        "image": [
+          "-10",
+          1
+        ],
+        "crop": null
+      }
+    },
+    "1043": {
+      "class_type": "USOStyleReference",
+      "inputs": {
+        "model": [
+          "89",
+          0
+        ],
+        "model_patch": [
+          "75",
+          0
+        ],
+        "clip_vision_output": [
+          "1042",
+          0
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "MoGeInference",
+      "inputs": {
+        "moge_model": [
+          "1004",
+          0
+        ],
+        "image": [
+          "1010",
+          0
+        ],
+        "resolution_level": null,
+        "fov_x_degrees": 0,
+        "batch_size": null,
+        "force_projection": true,
+        "apply_mask": true
+      }
+    },
+    "1002": {
+      "class_type": "MoGeRender",
+      "inputs": {
+        "moge_geometry": [
+          "1001",
+          0
+        ],
+        "output": "depth_colored"
+      }
+    },
+    "1003": {
+      "class_type": "MoGeRender",
+      "inputs": {
+        "moge_geometry": [
+          "1001",
+          0
+        ],
+        "output": "depth"
+      }
+    },
+    "1004": {
+      "class_type": "LoadMoGeModel",
+      "inputs": {
+        "model_name": null
+      }
+    },
+    "1005": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1006",
+          0
+        ],
+        "expression": "a > 2048"
+      }
+    },
+    "1006": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1012",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "ResizeImagesByLongerEdge",
+      "inputs": {
+        "images": [
+          "1012",
+          0
+        ],
+        "longer_edge": 2048
+      }
+    },
+    "1008": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1012",
+          0
+        ],
+        "on_true": [
+          "1007",
+          0
+        ],
+        "switch": [
+          "1005",
+          2
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "MoGeRender",
+      "inputs": {
+        "moge_geometry": [
+          "1001",
+          0
+        ],
+        "output": "mask"
+      }
+    },
+    "1010": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1012",
+          0
+        ],
+        "on_true": [
+          "1008",
+          0
+        ],
+        "switch": null
+      }
+    },
+    "1011": {
+      "class_type": "ImageToMask",
+      "inputs": {
+        "image": [
+          "1009",
+          0
+        ],
+        "channel": "red"
+      }
+    },
+    "1012": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": null
+      }
+    }
+  }
+}

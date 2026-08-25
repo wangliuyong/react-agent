@@ -1,0 +1,14 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "GeminiNode",
+      "inputs": {
+        "images": null,
+        "prompt": "",
+        "model": "gemini-3-pro-preview",
+        "seed": 42,
+        "system_prompt": "You are an expert in prompt writing.\nBased on the input, rewrite the user's input into a detailed prompt.\nincluding camera settings, lighting, composition, and style.\nReturn the prompt only"
+      }
+    }
+  }
+}

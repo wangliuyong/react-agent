@@ -1,0 +1,26 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "OpenRouterLLMNode",
+      "inputs": {
+        "model.images.image_1": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1001",
+          0
+        ]
+      }
+    }
+  }
+}

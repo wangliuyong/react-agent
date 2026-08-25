@@ -1,0 +1,87 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "ByteDanceSeedreamLayerSeparationNode",
+      "inputs": {
+        "image": [
+          "1002",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "ImageCompositor",
+      "inputs": {
+        "layers": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "LayersFromBoundingBoxes",
+      "inputs": {
+        "image": [
+          "1005",
+          0
+        ],
+        "bboxes": [
+          "1001",
+          4
+        ],
+        "mask": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "BatchImagesNode",
+      "inputs": {
+        "images.image0": [
+          "1001",
+          0
+        ],
+        "images.image1": [
+          "1001",
+          2
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "BatchMasksNode",
+      "inputs": {
+        "masks.mask0": [
+          "1001",
+          1
+        ],
+        "masks.mask1": [
+          "1001",
+          3
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "SaveImageAdvanced",
+      "inputs": {
+        "images": [
+          "1005",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "ImageCompositor",
+      "inputs": {
+        "layers": [
+          "1001",
+          5
+        ]
+      }
+    }
+  }
+}

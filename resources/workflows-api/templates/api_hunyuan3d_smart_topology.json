@@ -1,0 +1,26 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "Load3D",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "SaveGLB",
+      "inputs": {
+        "mesh": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "TencentSmartTopologyNode",
+      "inputs": {
+        "model_3d": [
+          "1001",
+          6
+        ]
+      }
+    }
+  }
+}

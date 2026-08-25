@@ -6,6 +6,7 @@ import { ModelApiPanel } from '../ModelApiPanel'
 import { ModelConnectionsPanel } from '../ModelConnectionsPanel'
 import { ToolsPanel } from '../ToolsPanel'
 import { AssetsPanel } from '../AssetsPanel'
+import { ComfyUiPanel } from '../ComfyUiPanel'
 import cardStyles from '@/components/entity-card'
 import {
   FeaturePageShell,
@@ -21,12 +22,20 @@ const { Text } = Typography
 const SETTINGS_TAB_STORAGE_KEY = 'lingxi:settings-tab'
 
 /** 设置分类 Tab — 对齐技能市场 Segmented 信息架构 */
-type SettingsTab = 'model' | 'connections' | 'app' | 'channels' | 'tools' | 'assets'
+type SettingsTab =
+  | 'model'
+  | 'connections'
+  | 'app'
+  | 'integrations'
+  | 'channels'
+  | 'tools'
+  | 'assets'
 
 const SETTINGS_TAB_OPTIONS: { label: string; value: SettingsTab }[] = [
   { label: '模型与API', value: 'model' },
   { label: '多模型连接', value: 'connections' },
   { label: '应用与启动', value: 'app' },
+  { label: '外部集成', value: 'integrations' },
   { label: '渠道', value: 'channels' },
   { label: '工具', value: 'tools' },
   { label: '资产', value: 'assets' }
@@ -72,13 +81,15 @@ export function SettingsPage(): React.ReactElement {
         ? `${connectionCount || 1} 条连接`
         : tab === 'app'
           ? '本机启动偏好'
-          : tab === 'channels'
-            ? '发布与通知渠道'
-            : tab === 'tools'
-              ? 'Agent 工具注册表'
-              : tab === 'assets'
-                ? 'Agent 产出文件'
-                : ''
+          : tab === 'integrations'
+            ? 'ComfyUI 等外部服务'
+            : tab === 'channels'
+              ? '发布与通知渠道'
+              : tab === 'tools'
+                ? 'Agent 工具注册表'
+                : tab === 'assets'
+                  ? 'Agent 产出文件'
+                  : ''
 
   return (
     <FeaturePageShell>
@@ -209,6 +220,8 @@ export function SettingsPage(): React.ReactElement {
             </Card>
           </div>
         ) : null}
+
+        {tab === 'integrations' ? <ComfyUiPanel key="integrations" /> : null}
 
         {tab === 'channels' ? <ChannelsPanel key="channels" /> : null}
 

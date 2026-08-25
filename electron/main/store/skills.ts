@@ -66,6 +66,59 @@ function queryBundledRemotionTemplateSkillIds(): string[] {
 }
 
 /**
+ * 官方 MiniMax H3 Skills（bundled 于 resources/skills）。
+ * 启动时确保存在；仅默认启用 h3-prompt-writing（提示词改写），风格技能保持可选。
+ * @see https://github.com/MiniMax-AI/MiniMax-H3/tree/main/skills
+ */
+export const MINIMAX_H3_SKILL_IDS = [
+  'h3-prompt-writing',
+  'minimalist-product-ad-generator',
+  '3d-animation-short-generator',
+  'papercraft-stop-motion-explainer',
+  'brand-promo-video-generator',
+  'music-video-subtitle-generator',
+  'co-op-game-intro-generator',
+  'paper-collage-explainer-generator',
+  'handdrawn-live-video-generator'
+] as const
+
+/** 默认启用的 H3 技能（提示词结构改写，供 AI 视频画布使用） */
+export const DEFAULT_ENABLED_MINIMAX_H3_SKILL_IDS = ['h3-prompt-writing'] as const
+
+/**
+ * 确保 MiniMax H3 技能已从内置模板复制到可写目录；
+ * 对尚未记录状态的 h3-prompt-writing 默认启用（不覆盖用户手动关闭）。
+ */
+export function postEnsureMiniMaxH3SkillsEnabled(): void {
+  const templatesDir = getSkillTemplatesDir()
+  const skillsDir = getSkillsDir()
+  mkdirSync(skillsDir, { recursive: true })
+
+  for (const id of MINIMAX_H3_SKILL_IDS) {
+    const destDir = join(skillsDir, id)
+    const srcDir = join(templatesDir, id)
+    if (!existsSync(join(destDir, 'SKILL.md')) && existsSync(join(srcDir, 'SKILL.md'))) {
+      try {
+        cpSync(srcDir, destDir, { recursive: true })
+      } catch (err) {
+        console.warn(`[skills] 安装 MiniMax H3 技能失败：${id}`, err)
+      }
+    }
+  }
+
+  const states = readSkillStates()
+  let changed = false
+  for (const id of DEFAULT_ENABLED_MINIMAX_H3_SKILL_IDS) {
+    if (!existsSync(join(skillsDir, id, 'SKILL.md'))) continue
+    if (states[id] === undefined) {
+      states[id] = { enabled: true }
+      changed = true
+    }
+  }
+  if (changed) writeSkillStates(states)
+}
+
+/**
  * 确保 Remotion 技能已安装到可写目录，并对「尚未记录状态」的技能默认启用。
  * 用户若曾手动禁用（enabled: false），不会被本函数改回。
  * 同时安装/启用「Remotion 视频生产」模版技能（remotion-template-*）。

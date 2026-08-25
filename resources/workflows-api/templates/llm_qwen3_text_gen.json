@@ -1,0 +1,26 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "TextGenerate",
+      "inputs": {
+        "clip": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "CLIPLoader",
+      "inputs": {}
+    }
+  }
+}

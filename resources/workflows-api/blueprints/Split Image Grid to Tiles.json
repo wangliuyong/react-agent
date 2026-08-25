@@ -1,0 +1,65 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SplitImageToTileList",
+      "inputs": {
+        "image": null,
+        "tile_width": [
+          "1003",
+          1
+        ],
+        "tile_height": [
+          "1002",
+          1
+        ],
+        "overlap": 0
+      }
+    },
+    "1002": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1005",
+          1
+        ],
+        "values.b": [
+          "1006",
+          0
+        ],
+        "expression": "max(1, (int(a) + int(b) - 1) // int(b))"
+      }
+    },
+    "1003": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1005",
+          0
+        ],
+        "values.b": [
+          "1004",
+          0
+        ],
+        "expression": "max(1, (int(a) + int(b) - 1) // int(b))"
+      }
+    },
+    "1004": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1005": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": null
+      }
+    },
+    "1006": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    }
+  }
+}

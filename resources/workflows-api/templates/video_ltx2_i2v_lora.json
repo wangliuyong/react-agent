@@ -1,0 +1,464 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "LTXVCropGuides",
+      "inputs": {
+        "positive": [
+          "1007",
+          0
+        ],
+        "negative": [
+          "1007",
+          1
+        ],
+        "latent": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "ImageScaleBy",
+      "inputs": {
+        "image": [
+          "1025",
+          0
+        ]
+      }
+    },
+    "1005": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "LTXVEmptyLatentAudio",
+      "inputs": {
+        "audio_vae": [
+          "1013",
+          0
+        ],
+        "frames_number": [
+          "1026",
+          0
+        ],
+        "frame_rate": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "LTXVConditioning",
+      "inputs": {
+        "positive": [
+          "1018",
+          0
+        ],
+        "negative": [
+          "1019",
+          0
+        ],
+        "frame_rate": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "EmptyLTXVLatentVideo",
+      "inputs": {
+        "width": [
+          "1005",
+          0
+        ],
+        "height": [
+          "1005",
+          1
+        ],
+        "length": [
+          "1026",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": [
+          "1043",
+          0
+        ],
+        "audio_latent": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1017",
+          0
+        ],
+        "guider": [
+          "1020",
+          0
+        ],
+        "sampler": [
+          "1016",
+          0
+        ],
+        "sigmas": [
+          "1024",
+          0
+        ],
+        "latent_image": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "LTXVLatentUpsampler",
+      "inputs": {
+        "samples": [
+          "1003",
+          2
+        ],
+        "upscale_model": [
+          "1022",
+          0
+        ],
+        "vae": [
+          "1042",
+          0
+        ]
+      }
+    },
+    "1013": {
+      "class_type": "LTXVAudioVAELoader",
+      "inputs": {
+        "ckpt_name": null
+      }
+    },
+    "1014": {
+      "class_type": "PrimitiveFloat",
+      "inputs": {}
+    },
+    "1015": {
+      "class_type": "PrimitiveInt",
+      "inputs": {}
+    },
+    "1016": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1017": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": null
+      }
+    },
+    "1018": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1023",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1019": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1023",
+          0
+        ]
+      }
+    },
+    "1020": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1031",
+          0
+        ],
+        "positive": [
+          "1007",
+          0
+        ],
+        "negative": [
+          "1007",
+          1
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1041",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1022": {
+      "class_type": "LatentUpscaleModelLoader",
+      "inputs": {
+        "model_name": null
+      }
+    },
+    "1023": {
+      "class_type": "LTXAVTextEncoderLoader",
+      "inputs": {
+        "text_encoder": null,
+        "ckpt_name": null
+      }
+    },
+    "1024": {
+      "class_type": "LTXVScheduler",
+      "inputs": {
+        "latent": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "EmptyImage",
+      "inputs": {
+        "width": null,
+        "height": null
+      }
+    },
+    "1026": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": [
+          "98",
+          0
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1040",
+          0
+        ],
+        "audio": [
+          "1032",
+          0
+        ],
+        "fps": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1030": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1041",
+          0
+        ],
+        "lora_name": null,
+        "strength_model": null
+      }
+    },
+    "1031": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1030",
+          0
+        ],
+        "lora_name": null
+      }
+    },
+    "1032": {
+      "class_type": "LTXVAudioVAEDecode",
+      "inputs": {
+        "samples": [
+          "1039",
+          1
+        ],
+        "audio_vae": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1033": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": [
+          "1012",
+          0
+        ],
+        "audio_latent": [
+          "1011",
+          1
+        ]
+      }
+    },
+    "1034": {
+      "class_type": "KSamplerSelect",
+      "inputs": {}
+    },
+    "1035": {
+      "class_type": "ManualSigmas",
+      "inputs": {}
+    },
+    "1036": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1046",
+          0
+        ],
+        "positive": [
+          "1003",
+          0
+        ],
+        "negative": [
+          "1003",
+          1
+        ]
+      }
+    },
+    "1037": {
+      "class_type": "RandomNoise",
+      "inputs": {}
+    },
+    "1038": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1037",
+          0
+        ],
+        "guider": [
+          "1036",
+          0
+        ],
+        "sampler": [
+          "1034",
+          0
+        ],
+        "sigmas": [
+          "1035",
+          0
+        ],
+        "latent_image": [
+          "1033",
+          0
+        ]
+      }
+    },
+    "1039": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": [
+          "1038",
+          1
+        ]
+      }
+    },
+    "1040": {
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "samples": [
+          "1039",
+          0
+        ],
+        "vae": [
+          "1042",
+          0
+        ]
+      }
+    },
+    "1041": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": null
+      }
+    },
+    "1043": {
+      "class_type": "LTXVImgToVideoInplace",
+      "inputs": {
+        "vae": [
+          "1042",
+          0
+        ],
+        "image": [
+          "1044",
+          0
+        ],
+        "latent": [
+          "1008",
+          0
+        ]
+      }
+    },
+    "1044": {
+      "class_type": "LTXVPreprocess",
+      "inputs": {
+        "image": [
+          "1045",
+          0
+        ]
+      }
+    },
+    "1045": {
+      "class_type": "ResizeImagesByLongerEdge",
+      "inputs": {
+        "images": null
+      }
+    },
+    "1046": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1021",
+          0
+        ],
+        "lora_name": null,
+        "strength_model": null
+      }
+    }
+  }
+}

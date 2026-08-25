@@ -1,0 +1,164 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1011",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1013",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1004": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "GeminiNanoBanana2",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ],
+        "prompt": [
+          "1011",
+          0
+        ],
+        "aspect_ratio": [
+          "158",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "PreviewImage",
+      "inputs": {
+        "images": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1008": {
+      "class_type": "SaveVideo",
+      "inputs": {
+        "video": [
+          "1009",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "KlingOmniProImageToVideoNode",
+      "inputs": {
+        "reference_images": [
+          "1006",
+          0
+        ],
+        "aspect_ratio": [
+          "158",
+          0
+        ],
+        "storyboards.storyboard_1_prompt": [
+          "1011",
+          0
+        ],
+        "storyboards.storyboard_2_prompt": [
+          "1013",
+          0
+        ],
+        "storyboards.storyboard_3_prompt": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "GeminiNode",
+      "inputs": {
+        "images": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1011": {
+      "class_type": "OpenAIChatNode",
+      "inputs": {
+        "advanced_options": [
+          "1012",
+          0
+        ],
+        "prompt": [
+          "146",
+          0
+        ]
+      }
+    },
+    "1012": {
+      "class_type": "OpenAIChatConfig",
+      "inputs": {}
+    },
+    "1013": {
+      "class_type": "OpenAIChatNode",
+      "inputs": {
+        "advanced_options": [
+          "1014",
+          0
+        ],
+        "prompt": [
+          "146",
+          0
+        ]
+      }
+    },
+    "1014": {
+      "class_type": "OpenAIChatConfig",
+      "inputs": {}
+    },
+    "1015": {
+      "class_type": "OpenAIChatNode",
+      "inputs": {
+        "advanced_options": [
+          "1016",
+          0
+        ],
+        "prompt": [
+          "146",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "OpenAIChatConfig",
+      "inputs": {}
+    }
+  }
+}

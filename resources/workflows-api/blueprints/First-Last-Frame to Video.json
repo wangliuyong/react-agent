@@ -1,0 +1,410 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LTXVPreprocess",
+      "inputs": {
+        "image": [
+          "1020",
+          0
+        ],
+        "img_compression": 25
+      }
+    },
+    "1002": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": null
+      }
+    },
+    "1003": {
+      "class_type": "LTXVEmptyLatentAudio",
+      "inputs": {
+        "audio_vae": [
+          "1030",
+          0
+        ],
+        "frames_number": [
+          "1032",
+          1
+        ],
+        "frame_rate": [
+          "1011",
+          0
+        ],
+        "batch_size": 1
+      }
+    },
+    "1004": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1005": {
+      "class_type": "LTXVPreprocess",
+      "inputs": {
+        "image": [
+          "1019",
+          0
+        ],
+        "img_compression": 25
+      }
+    },
+    "1006": {
+      "class_type": "LTXVCropGuides",
+      "inputs": {
+        "positive": [
+          "1010",
+          0
+        ],
+        "negative": [
+          "1010",
+          1
+        ],
+        "latent": [
+          "1027",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "EmptyLTXVLatentVideo",
+      "inputs": {
+        "width": [
+          "1009",
+          0
+        ],
+        "height": [
+          "1009",
+          1
+        ],
+        "length": [
+          "1032",
+          1
+        ],
+        "batch_size": 1
+      }
+    },
+    "1008": {
+      "class_type": "LTXVConditioning",
+      "inputs": {
+        "positive": [
+          "1028",
+          0
+        ],
+        "negative": [
+          "1023",
+          0
+        ],
+        "frame_rate": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "1019",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "LTXVAddGuide",
+      "inputs": {
+        "positive": [
+          "1012",
+          0
+        ],
+        "negative": [
+          "1012",
+          1
+        ],
+        "vae": [
+          "1029",
+          2
+        ],
+        "latent": [
+          "1012",
+          2
+        ],
+        "image": [
+          "1001",
+          0
+        ],
+        "frame_idx": -1,
+        "strength": 0.7
+      }
+    },
+    "1011": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1012": {
+      "class_type": "LTXVAddGuide",
+      "inputs": {
+        "positive": [
+          "1008",
+          0
+        ],
+        "negative": [
+          "1008",
+          1
+        ],
+        "vae": [
+          "1029",
+          2
+        ],
+        "latent": [
+          "1007",
+          0
+        ],
+        "image": [
+          "1005",
+          0
+        ],
+        "frame_idx": 0,
+        "strength": 0.7
+      }
+    },
+    "1013": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1029",
+          0
+        ],
+        "positive": [
+          "1010",
+          0
+        ],
+        "negative": [
+          "1010",
+          1
+        ],
+        "cfg": 1
+      }
+    },
+    "1014": {
+      "class_type": "SamplerEulerAncestral",
+      "inputs": {
+        "eta": 0,
+        "s_noise": 1
+      }
+    },
+    "1015": {
+      "class_type": "ManualSigmas",
+      "inputs": {
+        "sigmas": "1., 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
+      }
+    },
+    "1016": {
+      "class_type": "LTXVConcatAVLatent",
+      "inputs": {
+        "video_latent": [
+          "1010",
+          2
+        ],
+        "audio_latent": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1017": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1002",
+          0
+        ],
+        "guider": [
+          "1013",
+          0
+        ],
+        "sampler": [
+          "1014",
+          0
+        ],
+        "sigmas": [
+          "1015",
+          0
+        ],
+        "latent_image": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1011",
+          0
+        ],
+        "expression": "a"
+      }
+    },
+    "1019": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": null,
+        "resize_type": "scale dimensions",
+        "resize_type.width": [
+          "1021",
+          0
+        ],
+        "resize_type.height": [
+          "1022",
+          0
+        ],
+        "resize_type.crop": "center",
+        "scale_method": "nearest-exact"
+      }
+    },
+    "1020": {
+      "class_type": "ResizeImageMaskNode",
+      "inputs": {
+        "input": null,
+        "resize_type": "scale dimensions",
+        "resize_type.width": [
+          "1021",
+          0
+        ],
+        "resize_type.height": [
+          "1022",
+          0
+        ],
+        "resize_type.crop": "center",
+        "scale_method": "nearest-exact"
+      }
+    },
+    "1021": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1022": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": null
+      }
+    },
+    "1023": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1031",
+          0
+        ],
+        "text": "blurry, out of focus, overexposed, underexposed, low contrast, washed out colors, excessive noise, grainy texture, poor lighting, flickering, motion blur, distorted proportions, unnatural skin tones, deformed facial features, asymmetrical face, missing facial features, extra limbs, disfigured hands, wrong hand count, artifacts around text, unreadable text on shirt or hat, incorrect lettering on cap (“PNTR”), incorrect t-shirt slogan (“JUST DO IT”), missing microphone, misplaced microphone, inconsistent perspective, camera shake, incorrect depth of field, background too sharp, background clutter, distracting reflections, harsh shadows, inconsistent lighting direction, color banding, cartoonish rendering, 3D CGI look, unrealistic materials, uncanny valley effect, incorrect ethnicity, wrong gender, exaggerated expressions, smiling, laughing, exaggerated sadness, wrong gaze direction, eyes looking at camera, mismatched lip sync, silent or muted audio, distorted voice, robotic voice, echo, background noise, off-sync audio, missing sniff sounds, incorrect dialogue, added dialogue, repetitive speech, jittery movement, awkward pauses, incorrect timing, unnatural transitions, inconsistent framing, tilted camera, missing door or shelves, missing shallow depth of field, flat lighting, inconsistent tone, cinematic oversaturation, stylized filters, or AI artifacts."
+      }
+    },
+    "1024": {
+      "class_type": "CreateVideo",
+      "inputs": {
+        "images": [
+          "1025",
+          0
+        ],
+        "audio": [
+          "1026",
+          0
+        ],
+        "fps": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "VAEDecodeTiled",
+      "inputs": {
+        "samples": [
+          "1006",
+          2
+        ],
+        "vae": [
+          "1029",
+          2
+        ],
+        "tile_size": 768,
+        "overlap": 64,
+        "temporal_size": 4096,
+        "temporal_overlap": 64
+      }
+    },
+    "1026": {
+      "class_type": "LTXVAudioVAEDecode",
+      "inputs": {
+        "samples": [
+          "1027",
+          1
+        ],
+        "audio_vae": [
+          "1030",
+          0
+        ]
+      }
+    },
+    "1027": {
+      "class_type": "LTXVSeparateAVLatent",
+      "inputs": {
+        "av_latent": [
+          "1017",
+          1
+        ]
+      }
+    },
+    "1028": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1031",
+          0
+        ],
+        "text": null
+      }
+    },
+    "1029": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": null
+      }
+    },
+    "1030": {
+      "class_type": "LTXVAudioVAELoader",
+      "inputs": {
+        "ckpt_name": null
+      }
+    },
+    "1031": {
+      "class_type": "LTXAVTextEncoderLoader",
+      "inputs": {
+        "text_encoder": null,
+        "ckpt_name": null,
+        "device": "default"
+      }
+    },
+    "1032": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "values.a": [
+          "1004",
+          0
+        ],
+        "values.b": [
+          "1011",
+          0
+        ],
+        "expression": "a * b + 1"
+      }
+    }
+  }
+}

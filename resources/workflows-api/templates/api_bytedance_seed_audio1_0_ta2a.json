@@ -1,0 +1,26 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "ByteDanceSeedAudio",
+      "inputs": {
+        "reference_mode.reference_audio_1": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "SaveAudioAdvanced",
+      "inputs": {
+        "audio": [
+          "1001",
+          0
+        ]
+      }
+    },
+    "1003": {
+      "class_type": "LoadAudio",
+      "inputs": {}
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1004": {
+      "class_type": "LoadImage",
+      "inputs": {}
+    },
+    "1005": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1010",
+          0
+        ]
+      }
+    },
+    "1006": {
+      "class_type": "RecraftCreateStyleNode",
+      "inputs": {
+        "images.image0": [
+          "1004",
+          0
+        ],
+        "images.image1": [
+          "1001",
+          0
+        ],
+        "images.image2": [
+          "1002",
+          0
+        ],
+        "images.image3": [
+          "1003",
+          0
+        ]
+      }
+    },
+    "1007": {
+      "class_type": "RecraftStyleV3InfiniteStyleLibrary",
+      "inputs": {}
+    },
+    "1008": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "RecraftStyleV3InfiniteStyleLibrary",
+      "inputs": {
+        "style_id": [
+          "1006",
+          0
+        ]
+      }
+    },
+    "1010": {
+      "class_type": "RecraftTextToImageNode",
+      "inputs": {
+        "recraft_style": [
+          "1009",
+          0
+        ]
+      }
+    }
+  }
+}

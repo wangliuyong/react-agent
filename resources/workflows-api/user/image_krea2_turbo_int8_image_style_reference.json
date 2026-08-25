@@ -1,0 +1,312 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "1024",
+          0
+        ],
+        "filename_prefix": "Krea2_turbo_style_reference"
+      }
+    },
+    "1002": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "krea2_reference_image.png",
+        "upload": "image"
+      }
+    },
+    "1003": {
+      "class_type": "ResolutionSelector",
+      "inputs": {
+        "aspect_ratio": "1:1 (Square)",
+        "megapixels": 1,
+        "multiple": 8
+      }
+    },
+    "1004": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": [
+          "71",
+          0
+        ],
+        "height": [
+          "71",
+          1
+        ],
+        "batch_size": 1
+      }
+    },
+    "1005": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": null,
+        "weight_dtype": "default"
+      }
+    },
+    "1006": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": null,
+        "type": "krea2",
+        "device": "default"
+      }
+    },
+    "1007": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": null
+      }
+    },
+    "1008": {
+      "class_type": "ConditioningZeroOut",
+      "inputs": {
+        "conditioning": [
+          "1018",
+          0
+        ]
+      }
+    },
+    "1009": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "lora_name": "qwen3vl_4b_fp8_scaled.safetensors",
+        "strength_model": "qwen_image_vae.safetensors"
+      }
+    },
+    "1010": {
+      "class_type": "TextGenerate",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "prompt": [
+          "1011",
+          0
+        ],
+        "max_length": 251161685108094,
+        "sampling_mode": "on",
+        "sampling_mode.temperature": 0.7,
+        "sampling_mode.top_k": 64,
+        "sampling_mode.top_p": 0.95,
+        "sampling_mode.min_p": 0.05,
+        "sampling_mode.repetition_penalty": 1.05,
+        "sampling_mode.seed": 0,
+        "sampling_mode.presence_penalty": 0,
+        "thinking": 1024,
+        "use_default_template": true
+      }
+    },
+    "1011": {
+      "class_type": "StringConcatenate",
+      "inputs": {
+        "string_a": [
+          "1012",
+          0
+        ],
+        "string_b": [
+          "1013",
+          0
+        ],
+        "delimiter": ""
+      }
+    },
+    "1012": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": "You are an expert prompt engineer for text-to-image models. Your task is to expand the user's prompt into a highly effective image-generation prompt.\n\nThink step by step about the request before writing the answer:\n- What is the subject and mood?\n- What visual styles, mediums, and lighting options would fit? Consider two or three alternatives and pick the one that best serves the caption.\n- What composition, framing, and grounded details will help the text-to-image model?\n\nThen output a single expanded prompt paragraph.\n\nFollow these rules strictly:\n1. **Faithfulness First:** Preserve all original subjects, actions, colors, and spatial relationships. Do not add new objects, props, characters, or animals unless the user clearly implies them.\n2. **Practical T2I Structure:** Write a prompt that a text-to-image model can parse cleanly. Group subjects with their own attributes and actions. Use grounded phrasing for poses, interactions, and spatial layout.\n3. **Style Planning Stays Internal:** Use your internal reasoning to choose style, medium, framing, and lighting. Do not emit planning tags or wrappers in the visible answer body.\n4. **Text Rendering:** If the user requests visible text, quotes, labels, or typography, specify the exact text clearly and wrap requested words in quotes.\n5. **Avoid Over-Specification:** Do not invent highly specific clothing, colors, materials, or scene details unless the input supports them.\n6. **Structure:** Write one cohesive paragraph after the thinking block. No bullets, JSON, or markdown.\n7. **Respect Existing Detail:** If the user's prompt is already detailed, lightly polish and finalize rather than heavily expanding — preserve their phrasing and direction.\n8. **Respect the Human Form:** Treat depictions of people with dignity. Assume clothing covers genitals and intimate anatomy.\n9. **Preserve User Medium:** When the user explicitly requests a medium (e.g. \"photo of\", \"photograph of\", \"illustration of\", \"painting of\", \"sketch of\", \"3D render of\"), honor it. Do not pivot to a different medium to avoid difficulty — match the user's stated intent.\n\nUser's Input:\n\n"
+      }
+    },
+    "1013": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": 512
+      }
+    },
+    "1014": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "1015",
+          0
+        ]
+      }
+    },
+    "1015": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "on_false": [
+          "1013",
+          0
+        ],
+        "on_true": [
+          "1010",
+          0
+        ],
+        "switch": [
+          "1016",
+          0
+        ]
+      }
+    },
+    "1016": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": 1024
+      }
+    },
+    "1017": {
+      "class_type": "TextEncodeQwenImageEditPlus",
+      "inputs": {
+        "clip": [
+          "1006",
+          0
+        ],
+        "vae": [
+          "1007",
+          0
+        ],
+        "image1": [
+          "69",
+          0
+        ],
+        "image2": false,
+        "image3": false,
+        "prompt": [
+          "1014",
+          0
+        ]
+      }
+    },
+    "1018": {
+      "class_type": "FluxKontextMultiReferenceLatentMethod",
+      "inputs": {
+        "conditioning": [
+          "1017",
+          0
+        ],
+        "reference_latents_method": "index_timestep_zero"
+      }
+    },
+    "1019": {
+      "class_type": "CFGGuider",
+      "inputs": {
+        "model": [
+          "1026",
+          0
+        ],
+        "positive": [
+          "1018",
+          0
+        ],
+        "negative": [
+          "1008",
+          0
+        ],
+        "cfg": 1
+      }
+    },
+    "1020": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "1025",
+          0
+        ],
+        "guider": [
+          "1019",
+          0
+        ],
+        "sampler": [
+          "1021",
+          0
+        ],
+        "sigmas": [
+          "1022",
+          0
+        ],
+        "latent_image": [
+          "1023",
+          0
+        ]
+      }
+    },
+    "1021": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler"
+      }
+    },
+    "1022": {
+      "class_type": "BasicScheduler",
+      "inputs": {
+        "model": [
+          "1026",
+          0
+        ],
+        "scheduler": "simple",
+        "steps": 8,
+        "denoise": 1
+      }
+    },
+    "1023": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": [
+          "71",
+          0
+        ],
+        "height": [
+          "71",
+          1
+        ],
+        "batch_size": 1
+      }
+    },
+    "1024": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "1020",
+          0
+        ],
+        "vae": [
+          "1007",
+          0
+        ]
+      }
+    },
+    "1025": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": "krea2_turbo_int8_convrot.safetensors"
+      }
+    },
+    "1026": {
+      "class_type": "ModelSamplingFlux",
+      "inputs": {
+        "model": [
+          "1009",
+          0
+        ],
+        "max_shift": 1.15,
+        "base_shift": 0.5,
+        "width": [
+          "71",
+          0
+        ],
+        "height": [
+          "71",
+          1
+        ]
+      }
+    }
+  }
+}

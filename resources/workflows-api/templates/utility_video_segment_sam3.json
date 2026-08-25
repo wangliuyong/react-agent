@@ -1,0 +1,65 @@
+{
+  "prompt": {
+    "1001": {
+      "class_type": "MaskPreview",
+      "inputs": {
+        "mask": [
+          "1004",
+          0
+        ]
+      }
+    },
+    "1002": {
+      "class_type": "LoadVideo",
+      "inputs": {}
+    },
+    "1003": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "clip": [
+          "1005",
+          1
+        ],
+        "text": null
+      }
+    },
+    "1004": {
+      "class_type": "SAM3_Detect",
+      "inputs": {
+        "model": [
+          "1005",
+          0
+        ],
+        "image": [
+          "1006",
+          0
+        ],
+        "conditioning": [
+          "1003",
+          0
+        ],
+        "bboxes": null,
+        "positive_coords": null,
+        "negative_coords": null,
+        "threshold": null,
+        "refine_iterations": null,
+        "individual_masks": null
+      }
+    },
+    "1005": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": null
+      }
+    },
+    "1006": {
+      "class_type": "GetVideoComponents",
+      "inputs": {
+        "video": [
+          "115",
+          0
+        ]
+      }
+    }
+  }
+}
